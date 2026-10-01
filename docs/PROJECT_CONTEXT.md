@@ -33,6 +33,9 @@ Customer shopping routes need `verified.customer`. Cart logic in `CartService` (
 ## Orders (implemented in Step 6)
 Cash on delivery only. `CheckoutService` places orders in one transaction (cart lock, variant locks in id order, `Idempotency-Key` header). `OrderStatusService` is the only place order status changes. Flow pending -> processing -> shipped -> delivered; cancel from pending (customer) or before shipped (staff). Low-stock alerts are in-app database notifications to all staff. Flat shipping fee from `config/shop.php`.
 
+## Returns and reviews (implemented in Step 7)
+Returns: `ReturnService` (14-day window, physical only, partial allowed, one open request per order); stock returns on `refunded`; refunds paid outside the system and recorded (`returns.refund_amount`); order `returned` only when every physical copy is refunded. Reviews: verified purchase = book in a delivered order; published immediately; staff hide/show; rating breakdown on `GET /books/{id}/reviews`.
+
 ## Conventions (apply everywhere)
 BIGINT auto-increment PKs · DECIMAL(10,2) money · soft deletes ONLY on customers, orders, books · timestamps on all tables (log-style tables have only `created_at`) · 3NF, with the one intentional snapshot `order_items.unit_price` · enum-like columns are VARCHAR + CHECK constraints (not Postgres enums) · password column is `password_hash` (models must override `getAuthPasswordName()`).
 
