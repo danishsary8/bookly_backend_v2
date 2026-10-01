@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Customer\AddressController;
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\CartController;
+use App\Http\Controllers\Api\V1\Customer\CheckoutController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
@@ -81,6 +82,9 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::delete('/cart/items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
     // 10 tries per minute so coupon codes cannot be guessed by brute force.
     Route::post('/cart/coupon/check', CouponCheckController::class)->middleware('throttle:10,1');
+
+    Route::post('/checkout/preview', [CheckoutController::class, 'preview'])->middleware('throttle:30,1');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
