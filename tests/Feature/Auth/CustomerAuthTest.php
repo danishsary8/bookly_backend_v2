@@ -161,6 +161,15 @@ class CustomerAuthTest extends TestCase
         $this->postJson('/api/v1/auth/login', ['email' => 'x@example.com', 'password' => 'wrong-pass1'])->assertTooManyRequests();
     }
 
+    public function test_rotating_emails_from_one_ip_is_still_rate_limited(): void
+    {
+        for ($i = 0; $i < 30; $i++) {
+            $this->postJson('/api/v1/auth/login', ['email' => "user{$i}@example.com", 'password' => 'wrong-pass1'])->assertUnauthorized();
+        }
+
+        $this->postJson('/api/v1/auth/login', ['email' => 'another@example.com', 'password' => 'wrong-pass1'])->assertTooManyRequests();
+    }
+
     public function test_tokens_expire_after_seven_days(): void
     {
         Customer::factory()->create(['email' => 'dara@example.com', 'password_hash' => 'secret123']);
