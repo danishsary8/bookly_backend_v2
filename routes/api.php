@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Customer\CheckoutController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
+use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
@@ -90,6 +91,11 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
+    Route::get('/orders/{order}/returnable-items', [ReturnController::class, 'returnable'])->whereNumber('order');
+    Route::post('/orders/{order}/returns', [ReturnController::class, 'store'])->whereNumber('order');
+    Route::get('/returns', [ReturnController::class, 'index']);
+    Route::get('/returns/{return}', [ReturnController::class, 'show'])->whereNumber('return');
+    Route::delete('/returns/{return}', [ReturnController::class, 'destroy'])->whereNumber('return');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
