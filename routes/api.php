@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
+use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
@@ -173,6 +174,14 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
 
     Route::middleware('abilities:admin')->group(function () {
+        Route::get('/members', [StaffMemberController::class, 'index']);
+        Route::post('/members', [StaffMemberController::class, 'store']);
+        Route::patch('/members/{member}', [StaffMemberController::class, 'update']);
+        Route::post('/members/{member}/deactivate', [StaffMemberController::class, 'deactivate']);
+        Route::post('/members/{member}/activate', [StaffMemberController::class, 'activate']);
+        Route::post('/members/{member}/reset-two-factor', [StaffMemberController::class, 'resetTwoFactor']);
+        Route::post('/members/{member}/resend-invitation', [StaffMemberController::class, 'resendInvitation'])->middleware('throttle:otp-send');
+
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
         Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');
         Route::delete('/variants/{variant}', [StaffBookVariantController::class, 'destroy']);
