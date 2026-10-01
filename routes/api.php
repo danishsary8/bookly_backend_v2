@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
+use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
@@ -109,6 +110,10 @@ Route::prefix('staff/auth')->group(function () {
 | Staff features: staff + admin can create/edit, deletes are admin-only.
 */
 Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::get('/notifications', [StaffNotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [StaffNotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead'])->whereUuid('notification');
+
     Route::get('/books', [StaffBookController::class, 'index']);
     Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book');
     Route::post('/books', [StaffBookController::class, 'store']);

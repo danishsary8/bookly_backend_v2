@@ -72,6 +72,7 @@ Owner decisions (final): flat shipping fee when the order has any hardcover/pape
 Agent choices (owner may change): flat fee $2.00 (`SHIPPING_FLAT_FEE`); an address is required for every order, digital-only too, because the order's address snapshot columns are NOT NULL.
 
 - [x] 6.1 Migration `2026_10_04_100001_add_idempotency_key_to_orders_table` (new file): `orders.idempotency_key` + unique (customer_id, idempotency_key). `config/shop.php` with `shipping_flat_fee`. The existing `OrderStatus::allowedNext()` already fits the flow; staff endpoints will only allow processing/shipped/delivered/cancelled as targets (`paid` is reserved for card payments later, `returned` for the returns step).
+- [x] 6.2 `InventoryService::deductForSale()` (caller holds the variant lock; logs `sale` with `reference_type=order`; returns true only when this sale crosses the low-stock threshold, so staff are alerted once) and `restoreForCancellation()` (locks, logs `adjustment` +qty referencing the order). `LowStockNotification` (database channel only, type `low_stock`, queued after commit). Staff endpoints: `GET /staff/notifications` (`unread=1`), `POST /staff/notifications/{id}/read`, `POST /staff/notifications/read-all`. Tests: `tests/Feature/Orders/LowStockAlertTest.php` (105 total).
 
 ## How to run locally
 ```
