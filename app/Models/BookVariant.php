@@ -13,7 +13,7 @@ class BookVariant extends Model
     use HasFactory;
 
     protected $fillable = [
-        'format', 'isbn', 'sku', 'price_usd', 'stock_quantity', 'low_stock_threshold', 'cover_image_url',
+        'format', 'isbn', 'sku', 'price_usd', 'stock_quantity', 'low_stock_threshold', 'cover_image_url', 'is_active',
     ];
 
     protected function casts(): array
@@ -23,6 +23,7 @@ class BookVariant extends Model
             'price_usd' => 'decimal:2',
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -34,6 +35,17 @@ class BookVariant extends Model
     public function inventoryMovements(): HasMany
     {
         return $this->hasMany(InventoryMovement::class);
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    /** Digital formats never run out; physical ones need stock. */
+    public function isAvailable(): bool
+    {
+        return $this->is_active && ($this->format->isDigital() || $this->stock_quantity > 0);
     }
 
     public function isLowStock(): bool

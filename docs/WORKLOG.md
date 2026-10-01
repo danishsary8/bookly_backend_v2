@@ -47,6 +47,11 @@ Owner decisions (all 7 confirmed): 7-day Sanctum tokens, no refresh tokens · un
 - [x] 3.6 First admin: `php artisan staff:create-admin --name="..." --email=...` (password asked at a hidden prompt, never as an option, so it stays out of shell history). Tests: `CreateAdminCommandTest` (47 total).
 - [x] 3.7 Hardening after self-review: `auth` limiter also caps 30 attempts/min per IP (rotating emails no longer bypasses it); daily `sanctum:prune-expired` in `routes/console.php` (needs the Laravel scheduler cron in production). 48 tests passing.
 
+## Step 4 — Catalog API (branch `feature/catalog-api`)
+Owner decisions: image URLs only (no upload yet) · 20 per page (max 100) with full filters/sorts · `price_khr` next to `price_usd` from the latest USD->KHR rate (null if none) · staff + admin edit, only admin deletes · `book_variants.is_active` (new migration), ordered variants cannot be hard-deleted · publishers + series included · books without an active variant are hidden from the public catalog · stock may be set on variant create/edit and every change is logged in `inventory_movements` · catalog changes are written to `admin_audit_logs`.
+
+- [x] 4.1 Migration `2026_10_02_100001_add_is_active_to_book_variants_table` (new file; existing migrations untouched). `BookVariant::isAvailable()` = active and (digital format or stock > 0).
+
 ## How to run locally
 ```
 composer install
