@@ -56,10 +56,29 @@ class Book extends Model
         return $this->hasMany(Review::class);
     }
 
+    public function activeVariants(): HasMany
+    {
+        return $this->hasMany(BookVariant::class)->where('is_active', true);
+    }
+
+    public function approvedReviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->where('is_approved', true);
+    }
+
+    /** Books customers can see: at least one active format. */
+    public function scopeVisible(Builder $query): Builder
+    {
+        return $query->whereHas('variants', fn (Builder $q) => $q->where('is_active', true));
+    }
+
     public function scopeSearch(Builder $query, string $term): Builder
     {
-        return $query
-            ->whereRaw("search_vector @@ plainto_tsquery('english', ?)", [$term])
-            ->orderByRaw("ts_rank(search_vector, plainto_tsquery('english', ?)) DESC", [$term]);
+        return $query->whereRaw("search_vector @@ plainto_tsquery('english', ?)", [$term]);
+    }
+
+    public function scopeOrderByRelevance(Builder $query, string $term): Builder
+    {
+        return $query->orderByRaw("ts_rank(search_vector, plainto_tsquery('english', ?)) DESC", [$term]);
     }
 }

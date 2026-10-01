@@ -4,9 +4,26 @@ use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthControlle
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
+use App\Http\Controllers\Api\V1\Catalog\AuthorController;
+use App\Http\Controllers\Api\V1\Catalog\BookController;
+use App\Http\Controllers\Api\V1\Catalog\CategoryController;
+use App\Http\Controllers\Api\V1\Catalog\PublisherController;
+use App\Http\Controllers\Api\V1\Catalog\SeriesController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v1']));
+
+/*
+| Public catalog (no login needed)
+*/
+Route::get('/books', [BookController::class, 'index']);
+Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
+Route::get('/authors', [AuthorController::class, 'index']);
+Route::get('/authors/{author}', [AuthorController::class, 'show'])->whereNumber('author');
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/publishers', [PublisherController::class, 'index']);
+Route::get('/series', [SeriesController::class, 'index']);
+Route::get('/series/{series}', [SeriesController::class, 'show'])->whereNumber('series');
 
 /*
 | Customer authentication

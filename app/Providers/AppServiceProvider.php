@@ -11,7 +11,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // One instance per request so the exchange rate is read once, not per book.
+        $this->app->scoped(\App\Services\CurrencyService::class);
     }
 
     public function boot(): void
