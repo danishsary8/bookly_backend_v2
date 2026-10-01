@@ -93,6 +93,28 @@ class StaffAuthTest extends TestCase
         $this->postJson('/api/v1/staff/auth/two-factor/challenge', ['challenge_token' => $old, 'code' => $this->code()])->assertUnauthorized();
     }
 
+    public function test_wrong_2fa_codes_are_limited_per_account_not_per_ip(): void
+    {
+        StaffUser::factory()->withTwoFactor(self::SECRET)->create(['email' => 's@shop.test', 'password_hash' => 'secret123']);
+        $wrong = $this->code() === '000000' ? '111111' : '000000';
+
+        // A new IP and a new challenge for every guess: only the per-account count can stop this.
+        $attempt = function (int $ip, string $code) {
+            $this->withServerVariables(['REMOTE_ADDR' => "198.51.100.{$ip}"]);
+            $challenge = $this->postJson('/api/v1/staff/auth/login', ['email' => 's@shop.test', 'password' => 'secret123'])->json('challenge_token');
+
+            return $this->postJson('/api/v1/staff/auth/two-factor/challenge', ['challenge_token' => $challenge, 'code' => $code]);
+        };
+
+        for ($i = 1; $i <= 5; $i++) {
+            $attempt($i, $wrong)->assertUnprocessable();
+        }
+        $attempt(50, $this->code())->assertTooManyRequests()->assertHeader('Retry-After');
+
+        $this->travel(16)->minutes();
+        $attempt(51, $this->code())->assertOk()->assertJsonStructure(['token']);
+    }
+
     public function test_admin_only_routes_reject_regular_staff(): void
     {
         $staff = StaffUser::factory()->withTwoFactor()->create();

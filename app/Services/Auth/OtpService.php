@@ -7,10 +7,13 @@ use App\Models\Customer;
 use App\Models\StaffUser;
 use App\Models\VerificationToken;
 use App\Notifications\OtpCodeNotification;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 
 class OtpService
 {
+    public const MAX_WRONG_GUESSES = 5;
+
     public function issue(Customer|StaffUser $user, VerificationPurpose $purpose): void
     {
         $this->tokensFor($user, $purpose)->whereNull('used_at')->update(['used_at' => now()]);
@@ -29,7 +32,10 @@ class OtpService
         $user->notify(new OtpCodeNotification($code, $purpose, $ttl));
     }
 
-    /** Consumes the code on success so it cannot be reused. */
+    /**
+     * Consumes the code on success so it cannot be reused. After MAX_WRONG_GUESSES wrong codes the code is
+     * thrown away, whatever IP the guesses came from, so a 6-digit code cannot be guessed from many machines.
+     */
     public function verify(Customer|StaffUser $user, VerificationPurpose $purpose, string $code): bool
     {
         $token = $this->tokensFor($user, $purpose)
@@ -38,7 +44,19 @@ class OtpService
             ->latest('id')
             ->first();
 
-        if ($token === null || ! Hash::check($code, $token->code_hash)) {
+        if ($token === null) {
+            return false;
+        }
+
+        if (! Hash::check($code, $token->code_hash)) {
+            $wrong = Cache::increment($key = "otp-wrong:{$token->id}");
+            if ($wrong === 1) {
+                Cache::put($key, 1, $token->expires_at);
+            }
+            if ($wrong >= self::MAX_WRONG_GUESSES) {
+                $token->update(['used_at' => now()]);
+            }
+
             return false;
         }
 
