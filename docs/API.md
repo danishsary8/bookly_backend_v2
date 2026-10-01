@@ -166,3 +166,43 @@ When every physical copy of an order has been refunded, the order becomes `retur
 | POST | /staff/reviews/{id}/show | staff | note? |
 
 Public review shape: `{id, book_id, rating, comment, reviewer_name ("Sok D."), verified_purchase, created_at, updated_at}`.
+
+## Admin (admin token + 2FA unless noted)
+Deactivated staff and customers get 403 "This account has been deactivated. Please contact support." when logging in (after a correct password).
+
+### Staff members
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| GET | /staff/members | `q` (name/email), `role` (admin\|staff), `active`, `per_page` — `{id, name, email, role, two_factor_enabled, is_active, created_at, updated_at}` |
+| POST | /staff/members | name, email, role — emails a 6-digit setup code valid 72 h; the new member calls `POST /staff/auth/reset-password {email, code, password, password_confirmation}`, then logs in and sets up 2FA |
+| PATCH | /staff/members/{id} | name?, role? — a role change signs the member out everywhere |
+| POST | /staff/members/{id}/deactivate | signs them out, blocks login |
+| POST | /staff/members/{id}/activate | |
+| POST | /staff/members/{id}/reset-two-factor | lost phone: 2FA off, signed out; they set it up again at next login |
+| POST | /staff/members/{id}/resend-invitation | new 72 h setup code (3 per 10 min) |
+
+Rules (422 on `staff`): you cannot change your own role, deactivate or reset yourself; the last active admin can never be demoted or deactivated.
+
+### Customers
+| Method | Path | Auth | Body / notes |
+| --- | --- | --- | --- |
+| GET | /staff/customers | staff | `q` (name/email/phone), `active`, `verified`, `per_page` — includes `orders_count`, `login_methods` |
+| GET | /staff/customers/{id} | staff | adds `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd, last_order_at}` and `recent_orders` (5) |
+| POST | /staff/customers/{id}/deactivate | admin | signs them out, blocks login |
+| POST | /staff/customers/{id}/activate | admin | |
+
+### Exchange rates and audit log
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| GET | /staff/exchange-rates | USD->KHR history with `is_current`; `meta.current_rate` |
+| POST | /staff/exchange-rates | rate (> 0, up to 6 decimals), effective_at? (default now; a future date schedules the change) |
+| GET | /staff/audit-logs | `staff_user_id`, `action` (e.g. `book_variant.updated`), `entity_type`, `entity_id`, `from`, `to`, `per_page` (50) — `{id, staff {id,name,email}, action, entity_type, entity_id, before, after, created_at}`; `meta.entity_types` lists filter values |
+
+### Dashboard
+Query for both: `period` = today \| 7d \| 30d (default) \| custom with `from` and `to` (YYYY-MM-DD, max 366 days). Days follow `SHOP_TIMEZONE` (default Asia/Phnom_Penh).
+| Method | Path | Returns |
+| --- | --- | --- |
+| GET | /staff/dashboard/summary | `period`, `revenue {gross_usd, refunds_usd, net_usd}`, `delivered_orders`, `average_order_value_usd`, `orders_placed`, `orders_by_status`, `new_customers`, `best_sellers[{book_id, title, copies_sold, sales_usd}]` (top 10), `open_returns`, `low_stock[{book_variant_id, book_id, title, format, sku, stock_quantity, low_stock_threshold}]` |
+| GET | /staff/dashboard/sales | one row per day: `{date, orders_placed, gross_revenue_usd, refunds_usd, net_revenue_usd}` (days without sales are 0) |
+
+Revenue is cash basis: an order counts on the day it was delivered (cash on delivery is collected then); a refund counts on the day it was refunded.

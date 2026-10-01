@@ -57,6 +57,10 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 
+        if (! $customer->is_active) {
+            return response()->json(['message' => 'This account has been deactivated. Please contact support.'], 403);
+        }
+
         return response()->json([
             'customer' => new CustomerResource($customer),
             ...$this->issueToken($customer, ['customer']),

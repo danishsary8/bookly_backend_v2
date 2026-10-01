@@ -41,6 +41,10 @@ class SocialAuthController extends Controller
         $customer = Customer::where($column, $profile->getId())->first()
             ?? Customer::where('email', $email)->first();
 
+        if ($customer !== null && ! $customer->is_active) {
+            return response()->json(['message' => 'This account has been deactivated. Please contact support.'], 403);
+        }
+
         $created = $customer === null;
         $customer ??= new Customer(['email' => $email, 'name' => $profile->getName() ?: $email]);
         $customer->forceFill([

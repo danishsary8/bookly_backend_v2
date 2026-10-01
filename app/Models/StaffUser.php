@@ -13,7 +13,7 @@ class StaffUser extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password_hash', 'role', 'two_factor_secret', 'two_factor_enabled'];
+    protected $fillable = ['name', 'email', 'password_hash', 'role', 'two_factor_secret', 'two_factor_enabled', 'is_active'];
 
     protected $hidden = ['password_hash', 'two_factor_secret'];
 
@@ -24,6 +24,7 @@ class StaffUser extends Authenticatable
             'password_hash' => 'hashed',
             'two_factor_secret' => 'encrypted',
             'two_factor_enabled' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 

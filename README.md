@@ -8,7 +8,7 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 ![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-144%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-165%20passing-2ea44f)
 
 ## Features
 
@@ -35,6 +35,10 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 - In-app low-stock alerts
 - Returns workflow: approve, reject, refund (stock goes back automatically, partial refunds add up exactly)
 - Review moderation (hide / show)
+- Admin: invite staff (they set their own password), roles, deactivation, 2FA reset, with safeguards so admins can't lock themselves out
+- Admin dashboard: revenue (cash basis, Phnom Penh days), best sellers, orders by status, low stock, daily sales series
+- Customer lookup with lifetime stats, account deactivation
+- USD/KHR exchange rate management and an audit log viewer
 - Staff can create and edit; deleting is admin-only and blocked when it would break history
 
 ## Tech stack
@@ -121,6 +125,7 @@ Base path: `/api/v1`. Full endpoint reference: [docs/API.md](docs/API.md).
 | Staff orders | `GET /staff/orders`, `POST /staff/orders/{id}/status`, `GET /staff/notifications` |
 | Returns | `POST /orders/{id}/returns`, `POST /staff/returns/{id}/refund` |
 | Reviews | `GET /books/{id}/reviews`, `POST /books/{id}/reviews`, `POST /staff/reviews/{id}/hide` |
+| Admin | `GET /staff/dashboard/summary?period=7d`, `GET /staff/dashboard/sales`, `POST /staff/members`, `GET /staff/audit-logs`, `POST /staff/exchange-rates` |
 
 Example: search the catalog
 
@@ -184,7 +189,7 @@ Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECR
 php artisan test
 ```
 
-144 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
+165 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
 
 ## Project status and roadmap
 
@@ -194,7 +199,7 @@ php artisan test
 - [x] Addresses, cart, wishlist and coupons
 - [x] Checkout, orders and stock deduction (cash on delivery)
 - [x] Returns and verified-purchase reviews
-- [ ] Admin dashboard, staff management, exchange rates
+- [x] Admin dashboard, staff management, customer management, exchange rates, audit log viewer
 - [ ] Card, PayPal and Bakong KHQR payments with webhooks
 - [ ] Structured logging and error tracking
 

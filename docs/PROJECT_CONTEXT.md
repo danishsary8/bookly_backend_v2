@@ -36,6 +36,9 @@ Cash on delivery only. `CheckoutService` places orders in one transaction (cart 
 ## Returns and reviews (implemented in Step 7)
 Returns: `ReturnService` (14-day window, physical only, partial allowed, one open request per order); stock returns on `refunded`; refunds paid outside the system and recorded (`returns.refund_amount`); order `returned` only when every physical copy is refunded. Reviews: verified purchase = book in a delivered order; published immediately; staff hide/show; rating breakdown on `GET /books/{id}/reviews`.
 
+## Admin (implemented in Step 8)
+Admin-only routes sit inside the staff group under `abilities:admin`. Staff and customers have `is_active` (deactivate instead of delete; login refused, tokens revoked). `StaffManagementService` enforces: no self role change/deactivation/2FA reset, never zero active admins, role change revokes tokens. New staff get a 72 h setup code and use the normal staff reset-password endpoint. Dashboard (`DashboardService`) is cash basis in `SHOP_TIMEZONE`. USD->KHR rates are entered by admins (history kept).
+
 ## Conventions (apply everywhere)
 BIGINT auto-increment PKs · DECIMAL(10,2) money · soft deletes ONLY on customers, orders, books · timestamps on all tables (log-style tables have only `created_at`) · 3NF, with the one intentional snapshot `order_items.unit_price` · enum-like columns are VARCHAR + CHECK constraints (not Postgres enums) · password column is `password_hash` (models must override `getAuthPasswordName()`).
 
