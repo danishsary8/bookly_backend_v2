@@ -123,4 +123,12 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    | Proxies / load balancers allowed to tell us the visitor's real IP and whether the request was HTTPS
+    | (X-Forwarded-* headers). REMOTE_ADDR = trust only the machine directly in front of the app, whatever
+    | its IP: right on Railway/Render, where every request comes through their edge. On a VPS, list the
+    | proxy IPs/CIDRs, comma separated. Empty = trust nobody (app reachable directly, no proxy).
+    | Avoid '*': it trusts every address in X-Forwarded-For, so visitors could fake their IP and dodge rate limits.
+    */
+    'trusted_proxies' => env('TRUSTED_PROXIES', 'REMOTE_ADDR'),
 ];

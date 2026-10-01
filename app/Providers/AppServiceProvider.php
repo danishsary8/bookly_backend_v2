@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\CurrencyService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -18,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Real visitor IP + HTTPS detection behind the host's load balancer (config/app.php, TRUSTED_PROXIES).
+        $proxies = trim((string) config('app.trusted_proxies'));
+        TrustProxies::at($proxies === '*' ? '*' : array_values(array_filter(array_map('trim', explode(',', $proxies)))));
+
         // Every API route: 120 requests per minute per logged-in user, or per IP for guests.
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)
             ->by($request->user() ? class_basename($request->user()).':'.$request->user()->getKey() : 'ip:'.$request->ip()));
