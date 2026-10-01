@@ -8,7 +8,7 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 ![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-165%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-193%20passing-2ea44f)
 
 ## Features
 
@@ -40,6 +40,15 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 - Customer lookup with lifetime stats, account deactivation
 - USD/KHR exchange rate management and an audit log viewer
 - Staff can create and edit; deleting is admin-only and blocked when it would break history
+- Orders CSV export for a date range (opens correctly in Excel, safe against formula injection)
+
+**Running it in production**
+- Interactive API docs at `/docs` (OpenAPI 3, kept in sync with the routes by a test)
+- JSON logs to stdout with a request ID on every line and every response (`X-Request-Id`)
+- Server errors reported to Sentry with the user id only (no names, emails, tokens or request bodies)
+- `GET /api/v1/health` for uptime monitors (database + queue backlog)
+- General rate limit of 120 requests per minute plus stricter limits on login, codes, checkout and reviews
+- CORS limited to the frontend, standard security headers, CI with code style check
 
 ## Tech stack
 
@@ -105,13 +114,13 @@ erDiagram
 - **History is never lost.** Orders keep a copy of the shipping address and the price paid. Formats that were ordered can be deactivated but not deleted. Books are soft-deleted.
 - **Stock has one entry point.** Every change goes through `InventoryService`, which locks the row and writes an `inventory_movements` entry.
 - **Database-level rules.** CHECK constraints for statuses, formats, ratings and prices; unique constraints such as one format per book.
-- **Security.** OTP codes are stored hashed and are single-use; staff TOTP codes cannot be replayed; login and code endpoints are rate-limited per email and per IP; customer and staff tokens carry different abilities so neither can reach the other's routes.
+- **Security.** OTP codes are stored hashed, single-use and die after 5 wrong guesses; staff TOTP codes cannot be replayed and wrong codes are limited per account; login and code endpoints are rate-limited per email and per IP; Google/Facebook tokens must be issued to this app; customer and staff tokens carry different abilities so neither can reach the other's routes. A full review of all routes is written up in [docs/WORKLOG.md](docs/WORKLOG.md) (step 9.8).
 - **Safe checkout.** Placing an order locks the cart and the books in a fixed order, so two people buying the last copy at the same time get one order and one clear "not enough stock" error (checked with real parallel requests). An idempotency key stops a double click from creating two orders.
 - **Performance.** The book list loads in a fixed number of queries regardless of page size (covered by a test).
 
 ## API overview
 
-Base path: `/api/v1`. Full endpoint reference: [docs/API.md](docs/API.md).
+Base path: `/api/v1`. Interactive docs: run the app and open `/docs`. Full endpoint reference: [docs/API.md](docs/API.md).
 
 | Area | Examples |
 | --- | --- |
@@ -125,7 +134,8 @@ Base path: `/api/v1`. Full endpoint reference: [docs/API.md](docs/API.md).
 | Staff orders | `GET /staff/orders`, `POST /staff/orders/{id}/status`, `GET /staff/notifications` |
 | Returns | `POST /orders/{id}/returns`, `POST /staff/returns/{id}/refund` |
 | Reviews | `GET /books/{id}/reviews`, `POST /books/{id}/reviews`, `POST /staff/reviews/{id}/hide` |
-| Admin | `GET /staff/dashboard/summary?period=7d`, `GET /staff/dashboard/sales`, `POST /staff/members`, `GET /staff/audit-logs`, `POST /staff/exchange-rates` |
+| Admin | `GET /staff/dashboard/summary?period=7d`, `GET /staff/dashboard/sales`, `POST /staff/members`, `GET /staff/audit-logs`, `POST /staff/exchange-rates`, `GET /staff/orders/export` |
+| Platform | `GET /health`, `GET /ping` |
 
 Example: search the catalog
 
@@ -177,11 +187,13 @@ CREATE DATABASE bookshop_v2_test OWNER bookshop;
 ```bash
 php artisan migrate
 php artisan staff:create-admin      # first admin account (password is asked for)
-php artisan serve                   # http://localhost:8000/api/v1/ping
+php artisan serve                   # http://localhost:8000/api/v1/ping, docs at http://localhost:8000/docs
 php artisan queue:work              # sends verification emails
 ```
 
-Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECRET` and `FACEBOOK_CLIENT_ID/SECRET` for social login.
+Want sample data? `php artisan db:seed --class=DemoSeeder` adds 20 books, 5 customers and a month of orders (never in production). Logins: `admin@bookly.test`, `staff@bookly.test`, `demo@bookly.test`, password `Password123!` (staff set up 2FA at first login).
+
+Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECRET` and `FACEBOOK_CLIENT_ID/SECRET` for social login (off until set), `CORS_ALLOWED_ORIGINS` for the frontend URL, `SENTRY_LARAVEL_DSN` for error tracking. In production also set `APP_DEBUG=false`, `LOG_CHANNEL=json_stdout` and `LOG_REQUESTS=true`.
 
 ## Running the tests
 
@@ -189,7 +201,7 @@ Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECR
 php artisan test
 ```
 
-165 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
+193 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
 
 ## Project status and roadmap
 
@@ -200,8 +212,9 @@ php artisan test
 - [x] Checkout, orders and stock deduction (cash on delivery)
 - [x] Returns and verified-purchase reviews
 - [x] Admin dashboard, staff management, customer management, exchange rates, audit log viewer
+- [x] Production readiness: JSON logs + request IDs, Sentry, health check, rate limits, OpenAPI docs, CSV export, demo data, security review
 - [ ] Card, PayPal and Bakong KHQR payments with webhooks
-- [ ] Structured logging and error tracking
+- [ ] Deployment (hosting, HTTPS, queue worker, scheduler)
 
 Progress notes for each step are kept in [docs/WORKLOG.md](docs/WORKLOG.md).
 

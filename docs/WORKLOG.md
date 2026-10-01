@@ -116,6 +116,7 @@ Owner decisions: JSON logs to stdout + request ID · Sentry for server errors on
   5. **Low** — no security headers: `SecurityHeaders` middleware (nosniff, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, deny-all CSP on API responses, HSTS over HTTPS).
   6. **Low** — cover/photo URLs accepted `data:`/`ftp:`: now http/https only.
   Tested: a 500 with `APP_DEBUG=false` returns only `{"message":"Server Error"}` (+ `X-Request-Id`). Accepted for now (owner's call later): registration says when an email is already taken (normal shop UX, rate limited); staff tokens last 7 days like customer tokens; trusted proxies must be set at deploy time. Tests: `SecurityHeadersTest` + new cases in auth/social/catalog tests (193 total).
+- [x] 9.9 Docs: `API.md` (platform section with /ping and /health, `/docs`, `X-Request-Id`, CORS and exposed headers, full rate-limit list, social login and code-guess rules, orders export, http/https URLs); README (features incl. production section, demo seeder logins, production `.env` values, 193 tests, roadmap); `PROJECT_CONTEXT.md` (Step 9 summary); `NEXT_STEP.md` rewritten for Step 10 deployment (12 decisions).
 
 ## How to run locally
 ```

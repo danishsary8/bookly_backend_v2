@@ -6,7 +6,7 @@ Owner: a software-dev student becoming an API developer. Explain step by step, w
 Full rebuild of the legacy PHP backend (V1, folder `book-ecommerce-server/`, plain PHP + Postgres + custom JWT) as V2: Laravel + PostgreSQL, clean 3NF schema, general e-commerce + bookshop features. Backend first; frontend V2 comes later. V1 is never modified.
 
 ## Stack (confirmed)
-Laravel 13 (PHP 8.3) · PostgreSQL 16 · REST `/api/v1/` · Laravel Sanctum tokens · 2FA for staff · database queue driver (`QUEUE_CONNECTION=database`) · Postgres full-text search (generated `tsvector` on `books`) · Sentry + structured logging (not wired yet) · PHPUnit. Deployment target undecided.
+Laravel 13 (PHP 8.3) · PostgreSQL 16 · REST `/api/v1/` · Laravel Sanctum tokens · 2FA for staff · database queue driver (`QUEUE_CONNECTION=database`) · Postgres full-text search (generated `tsvector` on `books`) · Sentry + JSON stdout logging with request IDs · PHPUnit + Pint in CI. Deployment target undecided.
 
 ## Requirements (confirmed)
 - Roles: customer, admin, staff (inventory). Staff table separate from customers.
@@ -38,6 +38,9 @@ Returns: `ReturnService` (14-day window, physical only, partial allowed, one ope
 
 ## Admin (implemented in Step 8)
 Admin-only routes sit inside the staff group under `abilities:admin`. Staff and customers have `is_active` (deactivate instead of delete; login refused, tokens revoked). `StaffManagementService` enforces: no self role change/deactivation/2FA reset, never zero active admins, role change revokes tokens. New staff get a 72 h setup code and use the normal staff reset-password endpoint. Dashboard (`DashboardService`) is cash basis in `SHOP_TIMEZONE`. USD->KHR rates are entered by admins (history kept).
+
+## Production readiness (implemented in Step 9)
+`AssignRequestId` (global, first) sets `X-Request-Id` and shares it with every log line; production uses `LOG_CHANNEL=json_stdout`, `LOG_REQUESTS=true`. Sentry (`SENTRY_LARAVEL_DSN`) gets 5xx only, scrubbed by `App\Support\SentryBeforeSend` (user id/type only). `api` rate limiter 120/min per user or IP on every route. `GET /api/v1/health` (db + queue backlog). Admin CSV export `GET /staff/orders/export`. `public/openapi.yaml` + Swagger UI at `/docs`; `OpenApiSpecTest` fails when a route is not documented, so every new endpoint must be added there too. `DemoSeeder` (manual only). CI: `code-style` job (`pint --test`) + PHP 8.3/8.4/8.5 tests. Security: `SecurityHeaders` middleware, CORS from `CORS_ALLOWED_ORIGINS`, emailed codes die after 5 wrong guesses, staff 2FA wrong codes limited per account, social tokens verified as issued to our app (`SocialTokenVerifier`), cover/photo URLs http(s) only.
 
 ## Conventions (apply everywhere)
 BIGINT auto-increment PKs · DECIMAL(10,2) money · soft deletes ONLY on customers, orders, books · timestamps on all tables (log-style tables have only `created_at`) · 3NF, with the one intentional snapshot `order_items.unit_price` · enum-like columns are VARCHAR + CHECK constraints (not Postgres enums) · password column is `password_hash` (models must override `getAuthPasswordName()`).

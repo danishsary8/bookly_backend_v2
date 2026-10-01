@@ -1,7 +1,19 @@
 # API Reference (v1)
 
 Base URL: `/api/v1`. Send `Accept: application/json`. Authenticated calls send `Authorization: Bearer <token>`.
-Errors: `{"message": "..."}`; validation errors are 422 with `{"message", "errors": {"field": ["..."]}}`. 401 = not logged in / bad credentials, 403 = not allowed (wrong token type, email not verified, 2FA not set up), 429 = rate limited.
+Errors: `{"message": "..."}`; validation errors are 422 with `{"message", "errors": {"field": ["..."]}}`. 401 = not logged in / bad credentials, 403 = not allowed (wrong token type, email not verified, 2FA not set up), 429 = rate limited (see `Retry-After`). A 500 only says `{"message": "Server Error"}`.
+
+Interactive reference: open **`/docs`** (Swagger UI over `/openapi.yaml`). A test fails if a route is added without documenting it there.
+
+Every response carries **`X-Request-Id`** (a UUID, or your own `X-Request-Id` if you send a safe one of 8-100 chars `A-Z a-z 0-9 . _ -`). It is in every log line and Sentry report, so quote it when reporting a problem.
+
+Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend can read `X-Request-Id`, `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Idempotent-Replayed` and `Content-Disposition`.
+
+## Platform
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | /ping | `{"status":"ok","version":"v1"}` |
+| GET | /health | `{status: ok\|degraded\|down, checks: {database, queue {pending, failed, oldest_pending_seconds}}}`. 503 when the database is down; `degraded` when a queued job has waited over 10 minutes (worker not running). For uptime monitors. |
 
 ## Customer auth
 | Method | Path | Body | Notes |
@@ -9,11 +21,11 @@ Errors: `{"message": "..."}`; validation errors are 422 with `{"message", "error
 | POST | /auth/register | name, email, password, password_confirmation, phone? | 201 + token. Emails a 6-digit code. |
 | POST | /auth/login | email, password | token (7 days) |
 | POST | /auth/logout | — | auth |
-| POST | /auth/verify-email | code | auth |
+| POST | /auth/verify-email | code | auth. A code is thrown away after 5 wrong guesses (ask for a new one) |
 | POST | /auth/resend-verification | — | auth, 3 per 10 min |
 | POST | /auth/forgot-password | email | always 200 |
 | POST | /auth/reset-password | email, code, password, password_confirmation | revokes all tokens |
-| POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 existing, account auto-linked by email |
+| POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 existing, linked by email. 401 unless the token was issued to our app (`GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID`; off until set). Google email must be verified by Google (else 422). Linking to an account whose email was never verified removes its password and sessions. |
 | GET | /me | — | auth |
 | PATCH | /me | name?, phone? | auth |
 | PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions |
@@ -25,7 +37,7 @@ Unverified customers can log in but shopping routes return 403 "Please verify yo
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
 | POST | /staff/auth/login | email, password | 2FA on: `{two_factor_required: true, challenge_token}`. 2FA off: token + `two_factor_setup_required: true` |
-| POST | /staff/auth/two-factor/challenge | challenge_token, code | returns token. Challenge valid 5 min, single use |
+| POST | /staff/auth/two-factor/challenge | challenge_token, code | returns token. Challenge valid 5 min, single use. 5 wrong codes on the account (from any IP) = 429 for 15 min |
 | POST | /staff/auth/two-factor/setup | — | auth; returns `secret` + `otpauth_uri` (render as QR) |
 | POST | /staff/auth/two-factor/confirm | code | auth; enables 2FA |
 | GET | /staff/auth/me | — | auth |
@@ -36,7 +48,7 @@ Unverified customers can log in but shopping routes return 403 "Please verify yo
 Every staff feature route returns 403 `{two_factor_setup_required: true}` until 2FA is confirmed. Admin-only routes need an admin account.
 
 ## Rate limits
-Login/OTP/reset: 5 per minute per email+IP and 30 per minute per IP. Sending codes: 3 per 10 minutes.
+Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP (`X-RateLimit-*` headers; 429 + `Retry-After`). On top of that: login/OTP/reset 5 per minute per email+IP and 30 per minute per IP; sending codes 3 per 10 minutes; checkout, coupon check and posting reviews 10 per minute; checkout preview 30 per minute; orders export 10 per minute. Emailed codes die after 5 wrong guesses; staff 2FA allows 5 wrong codes per account per 15 minutes.
 
 ## Public catalog (no login)
 | Method | Path | Query / notes |
@@ -61,10 +73,10 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | PATCH | /staff/books/{id} | any of the above; `author_ids`/`category_ids` replace the current list |
 | DELETE | /staff/books/{id} | admin; soft delete (hidden from catalog) |
 | POST | /staff/books/{id}/restore | admin |
-| POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url?, is_active? |
+| POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active? |
 | PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment |
 | DELETE | /staff/variants/{id} | admin; 409 if ever ordered (set `is_active=false` instead) |
-| POST / PATCH | /staff/authors, /staff/authors/{id} | name, bio?, photo_url? |
+| POST / PATCH | /staff/authors, /staff/authors/{id} | name, bio?, photo_url? (http/https only) |
 | POST / PATCH | /staff/categories, /staff/categories/{id} | name, slug? (auto from name) |
 | POST / PATCH | /staff/publishers, /staff/publishers/{id} | name (unique) |
 | POST / PATCH | /staff/series, /staff/series/{id} | name, description? |
@@ -206,3 +218,8 @@ Query for both: `period` = today \| 7d \| 30d (default) \| custom with `from` an
 | GET | /staff/dashboard/sales | one row per day: `{date, orders_placed, gross_revenue_usd, refunds_usd, net_revenue_usd}` (days without sales are 0) |
 
 Revenue is cash basis: an order counts on the day it was delivered (cash on delivery is collected then); a refund counts on the day it was refunded.
+
+### Orders export
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | /staff/orders/export | `from`, `to` (YYYY-MM-DD, required, max 366 days, `SHOP_TIMEZONE` days, by `placed_at`). Downloads `orders-<from>-to-<to>.csv` (UTF-8 with BOM for Excel). Columns: order_number, placed_at, status, customer_name, customer_email, items, subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, coupon_code, payment_method, payment_status, shipping_city, shipping_country. Text starting with `= + - @` is prefixed with `'` so spreadsheets do not run it as a formula. 10 per minute. |
