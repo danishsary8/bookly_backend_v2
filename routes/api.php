@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublis
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
+use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
@@ -147,6 +148,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/returns/{return}/approve', [StaffReturnController::class, 'approve'])->whereNumber('return');
     Route::post('/returns/{return}/reject', [StaffReturnController::class, 'reject'])->whereNumber('return');
     Route::post('/returns/{return}/refund', [StaffReturnController::class, 'refund'])->whereNumber('return');
+
+    Route::get('/reviews', [StaffReviewController::class, 'index']);
+    Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review');
+    Route::post('/reviews/{review}/show', [StaffReviewController::class, 'show'])->whereNumber('review');
 
     Route::get('/books', [StaffBookController::class, 'index']);
     Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book');
