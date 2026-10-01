@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Customer\AddressController;
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\CartController;
+use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBook
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
@@ -76,6 +78,8 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::post('/cart/items', [CartController::class, 'addItem']);
     Route::patch('/cart/items/{item}', [CartController::class, 'updateItem'])->whereNumber('item');
     Route::delete('/cart/items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
+    // 10 tries per minute so coupon codes cannot be guessed by brute force.
+    Route::post('/cart/coupon/check', CouponCheckController::class)->middleware('throttle:10,1');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
@@ -119,6 +123,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/publishers/{publisher}', [StaffPublisherController::class, 'update']);
     Route::post('/series', [StaffSeriesController::class, 'store']);
     Route::patch('/series/{series}', [StaffSeriesController::class, 'update']);
+    Route::get('/coupons', [StaffCouponController::class, 'index']);
+    Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show']);
+    Route::post('/coupons', [StaffCouponController::class, 'store']);
+    Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
 
     Route::middleware('abilities:admin')->group(function () {
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
@@ -128,5 +136,6 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::delete('/categories/{category}', [StaffCategoryController::class, 'destroy']);
         Route::delete('/publishers/{publisher}', [StaffPublisherController::class, 'destroy']);
         Route::delete('/series/{series}', [StaffSeriesController::class, 'destroy']);
+        Route::delete('/coupons/{coupon}', [StaffCouponController::class, 'destroy']);
     });
 });
