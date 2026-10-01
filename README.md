@@ -8,7 +8,7 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 ![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-102%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-124%20passing-2ea44f)
 
 ## Features
 
@@ -21,6 +21,7 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 - Wishlist
 - Shopping cart with stock checks, per-item limits and clear warnings when a price, stock level or availability changes after adding
 - Coupon preview against the current cart
+- Checkout with cash on delivery, order history and cancelling pending orders
 
 **Staff and admins**
 - Mandatory two-factor authentication with an authenticator app (TOTP)
@@ -28,6 +29,8 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 - Every stock change is recorded with who made it
 - Every change made by staff is written to an audit log with before/after values
 - Coupon management (percentage or fixed, minimum order, usage limits, validity dates)
+- Order management: processing, shipping, delivery and cancellation, with full status history
+- In-app low-stock alerts
 - Staff can create and edit; deleting is admin-only and blocked when it would break history
 
 ## Tech stack
@@ -95,6 +98,7 @@ erDiagram
 - **Stock has one entry point.** Every change goes through `InventoryService`, which locks the row and writes an `inventory_movements` entry.
 - **Database-level rules.** CHECK constraints for statuses, formats, ratings and prices; unique constraints such as one format per book.
 - **Security.** OTP codes are stored hashed and are single-use; staff TOTP codes cannot be replayed; login and code endpoints are rate-limited per email and per IP; customer and staff tokens carry different abilities so neither can reach the other's routes.
+- **Safe checkout.** Placing an order locks the cart and the books in a fixed order, so two people buying the last copy at the same time get one order and one clear "not enough stock" error (checked with real parallel requests). An idempotency key stops a double click from creating two orders.
 - **Performance.** The book list loads in a fixed number of queries regardless of page size (covered by a test).
 
 ## API overview
@@ -108,7 +112,9 @@ Base path: `/api/v1`. Full endpoint reference: [docs/API.md](docs/API.md).
 | Shopping | `GET /cart`, `POST /cart/items`, `POST /cart/coupon/check`, `GET /wishlist`, `POST /addresses` |
 | Staff auth | `POST /staff/auth/login`, `POST /staff/auth/two-factor/challenge` |
 | Staff catalog | `POST /staff/books`, `POST /staff/books/{id}/variants`, `PATCH /staff/variants/{id}` |
+| Checkout & orders | `POST /checkout/preview`, `POST /checkout` (with `Idempotency-Key`), `GET /orders`, `POST /orders/{id}/cancel` |
 | Staff coupons | `GET /staff/coupons`, `POST /staff/coupons` |
+| Staff orders | `GET /staff/orders`, `POST /staff/orders/{id}/status`, `GET /staff/notifications` |
 
 Example: search the catalog
 
@@ -172,7 +178,7 @@ Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECR
 php artisan test
 ```
 
-102 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
+124 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
 
 ## Project status and roadmap
 
@@ -180,7 +186,7 @@ php artisan test
 - [x] Authentication: customers (email OTP, Google/Facebook) and staff (mandatory TOTP 2FA)
 - [x] Catalog API with search, filters and sorting; staff catalog management with audit log
 - [x] Addresses, cart, wishlist and coupons
-- [ ] Checkout, orders and stock deduction (cash on delivery)
+- [x] Checkout, orders and stock deduction (cash on delivery)
 - [ ] Returns and verified-purchase reviews
 - [ ] Admin dashboard, staff management, exchange rates
 - [ ] Card, PayPal and Bakong KHQR payments with webhooks
