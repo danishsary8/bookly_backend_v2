@@ -129,3 +129,40 @@ Status flow: `pending -> processing -> shipped -> delivered`; `cancelled` only f
 | POST | /staff/notifications/read-all | |
 
 Low-stock alert (`type: low_stock`) is sent to every staff member once, when a sale takes a format to or below its `low_stock_threshold`: `data {book_variant_id, book_id, title, format, sku, stock_quantity, low_stock_threshold, message}`.
+
+## Returns (customer token + verified email)
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| GET | /orders/{id}/returnable-items | `{order_id, returnable_until, can_request_return, reason_unavailable, items[{order_item_id, title, format, purchased_quantity, returnable_quantity}]}` |
+| POST | /orders/{id}/returns | reason, items[{order_item_id, quantity, reason?}] — 201 + return |
+| GET | /returns | own returns, newest first |
+| GET | /returns/{id} | |
+| DELETE | /returns/{id} | withdraw; only while `requested` |
+
+Rules: order must be `delivered`; within `RETURN_WINDOW_DAYS` (default 14) of delivery; physical formats only (ebooks/audiobooks are not returnable); some or all copies, never more than bought minus copies already in requested/approved/refunded returns; one requested/approved return per order at a time. Errors (422): `order` (not delivered, window closed, request in progress, nothing left), `items`.
+Return shape: `{id, order_id, order_number, status (requested|approved|rejected|refunded), reason, items[{id, order_item_id, title, format, quantity, unit_price_usd, reason}], refund_amount_usd, is_refund_final, staff_note, requested_at, resolved_at, can_withdraw}`. Before the refund `refund_amount_usd` is an estimate: the items minus their share of the order's coupon discount (shipping is not refunded).
+
+## Staff returns (staff token + 2FA)
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| GET | /staff/returns | `status`, `q` (order number, customer email or name), `per_page` — adds `customer`, `handled_by` |
+| GET | /staff/returns/{id} | |
+| POST | /staff/returns/{id}/approve | note? — requested -> approved (no stock change yet) |
+| POST | /staff/returns/{id}/reject | note (required) — requested or approved -> rejected |
+| POST | /staff/returns/{id}/refund | note? — approved -> refunded: books back in stock, refund amount saved. Pay the customer back outside the system (cash / bank transfer) |
+
+When every physical copy of an order has been refunded, the order becomes `returned` and its payment `refunded`.
+
+## Reviews
+| Method | Path | Auth | Body / notes |
+| --- | --- | --- | --- |
+| GET | /books/{id}/reviews | public | `sort` (newest\|highest\|lowest), `rating` (1-5), `per_page` (10, max 50). `meta.rating_summary {average, count, distribution {5,4,3,2,1}}` |
+| POST | /books/{id}/reviews | customer, verified | rating (1-5), comment? — 403 unless the book (any format) is in one of your delivered orders, 409 if already reviewed |
+| GET | /reviews | customer, verified | your reviews, incl. hidden ones (`is_visible`) |
+| PATCH | /reviews/{id} | customer, verified | rating?, comment? |
+| DELETE | /reviews/{id} | customer, verified | |
+| GET | /staff/reviews | staff | `visible`, `book_id`, `max_rating`, `q` (comment text) |
+| POST | /staff/reviews/{id}/hide | staff | note? — removes it from the public list and the book's average |
+| POST | /staff/reviews/{id}/show | staff | note? |
+
+Public review shape: `{id, book_id, rating, comment, reviewer_name ("Sok D."), verified_purchase, created_at, updated_at}`.

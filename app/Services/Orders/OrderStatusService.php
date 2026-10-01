@@ -33,6 +33,23 @@ class OrderStatusService
         return $this->transition($order, $to, $staff, $note);
     }
 
+    /**
+     * Called by the returns flow (inside its own transaction, with the order already locked) when every
+     * returnable item has been refunded: the order becomes `returned` and its collected payment `refunded`.
+     */
+    public function markReturned(Order $lockedOrder, StaffUser $staff, ?string $note = null): void
+    {
+        if (! $lockedOrder->status->canTransitionTo(OrderStatus::Returned)) {
+            throw ValidationException::withMessages(['status' => "An order cannot move from {$lockedOrder->status->value} to returned."]);
+        }
+
+        $from = $lockedOrder->status;
+        $lockedOrder->payments()->where('status', PaymentStatus::Succeeded)->update(['status' => PaymentStatus::Refunded]);
+        $lockedOrder->update(['status' => OrderStatus::Returned]);
+        $lockedOrder->statusHistory()->create(['status' => OrderStatus::Returned, 'note' => $note, 'changed_by_staff_id' => $staff->id]);
+        $this->audit->custom($staff, 'status_changed', $lockedOrder, ['status' => $from->value], ['status' => OrderStatus::Returned->value, 'note' => $note]);
+    }
+
     private function transition(Order $order, OrderStatus $to, ?StaffUser $staff, ?string $note, bool $customer = false): Order
     {
         return DB::transaction(function () use ($order, $to, $staff, $note, $customer) {

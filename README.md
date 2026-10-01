@@ -8,7 +8,7 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 ![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-124%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-144%20passing-2ea44f)
 
 ## Features
 
@@ -22,6 +22,8 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 - Shopping cart with stock checks, per-item limits and clear warnings when a price, stock level or availability changes after adding
 - Coupon preview against the current cart
 - Checkout with cash on delivery, order history and cancelling pending orders
+- Return requests within 14 days of delivery (partial returns allowed)
+- Verified-purchase book reviews with a star breakdown
 
 **Staff and admins**
 - Mandatory two-factor authentication with an authenticator app (TOTP)
@@ -31,6 +33,8 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 - Coupon management (percentage or fixed, minimum order, usage limits, validity dates)
 - Order management: processing, shipping, delivery and cancellation, with full status history
 - In-app low-stock alerts
+- Returns workflow: approve, reject, refund (stock goes back automatically, partial refunds add up exactly)
+- Review moderation (hide / show)
 - Staff can create and edit; deleting is admin-only and blocked when it would break history
 
 ## Tech stack
@@ -115,6 +119,8 @@ Base path: `/api/v1`. Full endpoint reference: [docs/API.md](docs/API.md).
 | Checkout & orders | `POST /checkout/preview`, `POST /checkout` (with `Idempotency-Key`), `GET /orders`, `POST /orders/{id}/cancel` |
 | Staff coupons | `GET /staff/coupons`, `POST /staff/coupons` |
 | Staff orders | `GET /staff/orders`, `POST /staff/orders/{id}/status`, `GET /staff/notifications` |
+| Returns | `POST /orders/{id}/returns`, `POST /staff/returns/{id}/refund` |
+| Reviews | `GET /books/{id}/reviews`, `POST /books/{id}/reviews`, `POST /staff/reviews/{id}/hide` |
 
 Example: search the catalog
 
@@ -178,7 +184,7 @@ Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECR
 php artisan test
 ```
 
-124 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
+144 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
 
 ## Project status and roadmap
 
@@ -187,7 +193,7 @@ php artisan test
 - [x] Catalog API with search, filters and sorting; staff catalog management with audit log
 - [x] Addresses, cart, wishlist and coupons
 - [x] Checkout, orders and stock deduction (cash on delivery)
-- [ ] Returns and verified-purchase reviews
+- [x] Returns and verified-purchase reviews
 - [ ] Admin dashboard, staff management, exchange rates
 - [ ] Card, PayPal and Bakong KHQR payments with webhooks
 - [ ] Structured logging and error tracking
