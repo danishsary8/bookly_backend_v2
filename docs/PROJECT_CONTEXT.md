@@ -21,6 +21,9 @@ Laravel 13 (PHP 8.3) · PostgreSQL 16 · REST `/api/v1/` · Laravel Sanctum toke
 - Reviews: 1-5 stars + text, book-level, verified purchase only (via `order_item_id`), one per customer per book.
 - Admin: sales dashboard, staff management (role enum admin|staff), `admin_audit_logs` (before/after jsonb).
 
+## Auth (implemented in Step 3)
+Customer tokens: Sanctum, 7 days, ability `customer`; routes `['auth:sanctum','abilities:customer']`, shopping routes add `verified.customer`. Staff tokens: ability `staff` (+ `admin`); staff feature routes `['auth:sanctum','abilities:staff','staff.2fa']`, admin-only add `abilities:staff,admin`. Details in docs/API.md.
+
 ## Conventions (apply everywhere)
 BIGINT auto-increment PKs · DECIMAL(10,2) money · soft deletes ONLY on customers, orders, books · timestamps on all tables (log-style tables have only `created_at`) · 3NF, with the one intentional snapshot `order_items.unit_price` · enum-like columns are VARCHAR + CHECK constraints (not Postgres enums) · password column is `password_hash` (models must override `getAuthPasswordName()`).
 
