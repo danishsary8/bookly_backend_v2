@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
+use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
@@ -121,6 +122,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/notifications', [StaffNotificationController::class, 'index']);
     Route::post('/notifications/read-all', [StaffNotificationController::class, 'markAllRead']);
     Route::post('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead'])->whereUuid('notification');
+
+    Route::get('/orders', [StaffOrderController::class, 'index']);
+    Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order');
+    Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order');
 
     Route::get('/books', [StaffBookController::class, 'index']);
     Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book');
