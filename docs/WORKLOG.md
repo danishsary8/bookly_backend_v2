@@ -98,6 +98,11 @@ Owner decisions: admin creates staff and the new member sets their own password 
 - [x] 8.5 Dashboard (admin only): `GET /staff/dashboard/summary` and `GET /staff/dashboard/sales` with `period` today|7d|30d (default)|custom (`from`, `to` as Y-m-d, max 366 days). `App\Services\Admin\DashboardService`, cash basis: gross revenue = orders delivered in the period (by the `delivered` history time), refunds = returns refunded in the period, net = gross - refunds; delivered orders, average order value, orders placed + by status, new customers, top 10 best sellers (copies, non-cancelled orders placed in the period), open returns, low-stock list (active physical formats at/below threshold). Day boundaries use `SHOP_TIMEZONE` (default Asia/Phnom_Penh) because timestamps are stored in UTC — an 18:00 UTC delivery counts on the next Phnom Penh day (tested). Daily rows are zero-filled. Tests: `DashboardTest` (165 total).
 - [x] 8.6 Docs: admin endpoints in `docs/API.md`; README features, API table, roadmap and test count; `NEXT_STEP.md` rewritten for Step 9 (production readiness) with 10 owner decisions. Orders CSV export stays postponed (listed there as decision 7).
 
+## Step 9 — Production readiness (branch `feature/production-ready`)
+Owner decisions: JSON logs to stdout + request ID · Sentry for server errors only, user id/type only (no names/emails) · hand-written OpenAPI file + Swagger UI page at /docs · general limit 120 requests/min per user or IP · `GET /api/v1/health` (database + queue) · delete the Laravel template workflows and add a Pint style check · orders CSV export now (admin only) · `DemoSeeder` for the portfolio · deployment target decided later · security review of the whole API in this branch.
+
+- [x] 9.1 `AssignRequestId` middleware (global, first): reuses a safe incoming `X-Request-Id` (8-100 chars of A-Z a-z 0-9 . _ -) or creates a UUID, returns it as `X-Request-Id`, and shares it with every log line (`Log::shareContext`). Optional one line per request (`LOG_REQUESTS=true`): method, path, status, duration_ms, user type/id, ip. New log channel `json_stdout` (Monolog JsonFormatter on stdout) for production: `LOG_CHANNEL=json_stdout`. Local/dev logging unchanged. Tests: `tests/Feature/Platform/RequestIdTest.php` (168 total).
+
 ## How to run locally
 ```
 composer install
