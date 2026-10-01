@@ -24,6 +24,9 @@ Laravel 13 (PHP 8.3) · PostgreSQL 16 · REST `/api/v1/` · Laravel Sanctum toke
 ## Auth (implemented in Step 3)
 Customer tokens: Sanctum, 7 days, ability `customer`; routes `['auth:sanctum','abilities:customer']`, shopping routes add `verified.customer`. Staff tokens: ability `staff` (+ `admin`); staff feature routes `['auth:sanctum','abilities:staff','staff.2fa']`, admin-only add `abilities:staff,admin`. Details in docs/API.md.
 
+## Catalog (implemented in Step 4)
+Public catalog shows only books with an active variant. Staff edit, admin deletes. Stock only changes through `InventoryService` (always logged). Staff changes are written to `admin_audit_logs` via `AuditLogger`. `book_variants.is_active` hides a format without deleting it.
+
 ## Conventions (apply everywhere)
 BIGINT auto-increment PKs · DECIMAL(10,2) money · soft deletes ONLY on customers, orders, books · timestamps on all tables (log-style tables have only `created_at`) · 3NF, with the one intentional snapshot `order_items.unit_price` · enum-like columns are VARCHAR + CHECK constraints (not Postgres enums) · password column is `password_hash` (models must override `getAuthPasswordName()`).
 
