@@ -36,6 +36,22 @@ class StaffVariantManagementTest extends TestCase
         $this->getJson("/api/v1/books/{$book->id}")->assertOk()->assertJsonPath('data.formats.0', 'paperback');
     }
 
+    public function test_cover_and_photo_urls_must_be_http_or_https(): void
+    {
+        $token = $this->staffToken();
+        $book = Book::factory()->create();
+        $base = ['format' => 'paperback', 'sku' => 'SKU-URL-1', 'price_usd' => '10.00', 'stock_quantity' => 1];
+
+        foreach (['data://text/html,<script>alert(1)</script>', 'ftp://files.example.com/c.png', 'javascript:alert(1)'] as $bad) {
+            $this->asToken($token)->postJson("/api/v1/staff/books/{$book->id}/variants", [...$base, 'cover_image_url' => $bad])
+                ->assertUnprocessable()->assertJsonValidationErrors('cover_image_url');
+            $this->asToken($token)->postJson('/api/v1/staff/authors', ['name' => 'A', 'photo_url' => $bad])
+                ->assertUnprocessable()->assertJsonValidationErrors('photo_url');
+        }
+
+        $this->asToken($token)->postJson("/api/v1/staff/books/{$book->id}/variants", [...$base, 'cover_image_url' => 'https://cdn.example.com/c.png'])->assertCreated();
+    }
+
     public function test_validation_one_format_per_book_unique_sku_and_price_precision(): void
     {
         $token = $this->staffToken();

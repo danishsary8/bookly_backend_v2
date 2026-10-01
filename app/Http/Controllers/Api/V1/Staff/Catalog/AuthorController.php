@@ -50,7 +50,7 @@ class AuthorController extends Controller
         return $request->validate([
             'name' => [$required, 'string', 'max:150'],
             'bio' => ['nullable', 'string', 'max:5000'],
-            'photo_url' => ['nullable', 'url', 'max:500'],
+            'photo_url' => ['nullable', 'url:http,https', 'max:500'],
         ]);
     }
 }
