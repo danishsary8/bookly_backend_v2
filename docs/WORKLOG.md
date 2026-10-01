@@ -67,6 +67,12 @@ Owner decisions: re-adding a format increases quantity · stock checked when add
 - [x] 5.5 Coupons. Staff: `GET /staff/coupons` (`q`, `active`), `GET /staff/coupons/{id}`, `POST`, `PATCH`, admin-only `DELETE` (409 once used: `used_count > 0` or any order; deactivate instead). Codes are trimmed + uppercased, `alpha_dash`, unique; percentage max 100; `expires_at` after `starts_at`; `used_count` is not editable (checkout will increment it). All changes audited. Customer: `POST /cart/coupon/check {code}` (10/min) returns subtotal, discount and total before shipping in USD + KHR. Rules live in `App\Services\Cart\CouponService::evaluate()` (checkout must call it again): exists, active, started, not expired, under `max_uses`, meets `min_order_amount`, not already used by this customer in a non-cancelled order. `Coupon::orders()` relation added. Tests: `CouponTest` (102 total).
 - [x] 5.6 Docs: shopping + coupon endpoints in `docs/API.md`; `NEXT_STEP.md` rewritten for Step 6 (checkout, orders, cash on delivery) with 10 owner decisions.
 
+## Step 6 — Checkout + orders, cash on delivery (branch `feature/checkout-orders`)
+Owner decisions (final): flat shipping fee when the order has any hardcover/paperback, $0 if all digital · no tax (`tax_amount` 0) · checkout always uses today's price · cart row lock + required `Idempotency-Key` header · stock deducted at order creation, restored on cancel, logged in `inventory_movements` · order number `ORD-YYYYMMDD-XXXXX` · customer cancels only while `pending`, staff any time before `shipped` · flow pending -> processing -> shipped -> delivered, cancelled only from pending/processing · low-stock alerts to all staff, in-app (database) only · after checkout the cart is cleared and a confirmation email is queued.
+Agent choices (owner may change): flat fee $2.00 (`SHIPPING_FLAT_FEE`); an address is required for every order, digital-only too, because the order's address snapshot columns are NOT NULL.
+
+- [x] 6.1 Migration `2026_10_04_100001_add_idempotency_key_to_orders_table` (new file): `orders.idempotency_key` + unique (customer_id, idempotency_key). `config/shop.php` with `shipping_flat_fee`. The existing `OrderStatus::allowedNext()` already fits the flow; staff endpoints will only allow processing/shipped/delivered/cancelled as targets (`paid` is reserved for card payments later, `returned` for the returns step).
+
 ## How to run locally
 ```
 composer install

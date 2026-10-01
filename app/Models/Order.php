@@ -15,7 +15,7 @@ class Order extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'customer_id', 'order_number', 'shipping_address_id',
+        'customer_id', 'order_number', 'idempotency_key', 'shipping_address_id',
         'shipping_recipient_name', 'shipping_phone', 'shipping_address_line1', 'shipping_address_line2',
         'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',
         'coupon_id', 'status', 'subtotal', 'discount_amount', 'shipping_fee', 'tax_amount', 'total_amount',
@@ -35,6 +35,8 @@ class Order extends Model
             'placed_at' => 'datetime',
         ];
     }
+
+    protected $hidden = ['idempotency_key'];
 
     public function customer(): BelongsTo
     {
