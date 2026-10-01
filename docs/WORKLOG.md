@@ -78,6 +78,11 @@ Agent choices (owner may change): flat fee $2.00 (`SHIPPING_FLAT_FEE`); an addre
 - [x] 6.5 Staff orders: `GET /staff/orders` (`status`, `q` = order number / customer email or name, `from`, `to`), `GET /staff/orders/{id}` (customer contact, history with who changed it, `allowed_next_statuses`), `POST /staff/orders/{id}/status {status, note?}`. Staff may set only processing / shipped / delivered / cancelled, and only along the allowed flow; cancel works until shipped. `delivered` on a COD order marks its payment `succeeded`. Each change is in `order_status_history` (with staff id) and `admin_audit_logs` (`order.status_changed`). Tests: `StaffOrdersTest` (124 total).
 - [x] 6.6 Docs: checkout, order, staff order and notification endpoints in `docs/API.md`; README feature list, API table, roadmap and test count updated; `NEXT_STEP.md` rewritten for Step 7 (returns + reviews) with 10 owner decisions.
 
+## Step 7 — Returns and reviews (branch `feature/returns-reviews`)
+Owner decisions: returns within 14 days of delivery (`RETURN_WINDOW_DAYS`) · physical formats only · partial returns and several requests per order allowed, never more than bought, one open request (requested/approved) per order at a time · staff + admin handle returns · stock goes back when a return is marked `refunded` (reason `return`) · refunds happen outside the system; staff mark refunded with a note; refund = returned items minus their share of the coupon discount (shipping is not refunded); order becomes `returned` and payment `refunded` only when every returnable item is returned · customers can withdraw a request while `requested` (deleted, since there is no withdrawn status) · reviews: only for books in one of your delivered orders, published immediately, staff can hide, customers edit/delete their own, rating breakdown shown with the reviews.
+
+- [x] 7.1 Migration `2026_10_05_100001_add_refund_details_to_returns_table` (new file): `returns.refund_amount`, `staff_note`, `handled_by_staff_id`. `config/shop.php` `return_window_days`. New methods only: `InventoryService::restockFromReturn()` (reason `return`, `reference_type=return`) and `OrderStatusService::markReturned()` (delivered -> returned, succeeded payment -> refunded, history + audit); existing methods unchanged.
+
 ## How to run locally
 ```
 composer install

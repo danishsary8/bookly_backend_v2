@@ -6,6 +6,7 @@ use App\Enums\InventoryReason;
 use App\Models\BookVariant;
 use App\Models\InventoryMovement;
 use App\Models\Order;
+use App\Models\OrderReturn;
 use App\Models\StaffUser;
 use Illuminate\Support\Facades\DB;
 
@@ -49,6 +50,14 @@ class InventoryService
         $variant = BookVariant::whereKey($variantId)->lockForUpdate()->firstOrFail();
         $variant->update(['stock_quantity' => $variant->stock_quantity + $quantity]);
         $this->log($variant, $quantity, InventoryReason::Adjustment, $staff, 'order', $order->id);
+    }
+
+    /** Puts returned copies back into stock when a return is refunded. */
+    public function restockFromReturn(int $variantId, int $quantity, OrderReturn $return, StaffUser $staff): void
+    {
+        $variant = BookVariant::whereKey($variantId)->lockForUpdate()->firstOrFail();
+        $variant->update(['stock_quantity' => $variant->stock_quantity + $quantity]);
+        $this->log($variant, $quantity, InventoryReason::ReturnIn, $staff, 'return', $return->id);
     }
 
     private function log(BookVariant $variant, int $delta, InventoryReason $reason, ?StaffUser $staff, ?string $refType = null, ?int $refId = null): void
