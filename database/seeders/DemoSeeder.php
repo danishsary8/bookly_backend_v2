@@ -8,6 +8,7 @@ use App\Enums\OrderStatus;
 use App\Enums\StaffRole;
 use App\Models\Author;
 use App\Models\Book;
+use App\Models\BookVariant;
 use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\Customer;
@@ -68,7 +69,7 @@ class DemoSeeder extends Seeder
         $this->orders($customers, $variants, $admin);
     }
 
-    /** @return array<string, \App\Models\BookVariant> paperback/hardcover/ebook variants keyed "Title|format" */
+    /** @return array<string, BookVariant> paperback/hardcover/ebook variants keyed "Title|format" */
     private function catalog(): array
     {
         $categories = collect(['Fiction', 'Classics', 'Mystery', 'Science Fiction', 'Fantasy', 'Adventure', 'Philosophy', 'Poetry'])

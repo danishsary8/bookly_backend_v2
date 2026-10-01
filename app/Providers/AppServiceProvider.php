@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\CurrencyService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -12,7 +13,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // One instance per request so the exchange rate is read once, not per book.
-        $this->app->scoped(\App\Services\CurrencyService::class);
+        $this->app->scoped(CurrencyService::class);
     }
 
     public function boot(): void

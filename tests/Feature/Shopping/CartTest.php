@@ -4,6 +4,7 @@ namespace Tests\Feature\Shopping;
 
 use App\Enums\BookFormat;
 use App\Models\BookVariant;
+use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\ExchangeRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -145,7 +146,7 @@ class CartTest extends TestCase
     public function test_cart_lines_are_private(): void
     {
         $other = Customer::factory()->create();
-        $foreignItem = \App\Models\Cart::create(['customer_id' => $other->id])
+        $foreignItem = Cart::create(['customer_id' => $other->id])
             ->items()->create(['book_variant_id' => BookVariant::factory()->create()->id, 'quantity' => 1]);
 
         $this->patchJson("/api/v1/cart/items/{$foreignItem->id}", ['quantity' => 2])->assertNotFound();

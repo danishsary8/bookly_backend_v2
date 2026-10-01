@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Catalog;
 
+use App\Models\AdminAuditLog;
 use App\Models\Author;
 use App\Models\Book;
 use App\Models\Category;
@@ -26,7 +27,7 @@ class StaffLookupManagementTest extends TestCase
             ->assertOk()->assertJsonPath('data.name', 'Ursula K. Le Guin');
 
         $this->assertDatabaseHas('admin_audit_logs', ['action' => 'author.created', 'entity_id' => $id]);
-        $log = \App\Models\AdminAuditLog::where('action', 'author.updated')->firstOrFail();
+        $log = AdminAuditLog::where('action', 'author.updated')->firstOrFail();
         $this->assertSame(['name' => 'Ursula Le Guin'], $log->before_data);
         $this->assertSame(['name' => 'Ursula K. Le Guin'], $log->after_data);
     }

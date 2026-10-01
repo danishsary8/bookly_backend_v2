@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ReturnResource;
-use App\Models\OrderReturn;
 use App\Services\Returns\ReturnService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

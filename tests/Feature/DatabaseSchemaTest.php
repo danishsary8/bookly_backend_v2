@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -58,7 +59,7 @@ class DatabaseSchemaTest extends TestCase
     {
         $bookId = DB::table('books')->insertGetId(['title' => 'T', 'created_at' => now(), 'updated_at' => now()]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('book_variants')->insert([
             'book_id' => $bookId, 'format' => 'vinyl', 'sku' => 'X-1', 'price_usd' => 5,
             'created_at' => now(), 'updated_at' => now(),
@@ -71,7 +72,7 @@ class DatabaseSchemaTest extends TestCase
         $row = ['book_id' => $bookId, 'format' => 'paperback', 'price_usd' => 5, 'created_at' => now(), 'updated_at' => now()];
         DB::table('book_variants')->insert($row + ['sku' => 'A-1']);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('book_variants')->insert($row + ['sku' => 'A-2']);
     }
 }

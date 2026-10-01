@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\SentryBeforeSend;
+
 /**
  * Sentry Laravel SDK configuration file.
  *
@@ -54,7 +56,7 @@ return [
     'send_default_pii' => env('SENTRY_SEND_DEFAULT_PII', false),
 
     // Adds request ID + user id/type and strips anything personal before an event leaves the server.
-    'before_send' => [App\Support\SentryBeforeSend::class, 'handle'],
+    'before_send' => [SentryBeforeSend::class, 'handle'],
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_exceptions
     // 'ignore_exceptions' => [],

@@ -7,7 +7,9 @@ use App\Models\Author;
 use App\Models\Book;
 use App\Models\BookVariant;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\ExchangeRate;
+use App\Models\OrderItem;
 use App\Models\Review;
 use App\Models\Series;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -75,8 +77,8 @@ class PublicCatalogTest extends TestCase
     {
         $cheap = $this->book(['title' => 'B Cheap'], ['price_usd' => '5.00']);
         $pricey = $this->book(['title' => 'A Pricey'], ['price_usd' => '50.00']);
-        Review::create(['book_id' => $pricey->id, 'customer_id' => \App\Models\Customer::factory()->create()->id,
-            'order_item_id' => \App\Models\OrderItem::factory()->create()->id, 'rating' => 5]);
+        Review::create(['book_id' => $pricey->id, 'customer_id' => Customer::factory()->create()->id,
+            'order_item_id' => OrderItem::factory()->create()->id, 'rating' => 5]);
 
         $ids = fn (string $sort) => collect($this->getJson('/api/v1/books?sort='.$sort)->json('data'))->pluck('id')->all();
 
