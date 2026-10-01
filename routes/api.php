@@ -3,11 +3,15 @@
 use App\Http\Controllers\Api\V1\Customer\AddressController;
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\CartController;
+use App\Http\Controllers\Api\V1\Customer\CheckoutController;
+use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
+use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
+use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
@@ -81,6 +85,12 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     // 10 tries per minute so coupon codes cannot be guessed by brute force.
     Route::post('/cart/coupon/check', CouponCheckController::class)->middleware('throttle:10,1');
 
+    Route::post('/checkout/preview', [CheckoutController::class, 'preview'])->middleware('throttle:30,1');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1');
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
+
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
     Route::delete('/wishlist/{book}', [WishlistController::class, 'destroy'])->whereNumber('book');
@@ -109,6 +119,14 @@ Route::prefix('staff/auth')->group(function () {
 | Staff features: staff + admin can create/edit, deletes are admin-only.
 */
 Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::get('/notifications', [StaffNotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [StaffNotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead'])->whereUuid('notification');
+
+    Route::get('/orders', [StaffOrderController::class, 'index']);
+    Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order');
+    Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order');
+
     Route::get('/books', [StaffBookController::class, 'index']);
     Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book');
     Route::post('/books', [StaffBookController::class, 'store']);

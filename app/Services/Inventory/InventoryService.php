@@ -5,6 +5,7 @@ namespace App\Services\Inventory;
 use App\Enums\InventoryReason;
 use App\Models\BookVariant;
 use App\Models\InventoryMovement;
+use App\Models\Order;
 use App\Models\StaffUser;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +27,28 @@ class InventoryService
             $this->log($locked, $delta, $reason, $staff);
             $variant->setRawAttributes($locked->getAttributes(), true);
         });
+    }
+
+    /**
+     * Takes sold copies out of stock. The caller must already hold a row lock on the variant
+     * (checkout locks all variants in the cart). Returns true when this sale pushed stock to or
+     * below the low-stock threshold, so the caller can alert staff once, not on every sale.
+     */
+    public function deductForSale(BookVariant $variant, int $quantity, Order $order): bool
+    {
+        $before = $variant->stock_quantity;
+        $variant->update(['stock_quantity' => $before - $quantity]);
+        $this->log($variant, -$quantity, InventoryReason::Sale, null, 'order', $order->id);
+
+        return $before > $variant->low_stock_threshold && $variant->stock_quantity <= $variant->low_stock_threshold;
+    }
+
+    /** Puts the copies of a cancelled order back into stock. */
+    public function restoreForCancellation(int $variantId, int $quantity, Order $order, ?StaffUser $staff = null): void
+    {
+        $variant = BookVariant::whereKey($variantId)->lockForUpdate()->firstOrFail();
+        $variant->update(['stock_quantity' => $variant->stock_quantity + $quantity]);
+        $this->log($variant, $quantity, InventoryReason::Adjustment, $staff, 'order', $order->id);
     }
 
     private function log(BookVariant $variant, int $delta, InventoryReason $reason, ?StaffUser $staff, ?string $refType = null, ?int $refId = null): void

@@ -102,3 +102,30 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 | POST | /staff/coupons | code (stored uppercase), type (percentage\|fixed), value (percentage max 100), min_order_amount?, max_uses?, starts_at?, expires_at?, is_active? |
 | PATCH | /staff/coupons/{id} | any of the above (`used_count` is read-only) |
 | DELETE | /staff/coupons/{id} | 409 once used — set `is_active=false` instead |
+
+## Checkout and orders (customer token + verified email)
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| POST | /checkout/preview | coupon_code? — totals for the current cart: `{subtotal, discount, shipping_fee, tax, total}` each `{usd, khr}`, plus `coupon_code`, `requires_shipping`, `can_checkout`. Nothing is saved |
+| POST | /checkout | Header `Idempotency-Key: <8-100 chars, A-Z a-z 0-9 - _>` (required, new value per order). Body: address_id, payment_method (`cod` only for now), coupon_code? — 201 + order. Same key again: 200 + the same order and header `Idempotent-Replayed: true` |
+| GET | /orders | `status`, `per_page` — newest first |
+| GET | /orders/{id} | includes `status_history` |
+| POST | /orders/{id}/cancel | reason? — only while `pending` |
+
+Checkout rules: always today's price; flat shipping fee (`SHIPPING_FLAT_FEE`, default 2.00 USD) when any hardcover/paperback is in the order, 0 if all digital; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `idempotency_key`.
+
+Order shape: `{id, order_number (ORD-YYYYMMDD-XXXXX), status, payment_method, payment_status, placed_at, item_count, items[{id, book_variant_id, book_id, title, format, quantity, unit_price_usd, subtotal_usd}], subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, total_khr, coupon_code, shipping_address{...}, can_cancel, status_history[{status, note, created_at}]}`.
+
+Status flow: `pending -> processing -> shipped -> delivered`; `cancelled` only from pending (customer or staff) or processing (staff). Cash on delivery: payment `pending` at checkout, `succeeded` when delivered, `failed` when cancelled.
+
+## Staff orders and notifications (staff token + 2FA)
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| GET | /staff/orders | `status`, `q` (order number, customer email or name), `from`, `to` (dates), `per_page` |
+| GET | /staff/orders/{id} | adds `customer {id,name,email,phone}`, history with `changed_by`, `allowed_next_statuses` |
+| POST | /staff/orders/{id}/status | status (processing\|shipped\|delivered\|cancelled), note? — 422 for a move the flow does not allow |
+| GET | /staff/notifications | `unread=1`, `per_page` — in-app alerts; `meta.unread_count` |
+| POST | /staff/notifications/{id}/read | |
+| POST | /staff/notifications/read-all | |
+
+Low-stock alert (`type: low_stock`) is sent to every staff member once, when a sale takes a format to or below its `low_stock_threshold`: `data {book_variant_id, book_id, title, format, sku, stock_quantity, low_stock_threshold, message}`.
