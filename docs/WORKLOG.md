@@ -36,6 +36,11 @@ Branch: `feature/domain-models`, one commit per domain (accounts, catalog, inven
 ### Paused on owner request
 The owner asked to stop before (1) Sanctum auth / 2FA / OTP and (2) payment providers. A first auth draft was written before that message arrived; it is NOT committed. It sits in `git stash` ("auth draft ...") in the build environment only — treat it as reference, not as accepted code. See NEXT_STEP.md for the decisions needed.
 
+## Step 3 — Authentication (branch `feature/auth`)
+Owner decisions (all 7 confirmed): 7-day Sanctum tokens, no refresh tokens · unverified customers get a token but cannot shop until they enter the email OTP · OTP = 6 digits, 15 min, hashed, new code cancels old, 5 attempts/min per email+IP · staff 2FA = authenticator app (TOTP), mandatory · first admin via `php artisan staff:create-admin` · social login verified server-side, auto-link by email · passwords min 8 with letters + numbers.
+
+- [x] 3.1 Config: auth providers `customers` + `staff` (removed leftover `User` model reference), Sanctum guard `[]` (token-only API, no session auth), token expiry `SANCTUM_EXPIRATION` (default 7 days), Socialite package, `google`/`facebook` in `config/services.php`, middleware aliases (`abilities`, `ability`, `verified.customer`, `staff.2fa`), rate limiters `auth` (5/min) and `otp-send` (3 per 10 min).
+
 ## How to run locally
 ```
 composer install
