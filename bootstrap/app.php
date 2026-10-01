@@ -24,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Reports unhandled errors to Sentry when SENTRY_LARAVEL_DSN is set (does nothing otherwise).
+        // Laravel already skips 4xx exceptions such as validation, 401, 403 and 404.
+        \Sentry\Laravel\Integration::handles($exceptions);
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
