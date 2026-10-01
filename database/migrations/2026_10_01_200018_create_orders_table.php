@@ -13,7 +13,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('customer_id')->constrained('customers')->restrictOnDelete();
             $table->string('order_number', 30)->unique();
-            $table->foreignId('shipping_address_id')->constrained('customer_addresses')->restrictOnDelete();
+            $table->foreignId('shipping_address_id')->nullable()->constrained('customer_addresses')->nullOnDelete(); // reference only; the snapshot below is authoritative
+            $table->string('shipping_recipient_name', 150);
+            $table->string('shipping_phone', 30);
+            $table->string('shipping_address_line1');
+            $table->string('shipping_address_line2')->nullable();
+            $table->string('shipping_city', 100);
+            $table->string('shipping_state', 100)->nullable();
+            $table->string('shipping_postal_code', 20)->nullable();
+            $table->string('shipping_country', 100);
             $table->foreignId('coupon_id')->nullable()->constrained('coupons')->nullOnDelete();
             $table->string('status', 20)->default('pending');
             $table->decimal('subtotal', 10, 2);
