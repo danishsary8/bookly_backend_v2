@@ -16,3 +16,5 @@ docs
 phpunit.xml
 .phpunit.result.cache
 docker-compose*.yml
+.railway
+smoke.env

@@ -34,6 +34,78 @@ jobs:
       - name: Check formatting
         run: vendor/bin/pint --test
 
+      - name: Type-check the Railway infrastructure file
+        run: |
+          npm ci --no-audit --no-fund
+          npx -y -p typescript@5 tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler --skipLibCheck .railway/railway.ts
+
+  docker:
+    runs-on: ubuntu-latest
+    name: Docker image (build + smoke test)
+
+    # Same PostgreSQL major version as Railway's database template.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: bookshop
+          POSTGRES_PASSWORD: bookshop
+          POSTGRES_DB: bookshop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bookshop -d bookshop"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the image
+        run: docker build -t bookly-api .
+
+      - name: Production settings for the smoke test
+        run: |
+          {
+            echo "APP_KEY=base64:$(openssl rand -base64 32)"
+            echo "APP_URL=http://localhost:8080"
+            echo "DB_CONNECTION=pgsql"
+            echo "DB_URL=postgresql://bookshop:bookshop@127.0.0.1:5432/bookshop"
+            echo "CACHE_STORE=database"
+            echo "QUEUE_CONNECTION=database"
+            echo "SESSION_DRIVER=array"
+            echo "MAIL_MAILER=log"
+          } > smoke.env
+
+      - name: Migrate and seed demo data through the image (production mode)
+        run: |
+          docker run --rm --network host --env-file smoke.env bookly-api php artisan migrate --force
+          docker run --rm --network host --env-file smoke.env -e DEMO_SEED_ALLOWED=true bookly-api php artisan db:seed --class=DemoSeeder --force
+
+      - name: Web role answers
+        run: |
+          docker run -d --name web --network host --env-file smoke.env -e CONTAINER_ROLE=web bookly-api
+          for i in $(seq 1 30); do curl -fs http://localhost:8080/api/v1/ping >/dev/null && break; sleep 1; done
+          curl -fsS http://localhost:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
+          curl -fsS http://localhost:8080/api/v1/books | grep -q '"total":20'
+          curl -fsS -o /dev/null http://localhost:8080/docs
+          curl -fsS -o /dev/null http://localhost:8080/openapi.yaml
+          test "$(docker exec web id -un)" = "bookly"
+          docker logs web 2>&1 | tail -n 20
+
+      - name: Worker and scheduler roles stay up
+        run: |
+          for role in worker scheduler; do
+            status=0
+            timeout 20 docker run --rm --network host --env-file smoke.env -e CONTAINER_ROLE=$role bookly-api || status=$?
+            echo "$role exit code: $status (124 = still running when stopped)"
+            test "$status" -eq 124
+          done
+
   tests:
     runs-on: ubuntu-latest
 
