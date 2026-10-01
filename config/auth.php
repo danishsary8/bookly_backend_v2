@@ -126,4 +126,8 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    // Staff API tokens can change orders and the catalog, so they expire sooner than customer tokens
+    // (customers: sanctum.expiration, 7 days). Staff log in again, with 2FA, each working day.
+    'staff_token_hours' => (int) env('STAFF_TOKEN_HOURS', 12),
+
 ];
