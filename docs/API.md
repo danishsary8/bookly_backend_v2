@@ -71,3 +71,34 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | DELETE | /staff/{authors\|categories\|publishers\|series}/{id} | admin; 409 while any book (incl. deleted) uses it |
 
 Every staff create/update/delete is recorded in `admin_audit_logs` (who, action like `book_variant.updated`, changed fields before/after).
+
+## Customer shopping (customer token + verified email)
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| GET | /addresses | default first |
+| POST | /addresses | recipient_name, phone, address_line1, city, country, label?, address_line2?, state?, postal_code?, is_default? — max 10; first one becomes default |
+| PATCH | /addresses/{id} | any field; `is_default: true` moves the default (it cannot be switched off directly) |
+| DELETE | /addresses/{id} | if it was the default, the newest remaining address becomes default |
+| GET | /cart | see cart shape below |
+| POST | /cart/items | book_variant_id, quantity? (default 1) — 201 + cart. Same format again = quantity increases |
+| PATCH | /cart/items/{id} | quantity (1-10) |
+| DELETE | /cart/items/{id} | returns the cart |
+| DELETE | /cart | empties the cart |
+| POST | /cart/coupon/check | code — preview only (10 per minute); send the code again at checkout |
+| GET | /wishlist | book cards, newest first, paginated |
+| POST | /wishlist | book_id — 201 added, 200 already there |
+| DELETE | /wishlist/{book_id} | 204 |
+
+Cart rules: max 10 per line; physical formats need stock ("Only N left in stock."); ebooks/audiobooks are quantity 1 and need no stock.
+Cart shape: `{data: {id, items: [{id, book_variant_id, book {id,title}, format, cover_image_url, quantity, unit_price_usd, unit_price_khr, line_total_usd, line_total_khr, issues: [{code, message, ...}]}], item_count, subtotal_usd, subtotal_khr, can_checkout}}`.
+Issue codes: `unavailable`, `out_of_stock`, `insufficient_stock` (+ `available_quantity`) block checkout; `price_changed` (+ `previous_price_usd`) is information only. `subtotal_usd` counts only lines without blocking issues.
+Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, discount_khr, total_before_shipping_usd, total_before_shipping_khr}}`; errors are 422 on `code` (invalid, inactive, not started, expired, usage limit, minimum subtotal, already used by you).
+
+## Staff coupons (staff token + 2FA; DELETE admin-only)
+| Method | Path | Body |
+| --- | --- | --- |
+| GET | /staff/coupons | `q`, `active=0/1`, `per_page` |
+| GET | /staff/coupons/{id} | |
+| POST | /staff/coupons | code (stored uppercase), type (percentage\|fixed), value (percentage max 100), min_order_amount?, max_uses?, starts_at?, expires_at?, is_active? |
+| PATCH | /staff/coupons/{id} | any of the above (`used_count` is read-only) |
+| DELETE | /staff/coupons/{id} | 409 once used — set `is_active=false` instead |

@@ -27,6 +27,9 @@ Customer tokens: Sanctum, 7 days, ability `customer`; routes `['auth:sanctum','a
 ## Catalog (implemented in Step 4)
 Public catalog shows only books with an active variant. Staff edit, admin deletes. Stock only changes through `InventoryService` (always logged). Staff changes are written to `admin_audit_logs` via `AuditLogger`. `book_variants.is_active` hides a format without deleting it.
 
+## Shopping (implemented in Step 5)
+Customer shopping routes need `verified.customer`. Cart logic in `CartService` (limits + per-line issues), coupon rules in `CouponService` (one use per customer). Addresses: max 10, exactly one default. Wishlist is book-level.
+
 ## Conventions (apply everywhere)
 BIGINT auto-increment PKs · DECIMAL(10,2) money · soft deletes ONLY on customers, orders, books · timestamps on all tables (log-style tables have only `created_at`) · 3NF, with the one intentional snapshot `order_items.unit_price` · enum-like columns are VARCHAR + CHECK constraints (not Postgres enums) · password column is `password_hash` (models must override `getAuthPasswordName()`).
 
