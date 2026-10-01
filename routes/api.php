@@ -4,6 +4,10 @@ use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthControlle
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
@@ -72,5 +76,23 @@ Route::prefix('staff/auth')->group(function () {
     });
 });
 
-// Staff feature routes (catalog management, orders, admin) are added here behind:
-// ['auth:sanctum', 'abilities:staff', 'staff.2fa'] and, for admin-only, 'abilities:admin'.
+/*
+| Staff features: staff + admin can create/edit, deletes are admin-only.
+*/
+Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::post('/authors', [StaffAuthorController::class, 'store']);
+    Route::patch('/authors/{author}', [StaffAuthorController::class, 'update']);
+    Route::post('/categories', [StaffCategoryController::class, 'store']);
+    Route::patch('/categories/{category}', [StaffCategoryController::class, 'update']);
+    Route::post('/publishers', [StaffPublisherController::class, 'store']);
+    Route::patch('/publishers/{publisher}', [StaffPublisherController::class, 'update']);
+    Route::post('/series', [StaffSeriesController::class, 'store']);
+    Route::patch('/series/{series}', [StaffSeriesController::class, 'update']);
+
+    Route::middleware('abilities:admin')->group(function () {
+        Route::delete('/authors/{author}', [StaffAuthorController::class, 'destroy']);
+        Route::delete('/categories/{category}', [StaffCategoryController::class, 'destroy']);
+        Route::delete('/publishers/{publisher}', [StaffPublisherController::class, 'destroy']);
+        Route::delete('/series/{series}', [StaffSeriesController::class, 'destroy']);
+    });
+});

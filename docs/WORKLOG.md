@@ -52,6 +52,7 @@ Owner decisions: image URLs only (no upload yet) · 20 per page (max 100) with f
 
 - [x] 4.1 Migration `2026_10_02_100001_add_is_active_to_book_variants_table` (new file; existing migrations untouched). `BookVariant::isAvailable()` = active and (digital format or stock > 0).
 - [x] 4.2 Public catalog: `GET /books` (search `q` via tsvector, filters `category_id, author_id, series_id, publisher_id, format, language, min_price, max_price, in_stock`, sorts `relevance|newest|price_asc|price_desc|title|rating`, `per_page` 20 default / 100 max), `GET /books/{id}` (detail with active variants, categories, publisher, series), `GET /authors`, `/authors/{id}`, `/categories` (unpaginated), `/publishers`, `/series`, `/series/{id}` (books in reading order). `CurrencyService` adds `price_khr` (one rate lookup per request). Public variant data hides exact stock (only `in_stock`). Listing uses a fixed number of queries regardless of page size (tested). Tests: `tests/Feature/Catalog/PublicCatalogTest.php` (58 total).
+- [x] 4.3 `AuditLogger` service (`app/Services/Admin`): `created/updated/deleted/custom`, actions like `author.updated` with only the changed fields in before/after. Staff CRUD: `POST/PATCH /staff/{authors|categories|publishers|series}`, `DELETE` admin-only. Delete returns 409 while any book (including soft-deleted ones) still uses the item. Category slug auto-generated and made unique. Test helper `tests/Concerns/ActsAsStaff`. Tests: `StaffLookupManagementTest` (64 total).
 
 ## How to run locally
 ```
