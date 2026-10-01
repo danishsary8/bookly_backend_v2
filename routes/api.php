@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
+use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v1']));
@@ -34,3 +35,25 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::patch('/', [ProfileController::class, 'update']);
     Route::put('/password', [ProfileController::class, 'changePassword'])->middleware('throttle:auth');
 });
+
+/*
+| Staff authentication (admin + staff). Staff features require 2FA to be enabled.
+*/
+Route::prefix('staff/auth')->group(function () {
+    Route::middleware('throttle:auth')->group(function () {
+        Route::post('/login', [StaffAuthController::class, 'login']);
+        Route::post('/two-factor/challenge', [StaffAuthController::class, 'challenge']);
+        Route::post('/reset-password', [StaffAuthController::class, 'resetPassword']);
+    });
+    Route::post('/forgot-password', [StaffAuthController::class, 'forgotPassword'])->middleware('throttle:otp-send');
+
+    Route::middleware(['auth:sanctum', 'abilities:staff'])->group(function () {
+        Route::get('/me', [StaffAuthController::class, 'me']);
+        Route::post('/logout', [StaffAuthController::class, 'logout']);
+        Route::post('/two-factor/setup', [StaffAuthController::class, 'setupTwoFactor']);
+        Route::post('/two-factor/confirm', [StaffAuthController::class, 'confirmTwoFactor'])->middleware('throttle:auth');
+    });
+});
+
+// Staff feature routes (catalog management, orders, admin) are added here behind:
+// ['auth:sanctum', 'abilities:staff', 'staff.2fa'] and, for admin-only, 'abilities:admin'.
