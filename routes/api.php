@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
@@ -80,6 +81,10 @@ Route::prefix('staff/auth')->group(function () {
 | Staff features: staff + admin can create/edit, deletes are admin-only.
 */
 Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::get('/books', [StaffBookController::class, 'index']);
+    Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book');
+    Route::post('/books', [StaffBookController::class, 'store']);
+    Route::patch('/books/{book}', [StaffBookController::class, 'update']);
     Route::post('/authors', [StaffAuthorController::class, 'store']);
     Route::patch('/authors/{author}', [StaffAuthorController::class, 'update']);
     Route::post('/categories', [StaffCategoryController::class, 'store']);
@@ -90,6 +95,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/series/{series}', [StaffSeriesController::class, 'update']);
 
     Route::middleware('abilities:admin')->group(function () {
+        Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
+        Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');
         Route::delete('/authors/{author}', [StaffAuthorController::class, 'destroy']);
         Route::delete('/categories/{category}', [StaffCategoryController::class, 'destroy']);
         Route::delete('/publishers/{publisher}', [StaffPublisherController::class, 'destroy']);

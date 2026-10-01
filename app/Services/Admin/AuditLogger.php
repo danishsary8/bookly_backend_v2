@@ -38,9 +38,10 @@ class AuditLogger
         $this->write($staff, 'deleted', $model, $this->snapshot($model->getAttributes()), null);
     }
 
-    public function custom(StaffUser $staff, string $action, Model $model, ?array $before = null, ?array $after = null): void
+    /** $verb is the action without the entity prefix, e.g. 'restored' becomes 'book.restored'. */
+    public function custom(StaffUser $staff, string $verb, Model $model, ?array $before = null, ?array $after = null): void
     {
-        $this->write($staff, $action, $model, $before, $after);
+        $this->write($staff, $verb, $model, $before, $after);
     }
 
     private function write(StaffUser $staff, string $action, Model $model, ?array $before, ?array $after): void
