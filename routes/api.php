@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
+use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
 use App\Http\Controllers\Api\V1\Catalog\PublisherController;
+use App\Http\Controllers\Api\V1\Catalog\ReviewController as BookReviewController;
 use App\Http\Controllers\Api\V1\Catalog\SeriesController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +37,7 @@ Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v
 */
 Route::get('/books', [BookController::class, 'index']);
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
+Route::get('/books/{book}/reviews', [BookReviewController::class, 'index'])->whereNumber('book');
 Route::get('/authors', [AuthorController::class, 'index']);
 Route::get('/authors/{author}', [AuthorController::class, 'show'])->whereNumber('author');
 Route::get('/categories', [CategoryController::class, 'index']);
@@ -97,6 +100,11 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::get('/returns', [ReturnController::class, 'index']);
     Route::get('/returns/{return}', [ReturnController::class, 'show'])->whereNumber('return');
     Route::delete('/returns/{return}', [ReturnController::class, 'destroy'])->whereNumber('return');
+
+    Route::get('/reviews', [CustomerReviewController::class, 'index']);
+    Route::post('/books/{book}/reviews', [CustomerReviewController::class, 'store'])->whereNumber('book')->middleware('throttle:10,1');
+    Route::patch('/reviews/{review}', [CustomerReviewController::class, 'update'])->whereNumber('review');
+    Route::delete('/reviews/{review}', [CustomerReviewController::class, 'destroy'])->whereNumber('review');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
