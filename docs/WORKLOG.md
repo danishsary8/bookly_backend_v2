@@ -61,6 +61,7 @@ Owner decisions: image URLs only (no upload yet) · 20 per page (max 100) with f
 Owner decisions: re-adding a format increases quantity · stock checked when adding, max 10 per line, ebooks/audiobooks quantity 1 · cart shows current prices with per-line `issues` and `can_checkout` (nothing removed silently) · coupons previewed with `POST /cart/coupon/check`, sent again at checkout, one coupon per order, one use per customer (cancelled orders don't count) + global `max_uses` · staff + admin manage coupons, admin deletes, used coupons can only be deactivated · max 10 addresses, first is default, one default at a time · wishlist stays simple (no move-to-cart yet) · new column `cart_items.unit_price_at_add` for the price-changed warning.
 
 - [x] 5.1 Migration `2026_10_03_100001_add_unit_price_at_add_to_cart_items_table` (new file). Nullable DECIMAL(10,2); the cart still charges the current price.
+- [x] 5.2 Addresses: `GET/POST /addresses`, `PATCH/DELETE /addresses/{id}` (verified customers only; other customers' addresses return 404). First address is default; `is_default: true` moves the default; the default cannot be switched off directly; deleting the default promotes the newest remaining one; max 10 (customer row locked so parallel requests can't exceed it). Tests: `tests/Feature/Shopping/AddressTest.php` (81 total).
 
 ## How to run locally
 ```
