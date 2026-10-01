@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Services\Orders\OrderStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
@@ -33,7 +34,7 @@ class OrderController extends Controller
                     ->where('order_number', 'ilike', $term)
                     ->orWhereHas('customer', fn ($c) => $c->withTrashed()->where('email', 'ilike', $term)->orWhere('name', 'ilike', $term))))
                 ->when($data['from'] ?? null, fn ($q, $from) => $q->where('placed_at', '>=', $from))
-                ->when($data['to'] ?? null, fn ($q, $to) => $q->where('placed_at', '<', \Illuminate\Support\Carbon::parse($to)->addDay()))
+                ->when($data['to'] ?? null, fn ($q, $to) => $q->where('placed_at', '<', Carbon::parse($to)->addDay()))
                 ->latest('placed_at')
                 ->orderByDesc('id')
                 ->paginate($data['per_page'] ?? 20)

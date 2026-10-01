@@ -1,0 +1,632 @@
+openapi: 3.0.3
+info:
+  title: Bookly API
+  version: "1.0"
+  description: |
+    REST API for the Bookly bookstore (Laravel 13 + PostgreSQL).
+
+    **Auth.** Log in to get a Bearer token (valid 7 days) and send it as `Authorization: Bearer <token>`.
+    Customer tokens only work on customer routes; staff tokens only on `/staff/*` routes, and only after
+    two-factor authentication is set up. Admin-only routes are marked **(admin)**.
+
+    **Errors.** `{"message": "..."}`. Validation errors are 422 with `errors: {field: [messages]}`.
+    401 = not logged in, 403 = not allowed (wrong account type, email not verified, 2FA not set up,
+    deactivated account), 429 = rate limited (see `Retry-After`).
+
+    **Rate limits.** 120 requests/min per user or IP, plus stricter limits on login, codes, coupons,
+    checkout and reviews. Every response has an `X-Request-Id` header — quote it when reporting a problem.
+
+    Full field-by-field reference: `docs/API.md` in the repository.
+servers:
+  - url: /api/v1
+tags:
+  - { name: Public, description: 'No login needed: catalog, reviews, health' }
+  - { name: Customer auth, description: 'Register, verify email, log in, reset password' }
+  - { name: Customer, description: 'Profile, addresses, cart, wishlist (verified customers)' }
+  - { name: Checkout & orders, description: 'Cash-on-delivery checkout and order history' }
+  - { name: Returns & reviews, description: 'Returns for delivered orders and book reviews' }
+  - { name: Staff auth, description: 'Staff login with required authenticator-app 2FA' }
+  - { name: Staff catalog, description: 'Books, formats, authors, categories, publishers, series' }
+  - { name: Staff operations, description: 'Coupons, orders, returns, reviews, customers, alerts' }
+  - { name: Admin, description: 'Admin-only: staff, exchange rates, audit log, dashboard, export' }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Period:
+      name: period
+      in: query
+      schema: { type: string, enum: [today, 7d, 30d, custom], default: 30d }
+    From:
+      name: from
+      in: query
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      schema: { type: string, format: date }
+  responses:
+    Validation:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+    Unauthorized:
+      description: Not logged in or token expired
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Not allowed for this account
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not found (also returned for another customer's records)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NoContent:
+      description: Done, no body
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+    ValidationError:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties: { type: array, items: { type: string } }
+    Money:
+      type: string
+      description: Decimal amount with 2 decimals, e.g. "19.99"
+      example: "19.99"
+    Riel:
+      type: string
+      nullable: true
+      description: Whole riel, null when no USD->KHR rate is set
+      example: "81959"
+    PageMeta:
+      type: object
+      properties:
+        current_page: { type: integer }
+        last_page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+    TokenResponse:
+      type: object
+      properties:
+        token: { type: string }
+        token_type: { type: string, example: Bearer }
+        expires_at: { type: string, format: date-time }
+    Customer:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        phone: { type: string, nullable: true }
+        email_verified: { type: boolean }
+        has_password: { type: boolean }
+        created_at: { type: string, format: date-time }
+    BookCard:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        language: { type: string }
+        publish_date: { type: string, format: date, nullable: true }
+        authors: { type: array, items: { type: object, properties: { id: { type: integer }, name: { type: string } } } }
+        cover_image_url: { type: string, nullable: true }
+        price_from_usd: { $ref: '#/components/schemas/Money' }
+        price_from_khr: { $ref: '#/components/schemas/Riel' }
+        formats: { type: array, items: { type: string, enum: [hardcover, paperback, ebook, audiobook] } }
+        in_stock: { type: boolean }
+        rating_avg: { type: number, nullable: true }
+        review_count: { type: integer }
+    Variant:
+      type: object
+      properties:
+        id: { type: integer }
+        format: { type: string, enum: [hardcover, paperback, ebook, audiobook] }
+        isbn: { type: string, nullable: true }
+        price_usd: { $ref: '#/components/schemas/Money' }
+        price_khr: { $ref: '#/components/schemas/Riel' }
+        in_stock: { type: boolean }
+        cover_image_url: { type: string, nullable: true }
+    BookDetail:
+      allOf:
+        - $ref: '#/components/schemas/BookCard'
+        - type: object
+          properties:
+            description: { type: string, nullable: true }
+            page_count: { type: integer, nullable: true }
+            categories: { type: array, items: { type: object, properties: { id: { type: integer }, name: { type: string }, slug: { type: string } } } }
+            publisher: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string } } }
+            series: { type: object, nullable: true, properties: { id: { type: integer }, name: { type: string }, order: { type: integer, nullable: true } } }
+            variants: { type: array, items: { $ref: '#/components/schemas/Variant' } }
+    Address:
+      type: object
+      properties:
+        id: { type: integer }
+        label: { type: string, nullable: true }
+        recipient_name: { type: string }
+        phone: { type: string }
+        address_line1: { type: string }
+        address_line2: { type: string, nullable: true }
+        city: { type: string }
+        state: { type: string, nullable: true }
+        postal_code: { type: string, nullable: true }
+        country: { type: string }
+        is_default: { type: boolean }
+    AddressInput:
+      type: object
+      required: [recipient_name, phone, address_line1, city, country]
+      properties:
+        label: { type: string }
+        recipient_name: { type: string }
+        phone: { type: string }
+        address_line1: { type: string }
+        address_line2: { type: string }
+        city: { type: string }
+        state: { type: string }
+        postal_code: { type: string }
+        country: { type: string }
+        is_default: { type: boolean }
+    CartIssue:
+      type: object
+      properties:
+        code: { type: string, enum: [unavailable, out_of_stock, insufficient_stock, price_changed] }
+        message: { type: string }
+        available_quantity: { type: integer }
+        previous_price_usd: { $ref: '#/components/schemas/Money' }
+    Cart:
+      type: object
+      properties:
+        id: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              book_variant_id: { type: integer }
+              book: { type: object, properties: { id: { type: integer }, title: { type: string } } }
+              format: { type: string }
+              cover_image_url: { type: string, nullable: true }
+              quantity: { type: integer }
+              unit_price_usd: { $ref: '#/components/schemas/Money' }
+              unit_price_khr: { $ref: '#/components/schemas/Riel' }
+              line_total_usd: { $ref: '#/components/schemas/Money' }
+              line_total_khr: { $ref: '#/components/schemas/Riel' }
+              issues: { type: array, items: { $ref: '#/components/schemas/CartIssue' } }
+        item_count: { type: integer }
+        subtotal_usd: { $ref: '#/components/schemas/Money' }
+        subtotal_khr: { $ref: '#/components/schemas/Riel' }
+        can_checkout: { type: boolean }
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        order_number: { type: string, example: ORD-20261003-7K2QX }
+        status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
+        payment_method: { type: string, enum: [card, cod, khqr] }
+        payment_status: { type: string, enum: [pending, succeeded, failed, refunded] }
+        placed_at: { type: string, format: date-time }
+        item_count: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              book_variant_id: { type: integer }
+              book_id: { type: integer }
+              title: { type: string }
+              format: { type: string }
+              quantity: { type: integer }
+              unit_price_usd: { $ref: '#/components/schemas/Money' }
+              subtotal_usd: { $ref: '#/components/schemas/Money' }
+        subtotal_usd: { $ref: '#/components/schemas/Money' }
+        discount_usd: { $ref: '#/components/schemas/Money' }
+        shipping_fee_usd: { $ref: '#/components/schemas/Money' }
+        tax_usd: { $ref: '#/components/schemas/Money' }
+        total_usd: { $ref: '#/components/schemas/Money' }
+        total_khr: { $ref: '#/components/schemas/Riel' }
+        coupon_code: { type: string, nullable: true }
+        shipping_address: { $ref: '#/components/schemas/AddressInput' }
+        can_cancel: { type: boolean }
+        status_history:
+          type: array
+          items: { type: object, properties: { status: { type: string }, note: { type: string, nullable: true }, created_at: { type: string, format: date-time } } }
+    Return:
+      type: object
+      properties:
+        id: { type: integer }
+        order_id: { type: integer }
+        order_number: { type: string }
+        status: { type: string, enum: [requested, approved, rejected, refunded] }
+        reason: { type: string }
+        items:
+          type: array
+          items: { type: object, properties: { id: { type: integer }, order_item_id: { type: integer }, title: { type: string }, format: { type: string }, quantity: { type: integer }, unit_price_usd: { $ref: '#/components/schemas/Money' }, reason: { type: string, nullable: true } } }
+        refund_amount_usd: { $ref: '#/components/schemas/Money' }
+        is_refund_final: { type: boolean, description: false while the amount is an estimate }
+        staff_note: { type: string, nullable: true }
+        requested_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        can_withdraw: { type: boolean }
+    Review:
+      type: object
+      properties:
+        id: { type: integer }
+        book_id: { type: integer }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, nullable: true }
+        reviewer_name: { type: string, example: Sok D. }
+        verified_purchase: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+security:
+  - bearer: []
+
+paths:
+  /ping:
+    get: { tags: [Public], summary: 'Liveness check', security: [], responses: { '200': { description: '{"status":"ok","version":"v1"}' } } }
+  /health:
+    get:
+      tags: [Public]
+      summary: Database and queue health for uptime monitors
+      security: []
+      responses:
+        '200': { description: 'status ok or degraded (queue jobs waiting > 10 min)' }
+        '503': { description: Database unreachable }
+
+  /books:
+    get:
+      tags: [Public]
+      summary: List, search, filter and sort books
+      security: []
+      parameters:
+        - { name: q, in: query, description: Full-text search, schema: { type: string } }
+        - { name: category_id, in: query, schema: { type: integer } }
+        - { name: author_id, in: query, schema: { type: integer } }
+        - { name: series_id, in: query, schema: { type: integer } }
+        - { name: publisher_id, in: query, schema: { type: integer } }
+        - { name: format, in: query, schema: { type: string, enum: [hardcover, paperback, ebook, audiobook] } }
+        - { name: language, in: query, schema: { type: string } }
+        - { name: min_price, in: query, schema: { type: number } }
+        - { name: max_price, in: query, schema: { type: number } }
+        - { name: in_stock, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [relevance, newest, price_asc, price_desc, title, rating] } }
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated book cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /books/{id}:
+    get:
+      tags: [Public]
+      summary: Book detail with active formats
+      security: []
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Book, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/BookDetail' } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /books/{id}/reviews:
+    get:
+      tags: [Public]
+      summary: Visible reviews with rating summary (average, count, 1-5 distribution in meta.rating_summary)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - { name: sort, in: query, schema: { type: string, enum: [newest, highest, lowest] } }
+        - { name: rating, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
+      responses:
+        '200': { description: Reviews, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Review' } } } } } } }
+    post:
+      tags: [Returns & reviews]
+      summary: Review a book from one of your delivered orders
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [rating], properties: { rating: { type: integer, minimum: 1, maximum: 5 }, comment: { type: string } } } } } }
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '201': { description: Created }
+        '403': { description: No delivered order contains this book }
+        '409': { description: Already reviewed }
+  /authors:
+    get: { tags: [Public], summary: 'List authors (q, per_page)', security: [], responses: { '200': { description: Authors with books_count } } }
+  /authors/{id}:
+    get: { tags: [Public], summary: 'Author profile (books via /books?author_id=)', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Author }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /categories:
+    get: { tags: [Public], summary: 'All categories with books_count (not paginated)', security: [], responses: { '200': { description: Categories } } }
+  /publishers:
+    get: { tags: [Public], summary: 'List publishers', security: [], responses: { '200': { description: Publishers } } }
+  /series:
+    get: { tags: [Public], summary: 'List series', security: [], responses: { '200': { description: Series } } }
+  /series/{id}:
+    get: { tags: [Public], summary: 'Series with its books in reading order', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Series } } }
+
+  /auth/register:
+    post:
+      tags: [Customer auth]
+      summary: Create an account; a 6-digit code is emailed to verify it
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, description: Letters and numbers }
+                password_confirmation: { type: string }
+                phone: { type: string }
+      responses:
+        '201':
+          description: Account + token. Shopping routes return 403 until the email is verified.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TokenResponse'
+                  - type: object
+                    properties: { customer: { $ref: '#/components/schemas/Customer' }, message: { type: string } }
+        '422': { $ref: '#/components/responses/Validation' }
+  /auth/login:
+    post:
+      tags: [Customer auth]
+      summary: Log in with email and password
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email, password], properties: { email: { type: string }, password: { type: string } } } } } }
+      responses:
+        '200': { description: Token, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '401': { description: Wrong email or password }
+        '403': { description: Account deactivated }
+        '429': { description: Too many attempts }
+  /auth/social/{provider}:
+    post:
+      tags: [Customer auth]
+      summary: Log in with a Google or Facebook access token (account linked by email)
+      security: []
+      parameters: [ { name: provider, in: path, required: true, schema: { type: string, enum: [google, facebook] } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [access_token], properties: { access_token: { type: string } } } } } }
+      responses: { '200': { description: Existing account }, '201': { description: New account }, '401': { description: Provider rejected the token } }
+  /auth/logout:
+    post: { tags: [Customer auth], summary: 'Revoke the current token', responses: { '200': { description: Logged out } } }
+  /auth/verify-email:
+    post: { tags: [Customer auth], summary: 'Verify the email with the 6-digit code', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string, pattern: '^[0-9]{6}$' } } } } } }, responses: { '200': { description: Verified }, '422': { description: Wrong or expired code } } }
+  /auth/resend-verification:
+    post: { tags: [Customer auth], summary: 'Send a new verification code (3 per 10 min)', responses: { '200': { description: Sent } } }
+  /auth/forgot-password:
+    post: { tags: [Customer auth], summary: 'Email a reset code (same answer whether the email exists or not)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /auth/reset-password:
+    post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
+  /me:
+    get: { tags: [Customer], summary: 'Your profile', responses: { '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '200': { description: Customer, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } } } }
+    patch: { tags: [Customer], summary: 'Update name or phone', responses: { '200': { description: Updated } } }
+  /me/password:
+    put: { tags: [Customer], summary: 'Change password (signs out other devices)', responses: { '200': { description: Changed }, '422': { $ref: '#/components/responses/Validation' } } }
+
+  /addresses:
+    get: { tags: [Customer], summary: 'Saved addresses (default first)', responses: { '200': { description: Addresses, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Address' } } } } } } } } }
+    post: { tags: [Customer], summary: 'Add an address (max 10; first one is default)', requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AddressInput' } } } }, responses: { '201': { description: Created } } }
+  /addresses/{id}:
+    patch: { tags: [Customer], summary: 'Update; is_default: true moves the default', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Customer], summary: 'Delete (the newest remaining becomes default)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /cart:
+    get: { tags: [Customer], summary: 'Cart with current prices and per-line issues', responses: { '200': { description: Cart, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Cart' } } } } } } } }
+    delete: { tags: [Customer], summary: 'Empty the cart', responses: { '200': { description: Empty cart } } }
+  /cart/items:
+    post:
+      tags: [Customer]
+      summary: Add a format (same format again increases quantity; max 10; ebooks/audiobooks 1)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [book_variant_id], properties: { book_variant_id: { type: integer }, quantity: { type: integer, default: 1 } } } } } }
+      responses: { '201': { description: Cart }, '422': { description: 'Not available, out of stock or over the limit' } }
+  /cart/items/{id}:
+    patch: { tags: [Customer], summary: 'Set quantity', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cart } } }
+    delete: { tags: [Customer], summary: 'Remove a line', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cart } } }
+  /cart/coupon/check:
+    post: { tags: [Customer], summary: 'Preview a coupon against the cart (10/min)', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string } } } } } }, responses: { '200': { description: Discount preview }, '422': { description: 'Invalid, expired, used up, minimum not met or already used by you' } } }
+  /wishlist:
+    get: { tags: [Customer], summary: 'Saved books (newest first)', responses: { '200': { description: Book cards } } }
+    post: { tags: [Customer], summary: 'Save a book', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { book_id: { type: integer } } } } } }, responses: { '201': { description: Added }, '200': { description: Already saved } } }
+  /wishlist/{id}:
+    delete: { tags: [Customer], summary: 'Remove a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+
+  /checkout/preview:
+    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string } } } } } }, responses: { '200': { description: Totals } } }
+  /checkout:
+    post:
+      tags: [Checkout & orders]
+      summary: Place a cash-on-delivery order from the cart
+      description: Prices are re-checked at today's price, stock is taken out of stock, the coupon is applied and the cart is emptied. Repeating a request with the same Idempotency-Key returns the same order.
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 100 }, description: New random value per order }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [address_id, payment_method], properties: { address_id: { type: integer }, payment_method: { type: string, enum: [cod] }, coupon_code: { type: string } } } } } }
+      responses:
+        '201': { description: Order placed, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Order' } } } } } }
+        '200': { description: Same key repeated — the existing order (header Idempotent-Replayed true) }
+        '422': { description: 'Cart empty or has issues, bad address, coupon or key' }
+  /orders:
+    get: { tags: [Checkout & orders], summary: 'Your orders (status filter)', responses: { '200': { description: Orders } } }
+  /orders/{id}:
+    get: { tags: [Checkout & orders], summary: 'One order with status history', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /orders/{id}/cancel:
+    post: { tags: [Checkout & orders], summary: 'Cancel while pending (stock and coupon use are given back)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cancelled }, '422': { description: No longer cancellable } } }
+  /orders/{id}/returnable-items:
+    get: { tags: [Returns & reviews], summary: 'What can still be returned, and until when', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Returnable items } } }
+  /orders/{id}/returns:
+    post:
+      tags: [Returns & reviews]
+      summary: Request a return (delivered orders, within 14 days, physical formats only)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason, items], properties: { reason: { type: string }, items: { type: array, items: { type: object, properties: { order_item_id: { type: integer }, quantity: { type: integer }, reason: { type: string } } } } } } } } }
+      responses: { '201': { description: Return, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Return' } } } } } }, '422': { $ref: '#/components/responses/Validation' } }
+  /returns:
+    get: { tags: [Returns & reviews], summary: 'Your returns', responses: { '200': { description: Returns } } }
+  /returns/{id}:
+    get: { tags: [Returns & reviews], summary: 'One return', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Return } } }
+    delete: { tags: [Returns & reviews], summary: 'Withdraw while requested', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '422': { description: Already handled } } }
+  /reviews:
+    get: { tags: [Returns & reviews], summary: 'Your reviews (incl. hidden ones)', responses: { '200': { description: Reviews } } }
+  /reviews/{id}:
+    patch: { tags: [Returns & reviews], summary: 'Edit your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Returns & reviews], summary: 'Delete your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+
+  /staff/auth/login:
+    post: { tags: [Staff auth], summary: 'Password step; with 2FA on returns challenge_token instead of a token', security: [], responses: { '200': { description: Token or challenge }, '401': { description: Wrong credentials }, '403': { description: Deactivated } } }
+  /staff/auth/two-factor/challenge:
+    post: { tags: [Staff auth], summary: 'Exchange challenge_token + authenticator code for a token', security: [], responses: { '200': { description: Token }, '422': { description: Wrong code } } }
+  /staff/auth/two-factor/setup:
+    post: { tags: [Staff auth], summary: 'Get a secret + otpauth_uri for the QR code', responses: { '200': { description: Secret } } }
+  /staff/auth/two-factor/confirm:
+    post: { tags: [Staff auth], summary: 'Confirm with a code to enable 2FA', responses: { '200': { description: Enabled } } }
+  /staff/auth/me:
+    get: { tags: [Staff auth], summary: 'Current staff member', responses: { '200': { description: Staff } } }
+  /staff/auth/logout:
+    post: { tags: [Staff auth], summary: 'Revoke the current token', responses: { '200': { description: Logged out } } }
+  /staff/auth/forgot-password:
+    post: { tags: [Staff auth], summary: 'Email a reset code', security: [], responses: { '200': { description: OK } } }
+  /staff/auth/reset-password:
+    post: { tags: [Staff auth], summary: 'Set password with an emailed code (also used by newly invited staff)', security: [], responses: { '200': { description: Reset } } }
+
+  /staff/books:
+    get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, trashed)', responses: { '200': { description: Books } } }
+    post: { tags: [Staff catalog], summary: 'Create a book (title, publisher_id, series_id, author_ids, category_ids, ...)', responses: { '201': { description: Created } } }
+  /staff/books/{id}:
+    get: { tags: [Staff catalog], summary: 'Book with all variants', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Book } } }
+    patch: { tags: [Staff catalog], summary: 'Update a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Staff catalog], summary: '(admin) Soft delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/books/{id}/restore:
+    post: { tags: [Staff catalog], summary: '(admin) Restore a deleted book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Restored } } }
+  /staff/books/{id}/variants:
+    post: { tags: [Staff catalog], summary: 'Add a format (format, sku, price_usd, stock_quantity logged as restock, ...)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '201': { description: Created } } }
+  /staff/variants/{id}:
+    patch: { tags: [Staff catalog], summary: 'Update a format; stock change logged as adjustment; is_active hides it', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Staff catalog], summary: '(admin) Delete if never ordered, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '409': { description: Ordered before } } }
+  /staff/authors:
+    post: { tags: [Staff catalog], summary: 'Create author', responses: { '201': { description: Created } } }
+  /staff/authors/{id}:
+    patch: { tags: [Staff catalog], summary: 'Update author', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Staff catalog], summary: '(admin) Delete, 409 while used by a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/categories:
+    post: { tags: [Staff catalog], summary: 'Create category (slug auto)', responses: { '201': { description: Created } } }
+  /staff/categories/{id}:
+    patch: { tags: [Staff catalog], summary: 'Update category', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Staff catalog], summary: '(admin) Delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/publishers:
+    post: { tags: [Staff catalog], summary: 'Create publisher', responses: { '201': { description: Created } } }
+  /staff/publishers/{id}:
+    patch: { tags: [Staff catalog], summary: 'Update publisher', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Staff catalog], summary: '(admin) Delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/series:
+    post: { tags: [Staff catalog], summary: 'Create series', responses: { '201': { description: Created } } }
+  /staff/series/{id}:
+    patch: { tags: [Staff catalog], summary: 'Update series', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Staff catalog], summary: '(admin) Delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/coupons:
+    get: { tags: [Staff operations], summary: 'List coupons (q, active)', responses: { '200': { description: Coupons } } }
+    post: { tags: [Staff operations], summary: 'Create (code, type percentage|fixed, value, min_order_amount, max_uses, starts_at, expires_at)', responses: { '201': { description: Created } } }
+  /staff/coupons/{id}:
+    get: { tags: [Staff operations], summary: 'One coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Coupon } } }
+    patch: { tags: [Staff operations], summary: 'Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/orders:
+    get: { tags: [Staff operations], summary: 'Orders (status, q = order number/customer, from, to)', responses: { '200': { description: Orders } } }
+  /staff/orders/{id}:
+    get: { tags: [Staff operations], summary: 'Order with customer and allowed_next_statuses', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order } } }
+  /staff/orders/{id}/status:
+    post: { tags: [Staff operations], summary: 'Move to processing, shipped, delivered or cancelled (with note)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '422': { description: Not allowed by the flow } } }
+  /staff/returns:
+    get: { tags: [Staff operations], summary: 'Returns (status, q)', responses: { '200': { description: Returns } } }
+  /staff/returns/{id}:
+    get: { tags: [Staff operations], summary: 'One return', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Return } } }
+  /staff/returns/{id}/approve:
+    post: { tags: [Staff operations], summary: 'Approve (no stock change yet)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Approved } } }
+  /staff/returns/{id}/reject:
+    post: { tags: [Staff operations], summary: 'Reject (note required)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Rejected } } }
+  /staff/returns/{id}/refund:
+    post: { tags: [Staff operations], summary: 'Mark refunded: books back in stock, amount saved', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Refunded } } }
+  /staff/reviews:
+    get: { tags: [Staff operations], summary: 'Reviews (visible, book_id, max_rating, q)', responses: { '200': { description: Reviews } } }
+  /staff/reviews/{id}/hide:
+    post: { tags: [Staff operations], summary: 'Hide a review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Hidden } } }
+  /staff/reviews/{id}/show:
+    post: { tags: [Staff operations], summary: 'Show a hidden review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Visible } } }
+  /staff/customers:
+    get: { tags: [Staff operations], summary: 'Customers (q, active, verified)', responses: { '200': { description: Customers } } }
+  /staff/customers/{id}:
+    get: { tags: [Staff operations], summary: 'Customer with stats and recent orders', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Customer } } }
+  /staff/notifications:
+    get: { tags: [Staff operations], summary: 'In-app alerts (low stock); unread=1', responses: { '200': { description: Notifications } } }
+  /staff/notifications/read-all:
+    post: { tags: [Staff operations], summary: 'Mark all read', responses: { '200': { description: OK } } }
+  /staff/notifications/{id}/read:
+    post: { tags: [Staff operations], summary: 'Mark one read', parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ], responses: { '200': { description: OK } } }
+
+  /staff/members:
+    get: { tags: [Admin], summary: '(admin) Staff accounts', responses: { '200': { description: Members } } }
+    post: { tags: [Admin], summary: '(admin) Invite staff (name, email, role) — they set their own password from the emailed code', responses: { '201': { description: Invited } } }
+  /staff/members/{id}:
+    patch: { tags: [Admin], summary: '(admin) Change name or role (role change signs them out)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '422': { description: Self change or last admin } } }
+  /staff/members/{id}/deactivate:
+    post: { tags: [Admin], summary: '(admin) Deactivate', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Deactivated } } }
+  /staff/members/{id}/activate:
+    post: { tags: [Admin], summary: '(admin) Reactivate', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Active } } }
+  /staff/members/{id}/reset-two-factor:
+    post: { tags: [Admin], summary: '(admin) Reset 2FA (lost phone)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Reset } } }
+  /staff/members/{id}/resend-invitation:
+    post: { tags: [Admin], summary: '(admin) Email a new 72 h setup code', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Sent } } }
+  /staff/customers/{id}/deactivate:
+    post: { tags: [Admin], summary: '(admin) Deactivate a customer', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Deactivated } } }
+  /staff/customers/{id}/activate:
+    post: { tags: [Admin], summary: '(admin) Reactivate a customer', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Active } } }
+  /staff/exchange-rates:
+    get: { tags: [Admin], summary: '(admin) USD->KHR rate history', responses: { '200': { description: Rates } } }
+    post: { tags: [Admin], summary: '(admin) Set a rate (rate, effective_at?)', responses: { '201': { description: Created } } }
+  /staff/audit-logs:
+    get: { tags: [Admin], summary: '(admin) Staff changes (staff_user_id, action, entity_type, entity_id, from, to)', responses: { '200': { description: Log entries } } }
+  /staff/dashboard/summary:
+    get:
+      tags: [Admin]
+      summary: (admin) Revenue (cash basis), orders, best sellers, low stock
+      parameters: [ { $ref: '#/components/parameters/Period' }, { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
+      responses: { '200': { description: Summary } }
+  /staff/dashboard/sales:
+    get:
+      tags: [Admin]
+      summary: (admin) One row per day for charts
+      parameters: [ { $ref: '#/components/parameters/Period' }, { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
+      responses: { '200': { description: Daily rows } }
+  /staff/orders/export:
+    get:
+      tags: [Admin]
+      summary: (admin) Orders placed in a date range as CSV
+      parameters: [ { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
+      responses: { '200': { description: CSV file, content: { text/csv: { schema: { type: string } } } } }

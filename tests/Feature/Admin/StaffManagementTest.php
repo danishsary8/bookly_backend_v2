@@ -6,8 +6,10 @@ use App\Enums\StaffRole;
 use App\Models\AdminAuditLog;
 use App\Models\StaffUser;
 use App\Notifications\StaffInvitationNotification;
+use App\Services\Staff\StaffManagementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class StaffManagementTest extends TestCase
@@ -118,7 +120,7 @@ class StaffManagementTest extends TestCase
     public function test_two_admins_demoting_each_other_at_once_leaves_one_admin(): void
     {
         $b = StaffUser::factory()->admin()->withTwoFactor()->create();
-        $service = app(\App\Services\Staff\StaffManagementService::class);
+        $service = app(StaffManagementService::class);
         // Both requests were authenticated while both were still admins.
         $aSeenByB = StaffUser::find($this->admin->id);
         $bAsActor = StaffUser::find($b->id);
@@ -128,7 +130,7 @@ class StaffManagementTest extends TestCase
         try {
             $service->update($bAsActor, $aSeenByB, ['role' => 'staff']); // B's request runs right after
             $this->fail('The last active admin was demoted.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->assertSame('The last active admin cannot be demoted.', $e->errors()['staff'][0]);
         }
 

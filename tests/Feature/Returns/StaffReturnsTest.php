@@ -4,6 +4,7 @@ namespace Tests\Feature\Returns;
 
 use App\Enums\BookFormat;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\AdminAuditLog;
 use App\Models\BookVariant;
 use App\Models\Customer;
@@ -69,7 +70,7 @@ class StaffReturnsTest extends TestCase
         // Every physical copy came back (the ebook is not returnable), so the order is returned.
         $order->refresh();
         $this->assertSame(OrderStatus::Returned, $order->status);
-        $this->assertSame(\App\Enums\PaymentStatus::Refunded, $order->payments()->first()->status);
+        $this->assertSame(PaymentStatus::Refunded, $order->payments()->first()->status);
         $this->assertEqualsCanonicalizing(['order_return.approved', 'order_return.refunded', 'order.status_changed'],
             AdminAuditLog::orderBy('id')->pluck('action')->all());
     }

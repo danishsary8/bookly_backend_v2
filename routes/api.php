@@ -1,42 +1,45 @@
 <?php
 
-use App\Http\Controllers\Api\V1\Customer\AddressController;
-use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
-use App\Http\Controllers\Api\V1\Customer\CartController;
-use App\Http\Controllers\Api\V1\Customer\CheckoutController;
-use App\Http\Controllers\Api\V1\Customer\OrderController;
-use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
-use App\Http\Controllers\Api\V1\Customer\ProfileController;
-use App\Http\Controllers\Api\V1\Customer\ReturnController;
-use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
-use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
-use App\Http\Controllers\Api\V1\Customer\WishlistController;
-use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
-use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
-use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
-use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
-use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
-use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
-use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
-use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
-use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
-use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
-use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
-use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
-use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
-use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
-use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
-use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
-use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
 use App\Http\Controllers\Api\V1\Catalog\PublisherController;
 use App\Http\Controllers\Api\V1\Catalog\ReviewController as BookReviewController;
 use App\Http\Controllers\Api\V1\Catalog\SeriesController;
+use App\Http\Controllers\Api\V1\Customer\AddressController;
+use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
+use App\Http\Controllers\Api\V1\Customer\CartController;
+use App\Http\Controllers\Api\V1\Customer\CheckoutController;
+use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
+use App\Http\Controllers\Api\V1\Customer\OrderController;
+use App\Http\Controllers\Api\V1\Customer\ProfileController;
+use App\Http\Controllers\Api\V1\Customer\ReturnController;
+use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
+use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
+use App\Http\Controllers\Api\V1\Customer\WishlistController;
+use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
+use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
+use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
+use App\Http\Controllers\Api\V1\Staff\Admin\OrderExportController;
+use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
+use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
+use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
+use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
+use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
+use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
+use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v1']));
+Route::get('/health', HealthController::class);
 
 /*
 | Public catalog (no login needed)
@@ -195,6 +198,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
         Route::get('/dashboard/sales', [DashboardController::class, 'sales']);
+        Route::get('/orders/export', OrderExportController::class)->middleware('throttle:10,1');
 
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
         Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');

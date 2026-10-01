@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
@@ -21,6 +22,10 @@ class AuthController extends Controller
     use IssuesTokens;
 
     private const CHALLENGE_TTL_MINUTES = 5;
+
+    private const MAX_WRONG_CODES = 5;
+
+    private const WRONG_CODE_DECAY_SECONDS = 900;
 
     public function __construct(
         private readonly TotpService $totp,
@@ -80,10 +85,22 @@ class AuthController extends Controller
             return response()->json(['message' => 'This login attempt has expired. Please log in again.'], 401);
         }
 
+        // Wrong codes are counted per account, not per IP, so the 6-digit code cannot be guessed from many machines.
+        $limiter = "staff-2fa-wrong:{$staff->id}";
+        if (RateLimiter::tooManyAttempts($limiter, self::MAX_WRONG_CODES)) {
+            Cache::forget($this->challengeKey($data['challenge_token']));
+
+            return response()->json(['message' => 'Too many invalid codes. Please try again later.'], 429)
+                ->header('Retry-After', (string) RateLimiter::availableIn($limiter));
+        }
+
         if (! $this->verifyFreshCode($staff, $data['code'])) {
+            RateLimiter::hit($limiter, self::WRONG_CODE_DECAY_SECONDS);
+
             return response()->json(['message' => 'Invalid authentication code.'], 422);
         }
 
+        RateLimiter::clear($limiter);
         Cache::forget($this->challengeKey($data['challenge_token']));
 
         return response()->json([

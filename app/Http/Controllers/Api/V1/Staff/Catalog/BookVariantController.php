@@ -99,7 +99,7 @@ class BookVariantController extends Controller
         return [
             'stock_quantity' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
             'low_stock_threshold' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
-            'cover_image_url' => ['nullable', 'url', 'max:500'],
+            'cover_image_url' => ['nullable', 'url:http,https', 'max:500'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

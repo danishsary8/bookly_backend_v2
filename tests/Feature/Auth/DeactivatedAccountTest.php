@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\StaffUser;
 use App\Services\Auth\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Mockery;
@@ -29,8 +30,10 @@ class DeactivatedAccountTest extends TestCase
         Customer::factory()->create(['email' => 'off@example.com', 'google_id' => 'g-1', 'is_active' => false]);
         $driver = Mockery::mock();
         $driver->shouldReceive('stateless')->andReturnSelf();
-        $driver->shouldReceive('userFromToken')->andReturn((new SocialiteUser)->map(['id' => 'g-1', 'email' => 'off@example.com', 'name' => 'Off']));
+        $driver->shouldReceive('userFromToken')->andReturn((new SocialiteUser)->setRaw(['email_verified' => true])->map(['id' => 'g-1', 'email' => 'off@example.com', 'name' => 'Off']));
         Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+        config(['services.google.client_id' => 'bookly-google']);
+        Http::fake(['oauth2.googleapis.com/tokeninfo*' => Http::response(['aud' => 'bookly-google'])]);
 
         $this->postJson('/api/v1/auth/social/google', ['access_token' => 't'])->assertForbidden();
     }

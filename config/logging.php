@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -19,6 +20,9 @@ return [
     */
 
     'default' => env('LOG_CHANNEL', 'stack'),
+
+    // One log line per API request (method, path, status, duration, user). Usually on in production.
+    'log_requests' => (bool) env('LOG_REQUESTS', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -99,6 +103,18 @@ return [
                 'port' => env('PAPERTRAIL_PORT'),
                 'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
             ],
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        // Production: one JSON object per line on stdout, collected by the hosting platform.
+        'json_stdout' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'info'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stdout',
+            ],
+            'formatter' => JsonFormatter::class,
             'processors' => [PsrLogMessageProcessor::class],
         ],
 

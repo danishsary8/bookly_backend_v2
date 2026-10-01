@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\CurrencyService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -12,11 +13,15 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // One instance per request so the exchange rate is read once, not per book.
-        $this->app->scoped(\App\Services\CurrencyService::class);
+        $this->app->scoped(CurrencyService::class);
     }
 
     public function boot(): void
     {
+        // Every API route: 120 requests per minute per logged-in user, or per IP for guests.
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)
+            ->by($request->user() ? class_basename($request->user()).':'.$request->user()->getKey() : 'ip:'.$request->ip()));
+
         // Login, OTP and reset endpoints: 5 attempts per minute per email (or user) + IP,
         // plus 30 per minute per IP so rotating through many emails does not bypass the limit.
         RateLimiter::for('auth', function (Request $request) {

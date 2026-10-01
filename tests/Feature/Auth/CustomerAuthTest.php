@@ -152,6 +152,25 @@ class CustomerAuthTest extends TestCase
         $this->assertSame(0, $customer->tokens()->count(), 'old sessions are revoked');
     }
 
+    public function test_a_reset_code_is_thrown_away_after_five_wrong_guesses_from_any_ip(): void
+    {
+        $customer = Customer::factory()->create(['email' => 'dara@example.com', 'password_hash' => 'oldpass123']);
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'dara@example.com'])->assertOk();
+        $code = $this->lastCode($customer, VerificationPurpose::PasswordReset);
+        $wrong = $code === '000000' ? '111111' : '000000';
+        $body = ['email' => 'dara@example.com', 'password' => 'newpass123', 'password_confirmation' => 'newpass123'];
+
+        // Each guess from a different IP, so the per-IP rate limit never kicks in.
+        for ($i = 1; $i <= 5; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => "203.0.113.{$i}"])
+                ->postJson('/api/v1/auth/reset-password', [...$body, 'code' => $wrong])->assertUnprocessable();
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.99'])
+            ->postJson('/api/v1/auth/reset-password', [...$body, 'code' => $code])->assertUnprocessable();
+        $this->assertTrue(Hash::check('oldpass123', $customer->fresh()->password_hash));
+    }
+
     public function test_login_is_rate_limited_after_five_attempts(): void
     {
         for ($i = 0; $i < 5; $i++) {
