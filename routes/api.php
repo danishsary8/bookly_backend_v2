@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Customer\AddressController;
+use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\CartController;
 use App\Http\Controllers\Api\V1\Customer\CheckoutController;
@@ -37,6 +38,7 @@ use App\Http\Controllers\Api\V1\Catalog\SeriesController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v1']));
+Route::get('/health', HealthController::class);
 
 /*
 | Public catalog (no login needed)

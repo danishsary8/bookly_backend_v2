@@ -17,6 +17,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Every API route: 120 requests per minute per logged-in user, or per IP for guests.
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)
+            ->by($request->user() ? class_basename($request->user()).':'.$request->user()->getKey() : 'ip:'.$request->ip()));
+
         // Login, OTP and reset endpoints: 5 attempts per minute per email (or user) + IP,
         // plus 30 per minute per IP so rotating through many emails does not bypass the limit.
         RateLimiter::for('auth', function (Request $request) {
