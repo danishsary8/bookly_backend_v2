@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
 use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
+use App\Http\Controllers\Api\V1\Staff\Admin\OrderExportController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
@@ -197,6 +198,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
         Route::get('/dashboard/sales', [DashboardController::class, 'sales']);
+        Route::get('/orders/export', OrderExportController::class)->middleware('throttle:10,1');
 
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
         Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');
