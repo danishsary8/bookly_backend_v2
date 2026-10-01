@@ -21,8 +21,20 @@ Requirements, entity list (27 tables), ER diagram, column-level schema. See PROJ
 5. Local dev DB for this session ran on a throwaway Postgres cluster; on your machine create DBs `bookshop_v2` and `bookshop_v2_test` and a `bookshop` user.
 
 ### Open questions for the owner
-1. Addresses: an order only stores `shipping_address_id`. If a customer edits/deletes that address, order history changes or the delete fails. Recommended: snapshot the address onto the order (or make addresses immutable + soft-delete). Needs a decision before the checkout feature.
+1. ~~Order shipping address~~ — RESOLVED in Step 2: owner chose to snapshot the address onto the order.
 2. `verification_tokens.user_id` is polymorphic without a DB FK (by design); integrity is enforced in app code.
+
+## Step 2 — Eloquent models, enums, factories (done)
+Branch: `feature/domain-models`, one commit per domain (accounts, catalog, inventory, cart/wishlist, promotions, orders, payments, returns, reviews, money/admin, tests).
+- 27 models in `app/Models`. `returns` table model is `OrderReturn` (`Return` is a PHP reserved word). Log-style tables use `const UPDATED_AT = null`.
+- Customer/StaffUser extend Authenticatable, use `password_hash` (`getAuthPasswordName()`, `hashed` cast). Staff `two_factor_secret` uses the `encrypted` cast.
+- PHP backed enums in `app/Enums` (OrderStatus has the allowed status transitions).
+- `orders` migration changed: `shipping_address_id` is now nullable/SET NULL and the order stores a snapshot (`shipping_recipient_name`, `shipping_phone`, `shipping_address_line1/2`, `shipping_city/state/postal_code/country`).
+- `app/Support/Money.php`: money math in integer cents (the PHP `bcmath` extension is not assumed to be installed). Coupon discount logic lives on the Coupon model.
+- Factories for all main models. Tests: 14 passing (`ModelRelationshipsTest`, `MoneyTest`, schema, ping).
+
+### Paused on owner request
+The owner asked to stop before (1) Sanctum auth / 2FA / OTP and (2) payment providers. A first auth draft was written before that message arrived; it is NOT committed. It sits in `git stash` ("auth draft ...") in the build environment only — treat it as reference, not as accepted code. See NEXT_STEP.md for the decisions needed.
 
 ## How to run locally
 ```
