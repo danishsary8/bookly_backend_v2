@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategor
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
+use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
@@ -132,6 +133,12 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/orders', [StaffOrderController::class, 'index']);
     Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order');
     Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order');
+
+    Route::get('/returns', [StaffReturnController::class, 'index']);
+    Route::get('/returns/{return}', [StaffReturnController::class, 'show'])->whereNumber('return');
+    Route::post('/returns/{return}/approve', [StaffReturnController::class, 'approve'])->whereNumber('return');
+    Route::post('/returns/{return}/reject', [StaffReturnController::class, 'reject'])->whereNumber('return');
+    Route::post('/returns/{return}/refund', [StaffReturnController::class, 'refund'])->whereNumber('return');
 
     Route::get('/books', [StaffBookController::class, 'index']);
     Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book');

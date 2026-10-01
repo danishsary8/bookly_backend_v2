@@ -127,6 +127,55 @@ class ReturnService
         });
     }
 
+    public function approve(OrderReturn $return, StaffUser $staff, ?string $note): OrderReturn
+    {
+        return $this->resolve($return, $staff, [ReturnStatus::Requested], function (OrderReturn $locked) use ($note) {
+            $locked->update(['status' => ReturnStatus::Approved, 'staff_note' => $note ?? $locked->staff_note]);
+        });
+    }
+
+    /** Requested or approved returns can be rejected (for example when the books never arrive). */
+    public function reject(OrderReturn $return, StaffUser $staff, string $note): OrderReturn
+    {
+        return $this->resolve($return, $staff, [ReturnStatus::Requested, ReturnStatus::Approved], function (OrderReturn $locked) use ($note) {
+            $locked->update(['status' => ReturnStatus::Rejected, 'staff_note' => $note, 'resolved_at' => now()]);
+        });
+    }
+
+    /**
+     * The books have arrived and the money was paid back outside the system (cash or bank transfer).
+     * Stock goes back up, the refund amount is saved, and when every returnable item of the order has
+     * been refunded the order becomes `returned`.
+     */
+    public function refund(OrderReturn $return, StaffUser $staff, ?string $note): OrderReturn
+    {
+        return $this->resolve($return, $staff, [ReturnStatus::Approved], function (OrderReturn $locked) use ($staff, $note) {
+            $order = Order::whereKey($locked->order_id)->lockForUpdate()->firstOrFail();
+            $locked->load('items.orderItem.variant');
+
+            // Calculated over all refunded returns of the order, minus what was already paid back,
+            // so several partial refunds add up exactly to the full amount (no rounding drift).
+            $previous = $order->returns()->where('status', ReturnStatus::Refunded)->with('items.orderItem')->get();
+            $allItems = $previous->flatMap->items->concat($locked->items);
+            $refund = $this->refundCents($order, $allItems) - $previous->sum(fn ($r) => Money::toCents($r->refund_amount));
+
+            foreach ($locked->items as $item) {
+                $this->inventory->restockFromReturn($item->orderItem->book_variant_id, $item->quantity, $locked, $staff);
+            }
+
+            $locked->update([
+                'status' => ReturnStatus::Refunded,
+                'refund_amount' => Money::format($refund),
+                'staff_note' => $note ?? $locked->staff_note,
+                'resolved_at' => now(),
+            ]);
+
+            if ($this->everythingReturned($order)) {
+                $this->orderStatuses->markReturned($order, $staff, "All returnable items refunded (return #{$locked->id}).");
+            }
+        });
+    }
+
     /** Refund for a set of return items: their price minus their share of the order's coupon discount, in cents. */
     public function refundCents(Order $order, Collection $returnItems): int
     {
@@ -135,6 +184,42 @@ class ReturnService
         $discount = Money::toCents($order->discount_amount);
 
         return $subtotal > 0 ? $goods - intdiv($discount * $goods, $subtotal) : $goods;
+    }
+
+    private function resolve(OrderReturn $return, StaffUser $staff, array $allowedFrom, callable $change): OrderReturn
+    {
+        return DB::transaction(function () use ($return, $staff, $allowedFrom, $change) {
+            $locked = OrderReturn::whereKey($return->id)->lockForUpdate()->firstOrFail();
+            $from = $locked->status;
+
+            if (! in_array($from, $allowedFrom, true)) {
+                throw ValidationException::withMessages(['status' => "This return is {$from->value} and cannot be changed this way."]);
+            }
+
+            $change($locked);
+            $locked->update(['handled_by_staff_id' => $staff->id]);
+            $this->audit->custom($staff, $locked->status->value, $locked,
+                ['status' => $from->value],
+                ['status' => $locked->status->value, 'refund_amount' => $locked->refund_amount, 'note' => $locked->staff_note]);
+
+            return $locked;
+        });
+    }
+
+    /** True when every physical copy in the order is in a refunded return. */
+    private function everythingReturned(Order $order): bool
+    {
+        $refunded = DB::table('return_items')
+            ->join('returns', 'returns.id', '=', 'return_items.return_id')
+            ->where('returns.order_id', $order->id)
+            ->where('returns.status', ReturnStatus::Refunded->value)
+            ->groupBy('return_items.order_item_id')
+            ->selectRaw('return_items.order_item_id, SUM(return_items.quantity) AS qty')
+            ->pluck('qty', 'order_item_id');
+
+        return $order->items()->with('variant')->get()
+            ->filter(fn ($item) => ! $item->variant->format->isDigital())
+            ->every(fn ($item) => (int) ($refunded[$item->id] ?? 0) >= $item->quantity);
     }
 
     /** order_item_id => copies already in a requested, approved or refunded return. */
