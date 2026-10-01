@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Platform;
 
+use Illuminate\Support\Facades\Route;
+use RuntimeException;
 use Tests\TestCase;
 
 class SecurityHeadersTest extends TestCase
@@ -36,5 +38,16 @@ class SecurityHeadersTest extends TestCase
 
         $this->getJson('/api/v1/ping', ['Origin' => 'https://evil.example'])
             ->assertHeaderMissing('Access-Control-Allow-Origin');
+    }
+
+    public function test_server_errors_do_not_leak_details_when_debug_is_off(): void
+    {
+        config(['app.debug' => false]);
+        Route::middleware('api')->get('/api/v1/__test/boom', fn () => throw new RuntimeException('SQLSTATE secret table customers'));
+
+        $response = $this->getJson('/api/v1/__test/boom')->assertStatus(500)->assertExactJson(['message' => 'Server Error']);
+
+        $this->assertStringNotContainsString('SQLSTATE', $response->getContent());
+        $this->assertNotNull($response->headers->get('X-Request-Id'), 'the id to quote when reporting the problem');
     }
 }
