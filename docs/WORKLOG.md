@@ -123,6 +123,7 @@ Owner decisions: Railway · Dockerfile with FrankenPHP · 3 services from one im
 
 - [x] 10.1 Trusted proxies: `config('app.trusted_proxies')` from `TRUSTED_PROXIES`, applied with `TrustProxies::at()` in `AppServiceProvider` (env in `bootstrap/app.php` would be lost after `config:cache`). Default `REMOTE_ADDR` = trust only the machine directly in front (the host's edge), whatever its IP. Note: the owner picked "default all" (`*`), but testing showed Laravel 13 treats `*` as trusting every address (`0.0.0.0/0`), so the first, visitor-written `X-Forwarded-For` entry became the IP and per-IP rate limits could be dodged; `REMOTE_ADDR` keeps the intent (no fixed IP list needed) without that hole. A test documents the `*` behaviour. Real visitor IP and HTTPS (HSTS) now work behind Railway. Tests: `TrustedProxiesTest` (197 total).
 - [x] 10.2 Staff tokens expire after `STAFF_TOKEN_HOURS` (default 12, `config('auth.staff_token_hours')`) in `IssuesTokens`; customer tokens keep 7 days (`SANCTUM_EXPIRATION`). Owner-approved change to auth code. Tests: `StaffAuthTest::test_staff_tokens_expire_after_12_hours` (198 total).
+- [x] 10.3 DemoSeeder in production: still refused by default; runs when `DEMO_SEED_ALLOWED=true` (`config('app.demo_seed_allowed')`; remove the variable afterwards). In production the two staff accounts get a random 20-character password printed once instead of the published `Password123!` (only the demo customer keeps it, so visitors can try the shop). Tests: `DemoSeederTest` production case (199 total).
 
 ## How to run locally
 ```

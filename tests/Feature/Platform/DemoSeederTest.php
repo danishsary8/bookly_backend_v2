@@ -39,4 +39,22 @@ class DemoSeederTest extends TestCase
         $this->assertSame(13, Order::count());
         $this->assertSame(20, Book::count());
     }
+
+    public function test_production_refuses_unless_explicitly_allowed_and_then_hides_staff_passwords(): void
+    {
+        $this->app['env'] = 'production';
+
+        $seed = fn () => $this->artisan('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
+
+        $seed()->expectsOutputToContain('does not run in production')->assertSuccessful();
+        $this->assertSame(0, Book::count(), 'refused without DEMO_SEED_ALLOWED');
+
+        config(['app.demo_seed_allowed' => true]);
+        $seed()->expectsOutputToContain('shown once, save it now')->assertSuccessful();
+        $this->assertSame(20, Book::count());
+
+        // The published password works for the demo customer only, never for staff.
+        $this->postJson('/api/v1/auth/login', ['email' => 'demo@bookly.test', 'password' => DemoSeeder::PASSWORD])->assertOk();
+        $this->postJson('/api/v1/staff/auth/login', ['email' => 'admin@bookly.test', 'password' => DemoSeeder::PASSWORD])->assertUnauthorized();
+    }
 }

@@ -33,7 +33,8 @@ use Illuminate\Support\Str;
  *
  * Orders are placed through the real cart, checkout and status services (with the clock moved back),
  * so stock movements, order history, payments and the dashboard all look like real use.
- * All demo passwords: Password123!
+ * All demo passwords: Password123! — except in production (DEMO_SEED_ALLOWED=true), where the two staff
+ * accounts get a random password printed once, so only the demo customer uses the published password.
  */
 class DemoSeeder extends Seeder
 {
@@ -41,8 +42,8 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
-        if (app()->isProduction()) {
-            $this->command?->error('DemoSeeder does not run in production.');
+        if (app()->isProduction() && ! config('app.demo_seed_allowed')) {
+            $this->command?->error('DemoSeeder does not run in production. To fill a public demo site once, set DEMO_SEED_ALLOWED=true, run it, then remove the variable.');
 
             return;
         }
@@ -55,8 +56,13 @@ class DemoSeeder extends Seeder
         // Send the order emails nowhere and run queued work straight away while seeding.
         config(['mail.default' => 'array', 'queue.default' => 'sync']);
 
-        $admin = StaffUser::create(['name' => 'Demo Admin', 'email' => 'admin@bookly.test', 'password_hash' => self::PASSWORD, 'role' => StaffRole::Admin]);
-        StaffUser::create(['name' => 'Demo Staff', 'email' => 'staff@bookly.test', 'password_hash' => self::PASSWORD, 'role' => StaffRole::Staff]);
+        // On a public site the staff logins must not use the published demo password: random ones, shown once.
+        $staffPassword = app()->isProduction() ? Str::password(20, symbols: false) : self::PASSWORD;
+        $admin = StaffUser::create(['name' => 'Demo Admin', 'email' => 'admin@bookly.test', 'password_hash' => $staffPassword, 'role' => StaffRole::Admin]);
+        StaffUser::create(['name' => 'Demo Staff', 'email' => 'staff@bookly.test', 'password_hash' => $staffPassword, 'role' => StaffRole::Staff]);
+        if (app()->isProduction()) {
+            $this->command?->warn("Staff password for admin@bookly.test and staff@bookly.test (shown once, save it now): {$staffPassword}");
+        }
 
         ExchangeRate::create(['base_currency' => 'USD', 'target_currency' => 'KHR', 'rate' => '4100', 'effective_at' => now()->subMonths(2)]);
 

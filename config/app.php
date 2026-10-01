@@ -131,4 +131,7 @@ return [
     | Avoid '*': it trusts every address in X-Forwarded-For, so visitors could fake their IP and dodge rate limits.
     */
     'trusted_proxies' => env('TRUSTED_PROXIES', 'REMOTE_ADDR'),
+
+    // Lets `db:seed --class=DemoSeeder` run once in production to fill a public demo site. Remove afterwards.
+    'demo_seed_allowed' => (bool) env('DEMO_SEED_ALLOWED', false),
 ];
