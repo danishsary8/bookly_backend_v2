@@ -50,4 +50,13 @@ class SecurityHeadersTest extends TestCase
         $this->assertStringNotContainsString('SQLSTATE', $response->getContent());
         $this->assertNotNull($response->headers->get('X-Request-Id'), 'the id to quote when reporting the problem');
     }
+
+    public function test_web_pages_use_no_session_and_the_home_page_shows_the_docs(): void
+    {
+        // The schema has no sessions table, so a session here would be a 500 in production.
+        config(['session.driver' => 'database']);
+
+        $this->get('/')->assertRedirect('/docs');
+        $this->get('/docs')->assertOk()->assertCookieMissing(config('session.cookie'))->assertCookieMissing('XSRF-TOKEN');
+    }
 }

@@ -7,7 +7,10 @@ use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Sentry\Laravel\Integration;
@@ -24,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(AssignRequestId::class);
         $middleware->append(SecurityHeaders::class);
         $middleware->throttleApi('api');
+
+        // No browser logins or forms here (the API uses Bearer tokens), so web pages such as /docs need no
+        // session: visiting them must not write a sessions row or depend on the database.
+        $middleware->web(remove: [StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class]);
 
         $middleware->alias([
             'abilities' => CheckAbilities::class,
