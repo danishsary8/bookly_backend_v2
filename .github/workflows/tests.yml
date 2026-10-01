@@ -3,8 +3,7 @@ name: Tests
 on:
   push:
     branches:
-      - master
-      - '*.x'
+      - main
   pull_request:
   schedule:
     - cron: '0 0 * * *'
@@ -15,6 +14,23 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
+
+    # The schema uses PostgreSQL features (jsonb, tsvector full-text search, CHECK constraints),
+    # so tests run against a real PostgreSQL, matching phpunit.xml (database bookshop_v2_test).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bookshop
+          POSTGRES_PASSWORD: bookshop
+          POSTGRES_DB: bookshop_v2_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bookshop -d bookshop_v2_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     strategy:
       fail-fast: true
@@ -33,7 +49,7 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pgsql, pdo_pgsql
           coverage: none
 
       - name: Install Composer dependencies
