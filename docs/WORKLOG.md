@@ -57,6 +57,11 @@ Owner decisions: image URLs only (no upload yet) · 20 per page (max 100) with f
 - [x] 4.5 Variants: `POST /staff/books/{id}/variants`, `PATCH /staff/variants/{id}`, admin-only `DELETE /staff/variants/{id}`. All stock changes go through `InventoryService::setStock()` (row lock + `inventory_movements` row with staff id): initial stock = `restock`, edits = `adjustment`. One format per book, unique SKU/ISBN, price max 2 decimals. Delete: 409 if the variant was ever ordered (deactivate instead); a never-ordered variant is deleted together with its stock movements (the audit log keeps the snapshot). Tests: `StaffVariantManagementTest` (74 total).
 - [x] 4.6 Docs: catalog endpoints in `docs/API.md`, `NEXT_STEP.md` rewritten for Step 5 (addresses, cart, wishlist, coupons) with 7 owner decisions.
 
+## Step 5 — Addresses, cart, wishlist, coupons (branch `feature/cart-wishlist-coupons`)
+Owner decisions: re-adding a format increases quantity · stock checked when adding, max 10 per line, ebooks/audiobooks quantity 1 · cart shows current prices with per-line `issues` and `can_checkout` (nothing removed silently) · coupons previewed with `POST /cart/coupon/check`, sent again at checkout, one coupon per order, one use per customer (cancelled orders don't count) + global `max_uses` · staff + admin manage coupons, admin deletes, used coupons can only be deactivated · max 10 addresses, first is default, one default at a time · wishlist stays simple (no move-to-cart yet) · new column `cart_items.unit_price_at_add` for the price-changed warning.
+
+- [x] 5.1 Migration `2026_10_03_100001_add_unit_price_at_add_to_cart_items_table` (new file). Nullable DECIMAL(10,2); the cart still charges the current price.
+
 ## How to run locally
 ```
 composer install
