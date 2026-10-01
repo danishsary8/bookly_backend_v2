@@ -115,6 +115,22 @@ class StaffAuthTest extends TestCase
         $attempt(51, $this->code())->assertOk()->assertJsonStructure(['token']);
     }
 
+    public function test_staff_tokens_expire_after_12_hours(): void
+    {
+        StaffUser::factory()->withTwoFactor(self::SECRET)->create(['email' => 's@shop.test', 'password_hash' => 'secret123']);
+        $challenge = $this->postJson('/api/v1/staff/auth/login', ['email' => 's@shop.test', 'password' => 'secret123'])->json('challenge_token');
+
+        $response = $this->postJson('/api/v1/staff/auth/two-factor/challenge', ['challenge_token' => $challenge, 'code' => $this->code()])->assertOk();
+        $this->assertSame(now()->addHours(12)->toIso8601String(), $response->json('expires_at'));
+
+        $this->travel(11)->hours();
+        $this->withToken($response->json('token'))->getJson('/api/v1/__test/staff')->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $this->travel(2)->hours();
+        $this->withToken($response->json('token'))->getJson('/api/v1/__test/staff')->assertUnauthorized();
+    }
+
     public function test_admin_only_routes_reject_regular_staff(): void
     {
         $staff = StaffUser::factory()->withTwoFactor()->create();
