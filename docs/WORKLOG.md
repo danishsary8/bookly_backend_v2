@@ -118,6 +118,12 @@ Owner decisions: JSON logs to stdout + request ID · Sentry for server errors on
   Tested: a 500 with `APP_DEBUG=false` returns only `{"message":"Server Error"}` (+ `X-Request-Id`). Accepted for now (owner's call later): registration says when an email is already taken (normal shop UX, rate limited); staff tokens last 7 days like customer tokens; trusted proxies must be set at deploy time. Tests: `SecurityHeadersTest` + new cases in auth/social/catalog tests (193 total).
 - [x] 9.9 Docs: `API.md` (platform section with /ping and /health, `/docs`, `X-Request-Id`, CORS and exposed headers, full rate-limit list, social login and code-guess rules, orders export, http/https URLs); README (features incl. production section, demo seeder logins, production `.env` values, 193 tests, roadmap); `PROJECT_CONTEXT.md` (Step 9 summary); `NEXT_STEP.md` rewritten for Step 10 deployment (12 decisions).
 
+## Step 10 — Deployment (branch `feature/deployment`)
+Owner decisions: Railway · Dockerfile with FrankenPHP · 3 services from one image (web, worker, scheduler) · trusted proxies from env · migrations as a Railway pre-deploy command · Resend for email · free subdomains for now (`*.up.railway.app`, Vercel) · Railway backups + documented pg_dump/restore · owner creates accounts, deployment guide in `docs/DEPLOYMENT.md` · auto-deploy from `main` after CI is green · DemoSeeder allowed once in production with an explicit flag · staff tokens 12 h.
+
+- [x] 10.1 Trusted proxies: `config('app.trusted_proxies')` from `TRUSTED_PROXIES`, applied with `TrustProxies::at()` in `AppServiceProvider` (env in `bootstrap/app.php` would be lost after `config:cache`). Default `REMOTE_ADDR` = trust only the machine directly in front (the host's edge), whatever its IP. Note: the owner picked "default all" (`*`), but testing showed Laravel 13 treats `*` as trusting every address (`0.0.0.0/0`), so the first, visitor-written `X-Forwarded-For` entry became the IP and per-IP rate limits could be dodged; `REMOTE_ADDR` keeps the intent (no fixed IP list needed) without that hole. A test documents the `*` behaviour. Real visitor IP and HTTPS (HSTS) now work behind Railway. Tests: `TrustedProxiesTest` (197 total).
+- [x] 10.2 Staff tokens expire after `STAFF_TOKEN_HOURS` (default 12, `config('auth.staff_token_hours')`) in `IssuesTokens`; customer tokens keep 7 days (`SANCTUM_EXPIRATION`). Owner-approved change to auth code. Tests: `StaffAuthTest::test_staff_tokens_expire_after_12_hours` (198 total).
+
 ## How to run locally
 ```
 composer install
