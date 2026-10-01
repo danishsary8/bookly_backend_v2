@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Customer\AddressController;
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\CartController;
 use App\Http\Controllers\Api\V1\Customer\CheckoutController;
+use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
@@ -85,6 +86,9 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
 
     Route::post('/checkout/preview', [CheckoutController::class, 'preview'])->middleware('throttle:30,1');
     Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1');
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
