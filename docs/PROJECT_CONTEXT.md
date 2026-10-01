@@ -6,7 +6,7 @@ Owner: a software-dev student becoming an API developer. Explain step by step, w
 Full rebuild of the legacy PHP backend (V1, folder `book-ecommerce-server/`, plain PHP + Postgres + custom JWT) as V2: Laravel + PostgreSQL, clean 3NF schema, general e-commerce + bookshop features. Backend first; frontend V2 comes later. V1 is never modified.
 
 ## Stack (confirmed)
-Laravel 13 (PHP 8.3) · PostgreSQL 16 · REST `/api/v1/` · Laravel Sanctum tokens · 2FA for staff · database queue driver (`QUEUE_CONNECTION=database`) · Postgres full-text search (generated `tsvector` on `books`) · Sentry + JSON stdout logging with request IDs · PHPUnit + Pint in CI. Deployment target undecided.
+Laravel 13 (PHP 8.3) · PostgreSQL 16 · REST `/api/v1/` · Laravel Sanctum tokens · 2FA for staff · database queue driver (`QUEUE_CONNECTION=database`) · Postgres full-text search (generated `tsvector` on `books`) · Sentry + JSON stdout logging with request IDs · PHPUnit + Pint in CI. Deployed as a Docker image (FrankenPHP) on Railway.
 
 ## Requirements (confirmed)
 - Roles: customer, admin, staff (inventory). Staff table separate from customers.
@@ -41,6 +41,9 @@ Admin-only routes sit inside the staff group under `abilities:admin`. Staff and 
 
 ## Production readiness (implemented in Step 9)
 `AssignRequestId` (global, first) sets `X-Request-Id` and shares it with every log line; production uses `LOG_CHANNEL=json_stdout`, `LOG_REQUESTS=true`. Sentry (`SENTRY_LARAVEL_DSN`) gets 5xx only, scrubbed by `App\Support\SentryBeforeSend` (user id/type only). `api` rate limiter 120/min per user or IP on every route. `GET /api/v1/health` (db + queue backlog). Admin CSV export `GET /staff/orders/export`. `public/openapi.yaml` + Swagger UI at `/docs`; `OpenApiSpecTest` fails when a route is not documented, so every new endpoint must be added there too. `DemoSeeder` (manual only). CI: `code-style` job (`pint --test`) + PHP 8.3/8.4/8.5 tests. Security: `SecurityHeaders` middleware, CORS from `CORS_ALLOWED_ORIGINS`, emailed codes die after 5 wrong guesses, staff 2FA wrong codes limited per account, social tokens verified as issued to our app (`SocialTokenVerifier`), cover/photo URLs http(s) only.
+
+## Deployment (implemented in Step 10)
+One `Dockerfile` (FrankenPHP, PHP 8.4, user `bookly`); `docker/start.sh` starts the role in `CONTAINER_ROLE` (web | worker | scheduler) after caching config/routes. Railway project described in `.railway/railway.ts` (Railway TypeScript IaC; `railway.json` is deprecated): PostgreSQL 18 + web (pre-deploy `migrate --force`, health check `/api/v1/health`) + worker + scheduler; secrets are Railway shared variables. Deploys from `main` only after CI passes ("Wait for CI"). `TRUSTED_PROXIES=REMOTE_ADDR` (never `*`), staff tokens 12 h (`STAFF_TOKEN_HOURS`), Resend mail, `DEMO_SEED_ALLOWED` for a one-off production demo seed. Web pages are stateless (no sessions/CSRF); `/` redirects to `/docs`. Guide: `docs/DEPLOYMENT.md`. Roadmap complete; payments deferred until keys arrive.
 
 ## Conventions (apply everywhere)
 BIGINT auto-increment PKs · DECIMAL(10,2) money · soft deletes ONLY on customers, orders, books · timestamps on all tables (log-style tables have only `created_at`) · 3NF, with the one intentional snapshot `order_items.unit_price` · enum-like columns are VARCHAR + CHECK constraints (not Postgres enums) · password column is `password_hash` (models must override `getAuthPasswordName()`).

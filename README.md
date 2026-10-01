@@ -8,7 +8,7 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 ![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-193%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-200%20passing-2ea44f)
 
 ## Features
 
@@ -54,12 +54,13 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 
 | Area | Choice |
 | --- | --- |
-| Framework | Laravel 13 (PHP 8.3) |
-| Database | PostgreSQL 16 |
+| Framework | Laravel 13 (PHP 8.3+; the Docker image runs 8.4) |
+| Database | PostgreSQL (tested on 16 and 18) |
 | Auth | Laravel Sanctum tokens, email OTP, RFC 6238 TOTP for staff, Laravel Socialite |
 | Search | PostgreSQL full-text search (generated `tsvector` column + GIN index) |
 | Queue | Laravel database queue (emails are sent in the background) |
 | Tests | PHPUnit feature and unit tests against a real PostgreSQL database |
+| Deployment | Docker image (FrankenPHP), Railway (web + queue worker + scheduler + PostgreSQL) described as code in `.railway/railway.ts`, CI with GitHub Actions |
 
 ## Architecture
 
@@ -195,13 +196,25 @@ Want sample data? `php artisan db:seed --class=DemoSeeder` adds 20 books, 5 cust
 
 Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECRET` and `FACEBOOK_CLIENT_ID/SECRET` for social login (off until set), `CORS_ALLOWED_ORIGINS` for the frontend URL, `SENTRY_LARAVEL_DSN` for error tracking. In production also set `APP_DEBUG=false`, `LOG_CHANNEL=json_stdout` and `LOG_REQUESTS=true`.
 
+## Deployment
+
+The API ships as one Docker image that runs as web server, queue worker or scheduler (`CONTAINER_ROLE`), and is
+deployed to Railway. Step-by-step guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+Try the production image locally:
+
+```bash
+docker build -t bookly-api .
+docker run --rm -p 8080:8080 --env-file .env --add-host=host.docker.internal:host-gateway -e DB_HOST=host.docker.internal bookly-api   # http://localhost:8080/docs
+```
+
 ## Running the tests
 
 ```bash
 php artisan test
 ```
 
-193 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
+200 tests run against the `bookshop_v2_test` PostgreSQL database (the schema uses PostgreSQL features, so SQLite is not used).
 
 ## Project status and roadmap
 
@@ -213,8 +226,10 @@ php artisan test
 - [x] Returns and verified-purchase reviews
 - [x] Admin dashboard, staff management, customer management, exchange rates, audit log viewer
 - [x] Production readiness: JSON logs + request IDs, Sentry, health check, rate limits, OpenAPI docs, CSV export, demo data, security review
-- [ ] Card, PayPal and Bakong KHQR payments with webhooks
-- [ ] Deployment (hosting, HTTPS, queue worker, scheduler)
+- [x] Deployment: Docker image, Railway infrastructure as code, CI-gated auto deploys, deployment guide
+
+All planned steps are done. **Deferred on purpose:** card (Stripe), PayPal and Bakong KHQR payments with webhooks — the
+schema (`payments`, `payment_webhook_logs`) is ready; the integration starts once the API keys are available.
 
 Progress notes for each step are kept in [docs/WORKLOG.md](docs/WORKLOG.md).
 

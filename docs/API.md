@@ -3,7 +3,7 @@
 Base URL: `/api/v1`. Send `Accept: application/json`. Authenticated calls send `Authorization: Bearer <token>`.
 Errors: `{"message": "..."}`; validation errors are 422 with `{"message", "errors": {"field": ["..."]}}`. 401 = not logged in / bad credentials, 403 = not allowed (wrong token type, email not verified, 2FA not set up), 429 = rate limited (see `Retry-After`). A 500 only says `{"message": "Server Error"}`.
 
-Interactive reference: open **`/docs`** (Swagger UI over `/openapi.yaml`). A test fails if a route is added without documenting it there.
+Interactive reference: open **`/docs`** (Swagger UI over `/openapi.yaml`; the site root `/` redirects there). A test fails if a route is added without documenting it there.
 
 Every response carries **`X-Request-Id`** (a UUID, or your own `X-Request-Id` if you send a safe one of 8-100 chars `A-Z a-z 0-9 . _ -`). It is in every log line and Sentry report, so quote it when reporting a problem.
 
@@ -37,7 +37,7 @@ Unverified customers can log in but shopping routes return 403 "Please verify yo
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
 | POST | /staff/auth/login | email, password | 2FA on: `{two_factor_required: true, challenge_token}`. 2FA off: token + `two_factor_setup_required: true` |
-| POST | /staff/auth/two-factor/challenge | challenge_token, code | returns token. Challenge valid 5 min, single use. 5 wrong codes on the account (from any IP) = 429 for 15 min |
+| POST | /staff/auth/two-factor/challenge | challenge_token, code | returns token (valid 12 hours, `STAFF_TOKEN_HOURS`). Challenge valid 5 min, single use. 5 wrong codes on the account (from any IP) = 429 for 15 min |
 | POST | /staff/auth/two-factor/setup | — | auth; returns `secret` + `otpauth_uri` (render as QR) |
 | POST | /staff/auth/two-factor/confirm | code | auth; enables 2FA |
 | GET | /staff/auth/me | — | auth |

@@ -5,7 +5,7 @@ info:
   description: |
     REST API for the Bookly bookstore (Laravel 13 + PostgreSQL).
 
-    **Auth.** Log in to get a Bearer token (valid 7 days) and send it as `Authorization: Bearer <token>`.
+    **Auth.** Log in to get a Bearer token (customers: valid 7 days, staff: 12 hours) and send it as `Authorization: Bearer <token>`.
     Customer tokens only work on customer routes; staff tokens only on `/staff/*` routes, and only after
     two-factor authentication is set up. Admin-only routes are marked **(admin)**.
 
