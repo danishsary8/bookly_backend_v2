@@ -41,6 +41,7 @@ Owner decisions (all 7 confirmed): 7-day Sanctum tokens, no refresh tokens · un
 
 - [x] 3.1 Config: auth providers `customers` + `staff` (removed leftover `User` model reference), Sanctum guard `[]` (token-only API, no session auth), token expiry `SANCTUM_EXPIRATION` (default 7 days), Socialite package, `google`/`facebook` in `config/services.php`, middleware aliases (`abilities`, `ability`, `verified.customer`, `staff.2fa`), rate limiters `auth` (5/min) and `otp-send` (3 per 10 min).
 - [x] 3.2 Customer auth: `POST /api/v1/auth/register|login|logout|verify-email|resend-verification|forgot-password|reset-password`. `OtpService` (hashed 6-digit codes, single use, new code cancels old) + queued `OtpCodeNotification` email. Customer tokens carry ability `customer`. Reset password revokes all tokens. Forgot-password never reveals whether an email exists. Tests: `tests/Feature/Auth/CustomerAuthTest.php`, `VerifiedCustomerAccessTest.php` (27 tests total passing).
+- [x] 3.3 Customer profile: `GET|PATCH /api/v1/me`, `PUT /api/v1/me/password` (needs current password unless the account is social-only; signs out other sessions). Staff tokens get 403 on customer routes. Tests: `CustomerProfileTest` (31 total).
 
 ## How to run locally
 ```
