@@ -15,7 +15,7 @@ class Customer extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
-    protected $fillable = ['name', 'email', 'password_hash', 'phone', 'google_id', 'facebook_id', 'email_verified_at'];
+    protected $fillable = ['name', 'email', 'password_hash', 'phone', 'google_id', 'facebook_id', 'email_verified_at', 'is_active'];
 
     protected $hidden = ['password_hash', 'google_id', 'facebook_id'];
 
@@ -23,6 +23,7 @@ class Customer extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'is_active' => 'boolean',
             'password_hash' => 'hashed',
         ];
     }

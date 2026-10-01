@@ -88,6 +88,11 @@ Owner decisions: returns within 14 days of delivery (`RETURN_WINDOW_DAYS`) · ph
 - [x] 7.5 Staff review moderation: `GET /staff/reviews` (`visible`, `book_id`, `max_rating`, `q` in comment), `POST /staff/reviews/{id}/hide {note?}`, `POST /staff/reviews/{id}/show {note?}` — sets `is_approved`, audited as `review.hidden` / `review.shown` (no log when nothing changes). Hidden reviews drop out of the public list and the catalog's `rating_avg` / `review_count`. Tests: `StaffReviewModerationTest` (144 total).
 - [x] 7.6 Docs: return and review endpoints in `docs/API.md`; README features, API table, roadmap and test count; `NEXT_STEP.md` rewritten for Step 8 (admin) with 10 owner decisions.
 
+## Step 8 — Admin (branch `feature/admin`)
+Owner decisions: admin creates staff and the new member sets their own password from an emailed code · deactivate instead of delete (`is_active`) for staff and customers: tokens revoked, login refused, history kept · admin can reset another member's 2FA; nobody can deactivate/demote/reset themselves and the last active admin can never be demoted or deactivated · dashboard admin only; revenue = delivered orders minus refunds (cash basis), full KPI set, periods today / 7d / 30d / custom · daily sales chart rows, zero-filled · audit log viewer admin only with filters · USD->KHR rate entered by hand, history kept · staff list/search customers, admin deactivates · CSV export postponed.
+
+- [x] 8.1 Migration `2026_10_06_100001_add_is_active_to_staff_users_and_customers` (new file, default true). Login refusal (403 "This account has been deactivated") added to customer login, social login, staff login and the staff 2FA challenge — the only change to existing auth code, approved with decisions 2 and 9. Checked after the password so it does not reveal whether an email exists.
+
 ## How to run locally
 ```
 composer install

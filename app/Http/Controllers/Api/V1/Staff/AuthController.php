@@ -41,6 +41,10 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 
+        if (! $staff->is_active) {
+            return response()->json(['message' => 'This account has been deactivated. Please contact support.'], 403);
+        }
+
         if ($staff->two_factor_enabled) {
             $challenge = Str::random(64);
             Cache::put($this->challengeKey($challenge), $staff->id, now()->addMinutes(self::CHALLENGE_TTL_MINUTES));
@@ -72,7 +76,7 @@ class AuthController extends Controller
         $staffId = Cache::get($this->challengeKey($data['challenge_token']));
         $staff = $staffId ? StaffUser::find($staffId) : null;
 
-        if ($staff === null || ! $staff->two_factor_enabled) {
+        if ($staff === null || ! $staff->two_factor_enabled || ! $staff->is_active) {
             return response()->json(['message' => 'This login attempt has expired. Please log in again.'], 401);
         }
 
