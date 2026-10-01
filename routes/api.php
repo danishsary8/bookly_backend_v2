@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewContr
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
+use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
@@ -192,6 +193,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('/dashboard/sales', [DashboardController::class, 'sales']);
 
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
         Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');

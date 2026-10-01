@@ -6,4 +6,7 @@ return [
 
     // Customers can request a return for physical formats up to this many days after delivery.
     'return_window_days' => (int) env('RETURN_WINDOW_DAYS', 14),
+
+    // Day boundaries for the admin dashboard ("today", daily sales). Timestamps are stored in UTC.
+    'timezone' => env('SHOP_TIMEZONE', 'Asia/Phnom_Penh'),
 ];
