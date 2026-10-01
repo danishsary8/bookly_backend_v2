@@ -62,6 +62,7 @@ Owner decisions: re-adding a format increases quantity · stock checked when add
 
 - [x] 5.1 Migration `2026_10_03_100001_add_unit_price_at_add_to_cart_items_table` (new file). Nullable DECIMAL(10,2); the cart still charges the current price.
 - [x] 5.2 Addresses: `GET/POST /addresses`, `PATCH/DELETE /addresses/{id}` (verified customers only; other customers' addresses return 404). First address is default; `is_default: true` moves the default; the default cannot be switched off directly; deleting the default promotes the newest remaining one; max 10 (customer row locked so parallel requests can't exceed it). Tests: `tests/Feature/Shopping/AddressTest.php` (81 total).
+- [x] 5.3 Wishlist: `GET /wishlist` (book cards, newest first, paginated), `POST /wishlist {book_id}` (201 added / 200 already there), `DELETE /wishlist/{book_id}`. Books that lose all active formats stay listed with `in_stock: false`; soft-deleted books drop out. Tests: `WishlistTest` (85 total).
 
 ## How to run locally
 ```

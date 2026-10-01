@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Customer\AddressController;
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
+use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
@@ -68,6 +69,10 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::post('/addresses', [AddressController::class, 'store']);
     Route::patch('/addresses/{address}', [AddressController::class, 'update'])->whereNumber('address');
     Route::delete('/addresses/{address}', [AddressController::class, 'destroy'])->whereNumber('address');
+
+    Route::get('/wishlist', [WishlistController::class, 'index']);
+    Route::post('/wishlist', [WishlistController::class, 'store']);
+    Route::delete('/wishlist/{book}', [WishlistController::class, 'destroy'])->whereNumber('book');
 });
 
 /*
