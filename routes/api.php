@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
+use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
+use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
@@ -187,6 +189,9 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::post('/members/{member}/resend-invitation', [StaffMemberController::class, 'resendInvitation'])->middleware('throttle:otp-send');
         Route::post('/customers/{customer}/deactivate', [StaffCustomerController::class, 'deactivate']);
         Route::post('/customers/{customer}/activate', [StaffCustomerController::class, 'activate']);
+        Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
+        Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
         Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');
