@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'fix/**'
   pull_request:
   schedule:
     - cron: '0 0 * * *'
@@ -43,6 +44,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     name: Docker image (build + smoke test)
+    timeout-minutes: 15
 
     # Same PostgreSQL major version as Railway's database template.
     services:
@@ -84,21 +86,25 @@ jobs:
 
       - name: Web role migrates on start (RUN_MIGRATIONS) and answers
         run: |
-          docker run -d --name web --network host --env-file smoke.env -e CONTAINER_ROLE=web -e RUN_MIGRATIONS=true bookly-api
-          for i in $(seq 1 60); do curl -fs http://localhost:8080/api/v1/ping >/dev/null && break; sleep 1; done
-          curl -fsS http://localhost:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
+          # --cap-drop=ALL like Render: the binary must start without any Linux capabilities.
+          docker run -d --name web --network host --cap-drop=ALL --env-file smoke.env -e CONTAINER_ROLE=web -e RUN_MIGRATIONS=true bookly-api
+          for i in $(seq 1 60); do curl -fs --max-time 5 http://localhost:8080/api/v1/ping >/dev/null && break; sleep 1; done
+          curl -fsS --max-time 10 http://localhost:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
           docker run --rm --network host --env-file smoke.env -e DEMO_SEED_ALLOWED=true bookly-api php artisan db:seed --class=DemoSeeder --force
-          curl -fsS http://localhost:8080/api/v1/books | grep -q '"total":20'
-          curl -fsS -o /dev/null http://localhost:8080/docs
-          curl -fsS -o /dev/null http://localhost:8080/openapi.yaml
+          curl -fsS --max-time 10 http://localhost:8080/api/v1/books | grep -q '"total":20'
+          curl -fsS --max-time 10 -o /dev/null http://localhost:8080/docs
+          curl -fsS --max-time 10 -o /dev/null http://localhost:8080/openapi.yaml
           test "$(docker exec web id -un)" = "bookly"
           docker logs web 2>&1 | tail -n 20
 
       - name: Sync queue (free hosting without a worker) still reports healthy
         run: |
-          docker run -d --name web-sync --network host --env-file smoke.env -e CONTAINER_ROLE=web -e PORT=8081 -e QUEUE_CONNECTION=sync bookly-api
-          for i in $(seq 1 30); do curl -fs http://localhost:8081/api/v1/ping >/dev/null && break; sleep 1; done
-          curl -fsS http://localhost:8081/api/v1/health | tee /dev/stderr | grep -q '"driver":"sync"'
+          # One web server at a time: two FrankenPHP servers on the host network compete for Caddy's admin port.
+          docker rm -f web
+          docker run -d --name web-sync --network host --env-file smoke.env -e CONTAINER_ROLE=web -e QUEUE_CONNECTION=sync bookly-api
+          for i in $(seq 1 30); do curl -fs --max-time 5 http://localhost:8080/api/v1/ping >/dev/null && break; sleep 1; done
+          curl -fsS --max-time 10 http://localhost:8080/api/v1/health | tee /dev/stderr | grep -q '"driver":"sync"'
+          docker rm -f web-sync
 
       - name: Worker and scheduler roles stay up
         run: |
