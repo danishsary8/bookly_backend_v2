@@ -199,7 +199,7 @@ Optional `.env` values: `MAIL_*` for real email delivery, `GOOGLE_CLIENT_ID/SECR
 ## Deployment
 
 The API ships as one Docker image that runs as web server, queue worker or scheduler (`CONTAINER_ROLE`), and is
-deployed to Railway. Step-by-step guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+deployed either for free (Render + Neon) or to Railway. Step-by-step guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 Try the production image locally:
 

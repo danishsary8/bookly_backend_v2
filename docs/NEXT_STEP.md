@@ -28,7 +28,7 @@ Start only when the owner provides keys: `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET
 
 ## Owner actions to go live (not code)
 
-Follow `docs/DEPLOYMENT.md`: create the Railway project, add shared variables, `railway config apply`, generate the
+Free route (chosen): `docs/DEPLOYMENT.md` → "Free option: Render + Neon" (F1-F6). Paid alternative: Follow `docs/DEPLOYMENT.md`: create the Railway project, add shared variables, `railway config apply`, generate the
 domain, turn on **Wait for CI** for web/worker/scheduler, create the first admin, optionally seed demo data, enable
 daily database backups. For real customer emails, verify a domain in Resend.
 

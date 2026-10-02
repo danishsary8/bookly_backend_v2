@@ -1,6 +1,7 @@
 #!/bin/sh
-# Starts one role of the Bookly image. Migrations are NOT run here: on Railway they run once per
-# deploy as the web service's pre-deploy command (php artisan migrate --force).
+# Starts one role of the Bookly image. On Railway, migrations run once per deploy as the web service's
+# pre-deploy command. Hosts without a pre-deploy step (Render free plan) set RUN_MIGRATIONS=true so the
+# web container migrates before it starts serving; a failed migration stops the container.
 set -e
 
 # Cache config, routes and events from this container's environment variables (fast boot, fewer files read).
@@ -10,6 +11,9 @@ php artisan event:cache
 
 case "${CONTAINER_ROLE:-web}" in
   web)
+    if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
+      php artisan migrate --force
+    fi
     # public/ is the web root; unknown paths go to public/index.php (Laravel).
     exec frankenphp php-server --root public/ --listen ":${PORT:-8080}"
     ;;
