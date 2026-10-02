@@ -140,6 +140,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 - [x] F.1 `docker/start.sh`: `RUN_MIGRATIONS=true` makes the web role run `migrate --force` before serving (Render free has no pre-deploy step; a failed migration stops the container). Railway keeps its pre-deploy command. CI smoke test now starts the web role with `RUN_MIGRATIONS=true` on an empty PostgreSQL 18 (instead of migrating separately), and checks a second web container with `QUEUE_CONNECTION=sync` reports healthy. Checked locally that `DB_URL=postgresql://...?sslmode=...` overrides the `.env` database settings (used to create the admin and demo data on Neon from the owner's computer, since Render free has no shell).
 - [x] F.2 `docs/DEPLOYMENT.md`: new "Free option: Render + Neon" section (F1-F7: Neon direct connection string, Render Docker web service in Singapore with health check `/api/v1/health`, environment variables incl. `QUEUE_CONNECTION=sync`, keep-awake monitor, first admin and demo seed run locally against Neon, backups); Railway guide kept as the paid option. No `render.yaml`: Render's docs were not reachable from the build environment to verify the format, so the dashboard steps are documented instead.
 
+- [x] Postman collection `docs/postman/bookly.postman_collection.json`: 28 requests in 4 folders (public, customer auth, shopping incl. cash-on-delivery checkout with `Idempotency-Key: {{$guid}}`, staff with 2FA). Collection variables `baseUrl`, demo logins; login/address/order requests store `token`, `addressId`, `orderId` automatically. Checked with Newman against a local server with demo data: 20 requests, 16 assertions, 0 failures.
+
 ## How to run locally
 ```
 composer install

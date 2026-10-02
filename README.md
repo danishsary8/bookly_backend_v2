@@ -121,7 +121,7 @@ erDiagram
 
 ## API overview
 
-Base path: `/api/v1`. Interactive docs: run the app and open `/docs`. Full endpoint reference: [docs/API.md](docs/API.md).
+Base path: `/api/v1`. Interactive docs: run the app and open `/docs`. Postman: import [docs/postman/bookly.postman_collection.json](docs/postman/bookly.postman_collection.json) (main flows, tokens saved automatically). Full endpoint reference: [docs/API.md](docs/API.md).
 
 | Area | Examples |
 | --- | --- |
