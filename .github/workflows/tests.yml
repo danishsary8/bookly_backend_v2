@@ -84,7 +84,8 @@ jobs:
 
       - name: Web role migrates on start (RUN_MIGRATIONS) and answers
         run: |
-          docker run -d --name web --network host --env-file smoke.env -e CONTAINER_ROLE=web -e RUN_MIGRATIONS=true bookly-api
+          # --cap-drop=ALL like Render: the binary must start without any Linux capabilities.
+          docker run -d --name web --network host --cap-drop=ALL --env-file smoke.env -e CONTAINER_ROLE=web -e RUN_MIGRATIONS=true bookly-api
           for i in $(seq 1 60); do curl -fs http://localhost:8080/api/v1/ping >/dev/null && break; sleep 1; done
           curl -fsS http://localhost:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
           docker run --rm --network host --env-file smoke.env -e DEMO_SEED_ALLOWED=true bookly-api php artisan db:seed --class=DemoSeeder --force
