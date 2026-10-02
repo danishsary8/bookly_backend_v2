@@ -1,7 +1,9 @@
-# Deploying Bookly API to Railway
+# Deploying Bookly API
 
-This guide puts the API online at a free `*.up.railway.app` address. It takes about 30 minutes the first time.
-You create the accounts and paste the keys; nothing secret is ever committed to git.
+Two ways to put the API online; both use the same Docker image and nothing secret is ever committed to git:
+
+- **Free:** Render (API) + Neon (database) — see the next section. Sleeps when idle, no worker/scheduler.
+- **Paid:** Railway Hobby (~$5/month) with web + queue worker + scheduler + PostgreSQL — the rest of this guide.
 
 **What runs where**
 
@@ -15,6 +17,85 @@ You create the accounts and paste the keys; nothing secret is ever committed to 
 All three services are built from the same `Dockerfile`. They are described in `.railway/railway.ts`.
 
 ---
+
+## Free option: Render + Neon (no credit card)
+
+Use this when a paid Railway plan is not an option. Same Docker image, two free services:
+
+| Part | Service | Free tier limits |
+| --- | --- | --- |
+| API (`web` role) | [Render](https://render.com) free web service | sleeps after ~15 min without traffic; the next request takes 30-60 s to wake it |
+| Database | [Neon](https://neon.tech) free PostgreSQL | 0.5 GB, does not expire (Render's own free database is deleted after 30 days) |
+
+Differences from the Railway setup: no queue worker (`QUEUE_CONNECTION=sync`, emails are sent during the request — if
+Resend is down, that request fails), no scheduler (expired tokens are still rejected, they just stay in the table),
+and migrations run when the container starts (`RUN_MIGRATIONS=true`) because the free plan has no pre-deploy step
+and no shell — admin and demo data are created from your own computer (steps F5-F6).
+
+### F1. Neon database
+1. Sign up at neon.tech (GitHub login) → **New project** → name `bookly`, Postgres 17 or newer, region **AWS Asia Pacific (Singapore)**.
+2. **Connect** → turn **Connection pooling off** (direct connection) → copy the connection string:
+   `postgresql://<user>:<password>@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`
+
+### F2. Render web service
+1. Sign up at render.com (GitHub login), allow access to `danishsary8/bookly_backend_v2`.
+2. **New → Web Service** → pick the repository → branch `main` → **Language/Runtime: Docker** (Render finds the
+   `Dockerfile`) → region **Singapore** → instance type **Free**.
+3. **Advanced → Health Check Path:** `/api/v1/health`.
+4. **Auto-Deploy:** choose the option that waits for CI checks to pass (otherwise "On Commit").
+
+### F3. Environment variables (Render → your service → Environment)
+
+| Key | Value |
+| --- | --- |
+| `APP_KEY` | `php artisan key:generate --show` (keep a copy) |
+| `APP_URL` | your Render URL, e.g. `https://bookly-api.onrender.com` (shown after the first deploy) |
+| `DB_CONNECTION` | `pgsql` |
+| `DB_URL` | the Neon connection string from F1 |
+| `RUN_MIGRATIONS` | `true` |
+| `QUEUE_CONNECTION` | `sync` |
+| `CACHE_STORE` | `database` |
+| `SESSION_DRIVER` | `array` |
+| `TRUSTED_PROXIES` | `REMOTE_ADDR` |
+| `CORS_ALLOWED_ORIGINS` | your frontend URL |
+| `LOG_REQUESTS` | `true` |
+| `MAIL_MAILER` | `resend` |
+| `RESEND_API_KEY`, `MAIL_FROM_ADDRESS` | from Resend |
+| optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET` |
+
+Save → Render builds the image (a few minutes) and deploys. Check `https://<your-app>.onrender.com/api/v1/health`
+→ `{"status":"ok",...}` and `/docs`.
+
+### F4. Keep it awake (optional)
+Free uptime monitors such as UptimeRobot can call `/api/v1/health` every 10 minutes so visitors rarely hit a sleeping
+instance. Render's free plan includes a limited number of instance hours per month; one always-on service fits.
+
+### F5. First admin (from your computer, against Neon)
+PowerShell in the project folder — the variables only last for this terminal window:
+```powershell
+$env:DB_URL = "postgresql://...neon connection string..."
+php artisan config:clear
+php artisan staff:create-admin
+```
+Close the terminal afterwards (or `Remove-Item Env:DB_URL`) so your local commands use your local database again.
+
+### F6. Demo data (optional, once, from your computer)
+```powershell
+$env:DB_URL = "postgresql://...neon connection string..."
+$env:APP_ENV = "production"
+$env:DEMO_SEED_ALLOWED = "true"
+php artisan config:clear
+php artisan db:seed --class=DemoSeeder --force
+```
+Save the staff password it prints once. Then close the terminal.
+
+### F7. Backups
+Neon keeps a restore window (point-in-time restore) on the free plan; for your own copy use `pg_dump` with the Neon
+connection string, as in section 10 below.
+
+---
+
+# Paid option: Railway (web + worker + scheduler)
 
 ## 1. Accounts you need
 
