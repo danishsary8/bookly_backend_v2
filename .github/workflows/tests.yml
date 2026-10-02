@@ -82,21 +82,23 @@ jobs:
             echo "MAIL_MAILER=log"
           } > smoke.env
 
-      - name: Migrate and seed demo data through the image (production mode)
+      - name: Web role migrates on start (RUN_MIGRATIONS) and answers
         run: |
-          docker run --rm --network host --env-file smoke.env bookly-api php artisan migrate --force
-          docker run --rm --network host --env-file smoke.env -e DEMO_SEED_ALLOWED=true bookly-api php artisan db:seed --class=DemoSeeder --force
-
-      - name: Web role answers
-        run: |
-          docker run -d --name web --network host --env-file smoke.env -e CONTAINER_ROLE=web bookly-api
-          for i in $(seq 1 30); do curl -fs http://localhost:8080/api/v1/ping >/dev/null && break; sleep 1; done
+          docker run -d --name web --network host --env-file smoke.env -e CONTAINER_ROLE=web -e RUN_MIGRATIONS=true bookly-api
+          for i in $(seq 1 60); do curl -fs http://localhost:8080/api/v1/ping >/dev/null && break; sleep 1; done
           curl -fsS http://localhost:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
+          docker run --rm --network host --env-file smoke.env -e DEMO_SEED_ALLOWED=true bookly-api php artisan db:seed --class=DemoSeeder --force
           curl -fsS http://localhost:8080/api/v1/books | grep -q '"total":20'
           curl -fsS -o /dev/null http://localhost:8080/docs
           curl -fsS -o /dev/null http://localhost:8080/openapi.yaml
           test "$(docker exec web id -un)" = "bookly"
           docker logs web 2>&1 | tail -n 20
+
+      - name: Sync queue (free hosting without a worker) still reports healthy
+        run: |
+          docker run -d --name web-sync --network host --env-file smoke.env -e CONTAINER_ROLE=web -e PORT=8081 -e QUEUE_CONNECTION=sync bookly-api
+          for i in $(seq 1 30); do curl -fs http://localhost:8081/api/v1/ping >/dev/null && break; sleep 1; done
+          curl -fsS http://localhost:8081/api/v1/health | tee /dev/stderr | grep -q '"driver":"sync"'
 
       - name: Worker and scheduler roles stay up
         run: |
