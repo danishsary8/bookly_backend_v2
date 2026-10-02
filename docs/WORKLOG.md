@@ -142,6 +142,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 
 - [x] Fix: first Render deploy migrated but failed with `exec: frankenphp: Operation not permitted` (exit 126). The base image gives the `frankenphp` binary the `cap_net_bind_service` file capability; Render runs containers without capabilities, and Linux refuses to exec a binary that carries one. Reproduced locally with `--cap-drop=ALL`. The Dockerfile now removes it (`setcap -r`), since we listen on a high `$PORT`. The CI smoke test runs the web container with `--cap-drop=ALL` so this cannot come back.
 
+- [x] Search (owner-approved, found while building the frontend): `q` now also matches author, series and category names, and every word matches as a prefix (`sherlock holm`, `baskerv`) for live search. Input is reduced to letters/digits/marks before building the tsquery, so operators cannot break it. Relevance: title match, then author, series, category, then text rank. New migration `2026_10_07_100001_add_name_search_indexes` (GIN expression indexes; existing migrations untouched). Tests: author/series/category/prefix/operator cases and title-above-author ranking (202 total).
+
 ## How to run locally
 ```
 composer install
