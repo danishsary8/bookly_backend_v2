@@ -142,6 +142,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 
 - [x] Fix: first Render deploy migrated but failed with `exec: frankenphp: Operation not permitted` (exit 126). The base image gives the `frankenphp` binary the `cap_net_bind_service` file capability; Render runs containers without capabilities, and Linux refuses to exec a binary that carries one. Reproduced locally with `--cap-drop=ALL`. The Dockerfile now removes it (`setcap -r`), since we listen on a high `$PORT`. The CI smoke test runs the web container with `--cap-drop=ALL` so this cannot come back.
 
+- [x] OpenAPI response schemas for the frontend's generated types: added `Author`, `Category`, `Publisher`, `Series`, `SeriesDetail`, `RatingSummary`, `CheckoutPreview` (+ `Amount` usd/khr pairs), `CouponCheck`, `OwnReview`, `PageLinks`, full `PageMeta`, and referenced them from their endpoints. `ApiContractTest` seeds the demo shop, calls the real endpoints and fails when a response and its schema disagree (203 tests). Redocly lint: valid, 0 warnings.
+
 ## How to run locally
 ```
 composer install
