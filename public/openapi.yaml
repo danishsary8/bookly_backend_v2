@@ -108,6 +108,88 @@ components:
         last_page: { type: integer }
         per_page: { type: integer }
         total: { type: integer }
+        from: { type: integer, nullable: true }
+        to: { type: integer, nullable: true }
+        path: { type: string }
+    PageLinks:
+      type: object
+      properties:
+        first: { type: string, nullable: true }
+        last: { type: string, nullable: true }
+        prev: { type: string, nullable: true }
+        next: { type: string, nullable: true }
+    Amount:
+      type: object
+      description: The same amount in US dollars and in riel (khr is null when no exchange rate is set)
+      properties:
+        usd: { $ref: '#/components/schemas/Money' }
+        khr: { $ref: '#/components/schemas/Riel' }
+    Author:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        bio: { type: string, nullable: true }
+        photo_url: { type: string, nullable: true }
+        books_count: { type: integer }
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        books_count: { type: integer }
+    Publisher:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        books_count: { type: integer }
+    Series:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        books_count: { type: integer }
+    SeriesDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        books: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
+    RatingSummary:
+      type: object
+      properties:
+        average: { type: number, nullable: true }
+        count: { type: integer }
+        distribution:
+          type: object
+          description: 'Number of reviews per star, keys "5" to "1"'
+          additionalProperties: { type: integer }
+    CheckoutPreview:
+      type: object
+      properties:
+        subtotal: { $ref: '#/components/schemas/Amount' }
+        discount: { $ref: '#/components/schemas/Amount' }
+        shipping_fee: { $ref: '#/components/schemas/Amount' }
+        tax: { $ref: '#/components/schemas/Amount' }
+        total: { $ref: '#/components/schemas/Amount' }
+        coupon_code: { type: string, nullable: true }
+        requires_shipping: { type: boolean, description: false when the cart only has ebooks/audiobooks }
+        can_checkout: { type: boolean }
+    CouponCheck:
+      type: object
+      properties:
+        code: { type: string }
+        type: { type: string, enum: [percentage, fixed] }
+        value: { $ref: '#/components/schemas/Money' }
+        subtotal_usd: { $ref: '#/components/schemas/Money' }
+        discount_usd: { $ref: '#/components/schemas/Money' }
+        discount_khr: { $ref: '#/components/schemas/Riel' }
+        total_before_shipping_usd: { $ref: '#/components/schemas/Money' }
+        total_before_shipping_khr: { $ref: '#/components/schemas/Riel' }
     TokenResponse:
       type: object
       properties:
@@ -283,6 +365,13 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    OwnReview:
+      allOf:
+        - $ref: '#/components/schemas/Review'
+        - type: object
+          properties:
+            book: { type: object, properties: { id: { type: integer }, title: { type: string } } }
+            is_visible: { type: boolean, description: false when staff have hidden the review }
 security:
   - bearer: []
 
@@ -325,6 +414,7 @@ paths:
                 type: object
                 properties:
                   data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
+                  links: { $ref: '#/components/schemas/PageLinks' }
                   meta: { $ref: '#/components/schemas/PageMeta' }
         '422': { $ref: '#/components/responses/Validation' }
   /books/{id}:
@@ -346,7 +436,7 @@ paths:
         - { name: sort, in: query, schema: { type: string, enum: [newest, highest, lowest] } }
         - { name: rating, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
       responses:
-        '200': { description: Reviews, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Review' } } } } } } }
+        '200': { description: Reviews, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Review' } }, meta: { allOf: [ { $ref: '#/components/schemas/PageMeta' }, { type: object, properties: { rating_summary: { $ref: '#/components/schemas/RatingSummary' } } } ] } } } } } }
     post:
       tags: [Returns & reviews]
       summary: Review a book from one of your delivered orders
@@ -357,17 +447,17 @@ paths:
         '403': { description: No delivered order contains this book }
         '409': { description: Already reviewed }
   /authors:
-    get: { tags: [Public], summary: 'List authors (q, per_page)', security: [], responses: { '200': { description: Authors with books_count } } }
+    get: { tags: [Public], summary: 'List authors (q, per_page)', security: [], responses: { '200': { description: Authors with books_count, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Author' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /authors/{id}:
-    get: { tags: [Public], summary: 'Author profile (books via /books?author_id=)', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Author }, '404': { $ref: '#/components/responses/NotFound' } } }
+    get: { tags: [Public], summary: 'Author profile (books via /books?author_id=)', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Author, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Author' } } } } } }, '404': { $ref: '#/components/responses/NotFound' } } }
   /categories:
-    get: { tags: [Public], summary: 'All categories with books_count (not paginated)', security: [], responses: { '200': { description: Categories } } }
+    get: { tags: [Public], summary: 'All categories with books_count (not paginated)', security: [], responses: { '200': { description: Categories, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } } } } }
   /publishers:
-    get: { tags: [Public], summary: 'List publishers', security: [], responses: { '200': { description: Publishers } } }
+    get: { tags: [Public], summary: 'List publishers', security: [], responses: { '200': { description: Publishers, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Publisher' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /series:
-    get: { tags: [Public], summary: 'List series', security: [], responses: { '200': { description: Series } } }
+    get: { tags: [Public], summary: 'List series', security: [], responses: { '200': { description: Series, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Series' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /series/{id}:
-    get: { tags: [Public], summary: 'Series with its books in reading order', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Series } } }
+    get: { tags: [Public], summary: 'Series with its books in reading order', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Series, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/SeriesDetail' } } } } } } } }
 
   /auth/register:
     post:
@@ -452,15 +542,15 @@ paths:
     patch: { tags: [Customer], summary: 'Set quantity', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cart } } }
     delete: { tags: [Customer], summary: 'Remove a line', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cart } } }
   /cart/coupon/check:
-    post: { tags: [Customer], summary: 'Preview a coupon against the cart (10/min)', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string } } } } } }, responses: { '200': { description: Discount preview }, '422': { description: 'Invalid, expired, used up, minimum not met or already used by you' } } }
+    post: { tags: [Customer], summary: 'Preview a coupon against the cart (10/min)', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string } } } } } }, responses: { '200': { description: Discount preview, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CouponCheck' } } } } } }, '422': { description: 'Invalid, expired, used up, minimum not met or already used by you' } } }
   /wishlist:
-    get: { tags: [Customer], summary: 'Saved books (newest first)', responses: { '200': { description: Book cards } } }
+    get: { tags: [Customer], summary: 'Saved books (newest first)', responses: { '200': { description: Book cards, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
     post: { tags: [Customer], summary: 'Save a book', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { book_id: { type: integer } } } } } }, responses: { '201': { description: Added }, '200': { description: Already saved } } }
   /wishlist/{id}:
     delete: { tags: [Customer], summary: 'Remove a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
 
   /checkout/preview:
-    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string } } } } } }, responses: { '200': { description: Totals } } }
+    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string } } } } } }, responses: { '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
       tags: [Checkout & orders]
@@ -474,7 +564,7 @@ paths:
         '200': { description: Same key repeated — the existing order (header Idempotent-Replayed true) }
         '422': { description: 'Cart empty or has issues, bad address, coupon or key' }
   /orders:
-    get: { tags: [Checkout & orders], summary: 'Your orders (status filter)', responses: { '200': { description: Orders } } }
+    get: { tags: [Checkout & orders], summary: 'Your orders (status filter)', responses: { '200': { description: 'Orders (without status_history)', content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Order' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /orders/{id}:
     get: { tags: [Checkout & orders], summary: 'One order with status history', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order }, '404': { $ref: '#/components/responses/NotFound' } } }
   /orders/{id}/cancel:
@@ -489,12 +579,12 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason, items], properties: { reason: { type: string }, items: { type: array, items: { type: object, properties: { order_item_id: { type: integer }, quantity: { type: integer }, reason: { type: string } } } } } } } } }
       responses: { '201': { description: Return, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Return' } } } } } }, '422': { $ref: '#/components/responses/Validation' } }
   /returns:
-    get: { tags: [Returns & reviews], summary: 'Your returns', responses: { '200': { description: Returns } } }
+    get: { tags: [Returns & reviews], summary: 'Your returns', responses: { '200': { description: Returns, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Return' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /returns/{id}:
     get: { tags: [Returns & reviews], summary: 'One return', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Return } } }
     delete: { tags: [Returns & reviews], summary: 'Withdraw while requested', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '422': { description: Already handled } } }
   /reviews:
-    get: { tags: [Returns & reviews], summary: 'Your reviews (incl. hidden ones)', responses: { '200': { description: Reviews } } }
+    get: { tags: [Returns & reviews], summary: 'Your reviews (incl. hidden ones)', responses: { '200': { description: Reviews, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/OwnReview' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /reviews/{id}:
     patch: { tags: [Returns & reviews], summary: 'Edit your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Returns & reviews], summary: 'Delete your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
