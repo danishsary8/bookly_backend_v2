@@ -50,6 +50,43 @@ class PublicCatalogTest extends TestCase
         $this->getJson('/api/v1/books?q=zzzz')->assertOk()->assertJsonCount(0, 'data');
     }
 
+    public function test_search_matches_author_series_and_category_names_and_word_prefixes(): void
+    {
+        $austen = Author::factory()->create(['name' => 'Jane Austen']);
+        $holmes = Series::factory()->create(['name' => 'Sherlock Holmes']);
+        $poetry = Category::factory()->create(['name' => 'Poetry', 'slug' => 'poetry']);
+
+        $emma = $this->book(['title' => 'Emma', 'description' => 'A matchmaker in Highbury']);
+        $emma->authors()->attach($austen);
+        $hound = $this->book(['title' => 'The Hound of the Baskervilles', 'description' => 'A legend on the moor', 'series_id' => $holmes->id]);
+        $leaves = $this->book(['title' => 'Leaves of Grass', 'description' => 'Collected verse']);
+        $leaves->categories()->attach($poetry);
+        $other = $this->book(['title' => 'Cooking Basics', 'description' => 'Recipes']);
+
+        $ids = fn (string $q) => collect($this->getJson('/api/v1/books?q='.urlencode($q))->assertOk()->json('data'))->pluck('id')->all();
+
+        $this->assertSame([$emma->id], $ids('austen'));
+        $this->assertSame([$hound->id], $ids('Sherlock'));
+        $this->assertSame([$hound->id], $ids('sherlock holm'), 'last word is a prefix');
+        $this->assertSame([$hound->id], $ids('baskerv'));
+        $this->assertSame([$leaves->id], $ids('poetry'));
+        $this->assertSame([], $ids('&|!:*()'), 'operators are ignored, not a SQL error');
+        $this->assertNotContains($other->id, $ids('austen'));
+    }
+
+    public function test_title_matches_rank_above_name_matches(): void
+    {
+        $doyle = Author::factory()->create(['name' => 'Arthur Conan Doyle']);
+        $byDoyle = $this->book(['title' => 'A Study in Scarlet', 'description' => 'Detective story']);
+        $byDoyle->authors()->attach($doyle);
+        $aboutDoyle = $this->book(['title' => 'Doyle: A Life', 'description' => 'Biography of Doyle']);
+
+        $this->assertSame(
+            [$aboutDoyle->id, $byDoyle->id],
+            collect($this->getJson('/api/v1/books?q=doyle')->json('data'))->pluck('id')->all(),
+        );
+    }
+
     public function test_filters(): void
     {
         $category = Category::factory()->create();

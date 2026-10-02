@@ -53,7 +53,7 @@ Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP
 ## Public catalog (no login)
 | Method | Path | Query / notes |
 | --- | --- | --- |
-| GET | /books | `q` (full-text), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
+| GET | /books | `q` (full-text over title and description plus author, series and category names; each word also matches as a prefix, so "baskerv" finds Baskervilles), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
 | GET | /books/{id} | detail: description, page_count, categories, publisher, series {id,name,order}, active variants |
 | GET | /authors | `q`, `per_page` — each with `books_count` |
 | GET | /authors/{id} | author profile; books via `/books?author_id={id}` |
