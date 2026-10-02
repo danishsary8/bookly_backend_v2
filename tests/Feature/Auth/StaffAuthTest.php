@@ -117,6 +117,7 @@ class StaffAuthTest extends TestCase
 
     public function test_staff_tokens_expire_after_12_hours(): void
     {
+        $this->freezeSecond(); // the expected expiry is computed here and in the request; keep them on the same second
         StaffUser::factory()->withTwoFactor(self::SECRET)->create(['email' => 's@shop.test', 'password_hash' => 'secret123']);
         $challenge = $this->postJson('/api/v1/staff/auth/login', ['email' => 's@shop.test', 'password' => 'secret123'])->json('challenge_token');
 
