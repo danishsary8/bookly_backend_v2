@@ -73,7 +73,8 @@ class DashboardService
             'orders_placed' => (clone $placed)->count(),
             'orders_by_status' => collect(OrderStatus::cases())->mapWithKeys(fn ($s) => [$s->value => 0])
                 ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n)),
-            'new_customers' => Customer::whereBetween('created_at', [$from, $to->subSecond()])->count(),
+            // Unfinished sign-ups aren't customers yet.
+            'new_customers' => Customer::whereNotNull('email_verified_at')->whereBetween('created_at', [$from, $to->subSecond()])->count(),
             'best_sellers' => $this->bestSellers($from, $to),
             'open_returns' => OrderReturn::whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->count(),
             'low_stock' => $this->lowStock(),

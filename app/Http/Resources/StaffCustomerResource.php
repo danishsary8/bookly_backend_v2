@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Customers\UnverifiedCustomers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,6 +26,8 @@ class StaffCustomerResource extends JsonResource
             'stats' => $this->when(isset($this->stats), fn () => $this->stats),
             'recent_orders' => $this->when(isset($this->recentOrders), fn () => OrderResource::collection($this->recentOrders)),
             'created_at' => $this->created_at,
+            // Unfinished sign-ups are deleted at this time unless the customer enters their code first.
+            'removal_at' => UnverifiedCustomers::removalAt($this->resource),
         ];
     }
 }

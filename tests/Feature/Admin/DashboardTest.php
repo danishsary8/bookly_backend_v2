@@ -57,7 +57,15 @@ class DashboardTest extends TestCase
             ->assertJsonPath('data.average_order_value_usd', '40.00')
             ->assertJsonPath('data.orders_placed', 1) // only the pending one was placed today
             ->assertJsonPath('data.orders_by_status.pending', 1)
-            ->assertJsonPath('data.open_returns', 1);
+            ->assertJsonPath('data.open_returns', 1)
+            ->assertJsonPath('data.new_customers', 1);
+    }
+
+    public function test_unfinished_sign_ups_are_not_counted_as_new_customers(): void
+    {
+        Customer::factory()->unverified()->count(2)->create();
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertJsonPath('data.new_customers', 1);
     }
 
     public function test_seven_days_best_sellers_and_low_stock(): void
