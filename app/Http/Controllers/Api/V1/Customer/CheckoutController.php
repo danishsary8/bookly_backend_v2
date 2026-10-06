@@ -17,11 +17,17 @@ class CheckoutController extends Controller
 {
     public function __construct(private readonly CheckoutService $checkout) {}
 
-    /** Order totals for the current cart (shipping fee, discount), nothing is saved. */
+    /**
+     * Order totals for the current cart (shipping fee, discount), nothing is saved. Delivery is priced for
+     * `address_id` when given, else the default address; `delivery_area` is null when there is no address yet.
+     */
     public function preview(Request $request, CurrencyService $currency): JsonResponse
     {
-        $data = $request->validate(['coupon_code' => ['nullable', 'string', 'max:50']]);
-        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null);
+        $data = $request->validate([
+            'coupon_code' => ['nullable', 'string', 'max:50'],
+            'address_id' => ['nullable', 'integer'],
+        ]);
+        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null);
 
         $money = fn (int $cents) => ['usd' => Money::format($cents), 'khr' => $currency->usdToKhr(Money::format($cents))];
 
@@ -33,6 +39,7 @@ class CheckoutController extends Controller
             'total' => $money($totals['total_cents']),
             'coupon_code' => $totals['coupon']?->code,
             'requires_shipping' => $totals['requires_shipping'],
+            'delivery_area' => $totals['delivery_area'],
             'can_checkout' => $totals['can_checkout'],
         ]]);
     }

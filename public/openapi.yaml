@@ -178,6 +178,7 @@ components:
         total: { $ref: '#/components/schemas/Amount' }
         coupon_code: { type: string, nullable: true }
         requires_shipping: { type: boolean, description: false when the cart only has ebooks/audiobooks }
+        delivery_area: { type: string, enum: [phnom_penh, provinces], nullable: true, description: 'Area the shipping fee was priced for; null when the customer has no address yet (the provinces fee is quoted)' }
         can_checkout: { type: boolean }
     CouponCheck:
       type: object
@@ -550,7 +551,7 @@ paths:
     delete: { tags: [Customer], summary: 'Remove a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
 
   /checkout/preview:
-    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string } } } } } }, responses: { '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
+    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', description: 'Delivery is priced for address_id, else the default address: Phnom Penh 1.50 USD, the provinces 3.00 USD (SHIPPING_FEE_PHNOM_PENH / SHIPPING_FEE_PROVINCES).', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer } } } } } }, responses: { '422': { description: 'address_id is not one of your addresses, or a bad coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
       tags: [Checkout & orders]
@@ -574,7 +575,7 @@ paths:
   /orders/{id}/returns:
     post:
       tags: [Returns & reviews]
-      summary: Request a return (delivered orders, within 14 days, physical formats only)
+      summary: Request a return (delivered orders, within 3 days of delivery, physical formats only)
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason, items], properties: { reason: { type: string }, items: { type: array, items: { type: object, properties: { order_item_id: { type: integer }, quantity: { type: integer }, reason: { type: string } } } } } } } } }
       responses: { '201': { description: Return, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Return' } } } } } }, '422': { $ref: '#/components/responses/Validation' } }

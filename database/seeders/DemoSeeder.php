@@ -210,7 +210,7 @@ class DemoSeeder extends Seeder
             ['sokha', 14, ['Frankenstein|paperback' => 1, 'The War of the Worlds|paperback' => 1], null, OrderStatus::Delivered],
             ['dara', 11, ['Around the World in Eighty Days|paperback' => 1], null, OrderStatus::Cancelled],
             ['demo', 8, ['The Hound of the Baskervilles|hardcover' => 1, 'Alice\'s Adventures in Wonderland|paperback' => 1], null, OrderStatus::Delivered],
-            ['malis', 6, ['The Art of War|paperback' => 3], null, OrderStatus::Delivered],
+            ['malis', 3, ['The Art of War|paperback' => 3], null, OrderStatus::Delivered],
             ['vicheka', 4, ['Twenty Thousand Leagues Under the Seas|paperback' => 1, 'The Adventures of Tom Sawyer|paperback' => 1], null, OrderStatus::Shipped],
             ['sokha', 2, ['The Picture of Dorian Gray|paperback' => 1], null, OrderStatus::Processing],
             ['demo', 1, ['Leaves of Grass|paperback' => 1, 'Pride and Prejudice|ebook' => 1], null, OrderStatus::Pending],
@@ -269,7 +269,7 @@ class DemoSeeder extends Seeder
             ]);
         }
 
-        // One open return for the staff to handle: Malis received a damaged copy.
+        // One open return for the staff to handle: Malis received a damaged copy (delivered yesterday, inside the return window).
         $returns = app(ReturnService::class);
         $order = $orders[8];
         $returns->request($customers['malis'], $order, 'One copy arrived with torn pages.', [

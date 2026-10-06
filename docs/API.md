@@ -124,7 +124,7 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 | GET | /orders/{id} | includes `status_history` |
 | POST | /orders/{id}/cancel | reason? — only while `pending` |
 
-Checkout rules: always today's price; flat shipping fee (`SHIPPING_FLAT_FEE`, default 2.00 USD) when any hardcover/paperback is in the order, 0 if all digital; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `idempotency_key`.
+Checkout rules: always today's price; shipping fee by the address's area when any hardcover/paperback is in the order (Phnom Penh `SHIPPING_FEE_PHNOM_PENH`, default 1.50 USD, matched on city or province; everywhere else `SHIPPING_FEE_PROVINCES`, default 3.00 USD), 0 if all digital; `POST /checkout/preview` takes an optional `address_id` (else the default address) and returns `delivery_area`; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `idempotency_key`.
 
 Order shape: `{id, order_number (ORD-YYYYMMDD-XXXXX), status, payment_method, payment_status, placed_at, item_count, items[{id, book_variant_id, book_id, title, format, quantity, unit_price_usd, subtotal_usd}], subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, total_khr, coupon_code, shipping_address{...}, can_cancel, status_history[{status, note, created_at}]}`.
 
@@ -151,7 +151,7 @@ Low-stock alert (`type: low_stock`) is sent to every staff member once, when a s
 | GET | /returns/{id} | |
 | DELETE | /returns/{id} | withdraw; only while `requested` |
 
-Rules: order must be `delivered`; within `RETURN_WINDOW_DAYS` (default 14) of delivery; physical formats only (ebooks/audiobooks are not returnable); some or all copies, never more than bought minus copies already in requested/approved/refunded returns; one requested/approved return per order at a time. Errors (422): `order` (not delivered, window closed, request in progress, nothing left), `items`.
+Rules: order must be `delivered`; within `RETURN_WINDOW_DAYS` (default 3) of delivery; physical formats only (ebooks/audiobooks are not returnable); some or all copies, never more than bought minus copies already in requested/approved/refunded returns; one requested/approved return per order at a time. Errors (422): `order` (not delivered, window closed, request in progress, nothing left), `items`.
 Return shape: `{id, order_id, order_number, status (requested|approved|rejected|refunded), reason, items[{id, order_item_id, title, format, quantity, unit_price_usd, reason}], refund_amount_usd, is_refund_final, staff_note, requested_at, resolved_at, can_withdraw}`. Before the refund `refund_amount_usd` is an estimate: the items minus their share of the order's coupon discount (shipping is not refunded).
 
 ## Staff returns (staff token + 2FA)
