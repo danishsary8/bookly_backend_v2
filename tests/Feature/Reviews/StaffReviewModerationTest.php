@@ -37,7 +37,7 @@ class StaffReviewModerationTest extends TestCase
         $this->asToken($staff)->postJson("/api/v1/staff/reviews/{$review->id}/show")->assertOk()->assertJsonPath('data.is_visible', true);
 
         $this->assertSame(['review.hidden', 'review.shown'], AdminAuditLog::orderBy('id')->pluck('action')->all());
-        $this->assertSame('Contains a link', AdminAuditLog::first()->after_data['note']);
+        $this->assertSame('Contains a link', AdminAuditLog::orderBy('id')->first()->after_data['note']);
     }
 
     public function test_hidden_review_stays_hidden_when_the_customer_edits_it(): void
