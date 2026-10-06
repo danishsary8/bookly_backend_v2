@@ -5,9 +5,11 @@ namespace Tests\Feature\Auth;
 use App\Enums\VerificationPurpose;
 use App\Models\Customer;
 use App\Notifications\OtpCodeNotification;
+use App\Services\Auth\OtpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Symfony\Component\Mailer\Exception\TransportException;
 use Tests\TestCase;
 
 class CustomerAuthTest extends TestCase
@@ -50,6 +52,20 @@ class CustomerAuthTest extends TestCase
         $customer = Customer::firstWhere('email', 'dara@example.com');
         $this->assertMatchesRegularExpression('/^\d{6}$/', $this->lastCode($customer, VerificationPurpose::EmailVerify));
         $this->assertDatabaseMissing('verification_tokens', ['code_hash' => $this->lastCode($customer, VerificationPurpose::EmailVerify)]);
+    }
+
+    public function test_register_keeps_no_account_when_the_code_email_cannot_be_sent(): void
+    {
+        $this->mock(OtpService::class)->shouldReceive('issue')->andThrow(new TransportException('Mail provider refused the message'));
+        $body = [
+            'name' => 'Dara', 'email' => 'dara@example.com',
+            'password' => 'secret123', 'password_confirmation' => 'secret123',
+        ];
+
+        $this->postJson('/api/v1/auth/register', $body)
+            ->assertStatus(503)
+            ->assertJsonPath('message', "We couldn't send the email just now. Please try again in a few minutes.");
+        $this->assertDatabaseMissing('customers', ['email' => 'dara@example.com']);
     }
 
     public function test_register_validates_password_rules_and_unique_email(): void
