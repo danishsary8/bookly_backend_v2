@@ -25,7 +25,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | POST | /auth/resend-verification | turnstile_token* | auth, 3 per 10 min |
 | POST | /auth/forgot-password | email, turnstile_token* | always 200 |
 | POST | /auth/reset-password | email, code, password, password_confirmation | revokes all tokens |
-| POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 existing, linked by email. 401 unless the token was issued to our app (`GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID`; off until set). Google email must be verified by Google (else 422). Linking to an account whose email was never verified removes its password and sessions. |
+| POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 returning (matched by the provider's account id). An email that already has a verified or closed account is **not** linked: 409 "This email already has a Bookly account. Sign in with your email and password instead." (names how that account signs in). An unfinished sign-up with that email becomes the social account (its password and sessions are removed). 401 unless the token was issued to our app (`GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID`; off until set). Google email must be verified by Google (else 422). |
 
 \* `turnstile_token`: the Cloudflare Turnstile token from the form. Required (422 `turnstile_token` "We couldn't check that you're a person…") once `TURNSTILE_SECRET_KEY` is set; ignored while it's empty. Checked with Cloudflare's siteverify and the visitor's IP; if Cloudflare can't be reached the request is refused.
 | GET | /me | — | auth |
@@ -204,6 +204,7 @@ Rules (422 on `staff`): you cannot change your own role, deactivate or reset you
 | GET | /staff/customers/{id} | staff | adds `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd, last_order_at}` and `recent_orders` (5) |
 | POST | /staff/customers/{id}/deactivate | admin | signs them out, blocks login |
 | POST | /staff/customers/{id}/activate | admin | |
+| DELETE | /staff/customers/{id} | admin | deletes an unfinished sign-up now (frees its email); 422 for verified customers or anything with orders, returns, reviews or addresses; audit-logged |
 
 ### Exchange rates and audit log
 | Method | Path | Body / notes |

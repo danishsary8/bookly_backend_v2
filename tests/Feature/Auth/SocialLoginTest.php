@@ -62,19 +62,20 @@ class SocialLoginTest extends TestCase
         $this->assertDatabaseHas('customers', ['email' => 'sok@gmail.com', 'google_id' => 'g-123']);
     }
 
-    public function test_existing_email_account_is_linked_not_duplicated(): void
+    public function test_an_unfinished_sign_up_with_the_same_email_becomes_the_social_account(): void
     {
-        $existing = Customer::factory()->unverified()->create(['email' => 'sok@gmail.com']);
+        $existing = Customer::factory()->unverified()->create(['email' => 'sok@gmail.com', 'name' => 'Typo Name']);
         $this->fakeProvider('facebook', $this->profile('fb-9', 'sok@gmail.com'));
 
-        $this->postJson('/api/v1/auth/social/facebook', ['access_token' => 'provider-token'])->assertOk();
+        $this->postJson('/api/v1/auth/social/facebook', ['access_token' => 'provider-token'])->assertOk()
+            ->assertJsonPath('customer.name', 'Sok Dara');
 
         $this->assertSame(1, Customer::count());
         $this->assertSame('fb-9', $existing->fresh()->facebook_id);
         $this->assertNotNull($existing->fresh()->email_verified_at);
     }
 
-    public function test_linking_an_unverified_account_removes_the_unproven_password_and_sessions(): void
+    public function test_taking_over_an_unfinished_sign_up_removes_the_unproven_password_and_sessions(): void
     {
         // Someone registered the victim's email (never verified) and kept the password.
         $squatter = Customer::factory()->unverified()->create(['email' => 'sok@gmail.com', 'password_hash' => 'squatter123']);
@@ -88,14 +89,60 @@ class SocialLoginTest extends TestCase
         $this->postJson('/api/v1/auth/login', ['email' => 'sok@gmail.com', 'password' => 'squatter123'])->assertUnauthorized();
     }
 
-    public function test_linking_a_verified_account_keeps_its_password(): void
+    public function test_an_email_that_already_has_an_account_cannot_sign_in_with_google_or_facebook(): void
     {
         $owner = Customer::factory()->create(['email' => 'sok@gmail.com', 'password_hash' => 'mypass123']);
         $this->fakeProvider('google', $this->profile('g-1', 'sok@gmail.com'));
 
-        $this->postJson('/api/v1/auth/social/google', ['access_token' => 'provider-token'])->assertOk();
+        $this->postJson('/api/v1/auth/social/google', ['access_token' => 'provider-token'])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'This email already has a Bookly account. Sign in with your email and password instead.')
+            ->assertJsonMissingPath('token');
 
+        $this->assertNull($owner->fresh()->google_id, 'not linked');
+        $this->assertSame(0, $owner->tokens()->count());
         $this->postJson('/api/v1/auth/login', ['email' => 'sok@gmail.com', 'password' => 'mypass123'])->assertOk();
+    }
+
+    public function test_the_refusal_names_how_the_account_signs_in(): void
+    {
+        Customer::factory()->create(['email' => 'fb@gmail.com', 'password_hash' => null, 'facebook_id' => 'fb-1']);
+        Customer::factory()->create(['email' => 'both@gmail.com', 'password_hash' => 'x12345678', 'facebook_id' => 'fb-2']);
+        Customer::factory()->create(['email' => 'closed@gmail.com'])->delete();
+
+        $expected = [
+            'fb@gmail.com' => 'This email already has a Bookly account. Sign in with Facebook instead.',
+            'both@gmail.com' => 'This email already has a Bookly account. Sign in with your email and password or Facebook instead.',
+            'closed@gmail.com' => 'This email belongs to a closed Bookly account. Please contact us.',
+        ];
+        $this->tokenIssuedTo();
+        $driver = Mockery::mock();
+        $driver->shouldReceive('stateless')->andReturnSelf();
+        $driver->shouldReceive('userFromToken')->andReturn(...array_map(fn ($email) => $this->profile('g-'.$email, $email), array_keys($expected)));
+        Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+        foreach ($expected as $message) {
+            $this->postJson('/api/v1/auth/social/google', ['access_token' => 'provider-token'])->assertStatus(409)->assertJsonPath('message', $message);
+        }
+    }
+
+    public function test_a_returning_social_customer_signs_in_by_their_provider_id(): void
+    {
+        $customer = Customer::factory()->create(['email' => 'sok@gmail.com', 'google_id' => 'g-1', 'password_hash' => null]);
+        $this->fakeProvider('google', $this->profile('g-1', 'sok@gmail.com'));
+
+        $this->postJson('/api/v1/auth/social/google', ['access_token' => 'provider-token'])->assertOk()->assertJsonPath('customer.id', $customer->id);
+    }
+
+    public function test_a_deactivated_unfinished_sign_up_is_left_alone(): void
+    {
+        $off = Customer::factory()->unverified()->create(['email' => 'sok@gmail.com', 'password_hash' => 'x12345678', 'is_active' => false]);
+        $off->createToken('t', ['customer']);
+        $this->fakeProvider('google', $this->profile('g-1', 'sok@gmail.com'));
+
+        $this->postJson('/api/v1/auth/social/google', ['access_token' => 'provider-token'])->assertForbidden();
+        $this->assertNotNull($off->fresh()->password_hash);
+        $this->assertSame(1, $off->tokens()->count());
     }
 
     public function test_tokens_issued_to_another_app_are_rejected(): void

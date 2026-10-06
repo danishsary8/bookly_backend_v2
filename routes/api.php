@@ -193,6 +193,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::post('/members/{member}/resend-invitation', [StaffMemberController::class, 'resendInvitation'])->middleware('throttle:otp-send');
         Route::post('/customers/{customer}/deactivate', [StaffCustomerController::class, 'deactivate']);
         Route::post('/customers/{customer}/activate', [StaffCustomerController::class, 'activate']);
+        Route::delete('/customers/{customer}', [StaffCustomerController::class, 'destroy']);
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);

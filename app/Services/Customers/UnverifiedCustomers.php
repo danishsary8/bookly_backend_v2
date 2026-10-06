@@ -51,19 +51,36 @@ class UnverifiedCustomers
     public function prune(): int
     {
         $removed = 0;
-        $morph = (new Customer)->getMorphClass();
-
-        $this->expired()->select('id')->chunkById(200, function ($customers) use (&$removed, $morph) {
-            $ids = $customers->pluck('id');
-            DB::transaction(function () use ($ids, $morph) {
-                PersonalAccessToken::where('tokenable_type', $morph)->whereIn('tokenable_id', $ids)->delete();
-                VerificationToken::where('user_type', 'customer')->whereIn('user_id', $ids)->delete();
-                Customer::withTrashed()->whereIn('id', $ids)->forceDelete(); // cart and wishlist rows cascade
-            });
-            $removed += $ids->count();
+        $this->expired()->select('id')->chunkById(200, function ($customers) use (&$removed) {
+            $this->purge($customers->pluck('id')->all());
+            $removed += $customers->count();
         });
 
         return $removed;
+    }
+
+    /** Can staff delete this account now? Only unfinished sign-ups with nothing attached. */
+    public function deletable(Customer $customer): bool
+    {
+        return $customer->email_verified_at === null
+            && ! $customer->orders()->exists() && ! $customer->returns()->exists()
+            && ! $customer->reviews()->exists() && ! $customer->addresses()->exists();
+    }
+
+    /** Deletes one unfinished sign-up right away (an admin freeing up its email). */
+    public function delete(Customer $customer): void
+    {
+        $this->purge([$customer->id]);
+    }
+
+    /** @param  list<int>  $ids */
+    private function purge(array $ids): void
+    {
+        DB::transaction(function () use ($ids) {
+            PersonalAccessToken::where('tokenable_type', (new Customer)->getMorphClass())->whereIn('tokenable_id', $ids)->delete();
+            VerificationToken::where('user_type', 'customer')->whereIn('user_id', $ids)->delete();
+            Customer::withTrashed()->whereIn('id', $ids)->forceDelete(); // cart and wishlist rows cascade
+        });
     }
 
     /**

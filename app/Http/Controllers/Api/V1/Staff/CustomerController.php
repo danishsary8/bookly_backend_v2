@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Services\Admin\AuditLogger;
 use App\Services\Customers\UnverifiedCustomers;
 use App\Support\Money;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -68,6 +69,24 @@ class CustomerController extends Controller
             ->latest('placed_at')->limit(5)->get();
 
         return new StaffCustomerResource($customer);
+    }
+
+    /**
+     * Admins: delete an unfinished sign-up now instead of waiting for the 48-hour clean-up, so its email can be
+     * used again. Verified customers, or anything with orders, returns, reviews or addresses, can't be deleted.
+     */
+    public function destroy(Request $request, Customer $customer): JsonResponse
+    {
+        if (! $this->unverified->deletable($customer)) {
+            return response()->json(['message' => $customer->email_verified_at !== null
+                ? 'Only unfinished sign-ups can be deleted. Verified customers can be deactivated instead.'
+                : 'This account has orders, returns, reviews or addresses, so it can\'t be deleted.'], 422);
+        }
+
+        $this->audit->custom($request->user(), 'deleted', $customer, ['email' => $customer->email, 'name' => $customer->name, 'email_verified' => false], null);
+        $this->unverified->delete($customer);
+
+        return response()->json(null, 204);
     }
 
     public function deactivate(Request $request, Customer $customer): StaffCustomerResource

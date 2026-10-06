@@ -150,6 +150,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 
 - [x] Cloudflare Turnstile (AUTH_PLAN PR 2): `App\Rules\Turnstile` checks `turnstile_token` with Cloudflare's siteverify (secret + visitor IP) on register, login, forgot-password and resend-verification. Off while `TURNSTILE_SECRET_KEY` is empty (local, CI, until the owner adds the key); missing or rejected tokens answer 422 "We couldn't check that you're a person. Reload the page and try again."; Cloudflare unreachable also refuses (fails closed) with its own message. 221 tests.
 
+- [x] Owner's rules (2026-10-06): Google/Facebook never sign in to an email that already has a verified (or closed) account; 409 tells the person how that account signs in ("…Sign in with your email and password instead."). Returning social customers are matched by provider id; an unfinished sign-up with the same email becomes the social account (password and sessions removed). A deactivated account is refused before anything changes. New admin-only `DELETE /staff/customers/{id}` deletes an unfinished sign-up now (verified customers or anything with orders, returns, reviews or addresses: 422), audit-logged as `customer.deleted`. 226 tests.
+
 ## How to run locally
 ```
 composer install

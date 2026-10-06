@@ -49,18 +49,25 @@ class SocialAuthController extends Controller
         }
 
         $column = self::COLUMNS[$provider];
-        $customer = Customer::where($column, $profile->getId())->first()
-            ?? Customer::where('email', $email)->first();
+        $customer = Customer::where($column, $profile->getId())->first();
+        $sameEmail = $customer === null ? Customer::withTrashed()->where('email', $email)->first() : null;
 
-        if ($customer !== null && ! $customer->is_active) {
+        $account = $customer ?? ($sameEmail?->trashed() ? null : $sameEmail);
+        if ($account !== null && ! $account->is_active) {
             return response()->json(['message' => 'This account has been deactivated. Please contact support.'], 403);
         }
 
-        // Someone may have registered this email without owning it and never verified it. The real owner
-        // has now proven the address, so the unproven password and its sessions must stop working.
-        if ($customer !== null && $customer->email_verified_at === null) {
-            $customer->forceFill(['password_hash' => null])->save();
-            $customer->tokens()->delete();
+        if ($sameEmail !== null) {
+            // Owner's rule: Google / Facebook never sign in to an email that already has a real account;
+            // that account keeps signing in the way it was set up.
+            if ($sameEmail->trashed() || $sameEmail->email_verified_at !== null) {
+                return response()->json(['message' => $this->signInAsBefore($sameEmail)], 409);
+            }
+            // An unfinished sign-up (never verified) isn't anyone's account yet: the provider has now proven
+            // who owns the address, so it becomes theirs and the unproven password and sessions stop working.
+            $sameEmail->tokens()->delete();
+            $sameEmail->forceFill(['password_hash' => null, 'name' => $profile->getName() ?: $sameEmail->name])->save();
+            $customer = $sameEmail;
         }
 
         $created = $customer === null;
@@ -74,5 +81,25 @@ class SocialAuthController extends Controller
             'customer' => new CustomerResource($customer),
             ...$this->issueToken($customer, ['customer']),
         ], $created ? 201 : 200);
+    }
+
+    /** "This email already has a Bookly account. Sign in with your email and password instead." */
+    private function signInAsBefore(Customer $existing): string
+    {
+        if ($existing->trashed()) {
+            return 'This email belongs to a closed Bookly account. Please contact us.';
+        }
+        $ways = array_values(array_filter([
+            $existing->password_hash !== null ? 'your email and password' : null,
+            $existing->google_id !== null ? 'Google' : null,
+            $existing->facebook_id !== null ? 'Facebook' : null,
+        ]));
+        $how = match (count($ways)) {
+            0 => 'the way you signed up',
+            1 => $ways[0],
+            default => implode(', ', array_slice($ways, 0, -1)).' or '.end($ways),
+        };
+
+        return "This email already has a Bookly account. Sign in with {$how} instead.";
     }
 }
