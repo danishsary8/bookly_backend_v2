@@ -131,6 +131,36 @@ class UnfinishedSignupTest extends TestCase
         $this->asToken($staff)->getJson('/api/v1/staff/customers?q=pending')->assertJsonPath('meta.counts', ['verified' => 0, 'unverified' => 1]);
     }
 
+    public function test_an_admin_can_delete_an_unfinished_sign_up_now(): void
+    {
+        $pending = Customer::factory()->unverified()->create(['email' => 'free-me@example.com']);
+        $pending->createToken('t', ['customer']);
+        $admin = $this->staffToken(admin: true);
+
+        $this->asToken($admin)->deleteJson("/api/v1/staff/customers/{$pending->id}")->assertNoContent();
+
+        $this->assertNull(Customer::withTrashed()->find($pending->id));
+        $this->assertDatabaseMissing('personal_access_tokens', ['tokenable_id' => $pending->id, 'tokenable_type' => $pending->getMorphClass()]);
+        $this->assertDatabaseHas('admin_audit_logs', ['action' => 'customer.deleted', 'entity_id' => $pending->id]);
+        $this->register(['email' => 'free-me@example.com'])->assertCreated();
+    }
+
+    public function test_only_admins_delete_and_only_unfinished_sign_ups_without_anything_attached(): void
+    {
+        $pending = Customer::factory()->unverified()->create();
+        $verified = Customer::factory()->create();
+        $withAddress = Customer::factory()->unverified()->create();
+        CustomerAddress::factory()->for($withAddress)->create();
+
+        $this->asToken($this->staffToken())->deleteJson("/api/v1/staff/customers/{$pending->id}")->assertForbidden();
+
+        $admin = $this->staffToken(admin: true);
+        $this->asToken($admin)->deleteJson("/api/v1/staff/customers/{$verified->id}")->assertUnprocessable()
+            ->assertJsonPath('message', 'Only unfinished sign-ups can be deleted. Verified customers can be deactivated instead.');
+        $this->asToken($admin)->deleteJson("/api/v1/staff/customers/{$withAddress->id}")->assertUnprocessable();
+        $this->assertSame(3, Customer::count());
+    }
+
     public function test_removal_time_is_null_for_kept_accounts(): void
     {
         $this->assertNull(UnverifiedCustomers::removalAt(Customer::factory()->create()));

@@ -505,11 +505,12 @@ paths:
   /auth/social/{provider}:
     post:
       tags: [Customer auth]
-      summary: Log in with a Google or Facebook access token (account linked by email)
+      summary: Log in with a Google or Facebook access token
+      description: 'Signs in the account already linked to this Google/Facebook id, or creates one. An email that already has a verified (or closed) account is refused with 409 and told how to sign in instead; an unfinished sign-up with that email becomes the social account (its password and sessions are removed).'
       security: []
       parameters: [ { name: provider, in: path, required: true, schema: { type: string, enum: [google, facebook] } } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [access_token], properties: { access_token: { type: string } } } } } }
-      responses: { '200': { description: Existing account }, '201': { description: New account }, '401': { description: Provider rejected the token } }
+      responses: { '200': { description: Existing account }, '201': { description: New account }, '401': { description: Provider rejected the token }, '409': { description: 'The email already has an account: sign in as before' } }
   /auth/logout:
     post: { tags: [Customer auth], summary: 'Revoke the current token', responses: { '200': { description: Logged out } } }
   /auth/verify-email:
@@ -676,6 +677,7 @@ paths:
     get: { tags: [Staff operations], summary: 'Customers (q, active, verified)', description: 'meta.counts {verified, unverified} counts both tabs with the same q/active filters. Each unverified, active customer has removal_at: when the unfinished sign-up is deleted.', responses: { '200': { description: Customers } } }
   /staff/customers/{id}:
     get: { tags: [Staff operations], summary: 'Customer with stats and recent orders', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Customer } } }
+    delete: { tags: [Admin], summary: '(admin) Delete an unfinished sign-up now, freeing its email', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { description: Deleted }, '422': { description: 'Verified, or has orders, returns, reviews or addresses' } } }
   /staff/notifications:
     get: { tags: [Staff operations], summary: 'In-app alerts (low stock); unread=1', responses: { '200': { description: Notifications } } }
   /staff/notifications/read-all:
