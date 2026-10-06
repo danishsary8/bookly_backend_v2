@@ -119,6 +119,9 @@ return [
     */
 
     // 6-digit OTP codes for email verification and password reset.
+    // Sign-ups whose email code is never entered are deleted after this many hours (customers:prune-unverified).
+    'unverified_customer_hours' => (int) env('UNVERIFIED_CUSTOMER_HOURS', 48),
+
     'otp' => [
         'ttl_minutes' => (int) env('OTP_TTL_MINUTES', 15),
         'length' => 6,
