@@ -18,7 +18,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 ## Customer auth
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
-| POST | /auth/register | name, email, password, password_confirmation, phone? | 201 + token. Emails a 6-digit code. |
+| POST | /auth/register | name, email, password, password_confirmation, phone? | 201 + token. Emails a 6-digit code. An email whose sign-up was never verified is taken over (new name/password, old sessions and codes cancelled); verified, deactivated or deleted accounts keep their email (422 "An account with this email already exists…"). |
 | POST | /auth/login | email, password | token (7 days) |
 | POST | /auth/logout | — | auth |
 | POST | /auth/verify-email | code | auth. A code is thrown away after 5 wrong guesses (ask for a new one) |
@@ -31,7 +31,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions |
 
 Token response shape: `{ "customer": {...}, "token": "...", "token_type": "Bearer", "expires_at": "ISO-8601" }`.
-Unverified customers can log in but shopping routes return 403 "Please verify your email address first."
+Unverified customers can log in but shopping routes return 403 "Please verify your email address first." Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).
 
 ## Staff auth
 | Method | Path | Body | Notes |
@@ -198,7 +198,7 @@ Rules (422 on `staff`): you cannot change your own role, deactivate or reset you
 ### Customers
 | Method | Path | Auth | Body / notes |
 | --- | --- | --- | --- |
-| GET | /staff/customers | staff | `q` (name/email/phone), `active`, `verified`, `per_page` — includes `orders_count`, `login_methods` |
+| GET | /staff/customers | staff | `q` (name/email/phone), `active`, `verified`, `per_page` — includes `orders_count`, `login_methods`, `removal_at` (unfinished sign-ups: when they're deleted); `meta.counts {verified, unverified}` for the tabs |
 | GET | /staff/customers/{id} | staff | adds `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd, last_order_at}` and `recent_orders` (5) |
 | POST | /staff/customers/{id}/deactivate | admin | signs them out, blocks login |
 | POST | /staff/customers/{id}/activate | admin | |
@@ -214,7 +214,7 @@ Rules (422 on `staff`): you cannot change your own role, deactivate or reset you
 Query for both: `period` = today \| 7d \| 30d (default) \| custom with `from` and `to` (YYYY-MM-DD, max 366 days). Days follow `SHOP_TIMEZONE` (default Asia/Phnom_Penh).
 | Method | Path | Returns |
 | --- | --- | --- |
-| GET | /staff/dashboard/summary | `period`, `revenue {gross_usd, refunds_usd, net_usd}`, `delivered_orders`, `average_order_value_usd`, `orders_placed`, `orders_by_status`, `new_customers`, `best_sellers[{book_id, title, copies_sold, sales_usd}]` (top 10), `open_returns`, `low_stock[{book_variant_id, book_id, title, format, sku, stock_quantity, low_stock_threshold}]` |
+| GET | /staff/dashboard/summary | `period`, `revenue {gross_usd, refunds_usd, net_usd}`, `delivered_orders`, `average_order_value_usd`, `orders_placed`, `orders_by_status`, `new_customers` (verified sign-ups in the period), `best_sellers[{book_id, title, copies_sold, sales_usd}]` (top 10), `open_returns`, `low_stock[{book_variant_id, book_id, title, format, sku, stock_quantity, low_stock_threshold}]` |
 | GET | /staff/dashboard/sales | one row per day: `{date, orders_placed, gross_revenue_usd, refunds_usd, net_revenue_usd}` (days without sales are 0) |
 
 Revenue is cash basis: an order counts on the day it was delivered (cash on delivery is collected then); a refund counts on the day it was refunded.

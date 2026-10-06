@@ -146,6 +146,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 
 - [x] Owner's shop rules: delivery costs 1.50 USD in Phnom Penh and 3.00 USD in the provinces (new `DeliveryArea`: Phnom Penh matched on the address's city or province, ignoring case, spaces and dashes, also in Khmer; config `shop.shipping_fees`, env `SHIPPING_FEE_PHNOM_PENH` / `SHIPPING_FEE_PROVINCES`, replacing `SHIPPING_FLAT_FEE`). `POST /checkout/preview` takes an optional `address_id` (else the default address, else the provinces fee) and returns `delivery_area`. Returns: 3 days after delivery (`RETURN_WINDOW_DAYS` default 3). Demo seed: the order with the open return is now delivered yesterday so it stays inside the window. No migration (208 tests).
 
+- [x] Unfinished sign-ups (owner: 48 hours): signing up again with an email whose account was never verified takes that account over (new name and password, old sessions and codes cancelled, the 48 hours restart) instead of "email taken"; verified, deactivated and deleted accounts keep their email, with a clearer message. New `UnverifiedCustomers` service + `customers:prune-unverified` command (scheduled hourly; also run at most hourly from sign-up and the staff customer list, since Render's free plan has no scheduler) deletes unverified, active accounts older than `UNVERIFIED_CUSTOMER_HOURS` with their tokens and codes. Staff customer list: `meta.counts {verified, unverified}` and `removal_at` per customer. Dashboard `new_customers` counts verified sign-ups only. A race between two sign-ups with the same new email answers 422, not 500. No migration (216 tests).
+
 ## How to run locally
 ```
 composer install

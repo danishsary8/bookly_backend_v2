@@ -8,13 +8,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffCustomerResource;
 use App\Models\Customer;
 use App\Services\Admin\AuditLogger;
+use App\Services\Customers\UnverifiedCustomers;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CustomerController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(private readonly AuditLogger $audit, private readonly UnverifiedCustomers $unverified) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -25,20 +26,27 @@ class CustomerController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $term = isset($data['q']) ? '%'.addcslashes($data['q'], '%_').'%' : null;
+        $this->unverified->pruneIfDue();
+
+        // Search and active filters, without the verified filter: the tabs show both counts.
+        $base = Customer::query()
+            ->when($term, fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)->orWhere('phone', 'ilike', $term)))
+            ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')));
 
         return StaffCustomerResource::collection(
-            Customer::query()
+            (clone $base)
                 ->withCount('orders')
-                ->when($term, fn ($q) => $q->where(fn ($w) => $w
-                    ->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)->orWhere('phone', 'ilike', $term)))
-                ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')))
                 ->when($request->has('verified'), fn ($q) => $request->boolean('verified')
                     ? $q->whereNotNull('email_verified_at') : $q->whereNull('email_verified_at'))
                 ->latest()
                 ->orderByDesc('id')
                 ->paginate($data['per_page'] ?? 20)
                 ->withQueryString()
-        );
+        )->additional(['meta' => ['counts' => [
+            'verified' => (clone $base)->whereNotNull('email_verified_at')->count(),
+            'unverified' => (clone $base)->whereNull('email_verified_at')->count(),
+        ]]]);
     }
 
     public function show(Customer $customer): StaffCustomerResource

@@ -464,6 +464,7 @@ paths:
     post:
       tags: [Customer auth]
       summary: Create an account; a 6-digit code is emailed to verify it
+      description: 'If the email belongs to a sign-up that was never verified, that account is taken over (new name and password, its old sessions and codes cancelled). Sign-ups still unverified after UNVERIFIED_CUSTOMER_HOURS (48) are deleted. A verified, deactivated or deleted account keeps its email (422).'
       security: []
       requestBody:
         required: true
@@ -671,7 +672,7 @@ paths:
   /staff/reviews/{id}/show:
     post: { tags: [Staff operations], summary: 'Show a hidden review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Visible } } }
   /staff/customers:
-    get: { tags: [Staff operations], summary: 'Customers (q, active, verified)', responses: { '200': { description: Customers } } }
+    get: { tags: [Staff operations], summary: 'Customers (q, active, verified)', description: 'meta.counts {verified, unverified} counts both tabs with the same q/active filters. Each unverified, active customer has removal_at: when the unfinished sign-up is deleted.', responses: { '200': { description: Customers } } }
   /staff/customers/{id}:
     get: { tags: [Staff operations], summary: 'Customer with stats and recent orders', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Customer } } }
   /staff/notifications:
