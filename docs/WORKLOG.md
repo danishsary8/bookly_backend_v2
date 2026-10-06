@@ -144,6 +144,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 
 - [x] OpenAPI response schemas for the frontend's generated types: added `Author`, `Category`, `Publisher`, `Series`, `SeriesDetail`, `RatingSummary`, `CheckoutPreview` (+ `Amount` usd/khr pairs), `CouponCheck`, `OwnReview`, `PageLinks`, full `PageMeta`, and referenced them from their endpoints. `ApiContractTest` seeds the demo shop, calls the real endpoints and fails when a response and its schema disagree (203 tests). Redocly lint: valid, 0 warnings.
 
+- [x] Owner's shop rules: delivery costs 1.50 USD in Phnom Penh and 3.00 USD in the provinces (new `DeliveryArea`: Phnom Penh matched on the address's city or province, ignoring case, spaces and dashes, also in Khmer; config `shop.shipping_fees`, env `SHIPPING_FEE_PHNOM_PENH` / `SHIPPING_FEE_PROVINCES`, replacing `SHIPPING_FLAT_FEE`). `POST /checkout/preview` takes an optional `address_id` (else the default address, else the provinces fee) and returns `delivery_area`. Returns: 3 days after delivery (`RETURN_WINDOW_DAYS` default 3). Demo seed: the order with the open return is now delivered yesterday so it stays inside the window. No migration (208 tests).
+
 ## How to run locally
 ```
 composer install
