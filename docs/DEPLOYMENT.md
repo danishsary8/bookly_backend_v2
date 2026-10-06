@@ -59,12 +59,19 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `TRUSTED_PROXIES` | `REMOTE_ADDR` |
 | `CORS_ALLOWED_ORIGINS` | your frontend URL |
 | `LOG_REQUESTS` | `true` |
-| `MAIL_MAILER` | `resend` |
-| `RESEND_API_KEY`, `MAIL_FROM_ADDRESS` | from Resend |
+| `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | see "Email on Render" below |
 | optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET` |
 
 Save → Render builds the image (a few minutes) and deploys. Check `https://<your-app>.onrender.com/api/v1/health`
 → `{"status":"ok",...}` and `/docs`.
+
+### Email on Render
+Render's free plan blocks outgoing SMTP on ports 25, 465 and 587, and Resend without a verified domain only delivers to
+the Resend account owner. Working free setup: Brevo SMTP on port 2525 with a verified single sender —
+`MAIL_MAILER=smtp`, `MAIL_HOST=smtp-relay.brevo.com`, `MAIL_PORT=2525`, `MAIL_USERNAME`/`MAIL_PASSWORD` = Brevo SMTP
+login and key, `MAIL_FROM_ADDRESS` = the verified sender. With a verified domain, Resend (`MAIL_MAILER=resend`,
+`RESEND_API_KEY`) works too. If sending fails, the request answers 503 "We couldn't send the email just now…" and
+sign-up keeps no half-made account.
 
 ### F4. Keep it awake (optional)
 Free uptime monitors such as UptimeRobot can call `/api/v1/health` every 10 minutes so visitors rarely hit a sleeping
