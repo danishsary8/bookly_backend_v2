@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Concerns\IssuesTokens;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
+use App\Rules\Turnstile;
 use App\Services\Auth\OtpService;
 use App\Services\Customers\UnverifiedCustomers;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -36,6 +37,7 @@ class AuthController extends Controller
             }],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
             'phone' => ['nullable', 'string', 'max:30'],
+            'turnstile_token' => [new Turnstile($request->ip())],
         ]);
         $email = strtolower($data['email']);
         $this->unverified->pruneIfDue();
@@ -89,6 +91,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'turnstile_token' => [new Turnstile($request->ip())],
         ]);
 
         $customer = Customer::where('email', strtolower($data['email']))->first();
@@ -134,6 +137,7 @@ class AuthController extends Controller
 
     public function resendVerification(Request $request): JsonResponse
     {
+        $request->validate(['turnstile_token' => [new Turnstile($request->ip())]]);
         $customer = $request->user();
 
         if (! $customer->hasVerifiedEmail()) {
@@ -145,7 +149,7 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request): JsonResponse
     {
-        $data = $request->validate(['email' => ['required', 'email']]);
+        $data = $request->validate(['email' => ['required', 'email'], 'turnstile_token' => [new Turnstile($request->ip())]]);
         $customer = Customer::where('email', strtolower($data['email']))->first();
 
         if ($customer !== null) {
