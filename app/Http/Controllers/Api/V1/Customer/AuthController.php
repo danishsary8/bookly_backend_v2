@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Services\Auth\OtpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
@@ -28,14 +29,19 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
         ]);
 
-        $customer = Customer::create([
-            'name' => $data['name'],
-            'email' => strtolower($data['email']),
-            'password_hash' => $data['password'],
-            'phone' => $data['phone'] ?? null,
-        ]);
+        // One transaction: if the code email can't be sent, no half-made account is left behind,
+        // so the customer can simply try again with the same email.
+        $customer = DB::transaction(function () use ($data) {
+            $customer = Customer::create([
+                'name' => $data['name'],
+                'email' => strtolower($data['email']),
+                'password_hash' => $data['password'],
+                'phone' => $data['phone'] ?? null,
+            ]);
+            $this->otp->issue($customer, VerificationPurpose::EmailVerify);
 
-        $this->otp->issue($customer, VerificationPurpose::EmailVerify);
+            return $customer;
+        });
 
         return response()->json([
             'message' => 'Account created. We sent a 6-digit code to your email.',
