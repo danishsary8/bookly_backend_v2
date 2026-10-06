@@ -479,6 +479,7 @@ paths:
                 password: { type: string, minLength: 8, description: Letters and numbers }
                 password_confirmation: { type: string }
                 phone: { type: string }
+                turnstile_token: { type: string, description: 'Cloudflare Turnstile token; required once TURNSTILE_SECRET_KEY is set' }
       responses:
         '201':
           description: Account + token. Shopping routes return 403 until the email is verified.
@@ -495,7 +496,7 @@ paths:
       tags: [Customer auth]
       summary: Log in with email and password
       security: []
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email, password], properties: { email: { type: string }, password: { type: string } } } } } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email, password], properties: { email: { type: string }, password: { type: string }, turnstile_token: { type: string, description: 'Cloudflare Turnstile token; required once TURNSTILE_SECRET_KEY is set' } } } } } }
       responses:
         '200': { description: Token, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
         '401': { description: Wrong email or password }
@@ -514,9 +515,9 @@ paths:
   /auth/verify-email:
     post: { tags: [Customer auth], summary: 'Verify the email with the 6-digit code', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string, pattern: '^[0-9]{6}$' } } } } } }, responses: { '200': { description: Verified }, '422': { description: Wrong or expired code } } }
   /auth/resend-verification:
-    post: { tags: [Customer auth], summary: 'Send a new verification code (3 per 10 min)', responses: { '200': { description: Sent } } }
+    post: { tags: [Customer auth], summary: 'Send a new verification code (3 per 10 min)', requestBody: { content: { application/json: { schema: { type: object, properties: { turnstile_token: { type: string } } } } } }, responses: { '200': { description: Sent } } }
   /auth/forgot-password:
-    post: { tags: [Customer auth], summary: 'Email a reset code (same answer whether the email exists or not)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string } } } } } }, responses: { '200': { description: OK } } }
+    post: { tags: [Customer auth], summary: 'Email a reset code (same answer whether the email exists or not)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, turnstile_token: { type: string } } } } } }, responses: { '200': { description: OK } } }
   /auth/reset-password:
     post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
   /me:

@@ -41,6 +41,11 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    // Cloudflare Turnstile (bot check on sign-up, sign-in and code emails); off while the secret is empty.
+    'turnstile' => [
+        'secret' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
     'facebook' => [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),

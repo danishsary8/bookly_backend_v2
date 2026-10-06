@@ -18,14 +18,16 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 ## Customer auth
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
-| POST | /auth/register | name, email, password, password_confirmation, phone? | 201 + token. Emails a 6-digit code. An email whose sign-up was never verified is taken over (new name/password, old sessions and codes cancelled); verified, deactivated or deleted accounts keep their email (422 "An account with this email already exists…"). |
-| POST | /auth/login | email, password | token (7 days) |
+| POST | /auth/register | name, email, password, password_confirmation, phone?, turnstile_token* | 201 + token. Emails a 6-digit code. An email whose sign-up was never verified is taken over (new name/password, old sessions and codes cancelled); verified, deactivated or deleted accounts keep their email (422 "An account with this email already exists…"). |
+| POST | /auth/login | email, password, turnstile_token* | token (7 days) |
 | POST | /auth/logout | — | auth |
 | POST | /auth/verify-email | code | auth. A code is thrown away after 5 wrong guesses (ask for a new one) |
-| POST | /auth/resend-verification | — | auth, 3 per 10 min |
-| POST | /auth/forgot-password | email | always 200 |
+| POST | /auth/resend-verification | turnstile_token* | auth, 3 per 10 min |
+| POST | /auth/forgot-password | email, turnstile_token* | always 200 |
 | POST | /auth/reset-password | email, code, password, password_confirmation | revokes all tokens |
 | POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 existing, linked by email. 401 unless the token was issued to our app (`GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID`; off until set). Google email must be verified by Google (else 422). Linking to an account whose email was never verified removes its password and sessions. |
+
+\* `turnstile_token`: the Cloudflare Turnstile token from the form. Required (422 `turnstile_token` "We couldn't check that you're a person…") once `TURNSTILE_SECRET_KEY` is set; ignored while it's empty. Checked with Cloudflare's siteverify and the visitor's IP; if Cloudflare can't be reached the request is refused.
 | GET | /me | — | auth |
 | PATCH | /me | name?, phone? | auth |
 | PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions |

@@ -148,6 +148,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 
 - [x] Unfinished sign-ups (owner: 48 hours): signing up again with an email whose account was never verified takes that account over (new name and password, old sessions and codes cancelled, the 48 hours restart) instead of "email taken"; verified, deactivated and deleted accounts keep their email, with a clearer message. New `UnverifiedCustomers` service + `customers:prune-unverified` command (scheduled hourly; also run at most hourly from sign-up and the staff customer list, since Render's free plan has no scheduler) deletes unverified, active accounts older than `UNVERIFIED_CUSTOMER_HOURS` with their tokens and codes. Staff customer list: `meta.counts {verified, unverified}` and `removal_at` per customer. Dashboard `new_customers` counts verified sign-ups only. A race between two sign-ups with the same new email answers 422, not 500. No migration (216 tests).
 
+- [x] Cloudflare Turnstile (AUTH_PLAN PR 2): `App\Rules\Turnstile` checks `turnstile_token` with Cloudflare's siteverify (secret + visitor IP) on register, login, forgot-password and resend-verification. Off while `TURNSTILE_SECRET_KEY` is empty (local, CI, until the owner adds the key); missing or rejected tokens answer 422 "We couldn't check that you're a person. Reload the page and try again."; Cloudflare unreachable also refuses (fails closed) with its own message. 221 tests.
+
 ## How to run locally
 ```
 composer install
