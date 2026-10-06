@@ -28,7 +28,7 @@ class CheckoutTest extends TestCase
     {
         parent::setUp();
         Notification::fake();
-        config(['shop.shipping_flat_fee' => '2.00']);
+        config(['shop.shipping_fees' => ['phnom_penh' => '1.50', 'provinces' => '3.00']]);
         $this->customer = Customer::factory()->create();
         $this->address = CustomerAddress::factory()->for($this->customer)->create(['city' => 'Phnom Penh']);
         $this->withToken($this->customer->createToken('t', ['customer'])->plainTextToken);
@@ -61,9 +61,9 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.payment_status', 'pending')
             ->assertJsonPath('data.subtotal_usd', '35.00')
             ->assertJsonPath('data.discount_usd', '3.50')
-            ->assertJsonPath('data.shipping_fee_usd', '2.00')
+            ->assertJsonPath('data.shipping_fee_usd', '1.50')
             ->assertJsonPath('data.tax_usd', '0.00')
-            ->assertJsonPath('data.total_usd', '33.50')
+            ->assertJsonPath('data.total_usd', '33.00')
             ->assertJsonPath('data.coupon_code', 'TENOFF')
             ->assertJsonPath('data.shipping_address.city', 'Phnom Penh')
             ->assertJsonPath('data.can_cancel', true)
@@ -78,7 +78,7 @@ class CheckoutTest extends TestCase
         $this->assertDatabaseHas('inventory_movements', ['book_variant_id' => $paperback->id, 'change_qty' => -2, 'reason' => 'sale', 'reference_type' => 'order', 'reference_id' => $order->id]);
         $this->assertSame(1, InventoryMovement::count());
         $this->assertSame(1, Coupon::firstWhere('code', 'TENOFF')->used_count);
-        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'provider' => 'cod', 'status' => 'pending', 'amount' => '33.50']);
+        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'provider' => 'cod', 'status' => 'pending', 'amount' => '33.00']);
 
         $this->getJson('/api/v1/cart')->assertJsonCount(0, 'data.items');
         Notification::assertSentTo($this->customer, OrderPlacedNotification::class, fn ($n) => $n->order->is($order));
@@ -167,16 +167,58 @@ class CheckoutTest extends TestCase
         $this->addToCart(BookVariant::factory()->create(['price_usd' => '20.00']));
         Coupon::factory()->create(['code' => 'FIVE', 'type' => 'fixed', 'value' => '5']);
 
-        $this->postJson('/api/v1/checkout/preview', ['coupon_code' => 'five'])->assertOk()
+        $this->postJson('/api/v1/checkout/preview', ['coupon_code' => 'five', 'address_id' => $this->address->id])->assertOk()
             ->assertJsonPath('data.subtotal.usd', '20.00')
             ->assertJsonPath('data.discount.usd', '5.00')
-            ->assertJsonPath('data.shipping_fee.usd', '2.00')
-            ->assertJsonPath('data.total.usd', '17.00')
+            ->assertJsonPath('data.shipping_fee.usd', '1.50')
+            ->assertJsonPath('data.delivery_area', 'phnom_penh')
+            ->assertJsonPath('data.total.usd', '16.50')
             ->assertJsonPath('data.requires_shipping', true)
             ->assertJsonPath('data.can_checkout', true);
 
         $this->assertSame(0, Order::count());
         $this->assertSame(0, Coupon::firstWhere('code', 'FIVE')->used_count);
+    }
+
+    public function test_delivery_outside_phnom_penh_costs_the_provinces_fee(): void
+    {
+        $this->addToCart(BookVariant::factory()->create(['price_usd' => '10.00']));
+        $this->address->update(['city' => 'Siem Reap', 'state' => null]);
+
+        $this->checkout()->assertCreated()->assertJsonPath('data.shipping_fee_usd', '3.00')->assertJsonPath('data.total_usd', '13.00');
+    }
+
+    public function test_phnom_penh_is_recognised_however_it_is_written(): void
+    {
+        $this->addToCart(BookVariant::factory()->create(['price_usd' => '10.00']));
+
+        foreach (['phnom-penh', ' PHNOMPENH ', 'ភ្នំពេញ'] as $city) {
+            $this->address->update(['city' => $city]);
+            $this->postJson('/api/v1/checkout/preview', ['address_id' => $this->address->id])
+                ->assertOk()->assertJsonPath('data.shipping_fee.usd', '1.50');
+        }
+
+        $this->address->update(['city' => 'Chbar Ampov', 'state' => 'Phnom Penh']);
+        $this->postJson('/api/v1/checkout/preview', ['address_id' => $this->address->id])->assertJsonPath('data.delivery_area', 'phnom_penh');
+    }
+
+    public function test_preview_uses_the_default_address_or_quotes_the_provinces_fee_without_one(): void
+    {
+        $this->addToCart(BookVariant::factory()->create(['price_usd' => '10.00']));
+
+        $this->address->update(['is_default' => true]);
+        $this->postJson('/api/v1/checkout/preview')->assertJsonPath('data.delivery_area', 'phnom_penh')->assertJsonPath('data.shipping_fee.usd', '1.50');
+
+        $this->address->delete();
+        $this->postJson('/api/v1/checkout/preview')->assertJsonPath('data.delivery_area', null)->assertJsonPath('data.shipping_fee.usd', '3.00');
+    }
+
+    public function test_preview_rejects_someone_elses_address(): void
+    {
+        $other = CustomerAddress::factory()->for(Customer::factory())->create();
+        $this->addToCart(BookVariant::factory()->create());
+
+        $this->postJson('/api/v1/checkout/preview', ['address_id' => $other->id])->assertUnprocessable()->assertJsonValidationErrors('address_id');
     }
 
     public function test_unverified_customers_cannot_check_out(): void

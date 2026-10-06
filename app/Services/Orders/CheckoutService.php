@@ -31,10 +31,18 @@ class CheckoutService
         private readonly InventoryService $inventory,
     ) {}
 
-    /** Totals for the current cart, without placing anything. */
-    public function quote(Customer $customer, ?string $couponCode = null): array
+    /**
+     * Totals for the current cart, without placing anything. Delivery is priced for the given address,
+     * else the customer's default address, else the provinces fee (never quote less than checkout charges).
+     */
+    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null): array
     {
-        return $this->totals($customer, $this->carts->summary($customer), $couponCode);
+        $addresses = CustomerAddress::where('customer_id', $customer->id);
+        $address = $addressId !== null
+            ? ((clone $addresses)->find($addressId) ?? throw ValidationException::withMessages(['address_id' => 'Choose one of your saved addresses.']))
+            : (clone $addresses)->where('is_default', true)->first();
+
+        return $this->totals($customer, $this->carts->summary($customer), $couponCode, $address);
     }
 
     /**
@@ -76,7 +84,7 @@ class CheckoutService
             if ($couponCode !== null && $couponCode !== '') {
                 Coupon::where('code', CouponService::normalize($couponCode))->lockForUpdate()->first();
             }
-            $totals = $this->totals($customer, $summary, $couponCode);
+            $totals = $this->totals($customer, $summary, $couponCode, $address);
 
             // 5. Create the order with a copy of the address and today's prices.
             $order = Order::create([
@@ -151,7 +159,7 @@ class CheckoutService
         return $result;
     }
 
-    private function totals(Customer $customer, array $summary, ?string $couponCode): array
+    private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address): array
     {
         $subtotal = $summary['subtotal_cents'];
         $coupon = null;
@@ -169,7 +177,8 @@ class CheckoutService
         }
 
         $requiresShipping = $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
-        $shipping = $requiresShipping ? Money::toCents(config('shop.shipping_flat_fee')) : 0;
+        $area = DeliveryArea::for($address);
+        $shipping = $requiresShipping ? Money::toCents(DeliveryArea::fee($area)) : 0;
 
         return [
             'subtotal_cents' => $subtotal,
@@ -178,6 +187,7 @@ class CheckoutService
             'tax_cents' => 0,
             'total_cents' => $subtotal - $discount + $shipping,
             'requires_shipping' => $requiresShipping,
+            'delivery_area' => $address ? $area : null,
             'coupon' => $coupon,
             'can_checkout' => $summary['can_checkout'],
         ];
