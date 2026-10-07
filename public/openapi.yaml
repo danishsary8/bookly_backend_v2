@@ -549,6 +549,20 @@ paths:
       responses: { '200': { description: 'Closed; erase_at says when the details are erased' }, '422': { $ref: '#/components/responses/Validation' } }
   /me/password:
     put: { tags: [Customer], summary: 'Change password (signs out other devices)', responses: { '200': { description: Changed }, '422': { $ref: '#/components/responses/Validation' } } }
+  /me/email:
+    post:
+      tags: [Customer]
+      summary: Add or change your email (step 1, code to the new address)
+      description: 'The password is required when the account has one. Nothing changes until the code comes back (step 2). Refused when another account (also a closed one) uses the address, or it is already yours. At most 5 codes an hour per account, plus the otp-send limit and Turnstile.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email }, password: { type: string }, turnstile_token: { type: string } } } } } }
+      responses: { '200': { description: 'Code sent; email is the address it went to' }, '422': { $ref: '#/components/responses/Validation' } }
+  /me/email/verify:
+    post:
+      tags: [Customer]
+      summary: Confirm the new email with its code (step 2)
+      description: 'Saves the address as verified, cancels codes sent to the old address, signs out other devices, and tells the old address (if it was proven) about the change.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string, pattern: '^[0-9]{6}$' } } } } } }
+      responses: { '200': { description: 'Saved (customer in the body)' }, '422': { description: 'Wrong or expired code, or the address was taken meanwhile' } }
   /me/connections/{provider}:
     post:
       tags: [Customer]
