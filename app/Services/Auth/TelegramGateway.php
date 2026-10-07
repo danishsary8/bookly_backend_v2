@@ -15,8 +15,6 @@ use Throwable;
  */
 class TelegramGateway
 {
-    private const URL = 'https://gateway.telegram.org/sendVerificationMessage';
-
     public static function enabled(): bool
     {
         return (string) config('services.telegram_gateway.token') !== '';
@@ -33,7 +31,7 @@ class TelegramGateway
             $response = Http::timeout(10)
                 ->withToken((string) config('services.telegram_gateway.token'))
                 ->asJson()
-                ->post(self::URL, [
+                ->post(rtrim((string) config('services.telegram_gateway.url'), '/').'/sendVerificationMessage', [
                     'phone_number' => $phoneE164,
                     'code' => $code,
                     'ttl' => max(30, min(3600, $ttlSeconds)),
