@@ -34,6 +34,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | GET | /me | — | auth |
 | PATCH | /me | name?, phone? | auth |
 | PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions |
+| DELETE | /me | confirm=`DELETE`, password (or provider + access_token for accounts without a password) | auth. Closes the account: refused (422) while an order is on its way or a return is open; signs out everywhere, removes reviews, wishlist and cart, hides the account. `customers:erase-closed` (daily, and at most hourly from the staff customer list) erases name, email, phone, sign-in ids and addresses after `CLOSED_ACCOUNT_DAYS` (30); orders and returns are kept. |
 
 Token response shape: `{ "customer": {...}, "token": "...", "token_type": "Bearer", "expires_at": "ISO-8601" }`.
 Customer `verified` = email **or** phone proven. Unverified customers can log in but shopping routes return 403 "Please verify your account first: enter the code we sent you." `email` is null for Facebook accounts that signed up without one. Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).

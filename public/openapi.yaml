@@ -535,6 +535,12 @@ paths:
   /me:
     get: { tags: [Customer], summary: 'Your profile', responses: { '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '200': { description: Customer, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } } } }
     patch: { tags: [Customer], summary: 'Update name or phone', responses: { '200': { description: Updated } } }
+    delete:
+      tags: [Customer]
+      summary: Close your own account
+      description: 'Confirm with the password, or (accounts without one) a fresh Google/Facebook access token for the linked account, plus confirm=DELETE. Refused while an order is on its way or a return is open. Signs out everywhere, removes reviews, wishlist and cart, and hides the account; personal details are erased after CLOSED_ACCOUNT_DAYS (30) by customers:erase-closed. Orders and returns are kept.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [confirm], properties: { confirm: { type: string, enum: [DELETE] }, password: { type: string }, provider: { type: string, enum: [google, facebook] }, access_token: { type: string } } } } } }
+      responses: { '200': { description: 'Closed; erase_at says when the details are erased' }, '422': { $ref: '#/components/responses/Validation' } }
   /me/password:
     put: { tags: [Customer], summary: 'Change password (signs out other devices)', responses: { '200': { description: Changed }, '422': { $ref: '#/components/responses/Validation' } } }
 

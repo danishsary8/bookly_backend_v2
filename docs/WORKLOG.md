@@ -154,6 +154,8 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 
 - [x] Telegram codes and phone numbers (AUTH_PLAN PR 5, branch `feature/telegram-codes`). New migration (owner OK): `customers.phone_e164` (unique, verified numbers only), `phone_verified_at`, `email` now nullable, `phone_verify` code purpose. `libphonenumber` (+855 only). `TelegramGateway` sends our own 6-digit code (`sendVerificationMessage`, off until `TELEGRAM_GATEWAY_TOKEN`); number errors ask for another number or email, other errors are logged. Register `verify_by=telegram`; resend by channel; `POST /auth/phone` + `/auth/verify-phone` (a new number is kept aside until its code comes back); `GET /auth/options`. Per number: 3 codes an hour, 10 a day. An account is verified by email **or** phone everywhere (shopping, staff tabs and counts, clean-up, dashboard). Owner's rule (2026-10-07): new Facebook accounts give a phone number and the email is optional (422 `needs: phone`, then a second call with phone/email; Telegram code, or an email code, or nothing when Facebook's email is kept). 240 tests.
 
+- [x] Customers close their own account (ROADMAP phase 1, branch `feature/delete-account`): `DELETE /me` with the password (or a fresh Google/Facebook token for accounts without one) and `confirm=DELETE`; refused while an order is on its way or a return is open. Closing signs out everywhere, removes reviews, wishlist and cart and hides the account; `ClosedCustomers` + `customers:erase-closed` erase the personal details after 30 days (`CLOSED_ACCOUNT_DAYS`), keeping orders and returns for the shop's records. No migration. Also: `TELEGRAM_GATEWAY_URL` for a local stand-in gateway.
+
 ## How to run locally
 ```
 composer install
