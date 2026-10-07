@@ -83,6 +83,7 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::get('/', [ProfileController::class, 'show']);
     Route::patch('/', [ProfileController::class, 'update']);
     Route::put('/password', [ProfileController::class, 'changePassword'])->middleware('throttle:auth');
+    Route::delete('/', [ProfileController::class, 'destroy'])->middleware('throttle:auth');
 });
 
 /*

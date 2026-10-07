@@ -14,3 +14,7 @@ Schedule::command('sanctum:prune-expired --hours=24')->daily();
 // Delete sign-ups that were never verified (also runs from sign-up and the staff customer list,
 // because the free host has no scheduler).
 Schedule::command('customers:prune-unverified')->hourly();
+
+// Erase personal details of accounts their owners closed more than 30 days ago (also runs at most hourly
+// from the staff customer list).
+Schedule::command('customers:erase-closed')->daily();
