@@ -741,10 +741,12 @@ paths:
   /staff/reviews/{id}/show:
     post: { tags: [Staff operations], summary: 'Show a hidden review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Visible } } }
   /staff/customers:
-    get: { tags: [Staff operations], summary: 'Customers (q, active, verified)', description: 'meta.counts {verified, unverified} counts both tabs with the same q/active filters. Each unverified, active customer has removal_at: when the unfinished sign-up is deleted.', responses: { '200': { description: Customers } } }
+    get: { tags: [Staff operations], summary: 'Customers (q, active, verified, closed)', description: 'meta.counts {verified, unverified, closed} counts every tab with the same q filter (active applies to open accounts). Each unverified, active customer has removal_at: when the unfinished sign-up is deleted. closed=1 lists accounts the customers closed in the last CLOSED_ACCOUNT_DAYS (30), newest first, with closed_at and erase_at (when the details are erased).', responses: { '200': { description: Customers } } }
   /staff/customers/{id}:
-    get: { tags: [Staff operations], summary: 'Customer with stats and recent orders', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Customer } } }
+    get: { tags: [Staff operations], summary: 'Customer with stats and recent orders (closed accounts too: closed_at, erase_at)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Customer } } }
     delete: { tags: [Admin], summary: '(admin) Delete an unfinished sign-up now, freeing its email', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { description: Deleted }, '422': { description: 'Verified, or has orders, returns, reviews or addresses' } } }
+  /staff/customers/{id}/reopen:
+    post: { tags: [Admin], summary: '(admin) Reopen an account the customer closed, within its 30 days', description: 'Audit-logged as customer.reopened; the customer gets an email (when they have one) and signs in as before. Reviews, wishlist and cart removed at closing are not restored.', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: 'Reopened customer' }, '422': { description: 'The account is open, or was closed more than 30 days ago' } } }
   /staff/notifications:
     get: { tags: [Staff operations], summary: 'In-app alerts (low stock); unread=1', responses: { '200': { description: Notifications } } }
   /staff/notifications/read-all:
