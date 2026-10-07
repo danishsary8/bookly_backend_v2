@@ -13,8 +13,8 @@ class EnsureCustomerEmailIsVerified
     {
         $user = $request->user();
 
-        if (! $user instanceof Customer || ! $user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Please verify your email address first.'], 403);
+        if (! $user instanceof Customer || ! $user->isVerified()) {
+            return response()->json(['message' => 'Please verify your account first: enter the code we sent you.'], 403);
         }
 
         return $next($request);

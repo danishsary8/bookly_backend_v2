@@ -58,6 +58,7 @@ Route::get('/series/{series}', [SeriesController::class, 'show'])->whereNumber('
 | Customer authentication
 */
 Route::prefix('auth')->group(function () {
+    Route::get('/options', [CustomerAuthController::class, 'options']);
     Route::middleware('throttle:auth')->group(function () {
         Route::post('/register', [CustomerAuthController::class, 'register']);
         Route::post('/login', [CustomerAuthController::class, 'login']);
@@ -70,6 +71,8 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout', [CustomerAuthController::class, 'logout']);
         Route::post('/verify-email', [CustomerAuthController::class, 'verifyEmail'])->middleware('throttle:auth');
         Route::post('/resend-verification', [CustomerAuthController::class, 'resendVerification'])->middleware('throttle:otp-send');
+        Route::post('/phone', [CustomerAuthController::class, 'sendPhoneVerification'])->middleware('throttle:otp-send');
+        Route::post('/verify-phone', [CustomerAuthController::class, 'verifyPhone'])->middleware('throttle:auth');
     });
 });
 

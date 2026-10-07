@@ -42,6 +42,13 @@ return [
     ],
 
     // Cloudflare Turnstile (bot check on sign-up, sign-in and code emails); off while the secret is empty.
+    // Verification codes by Telegram (phone numbers): gateway.telegram.org → API token.
+    'telegram_gateway' => [
+        'token' => env('TELEGRAM_GATEWAY_TOKEN'),
+        // Only changed for local testing against a stand-in.
+        'url' => env('TELEGRAM_GATEWAY_URL', 'https://gateway.telegram.org'),
+    ],
+
     'turnstile' => [
         'secret' => env('TURNSTILE_SECRET_KEY'),
     ],

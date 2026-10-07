@@ -14,8 +14,12 @@ class CustomerResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'phone_number' => $this->phone_e164,
+            'phone_verified' => $this->hasVerifiedPhone(),
             'email_verified' => $this->email_verified_at !== null,
+            'verified' => $this->isVerified(),
             'has_password' => $this->password_hash !== null,
+            'connected' => ['google' => $this->google_id !== null, 'facebook' => $this->facebook_id !== null],
             'created_at' => $this->created_at,
         ];
     }

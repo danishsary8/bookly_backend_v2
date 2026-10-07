@@ -18,14 +18,17 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 ## Customer auth
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
-| POST | /auth/register | name, email, password, password_confirmation, phone?, turnstile_token* | 201 + token. Emails a 6-digit code. An email whose sign-up was never verified is taken over (new name/password, old sessions and codes cancelled); verified, deactivated or deleted accounts keep their email (422 "An account with this email already exists…"). |
+| GET | /auth/options | — | `{ telegram_codes }`: true once `TELEGRAM_GATEWAY_TOKEN` is set |
+| POST | /auth/register | name, email, password, password_confirmation, phone?, verify_by? (`email`/`telegram`), turnstile_token* | 201 + token + `verify_by`. Sends a 6-digit code by email, or with `verify_by=telegram` to the phone's Telegram (phone required, Cambodian numbers only; if Telegram can't deliver nothing is created and `phone` says why). An email whose sign-up was never verified is taken over (new name/password, old sessions and codes cancelled); verified, deactivated or deleted accounts keep their email (422 "An account with this email already exists…"). |
 | POST | /auth/login | email, password, turnstile_token* | token (7 days) |
 | POST | /auth/logout | — | auth |
 | POST | /auth/verify-email | code | auth. A code is thrown away after 5 wrong guesses (ask for a new one) |
-| POST | /auth/resend-verification | turnstile_token* | auth, 3 per 10 min |
+| POST | /auth/resend-verification | channel? (`email` default / `telegram`), turnstile_token* | auth, 3 per 10 min; Telegram also 3 per hour and 10 per day per number |
+| POST | /auth/phone | phone, turnstile_token* | auth. Add or change the phone: sends a Telegram code; the number is saved only when verified (a typo never replaces a proven number). A number already on another account: 422 |
+| POST | /auth/verify-phone | code | auth. Saves the number as verified (`phone_number`, `phone_verified`); this alone makes the account verified |
 | POST | /auth/forgot-password | email, turnstile_token* | always 200 |
 | POST | /auth/reset-password | email, code, password, password_confirmation | revokes all tokens |
-| POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 returning (matched by the provider's account id). An email that already has a verified or closed account is **not** linked: 409 "This email already has a Bookly account. Sign in with your email and password instead." (names how that account signs in). An unfinished sign-up with that email becomes the social account (its password and sessions are removed). 401 unless the token was issued to our app (`GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID`; off until set). Google email must be verified by Google (else 422). |
+| POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 returning (matched by the provider's account id). An email that already has a verified or closed account is **not** linked: 409 "This email already has a Bookly account. Sign in with your email and password instead." (names how that account signs in). An unfinished sign-up with that email becomes the social account (its password and sessions are removed). 401 unless the token was issued to our app (`GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID`; off until set). Google email must be verified by Google (else 422). **New Facebook accounts need a phone number; the email is optional:** the first call answers 422 `{ needs: "phone", profile: { name, email }, telegram_codes }`; call again with the same access_token + phone (+855) + email? + turnstile_token*. The email counts as verified only if it's the one Facebook gave. The answer's `verify_by` says where the code went: `telegram` (the phone), `email` (a typed email, when Telegram can't be used) or null (Facebook's email already verifies the account). With no Facebook email and no way to reach the phone: 422 asking for an email. |
 
 \* `turnstile_token`: the Cloudflare Turnstile token from the form. Required (422 `turnstile_token` "We couldn't check that you're a person…") once `TURNSTILE_SECRET_KEY` is set; ignored while it's empty. Checked with Cloudflare's siteverify and the visitor's IP; if Cloudflare can't be reached the request is refused.
 | GET | /me | — | auth |
@@ -33,7 +36,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions |
 
 Token response shape: `{ "customer": {...}, "token": "...", "token_type": "Bearer", "expires_at": "ISO-8601" }`.
-Unverified customers can log in but shopping routes return 403 "Please verify your email address first." Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).
+Customer `verified` = email **or** phone proven. Unverified customers can log in but shopping routes return 403 "Please verify your account first: enter the code we sent you." `email` is null for Facebook accounts that signed up without one. Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).
 
 ## Staff auth
 | Method | Path | Body | Notes |
@@ -50,7 +53,7 @@ Unverified customers can log in but shopping routes return 403 "Please verify yo
 Every staff feature route returns 403 `{two_factor_setup_required: true}` until 2FA is confirmed. Admin-only routes need an admin account.
 
 ## Rate limits
-Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP (`X-RateLimit-*` headers; 429 + `Retry-After`). On top of that: login/OTP/reset 5 per minute per email+IP and 30 per minute per IP; sending codes 3 per 10 minutes; checkout, coupon check and posting reviews 10 per minute; checkout preview 30 per minute; orders export 10 per minute. Emailed codes die after 5 wrong guesses; staff 2FA allows 5 wrong codes per account per 15 minutes.
+Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP (`X-RateLimit-*` headers; 429 + `Retry-After`). On top of that: login/OTP/reset 5 per minute per email+IP and 30 per minute per IP; sending codes 3 per 10 minutes; checkout, coupon check and posting reviews 10 per minute; checkout preview 30 per minute; orders export 10 per minute. Codes (email and Telegram) die after 5 wrong guesses; staff 2FA allows 5 wrong codes per account per 15 minutes.
 
 ## Public catalog (no login)
 | Method | Path | Query / notes |
