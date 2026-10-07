@@ -41,6 +41,11 @@ components:
       in: path
       required: true
       schema: { type: integer }
+    Provider:
+      name: provider
+      in: path
+      required: true
+      schema: { type: string, enum: [google, facebook] }
     PerPage:
       name: per_page
       in: query
@@ -210,6 +215,7 @@ components:
         verified: { type: boolean, description: 'Email or phone proven; only verified customers can shop' }
         has_password: { type: boolean }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
+        sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook] }, description: 'Ways this account can sign in today (password counts only with an email). The last one cannot be removed.' }
         created_at: { type: string, format: date-time }
     BookCard:
       type: object
@@ -543,6 +549,20 @@ paths:
       responses: { '200': { description: 'Closed; erase_at says when the details are erased' }, '422': { $ref: '#/components/responses/Validation' } }
   /me/password:
     put: { tags: [Customer], summary: 'Change password (signs out other devices)', responses: { '200': { description: Changed }, '422': { $ref: '#/components/responses/Validation' } } }
+  /me/connections/{provider}:
+    post:
+      tags: [Customer]
+      summary: Connect Google or Facebook to your account
+      parameters: [ { $ref: '#/components/parameters/Provider' } ]
+      description: 'A fresh access token from the provider (checked as issued to our app; the profile is read from the provider) plus the password when the account has one. The provider account must not be linked to another Bookly account. A verified email gets a notice.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [access_token], properties: { access_token: { type: string }, password: { type: string } } } } } }
+      responses: { '200': { description: 'Connected (customer in the body)' }, '409': { description: 'Used by another Bookly account, or another account of this provider is connected' }, '422': { description: 'Wrong password, or the token could not be verified (422, not 401, so the session stays)' } }
+    delete:
+      tags: [Customer]
+      summary: Disconnect Google or Facebook
+      parameters: [ { $ref: '#/components/parameters/Provider' } ]
+      description: 'Refused with reason=last_way_in when it is the only way left to sign in ("Add a password first, so you can still sign in."). A verified email gets a notice.'
+      responses: { '200': { description: 'Disconnected (customer in the body)' }, '422': { description: 'It is the last way in' } }
 
   /addresses:
     get: { tags: [Customer], summary: 'Saved addresses (default first)', responses: { '200': { description: Addresses, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Address' } } } } } } } } }
