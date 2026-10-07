@@ -10,6 +10,7 @@ use App\Models\VerificationToken;
 use App\Notifications\OtpCodeNotification;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
@@ -71,6 +72,42 @@ class OtpService
         Cache::forget($this->pendingKey($customer));
 
         return $phone;
+    }
+
+    /**
+     * Emails a code to an address the customer wants to add or switch to. Like a new phone number, the
+     * address is only saved once its code comes back (verifyEmailChange), so a typo never replaces the
+     * email the customer already has.
+     */
+    public function issueToNewEmail(Customer $customer, string $email): void
+    {
+        [$code, $ttl] = $this->newCode($customer, VerificationPurpose::EmailChange);
+        Cache::put($this->pendingEmailKey($customer), $email, now()->addMinutes($ttl));
+
+        Notification::route('mail', $email)->notify(new OtpCodeNotification($code, VerificationPurpose::EmailChange, $ttl));
+    }
+
+    /** Checks an email-change code; returns the address it was sent to, or null if the code is wrong. */
+    public function verifyEmailChange(Customer $customer, string $code): ?string
+    {
+        $email = Cache::get($this->pendingEmailKey($customer));
+        if ($email === null || ! $this->verify($customer, VerificationPurpose::EmailChange, $code)) {
+            return null;
+        }
+        Cache::forget($this->pendingEmailKey($customer));
+
+        return $email;
+    }
+
+    /** Cancels a customer's unused codes of one kind (e.g. a reset code for an address they just left). */
+    public function cancel(Customer $customer, VerificationPurpose $purpose): void
+    {
+        $this->tokensFor($customer, $purpose)->whereNull('used_at')->update(['used_at' => now()]);
+    }
+
+    private function pendingEmailKey(Customer $customer): string
+    {
+        return 'email-pending:'.$customer->getKey();
     }
 
     private function guardPhoneLimits(string $phoneE164): void
