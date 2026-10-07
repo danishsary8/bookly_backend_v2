@@ -120,15 +120,15 @@ class UnfinishedSignupTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $pending->id)
             ->assertJsonPath('data.0.removal_at', $pending->created_at->copy()->addHours(48)->toJSON())
-            ->assertJsonPath('meta.counts', ['verified' => 2, 'unverified' => 1])
+            ->assertJsonPath('meta.counts', ['verified' => 2, 'unverified' => 1, 'closed' => 0])
             ->assertJsonPath('meta.total', 1);
 
         $this->asToken($staff)->getJson('/api/v1/staff/customers?verified=1&q=reader')->assertOk()
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.removal_at', null)
-            ->assertJsonPath('meta.counts', ['verified' => 2, 'unverified' => 1]);
+            ->assertJsonPath('meta.counts', ['verified' => 2, 'unverified' => 1, 'closed' => 0]);
 
-        $this->asToken($staff)->getJson('/api/v1/staff/customers?q=pending')->assertJsonPath('meta.counts', ['verified' => 0, 'unverified' => 1]);
+        $this->asToken($staff)->getJson('/api/v1/staff/customers?q=pending')->assertJsonPath('meta.counts', ['verified' => 0, 'unverified' => 1, 'closed' => 0]);
     }
 
     public function test_an_admin_can_delete_an_unfinished_sign_up_now(): void
