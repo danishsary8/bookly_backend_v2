@@ -3,6 +3,8 @@
 namespace App\Services\Auth;
 
 use Illuminate\Support\Facades\Http;
+use Laravel\Socialite\Contracts\User as SocialUser;
+use Laravel\Socialite\Facades\Socialite;
 use Throwable;
 
 /**
@@ -27,6 +29,19 @@ class SocialTokenVerifier
             };
         } catch (Throwable) {
             return false;
+        }
+    }
+
+    /** The provider's profile for a token issued to our app, read from the provider itself; null otherwise. */
+    public function profile(string $provider, string $accessToken): ?SocialUser
+    {
+        if (! $this->issuedToUs($provider, $accessToken)) {
+            return null;
+        }
+        try {
+            return Socialite::driver($provider)->stateless()->userFromToken($accessToken);
+        } catch (Throwable) {
+            return null;
         }
     }
 

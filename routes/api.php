@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Customer\AddressController;
 use App\Http\Controllers\Api\V1\Customer\AuthController as CustomerAuthController;
 use App\Http\Controllers\Api\V1\Customer\CartController;
 use App\Http\Controllers\Api\V1\Customer\CheckoutController;
+use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
@@ -84,6 +85,8 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::patch('/', [ProfileController::class, 'update']);
     Route::put('/password', [ProfileController::class, 'changePassword'])->middleware('throttle:auth');
     Route::delete('/', [ProfileController::class, 'destroy'])->middleware('throttle:auth');
+    Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
+    Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
 });
 
 /*

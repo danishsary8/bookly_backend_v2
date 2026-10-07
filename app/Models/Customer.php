@@ -62,6 +62,21 @@ class Customer extends Authenticatable
         return $query->whereNull('email_verified_at')->whereNull('phone_verified_at');
     }
 
+    /**
+     * The ways this customer can sign in today: `password` (needs an email to type), `google`, `facebook`.
+     * Account → Sign-in & security never removes the last one.
+     *
+     * @return list<string>
+     */
+    public function signInMethods(): array
+    {
+        return array_values(array_filter([
+            $this->password_hash !== null && $this->email !== null ? 'password' : null,
+            $this->google_id !== null ? 'google' : null,
+            $this->facebook_id !== null ? 'facebook' : null,
+        ]));
+    }
+
     /** Saves a number the customer just proved with a Telegram code (also as their contact number). */
     public function markPhoneVerified(string $phoneE164): void
     {
