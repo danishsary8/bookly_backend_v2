@@ -1,5 +1,11 @@
 # Next Step
 
+## Now (2026-10-07)
+Merge `feature/telegram-codes`, then `feature/delete-account` (Render runs the new migration). Then set
+`TELEGRAM_GATEWAY_TOKEN` on Render (gateway.telegram.org → API token) to switch on Telegram codes.
+The full ordered to-do list lives in the frontend repo: `docs/ROADMAP.md`; the next session's prompt is in its
+`docs/NEXT_STEP.md`.
+
 ## Roadmap complete
 
 All 10 planned steps are done (owner merges `feature/deployment` to finish Step 10):
