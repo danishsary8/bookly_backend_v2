@@ -26,7 +26,7 @@ class VerifiedCustomerAccessTest extends TestCase
 
         $this->withToken($token)->getJson('/api/v1/__test/shop')
             ->assertForbidden()
-            ->assertJsonPath('message', 'Please verify your email address first.');
+            ->assertJsonPath('message', 'Please verify your account first: enter the code we sent you.');
     }
 
     public function test_verified_customer_can_shop(): void

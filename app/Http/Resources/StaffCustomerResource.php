@@ -15,7 +15,10 @@ class StaffCustomerResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'phone_number' => $this->phone_e164,
+            'phone_verified' => $this->hasVerifiedPhone(),
             'email_verified' => $this->email_verified_at !== null,
+            'verified' => $this->isVerified(),
             'is_active' => $this->is_active,
             'login_methods' => array_values(array_filter([
                 $this->password_hash !== null ? 'password' : null,

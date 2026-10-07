@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Sign-ups that were never finished (the email code was never entered).
+ * Sign-ups that were never finished (the email or Telegram code was never entered).
  *
  * They can't shop, so they only hold an email address hostage. After `auth.unverified_customer_hours`
  * (48 by default) they are deleted for good. Deactivated accounts are kept: staff turned them off on
@@ -27,7 +27,7 @@ class UnverifiedCustomers
     /** When this account will be removed if it stays unverified; null for accounts that are kept. */
     public static function removalAt(Customer $customer): ?CarbonInterface
     {
-        if ($customer->email_verified_at !== null || ! $customer->is_active || $customer->created_at === null) {
+        if ($customer->isVerified() || ! $customer->is_active || $customer->created_at === null) {
             return null;
         }
 
@@ -38,7 +38,7 @@ class UnverifiedCustomers
     public function expired(): Builder
     {
         return Customer::query()
-            ->whereNull('email_verified_at')
+            ->unverified()
             ->where('is_active', true)
             ->where('created_at', '<', now()->subHours(self::hours()))
             ->whereDoesntHave('orders')
@@ -62,7 +62,7 @@ class UnverifiedCustomers
     /** Can staff delete this account now? Only unfinished sign-ups with nothing attached. */
     public function deletable(Customer $customer): bool
     {
-        return $customer->email_verified_at === null
+        return ! $customer->isVerified()
             && ! $customer->orders()->exists() && ! $customer->returns()->exists()
             && ! $customer->reviews()->exists() && ! $customer->addresses()->exists();
     }

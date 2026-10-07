@@ -32,21 +32,21 @@ class CustomerController extends Controller
         // Search and active filters, without the verified filter: the tabs show both counts.
         $base = Customer::query()
             ->when($term, fn ($q) => $q->where(fn ($w) => $w
-                ->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)->orWhere('phone', 'ilike', $term)))
+                ->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)->orWhere('phone', 'ilike', $term)->orWhere('phone_e164', 'ilike', $term)))
             ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')));
 
         return StaffCustomerResource::collection(
             (clone $base)
                 ->withCount('orders')
                 ->when($request->has('verified'), fn ($q) => $request->boolean('verified')
-                    ? $q->whereNotNull('email_verified_at') : $q->whereNull('email_verified_at'))
+                    ? $q->verified() : $q->unverified())
                 ->latest()
                 ->orderByDesc('id')
                 ->paginate($data['per_page'] ?? 20)
                 ->withQueryString()
         )->additional(['meta' => ['counts' => [
-            'verified' => (clone $base)->whereNotNull('email_verified_at')->count(),
-            'unverified' => (clone $base)->whereNull('email_verified_at')->count(),
+            'verified' => (clone $base)->verified()->count(),
+            'unverified' => (clone $base)->unverified()->count(),
         ]]]);
     }
 
@@ -78,12 +78,12 @@ class CustomerController extends Controller
     public function destroy(Request $request, Customer $customer): JsonResponse
     {
         if (! $this->unverified->deletable($customer)) {
-            return response()->json(['message' => $customer->email_verified_at !== null
+            return response()->json(['message' => $customer->isVerified()
                 ? 'Only unfinished sign-ups can be deleted. Verified customers can be deactivated instead.'
                 : 'This account has orders, returns, reviews or addresses, so it can\'t be deleted.'], 422);
         }
 
-        $this->audit->custom($request->user(), 'deleted', $customer, ['email' => $customer->email, 'name' => $customer->name, 'email_verified' => false], null);
+        $this->audit->custom($request->user(), 'deleted', $customer, ['email' => $customer->email, 'phone' => $customer->phone, 'name' => $customer->name, 'verified' => false], null);
         $this->unverified->delete($customer);
 
         return response()->json(null, 204);
