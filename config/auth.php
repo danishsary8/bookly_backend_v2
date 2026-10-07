@@ -122,6 +122,9 @@ return [
     // Sign-ups whose email code is never entered are deleted after this many hours (customers:prune-unverified).
     'unverified_customer_hours' => (int) env('UNVERIFIED_CUSTOMER_HOURS', 48),
 
+    // Customers who close their account: personal details are erased after this many days (customers:erase-closed).
+    'closed_account_days' => (int) env('CLOSED_ACCOUNT_DAYS', 30),
+
     'otp' => [
         'ttl_minutes' => (int) env('OTP_TTL_MINUTES', 15),
         'length' => 6,
