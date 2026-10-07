@@ -20,6 +20,7 @@ class CustomerResource extends JsonResource
             'verified' => $this->isVerified(),
             'has_password' => $this->password_hash !== null,
             'connected' => ['google' => $this->google_id !== null, 'facebook' => $this->facebook_id !== null],
+            'sign_in_methods' => $this->signInMethods(),
             'created_at' => $this->created_at,
         ];
     }
