@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Exceptions\TelegramCodeNotSent;
+use App\Exceptions\TelegramGatewayProblem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -38,6 +39,7 @@ class TelegramGateway
                 ]);
         } catch (Throwable $e) {
             Log::warning('Telegram Gateway unreachable', ['error' => $e->getMessage()]);
+            report(TelegramGatewayProblem::unreachable($e->getMessage()));
             throw TelegramCodeNotSent::unavailable();
         }
 
@@ -51,7 +53,9 @@ class TelegramGateway
         if (str_contains($error, 'PHONE')) {
             throw TelegramCodeNotSent::number();
         }
+        // Logged and reported to Sentry, so the owner's Telegram alert names Telegram's reason (e.g. no balance).
         Log::error('Telegram Gateway refused a code', ['error' => $error]);
+        report(TelegramGatewayProblem::refused($error));
         throw TelegramCodeNotSent::unavailable();
     }
 }
