@@ -19,14 +19,22 @@ class PhoneSignInTest extends TestCase
     {
         parent::setUp();
         config(['services.telegram_gateway.token' => 'gateway-token']);
-        $this->gateway();
+        $this->fakeGateway();
     }
+
+    /** What the stand-in Telegram Gateway answers next: null = delivered, or a Telegram error code. */
+    private ?string $gatewayError = null;
 
     private function gateway(?string $error = null): void
     {
-        Http::fake(['gateway.telegram.org/*' => function (HttpRequest $request) use ($error) {
-            if ($error !== null) {
-                return Http::response(['ok' => false, 'error' => $error]);
+        $this->gatewayError = $error;
+    }
+
+    private function fakeGateway(): void
+    {
+        Http::fake(['gateway.telegram.org/*' => function (HttpRequest $request) {
+            if ($this->gatewayError !== null) {
+                return Http::response(['ok' => false, 'error' => $this->gatewayError]);
             }
             $this->sent[] = ['phone' => $request['phone_number'], 'code' => $request['code']];
 
@@ -48,7 +56,7 @@ class PhoneSignInTest extends TestCase
     {
         $customer = $this->customer();
 
-        $this->askForCode()->assertOk()->assertJsonPath('message', 'If this number has a Bookly account, we sent a code to its Telegram.');
+        $this->askForCode()->assertOk()->assertJsonPath('message', 'We sent a 6-digit code to the Telegram of this number.');
         $this->assertSame('+85512345678', $this->sent[0]['phone']);
 
         $this->postJson('/api/v1/auth/phone-login/verify', ['phone' => '+855 12 345 678', 'code' => '000000'])
@@ -61,29 +69,35 @@ class PhoneSignInTest extends TestCase
         $this->postJson('/api/v1/auth/phone-login/verify', ['phone' => '012345678', 'code' => $this->sent[0]['code']])->assertUnprocessable();
     }
 
-    public function test_unknown_numbers_get_the_same_answer_and_no_code(): void
+    public function test_an_unknown_number_is_told_there_is_no_account_and_gets_no_code(): void
     {
-        $this->askForCode('096 111 2222')->assertOk()->assertJsonPath('message', 'If this number has a Bookly account, we sent a code to its Telegram.');
+        $this->askForCode('096 111 2222')->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone' => "couldn't find a Bookly account with this verified number"]);
         $this->assertSame([], $this->sent);
     }
 
-    public function test_numbers_that_were_never_proven_get_no_code(): void
+    public function test_a_number_that_was_never_proven_is_not_an_account(): void
     {
         // A number waiting for its first code isn't saved on the account; an old contact number isn't proven.
         Customer::factory()->create(['phone' => '012 345 678', 'phone_e164' => null, 'phone_verified_at' => null]);
 
-        $this->askForCode()->assertOk();
+        $this->askForCode()->assertUnprocessable()->assertJsonValidationErrors('phone');
         $this->assertSame([], $this->sent);
     }
 
-    public function test_closed_and_deactivated_accounts_get_no_code(): void
+    public function test_a_closed_account_is_not_found(): void
+    {
+        $this->customer()->delete();
+
+        $this->askForCode()->assertUnprocessable()->assertJsonValidationErrors('phone');
+        $this->assertSame([], $this->sent);
+    }
+
+    public function test_a_deactivated_account_is_told_so(): void
     {
         $this->customer(['is_active' => false]);
-        $this->askForCode()->assertOk();
-        Customer::query()->delete();
-        $this->customer(['phone_e164' => '+85598765432'])->delete();
-        $this->askForCode('098 765 432')->assertOk();
 
+        $this->askForCode()->assertForbidden()->assertJsonPath('message', 'This account has been deactivated. Please contact support.');
         $this->assertSame([], $this->sent);
     }
 
@@ -108,25 +122,36 @@ class PhoneSignInTest extends TestCase
         $this->postJson('/api/v1/auth/phone-login/verify', ['phone' => '012345678', 'code' => $this->sent[0]['code']])->assertUnprocessable();
     }
 
-    public function test_the_number_limits_apply_to_every_number_alike(): void
-    {
-        $this->customer();
-        for ($i = 1; $i <= 3; $i++) {
-            $this->askForCode('012 345 678', "10.2.0.{$i}")->assertOk();
-            $this->askForCode('096 111 2222', "10.3.0.{$i}")->assertOk();
-        }
-
-        $this->askForCode('012 345 678', '10.2.0.9')->assertUnprocessable()->assertJsonValidationErrors(['phone' => 'This number has had 3 codes in the last hour']);
-        $this->askForCode('096 111 2222', '10.3.0.9')->assertUnprocessable()->assertJsonValidationErrors(['phone' => 'This number has had 3 codes in the last hour']);
-        $this->assertCount(3, $this->sent);
-    }
-
-    public function test_a_telegram_failure_looks_like_any_other_answer(): void
+    public function test_a_number_without_telegram_is_told_to_check_it(): void
     {
         $this->gateway('PHONE_NUMBER_NOT_FOUND');
         $this->customer();
 
-        $this->askForCode()->assertOk()->assertJsonPath('message', 'If this number has a Bookly account, we sent a code to its Telegram.');
+        $this->askForCode()->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone' => "couldn't send a Telegram code to this number. Check it has Telegram"]);
+    }
+
+    public function test_a_problem_on_our_side_is_not_blamed_on_the_customer(): void
+    {
+        $this->gateway('BALANCE_NOT_ENOUGH');
+        $this->customer();
+
+        $this->askForCode()->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone' => "couldn't send the code just now. Please try again in a moment"]);
+        // Nothing is counted against the customer: the next try goes straight through once Telegram works again.
+        $this->gateway();
+        $this->askForCode()->assertOk();
+        $this->assertCount(1, $this->sent);
+    }
+
+    public function test_asking_for_codes_again_and_again_is_never_refused_by_a_number_limit(): void
+    {
+        $this->customer();
+
+        for ($i = 1; $i <= 6; $i++) {
+            $this->askForCode('012 345 678', "10.2.0.{$i}")->assertOk();
+        }
+        $this->assertCount(6, $this->sent);
     }
 
     public function test_off_while_telegram_codes_are_off(): void
