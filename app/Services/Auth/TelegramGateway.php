@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Telegram Gateway (https://core.telegram.org/gateway): Telegram delivers our 6-digit code from its own
+ * Telegram Gateway (https://core.telegram.org/gateway/api, at gatewayapi.telegram.org): Telegram delivers our 6-digit code from its own
  * "Verification Codes" chat to the Telegram account of a phone number. We make and check the code
  * ourselves (OtpService), so expiry and the wrong-guess lock are the same as for email codes.
  * About $0.01 per delivered code, prepaid. Off while TELEGRAM_GATEWAY_TOKEN is empty.
@@ -45,6 +45,13 @@ class TelegramGateway
 
         if ($response->json('ok') === true) {
             return;
+        }
+        if (! is_array($response->json())) {
+            // Not the Gateway's JSON at all (e.g. a web page): the address is wrong, not the customer's number.
+            $what = trim((string) strtok((string) $response->header('Content-Type'), ';')) ?: 'no content type';
+            Log::error('Telegram Gateway gave an unexpected answer', ['status' => $response->status(), 'content_type' => $what]);
+            report(TelegramGatewayProblem::unexpected($response->status(), $what, (string) config('services.telegram_gateway.url')));
+            throw TelegramCodeNotSent::unavailable();
         }
 
         $error = (string) ($response->json('error') ?? 'HTTP_'.$response->status());

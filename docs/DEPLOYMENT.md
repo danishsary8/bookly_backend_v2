@@ -241,7 +241,7 @@ Use `pg_dump`/`pg_restore` version 18 or newer (same as the server).
 
 | Symptom | Cause / fix |
 | --- | --- |
-| Sign-up says "Telegram codes aren't available right now" | Telegram Gateway refused the code for a reason on our side. Sentry (and the Telegram alert) shows `Telegram Gateway refused a code: <ERROR>`: `BALANCE_NOT_ENOUGH` → add funds at gateway.telegram.org (codes to the account owner's own number are free; every other number needs a balance); `ACCESS_TOKEN_INVALID` → copy the token again into `TELEGRAM_GATEWAY_TOKEN`. Also in the host's logs: search "Telegram Gateway refused". |
+| Sign-up says "Telegram codes aren't available right now" | Telegram Gateway refused the code for a reason on our side. Sentry (and the Telegram alert) shows `Telegram Gateway refused a code: <ERROR>`: `BALANCE_NOT_ENOUGH` → add funds at gateway.telegram.org (codes to the account owner's own number are free; every other number needs a balance); `ACCESS_TOKEN_INVALID` → copy the token again into `TELEGRAM_GATEWAY_TOKEN`. `unexpected answer (HTTP 200, text/html)` → the API address is wrong: it is `https://gatewayapi.telegram.org` (the default; don't set `TELEGRAM_GATEWAY_URL` on the server — gateway.telegram.org is only the dashboard). Also in the host's logs: search "Telegram Gateway refused". |
 | Deployment stuck on "Waiting for CI" | the GitHub Actions run for that commit failed or is still running — open the Actions tab |
 | Pre-deploy failed | a migration error; the old version is still serving. Read the deploy logs, fix, push again |
 | Health check fails with `down` | `DB_URL` not set (re-run `railway config apply`) or the database is still starting |

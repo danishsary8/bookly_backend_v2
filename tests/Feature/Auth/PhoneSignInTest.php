@@ -32,7 +32,7 @@ class PhoneSignInTest extends TestCase
 
     private function fakeGateway(): void
     {
-        Http::fake(['gateway.telegram.org/*' => function (HttpRequest $request) {
+        Http::fake(['gatewayapi.telegram.org/*' => function (HttpRequest $request) {
             if ($this->gatewayError !== null) {
                 return Http::response(['ok' => false, 'error' => $this->gatewayError]);
             }

@@ -19,7 +19,7 @@ class TelegramCodesTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const GATEWAY = 'gateway.telegram.org/*';
+    private const GATEWAY = 'gatewayapi.telegram.org/*';
 
     /** @var list<string> codes Telegram was asked to deliver */
     private array $sent = [];
@@ -283,6 +283,6 @@ class TelegramCodesTest extends TestCase
 
         $this->facebookSignIn(['phone' => '012 345 678'])->assertUnprocessable()->assertJsonValidationErrors('phone');
         $this->facebookSignIn(['phone' => '087 860 999', 'email' => 'taken@example.com'])->assertUnprocessable()->assertJsonValidationErrors('email');
-        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), 'gateway.telegram.org'));
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), 'gatewayapi.telegram.org'));
     }
 }
