@@ -1,8 +1,9 @@
-# Next Step
+# Next step
 
 ## Now (2026-10-07)
-Merge `feature/telegram-codes`, then `feature/delete-account` (Render runs the new migration). Then set
-`TELEGRAM_GATEWAY_TOKEN` on Render (gateway.telegram.org → API token) to switch on Telegram codes.
+Merge, in this order (each builds on the one before): `feature/connect-social`, `feature/change-email` (adds one
+migration: two new code kinds; Render runs it), `feature/phone-sign-in`, `feature/reopen-accounts`,
+`docs/railway-plan`. Then answer the decisions at the bottom of `docs/RAILWAY_PLAN.md` (the Railway move).
 The full ordered to-do list lives in the frontend repo: `docs/ROADMAP.md`; the next session's prompt is in its
 `docs/NEXT_STEP.md`.
 
