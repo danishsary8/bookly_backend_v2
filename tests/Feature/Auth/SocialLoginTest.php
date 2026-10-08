@@ -69,12 +69,11 @@ class SocialLoginTest extends TestCase
 
         $this->postJson('/api/v1/auth/social/facebook', ['access_token' => 'provider-token'])
             ->assertUnprocessable()->assertJsonPath('needs', 'phone');
-        $this->postJson('/api/v1/auth/social/facebook', ['access_token' => 'provider-token', 'phone' => '012 345 678', 'email' => 'sok@gmail.com'])->assertOk()
+        $this->postJson('/api/v1/auth/social/facebook', ['access_token' => 'provider-token', 'verify_by' => 'email', 'email' => 'sok@gmail.com'])->assertOk()
             ->assertJsonPath('customer.name', 'Sok Dara')
             ->assertJsonPath('verify_by', null);
 
         $this->assertSame(1, Customer::count());
-        $this->assertSame('+855 12 345 678', $existing->fresh()->phone);
         $this->assertSame('fb-9', $existing->fresh()->facebook_id);
         $this->assertNotNull($existing->fresh()->email_verified_at);
     }

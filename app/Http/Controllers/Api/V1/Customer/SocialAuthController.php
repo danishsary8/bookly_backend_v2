@@ -3,21 +3,18 @@
 namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Enums\VerificationPurpose;
-use App\Exceptions\TelegramCodeNotSent;
 use App\Http\Controllers\Api\V1\Concerns\IssuesTokens;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
-use App\Rules\CambodianPhone;
 use App\Rules\Turnstile;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\SocialTokenVerifier;
-use App\Services\Auth\TelegramGateway;
-use App\Support\PhoneNumber;
-use Illuminate\Database\UniqueConstraintViolationException;
+use App\Services\Telegram\TelegramBot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Contracts\User as SocialUser;
 use Laravel\Socialite\Facades\Socialite;
@@ -30,10 +27,9 @@ use Throwable;
  *
  * Owner's rules:
  * - Google / Facebook never sign in to an email that already has a real account.
- * - A new Facebook account needs a Cambodian phone number; the email is optional (many Facebook accounts
- *   have none). The first call answers 422 with `needs: "phone"`; the app asks for the number and calls
- *   again with the same token plus `phone` (and `email` if the customer wants one). The number is proven
- *   with a Telegram code when we can send one.
+ * - A new Facebook account confirms a phone number in the Bookly Telegram bot, or (without Telegram) gives an
+ *   email (owner, 2026-10-08). The first call answers 422 with `needs: "phone"`; the app asks which way and
+ *   calls again with the same token plus `verify_by` (`telegram` or `email`) and the email if any.
  */
 class SocialAuthController extends Controller
 {
@@ -41,7 +37,7 @@ class SocialAuthController extends Controller
 
     private const COLUMNS = ['google' => 'google_id', 'facebook' => 'facebook_id'];
 
-    public const NEEDS_PHONE = 'Add your phone number to finish signing up with Facebook.';
+    public const NEEDS_PHONE = 'Confirm your phone number (or add your email) to finish signing up with Facebook.';
 
     public function __construct(private readonly OtpService $otp) {}
 
@@ -50,7 +46,7 @@ class SocialAuthController extends Controller
         abort_unless(isset(self::COLUMNS[$provider]), 404);
         $data = $request->validate([
             'access_token' => ['required', 'string', 'max:4096'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'verify_by' => ['nullable', Rule::in(['telegram', 'email'])],
             'email' => ['nullable', 'email', 'max:190'],
         ]);
 
@@ -110,84 +106,55 @@ class SocialAuthController extends Controller
         return $this->signedIn($customer, $created ? 201 : 200);
     }
 
-    /** @param  array{phone?: ?string, email?: ?string}  $data */
+    /** @param  array{verify_by?: ?string, email?: ?string}  $data */
     private function facebookSignUp(Request $request, array $data, SocialUser $profile, ?string $facebookEmail, ?Customer $unfinished): JsonResponse
     {
-        if (blank($data['phone'] ?? null)) {
+        if (blank($data['verify_by'] ?? null)) {
             return response()->json([
                 'message' => self::NEEDS_PHONE,
                 'needs' => 'phone',
                 'errors' => ['phone' => [self::NEEDS_PHONE]],
                 'profile' => ['name' => $profile->getName(), 'email' => $facebookEmail],
-                'telegram_codes' => TelegramGateway::enabled(),
+                'telegram' => TelegramBot::enabled(),
             ], 422);
         }
 
-        // The phone step triggers a paid Telegram code, so it gets the bot check.
+        $byTelegram = $data['verify_by'] === 'telegram';
+        if ($byTelegram && ! TelegramBot::enabled()) {
+            throw ValidationException::withMessages(['verify_by' => TelegramAuthController::OFF]);
+        }
+        // The email way sends a code email, so it gets the bot check (like sign-up).
         $request->validate([
-            'phone' => [new CambodianPhone],
+            'email' => [$byTelegram ? 'nullable' : 'required'],
             'turnstile_token' => [new Turnstile($request->ip())],
         ]);
-        $phone = PhoneNumber::normalize($data['phone']);
         $email = filled($data['email'] ?? null) ? strtolower($data['email']) : null;
         $emailProven = $email !== null && $email === $facebookEmail;
 
-        if (Customer::withTrashed()->where('phone_e164', $phone)->exists()) {
-            throw ValidationException::withMessages(['phone' => AuthController::PHONE_TAKEN]);
-        }
         if ($email !== null && Customer::withTrashed()->where('email', $email)->when($unfinished, fn ($q) => $q->whereKeyNot($unfinished->getKey()))->exists()) {
             throw ValidationException::withMessages(['email' => 'This email is already used by another Bookly account. Leave it empty or use another one.']);
         }
 
-        try {
-            [$customer, $verifyBy] = DB::transaction(function () use ($profile, $facebookEmail, $unfinished, $phone, $email, $emailProven) {
-                $customer = $unfinished ?? new Customer;
-                $this->takeOver($customer, $profile, $email ?? $facebookEmail);
-                $customer->forceFill([
-                    'facebook_id' => $profile->getId(),
-                    'email' => $email,
-                    'email_verified_at' => $emailProven ? now() : null,
-                    'phone' => PhoneNumber::display($phone),
-                ])->save();
+        $customer = DB::transaction(function () use ($profile, $facebookEmail, $unfinished, $email, $emailProven, $byTelegram) {
+            $customer = $unfinished ?? new Customer;
+            $this->takeOver($customer, $profile, $email ?? $facebookEmail);
+            $customer->forceFill([
+                'facebook_id' => $profile->getId(),
+                'email' => $email,
+                'email_verified_at' => $emailProven ? now() : null,
+            ])->save();
+            if (! $byTelegram && ! $emailProven) {
+                $this->otp->issue($customer, VerificationPurpose::EmailVerify);
+            }
 
-                return [$customer, $this->sendFirstCode($customer, $phone)];
-            });
-        } catch (UniqueConstraintViolationException) {
-            throw ValidationException::withMessages(['phone' => AuthController::PHONE_TAKEN]);
-        }
+            return $customer;
+        });
+
+        // Where the customer confirms next: Telegram (the website opens the bot), an email code, or nowhere
+        // (Facebook's own email already verifies the account).
+        $verifyBy = $byTelegram ? 'telegram' : ($emailProven ? null : 'email');
 
         return $this->signedIn($customer, $unfinished === null ? 201 : 200, ['verify_by' => $verifyBy]);
-    }
-
-    /**
-     * Proves the new Facebook account: a Telegram code to the phone when we can send one; otherwise an email
-     * code if the customer typed an email Facebook didn't confirm. Returns where the code went, or null when
-     * nothing is needed (Facebook confirmed the email; the phone can be verified later).
-     */
-    private function sendFirstCode(Customer $customer, string $phone): ?string
-    {
-        $problem = null;
-        if (TelegramGateway::enabled()) {
-            try {
-                $this->otp->issueToPhone($customer, $phone);
-
-                return 'telegram';
-            } catch (TelegramCodeNotSent $e) {
-                $problem = $e->getMessage();
-            }
-        }
-        if ($customer->isVerified()) {
-            return null;
-        }
-        if ($customer->email !== null) {
-            $this->otp->issue($customer, VerificationPurpose::EmailVerify);
-
-            return 'email';
-        }
-
-        throw ValidationException::withMessages(['phone' => $problem !== null
-            ? "We couldn't send a Telegram code to this number. Check it has Telegram, or add your email to get the code there."
-            : "We can't send codes to phones yet. Add your email to get your code there."]);
     }
 
     /** Unfinished sign-ups lose their unproven password and sessions when a provider claims them. */
