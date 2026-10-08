@@ -14,6 +14,7 @@ class TelegramGatewayProblem extends RuntimeException
     public static function refused(string $error): self
     {
         $hint = match (true) {
+            str_contains($error, 'IP_RESTRICTED') => ' The token only works from listed IP addresses: at gateway.telegram.org → Settings, remove the IP restriction (or add the server\'s outbound IPs).',
             str_contains($error, 'BALANCE') => ' Top up the balance at gateway.telegram.org (codes to your own number are free).',
             str_contains($error, 'TOKEN') => ' Check TELEGRAM_GATEWAY_TOKEN on the server (gateway.telegram.org → Settings → Copy Token).',
             default => ' Check the account at gateway.telegram.org.',
