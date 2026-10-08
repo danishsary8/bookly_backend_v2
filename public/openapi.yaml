@@ -474,7 +474,7 @@ paths:
     post:
       tags: [Customer auth]
       summary: Create an account; a 6-digit code goes to the email, or to the phone's Telegram (verify_by)
-      description: 'verify_by=telegram needs a Cambodian phone and GET /auth/options telegram_codes=true; if Telegram cannot deliver, nothing is created and the phone field explains why. If the email belongs to a sign-up that was never verified, that account is taken over (new name and password, its old sessions and codes cancelled). Sign-ups still unverified after UNVERIFIED_CUSTOMER_HOURS (48) are deleted. A verified, deactivated or deleted account keeps its email (422).'
+      description: 'verify_by=telegram needs a Cambodian phone and GET /auth/options telegram_codes=true; the email is then optional (phone-only accounts sign in with POST /auth/phone-login). If Telegram cannot deliver, nothing is created and the phone field explains why. A phone-only sign-up that was never verified is taken over by signing up again with the same number. If the email belongs to a sign-up that was never verified, that account is taken over (new name and password, its old sessions and codes cancelled). Sign-ups still unverified after UNVERIFIED_CUSTOMER_HOURS (48) are deleted. A verified, deactivated or deleted account keeps its email (422).'
       security: []
       requestBody:
         required: true
@@ -482,10 +482,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, email, password, password_confirmation]
+              required: [name, password, password_confirmation]
               properties:
                 name: { type: string }
-                email: { type: string, format: email }
+                email: { type: string, format: email, description: 'Required unless verify_by=telegram' }
                 password: { type: string, minLength: 8, description: Letters and numbers }
                 password_confirmation: { type: string }
                 phone: { type: string, description: 'Required with verify_by=telegram (+855 only)' }
