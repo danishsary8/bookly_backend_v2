@@ -1,6 +1,6 @@
 # Moving the API from Render to Railway: plan
 
-Status: **plan, waiting for the owner's decisions** (bottom of this file). Written 2026-10-07 after reading this
+Status: **shelved by the owner (2026-10-08): the API stays on Render.** Kept for reference only. Written 2026-10-07 after reading this
 repo's `Dockerfile`, `docker/start.sh`, `.railway/railway.ts`, `routes/console.php`, `docs/DEPLOYMENT.md`, and Railway's,
 Neon's and Brevo's current documentation. ROADMAP Phase 2, first item.
 

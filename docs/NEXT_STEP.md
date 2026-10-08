@@ -1,11 +1,9 @@
 # Next step
 
-## Now (2026-10-07)
-Merge, in this order (each builds on the one before): `feature/connect-social`, `feature/change-email` (adds one
-migration: two new code kinds; Render runs it), `feature/phone-sign-in`, `feature/reopen-accounts`,
-`docs/railway-plan`. Then answer the decisions at the bottom of `docs/RAILWAY_PLAN.md` (the Railway move).
-The full ordered to-do list lives in the frontend repo: `docs/ROADMAP.md`; the next session's prompt is in its
-`docs/NEXT_STEP.md`.
+## Now (2026-10-08)
+Telegram codes work on the live API (address `gatewayapi.telegram.org`, token IP restriction lifted). The Railway move is
+removed from the plan: the API stays on Render (`docs/RAILWAY_PLAN.md` is shelved). The full ordered to-do list and the
+next session's prompt live in the frontend repo: `docs/ROADMAP.md` and `docs/NEXT_STEP.md`.
 
 ## Roadmap complete
 
