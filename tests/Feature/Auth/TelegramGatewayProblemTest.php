@@ -79,6 +79,18 @@ class TelegramGatewayProblemTest extends TestCase
             && str_contains($e->getMessage(), 'TELEGRAM_GATEWAY_TOKEN'));
     }
 
+    public function test_an_ip_restricted_token_says_to_lift_the_restriction(): void
+    {
+        // Production, 2026-10-08: the token only allowed some IP addresses, and the API's host wasn't one of them.
+        Http::fake(['gatewayapi.telegram.org/*' => Http::response(['ok' => false, 'error' => 'ACCESS_TOKEN_IP_RESTRICTED'])]);
+
+        $this->signUpWithTelegram()->assertUnprocessable();
+
+        Exceptions::assertReported(fn (TelegramGatewayProblem $e) => str_contains($e->getMessage(), 'ACCESS_TOKEN_IP_RESTRICTED')
+            && str_contains($e->getMessage(), 'remove the IP restriction')
+            && ! str_contains($e->getMessage(), 'Check TELEGRAM_GATEWAY_TOKEN'));
+    }
+
     public function test_an_outage_is_reported(): void
     {
         Http::fake(['gatewayapi.telegram.org/*' => fn () => throw new ConnectionException('timed out')]);
