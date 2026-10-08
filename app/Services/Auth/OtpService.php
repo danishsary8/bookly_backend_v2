@@ -73,19 +73,6 @@ class OtpService
         }
     }
 
-    /**
-     * Counts a code request against a number, whether or not an account has it, so the limits answer the
-     * same for every number and can't be used to find out which numbers are customers.
-     *
-     * @throws ValidationException when this number has had too many codes
-     */
-    public function spendPhoneAllowance(string $phoneE164): void
-    {
-        $this->guardPhoneLimits($phoneE164);
-        RateLimiter::hit('phone-codes-hour:'.$phoneE164, 3600);
-        RateLimiter::hit('phone-codes-day:'.$phoneE164, 86400);
-    }
-
     /** The number waiting for its code, if any. */
     public function pendingPhone(Customer $customer): ?string
     {

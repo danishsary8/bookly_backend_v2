@@ -541,9 +541,9 @@ paths:
       tags: [Customer auth]
       summary: Sign in with a phone number, step 1 (Telegram code)
       security: []
-      description: 'Sends a sign-in code to the Telegram of an active account that proved this +855 number. Answers the same for every number (known or not), and counts against the number''s limits (3 an hour, 10 a day) either way, so it cannot be used to find customers. 503 while Telegram codes are off.'
+      description: 'Sends a sign-in code to the Telegram of the active account that proved this +855 number. 422 on phone when no account has this verified number, when Telegram cannot deliver to it, or when the gateway fails on our side (each with its own message); 403 for a deactivated account; 503 while Telegram codes are off.'
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string }, turnstile_token: { type: string } } } } } }
-      responses: { '200': { description: 'Same answer for every number' }, '422': { $ref: '#/components/responses/Validation' }, '503': { description: Telegram codes are off } }
+      responses: { '200': { description: 'Code sent; phone is the number it went to' }, '403': { description: Deactivated account }, '422': { $ref: '#/components/responses/Validation' }, '503': { description: Telegram codes are off } }
   /auth/phone-login/verify:
     post:
       tags: [Customer auth]
