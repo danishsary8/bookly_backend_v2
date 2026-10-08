@@ -14,6 +14,8 @@ case "${CONTAINER_ROLE:-web}" in
     if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
       php artisan migrate --force
     fi
+    # Tell Telegram where the Bookly bot's messages go (no-op without TELEGRAM_BOT_TOKEN; never blocks the start).
+    php artisan telegram:webhook || true
     # public/ is the web root; unknown paths go to public/index.php (Laravel).
     exec frankenphp php-server --root public/ --listen ":${PORT:-8080}"
     ;;

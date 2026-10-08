@@ -50,6 +50,16 @@ return [
         'url' => env('TELEGRAM_GATEWAY_URL', 'https://gatewayapi.telegram.org'),
     ],
 
+    // The Bookly Telegram bot (free Bot API): customers confirm their phone number by tapping "Share my phone
+    // number" in the bot, and sign in the same way. Token from @BotFather; off while it is empty.
+    'telegram_bot' => [
+        'token' => env('TELEGRAM_BOT_TOKEN'),
+        // Optional: the bot's @username without "@". Read from Telegram (getMe) when empty.
+        'username' => env('TELEGRAM_BOT_USERNAME'),
+        // Only changed for local testing against a stand-in.
+        'url' => env('TELEGRAM_BOT_API_URL', 'https://api.telegram.org'),
+    ],
+
     'turnstile' => [
         'secret' => env('TURNSTILE_SECRET_KEY'),
     ],

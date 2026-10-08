@@ -397,6 +397,13 @@ paths:
       responses:
         '200': { description: 'status ok or degraded (queue jobs waiting > 10 min)' }
         '503': { description: Database unreachable }
+  /telegram/webhook:
+    post:
+      tags: [Public]
+      summary: Updates for the Bookly Telegram bot (called by Telegram only)
+      security: []
+      description: 'Telegram posts each message for the bot here, with the X-Telegram-Bot-Api-Secret-Token header set by `php artisan telegram:webhook` (made from APP_KEY and the bot token). "/start <code>" answers with a "Share my phone number" button; the shared contact (only the sender''s own: contact.user_id = from.id, +855 only) signs in or saves the number. Replies are a sendMessage call in the response body. 404 without the right header or while the bot is off.'
+      responses: { '200': { description: 'A sendMessage call for Telegram to run' }, '204': { description: 'Nothing to answer (not a private chat)' }, '404': { description: 'Wrong secret, or the bot is off' } }
 
   /books:
     get:
@@ -552,6 +559,26 @@ paths:
       description: 'Five wrong codes throw the code away. Signs in like POST /auth/login.'
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone, code], properties: { phone: { type: string }, code: { type: string, pattern: '^[0-9]{6}$' } } } } } }
       responses: { '200': { description: 'Signed in: customer, token, expires_at' }, '422': { description: Wrong or expired code } }
+  /auth/telegram:
+    post:
+      tags: [Customer auth]
+      summary: Continue with Telegram (sign in), step 1
+      security: []
+      description: 'Makes a one-time link (10 minutes). Open `url` (t.me/<bot>?start=<code>), tap "Share my phone number" in the bot, then poll POST /auth/telegram/status with `key`. Signs in the active account that proved that +855 number. 10 links per 10 minutes per visitor.'
+      responses: { '201': { description: 'url, key (keep it private), expires_at' }, '429': { description: Too many links }, '503': { description: 'The bot is off' } }
+  /auth/telegram/phone:
+    post:
+      tags: [Customer auth]
+      summary: Confirm or change your phone number with Telegram
+      description: 'Same as POST /auth/telegram, for the signed-in customer: the number shared in the bot becomes the account''s verified number (and contact number), which also verifies a new account. Refused in the bot and in the status when another account (also a closed one) has the number.'
+      responses: { '201': { description: 'url, key, expires_at' }, '401': { $ref: '#/components/responses/Unauthorized' }, '503': { description: 'The bot is off' } }
+  /auth/telegram/status:
+    post:
+      tags: [Customer auth]
+      summary: How a Telegram link went (the website asks every few seconds)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [key], properties: { key: { type: string } } } } } }
+      responses: { '200': { description: 'status pending | failed (message says why: no account with this number, number on another account, not +855, deactivated) | done (customer; plus token and expires_at for a sign-in, handed out once)' }, '404': { description: 'Unknown key, or the link expired' } }
   /auth/reset-password:
     post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
   /me:

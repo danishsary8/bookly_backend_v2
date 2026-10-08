@@ -44,5 +44,9 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinutes(10, 3)->by('otp|'.$who.'|'.$request->ip());
         });
+
+        // New Telegram bot links: free to make, but each one is a cache entry. 10 per 10 minutes is plenty.
+        RateLimiter::for('telegram-link', fn (Request $request) => Limit::perMinutes(10, 10)
+            ->by('telegram|'.($request->user()?->getKey() ?? 'guest').'|'.$request->ip()));
     }
 }

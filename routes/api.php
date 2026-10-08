@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
+use App\Http\Controllers\Api\V1\Customer\TelegramAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
@@ -39,10 +40,14 @@ use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderContro
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
+use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v1']));
 Route::get('/health', HealthController::class);
+
+// The Bookly Telegram bot's updates (Telegram signs each one with the webhook secret).
+Route::post('/telegram/webhook', TelegramWebhookController::class);
 
 /*
 | Public catalog (no login needed)
@@ -70,6 +75,8 @@ Route::prefix('auth')->group(function () {
     });
     Route::post('/forgot-password', [CustomerAuthController::class, 'forgotPassword'])->middleware('throttle:otp-send');
     Route::post('/phone-login', [PhoneLoginController::class, 'store'])->middleware('throttle:otp-send');
+    Route::post('/telegram', [TelegramAuthController::class, 'login'])->middleware('throttle:telegram-link');
+    Route::post('/telegram/status', [TelegramAuthController::class, 'status']);
     Route::post('/phone-login/verify', [PhoneLoginController::class, 'verify'])->middleware('throttle:auth');
 
     Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
@@ -78,6 +85,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/resend-verification', [CustomerAuthController::class, 'resendVerification'])->middleware('throttle:otp-send');
         Route::post('/phone', [CustomerAuthController::class, 'sendPhoneVerification'])->middleware('throttle:otp-send');
         Route::post('/verify-phone', [CustomerAuthController::class, 'verifyPhone'])->middleware('throttle:auth');
+        Route::post('/telegram/phone', [TelegramAuthController::class, 'phone'])->middleware('throttle:telegram-link');
     });
 });
 
