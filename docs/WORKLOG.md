@@ -177,3 +177,5 @@ php artisan migrate
 php artisan test
 php artisan serve   # GET http://localhost:8000/api/v1/ping
 ```
+
+- [x] Vercel preview CORS (2026-10-09, branch `feature/preview-cors`): optional `CORS_ALLOWED_ORIGIN_PATTERNS` reads comma-separated regexes without delimiters, trims and drops empty entries, adds PHP delimiters; empty preserves existing origins. Added the example and Render env table row. `PreviewCorsTest`: 2 passed, 21 assertions (matching preview, rejected hosts, parsing, empty setting). `php artisan test`: 301 total, 286 passed, 12 failed, 3 errors; unrelated Telegram/mail checks encounter missing local `libphonenumber\PhoneNumberUtil` / `Resend` classes (declared dependencies); left untouched. `vendor/bin/pint --test` and `git diff --check` passed. PHP 8.4 and PostgreSQL available.
