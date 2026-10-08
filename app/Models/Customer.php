@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Services\Auth\TelegramGateway;
+use App\Services\Telegram\TelegramBot;
 use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -47,7 +47,7 @@ class Customer extends Authenticatable
         return $this->phone_verified_at !== null && $this->phone_e164 !== null;
     }
 
-    /** A real account: the customer proved their email or their phone (Telegram code). Only these can shop. */
+    /** A real account: the customer proved their email or their phone (shared in the Telegram bot). Only these can shop. */
     public function isVerified(): bool
     {
         return $this->hasVerifiedEmail() || $this->hasVerifiedPhone();
@@ -65,7 +65,7 @@ class Customer extends Authenticatable
 
     /**
      * The ways this customer can sign in today: `password` (needs an email to type), `google`, `facebook`,
-     * `phone` (a verified number, while Telegram codes are switched on). Account → Sign-in & security never
+     * `telegram` (a verified number, while the Telegram bot is on). Account → Sign-in & security never
      * removes the last one.
      *
      * @return list<string>
@@ -76,11 +76,11 @@ class Customer extends Authenticatable
             $this->password_hash !== null && $this->email !== null ? 'password' : null,
             $this->google_id !== null ? 'google' : null,
             $this->facebook_id !== null ? 'facebook' : null,
-            $this->hasVerifiedPhone() && TelegramGateway::enabled() ? 'phone' : null,
+            $this->hasVerifiedPhone() && TelegramBot::enabled() ? 'telegram' : null,
         ]));
     }
 
-    /** Saves a number the customer just proved with a Telegram code (also as their contact number). */
+    /** Saves a number the customer just proved in the Telegram bot (also as their contact number). */
     public function markPhoneVerified(string $phoneE164): void
     {
         $this->forceFill([

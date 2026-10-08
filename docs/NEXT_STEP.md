@@ -1,9 +1,12 @@
 # Next step
 
 ## Now (2026-10-08)
-Telegram codes work on the live API (address `gatewayapi.telegram.org`, token IP restriction lifted). The Railway move is
-removed from the plan: the API stays on Render (`docs/RAILWAY_PLAN.md` is shelved). The full ordered to-do list and the
-next session's prompt live in the frontend repo: `docs/ROADMAP.md` and `docs/NEXT_STEP.md`.
+The paid Telegram Gateway is replaced by the free Bookly Telegram bot (`feature/telegram-bot` →
+`feature/phone-by-telegram-bot`, merge in that order after `docs/shelve-railway`, then the frontend's
+`feature/telegram-bot-sign-in`). Owner: create the bot in @BotFather and add `TELEGRAM_BOT_TOKEN` on Render
+(`docs/DEPLOYMENT.md` → "Telegram bot (free)"); `TELEGRAM_GATEWAY_TOKEN` can be deleted there. The API stays on Render
+(`docs/RAILWAY_PLAN.md` is shelved). The full ordered to-do list and the next session's prompt live in the frontend repo:
+`docs/ROADMAP.md` and `docs/NEXT_STEP.md`.
 
 ## Roadmap complete
 

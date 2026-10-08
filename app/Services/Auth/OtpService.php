@@ -3,7 +3,6 @@
 namespace App\Services\Auth;
 
 use App\Enums\VerificationPurpose;
-use App\Exceptions\TelegramCodeNotSent;
 use App\Models\Customer;
 use App\Models\StaffUser;
 use App\Models\VerificationToken;
@@ -11,17 +10,12 @@ use App\Notifications\OtpCodeNotification;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class OtpService
 {
     public const MAX_WRONG_GUESSES = 5;
 
-    public function __construct(private readonly TelegramGateway $telegram) {}
-
-    /** Emails a code (email verification or password reset). */
+    /** Emails a code (email verification or password reset). Phone numbers are proven in the Telegram bot instead. */
     public function issue(Customer|StaffUser $user, VerificationPurpose $purpose): void
     {
         [$code, $ttl] = $this->newCode($user, $purpose);
@@ -30,66 +24,8 @@ class OtpService
     }
 
     /**
-     * Sends a code to a phone number's Telegram. The number is only saved on the account once the code
-     * comes back (verifyPhone), so a typo never replaces a number the customer already proved.
-     *
-     * @throws TelegramCodeNotSent
-     * @throws ValidationException when this number has had too many codes
-     */
-    public function issueToPhone(Customer $customer, string $phoneE164): void
-    {
-        $this->guardPhoneLimits($phoneE164);
-        [$code, $ttl] = $this->newCode($customer, VerificationPurpose::PhoneVerify);
-
-        try {
-            $this->telegram->send($phoneE164, $code, $ttl * 60);
-        } catch (TelegramCodeNotSent $e) {
-            $this->tokensFor($customer, VerificationPurpose::PhoneVerify)->whereNull('used_at')->update(['used_at' => now()]);
-            throw $e;
-        }
-        $this->countPhoneCode($phoneE164);
-        Cache::put($this->pendingKey($customer), $phoneE164, now()->addMinutes($ttl));
-    }
-
-    /**
-     * A sign-in code to an account's verified number (POST /auth/phone-login). Same per-number limits as
-     * every Telegram code.
-     *
-     * @throws TelegramCodeNotSent
-     */
-    public function issueLoginCode(Customer $customer): void
-    {
-        [$code, $ttl] = $this->newCode($customer, VerificationPurpose::PhoneLogin);
-        try {
-            $this->telegram->send($customer->phone_e164, $code, $ttl * 60);
-        } catch (TelegramCodeNotSent $e) {
-            $this->cancel($customer, VerificationPurpose::PhoneLogin);
-            throw $e;
-        }
-    }
-
-    /** The number waiting for its code, if any. */
-    public function pendingPhone(Customer $customer): ?string
-    {
-        return Cache::get($this->pendingKey($customer));
-    }
-
-    /** Checks a Telegram code; returns the number it was sent to, or null if the code is wrong. */
-    public function verifyPhone(Customer $customer, string $code): ?string
-    {
-        $phone = $this->pendingPhone($customer);
-        if ($phone === null || ! $this->verify($customer, VerificationPurpose::PhoneVerify, $code)) {
-            return null;
-        }
-        Cache::forget($this->pendingKey($customer));
-
-        return $phone;
-    }
-
-    /**
-     * Emails a code to an address the customer wants to add or switch to. Like a new phone number, the
-     * address is only saved once its code comes back (verifyEmailChange), so a typo never replaces the
-     * email the customer already has.
+     * Emails a code to an address the customer wants to add or switch to. The address is only saved once its
+     * code comes back (verifyEmailChange), so a typo never replaces the email the customer already has.
      */
     public function issueToNewEmail(Customer $customer, string $email): void
     {
@@ -122,41 +58,6 @@ class OtpService
         return 'email-pending:'.$customer->getKey();
     }
 
-    /**
-     * Optional cap on Telegram codes per number (`PHONE_CODES_PER_HOUR` / `PHONE_CODES_PER_DAY`). Off by default
-     * (owner, 2026-10-08): when a code goes missing it is often our side, and the customer must be able to ask
-     * again. Turnstile and the per-visitor `otp-send` limit still apply; set a cap if bots ever drain the balance.
-     *
-     * @return list<array{string, int, string}> [cache key prefix, max codes, period in words]
-     */
-    private function phoneLimits(): array
-    {
-        return array_values(array_filter([
-            ['phone-codes-hour:', (int) config('auth.otp.phone_codes_per_hour'), 'the last hour'],
-            ['phone-codes-day:', (int) config('auth.otp.phone_codes_per_day'), 'the last day'],
-        ], fn (array $limit) => $limit[1] > 0));
-    }
-
-    private function guardPhoneLimits(string $phoneE164): void
-    {
-        foreach ($this->phoneLimits() as [$key, $max, $period]) {
-            if (RateLimiter::tooManyAttempts($key.$phoneE164, $max)) {
-                $minutes = max(1, (int) ceil(RateLimiter::availableIn($key.$phoneE164) / 60));
-                throw ValidationException::withMessages([
-                    'phone' => "This number has had {$max} ".Str::plural('code', $max)." in {$period}. Try again in {$minutes} min, or use email.",
-                ]);
-            }
-        }
-    }
-
-    /** Counts a code Telegram accepted (failed sends never count). */
-    private function countPhoneCode(string $phoneE164): void
-    {
-        foreach ($this->phoneLimits() as [$key, , $period]) {
-            RateLimiter::hit($key.$phoneE164, $period === 'the last hour' ? 3600 : 86400);
-        }
-    }
-
     /** @return array{string, int} the new code and its lifetime in minutes */
     private function newCode(Customer|StaffUser $user, VerificationPurpose $purpose): array
     {
@@ -174,11 +75,6 @@ class OtpService
         ]);
 
         return [$code, $ttl];
-    }
-
-    private function pendingKey(Customer $customer): string
-    {
-        return 'phone-pending:'.$customer->getKey();
     }
 
     /**

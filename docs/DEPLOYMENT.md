@@ -60,10 +60,24 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `CORS_ALLOWED_ORIGINS` | your frontend URL |
 | `LOG_REQUESTS` | `true` |
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | see "Email on Render" below |
-| optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_GATEWAY_TOKEN` (verification codes by Telegram; gateway.telegram.org, prepaid ~$0.01 per code), `PHONE_CODES_PER_HOUR` / `PHONE_CODES_PER_DAY` (cap Telegram codes per number; leave unset for no cap, set e.g. 5 / 20 if bots ever drain the balance) |
+| optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_BOT_TOKEN` (the free Bookly Telegram bot: phone sign-in and phone confirmation; see "Telegram bot" below) |
 
 Save → Render builds the image (a few minutes) and deploys. Check `https://<your-app>.onrender.com/api/v1/health`
 → `{"status":"ok",...}` and `/docs`.
+
+### Telegram bot (free)
+Customers confirm their phone number, and sign in, by tapping "Share my phone number" in the Bookly bot. Telegram's
+Bot API is free; nothing to top up.
+1. In Telegram, open **@BotFather** → **/newbot** → a name (e.g. `Bookly`) → a username ending in `bot`
+   (e.g. `BooklyKhBot`). BotFather answers with the **token**: copy it (never paste it in a chat or an issue).
+2. Optional, in @BotFather: **/setuserpic** (the Bookly logo), **/setdescription** ("Sign in to Bookly and confirm your
+   phone number."), **/setabouttext**.
+3. Render → service → **Environment** → add `TELEGRAM_BOT_TOKEN` = the token → **Save, rebuild and deploy**.
+   `APP_URL` must be the API's own https address: at every start the container runs `php artisan telegram:webhook`,
+   which tells Telegram to send the bot's messages to `APP_URL/api/v1/telegram/webhook` (the deploy log shows
+   "Telegram bot @… now sends its messages to …").
+4. Check: on the website, Sign in → **Continue with Telegram** opens the bot; **Start** shows the
+   "Share my phone number" button.
 
 ### Email on Render
 Render's free plan blocks outgoing SMTP on ports 25, 465 and 587, and Resend without a verified domain only delivers to
@@ -241,7 +255,8 @@ Use `pg_dump`/`pg_restore` version 18 or newer (same as the server).
 
 | Symptom | Cause / fix |
 | --- | --- |
-| Sign-up says "Telegram codes aren't available right now" | Telegram Gateway refused the code for a reason on our side. Sentry (and the Telegram alert) shows `Telegram Gateway refused a code: <ERROR>`: `BALANCE_NOT_ENOUGH` → add funds at gateway.telegram.org (codes to the account owner's own number are free; every other number needs a balance); `ACCESS_TOKEN_INVALID` → copy the token again into `TELEGRAM_GATEWAY_TOKEN`. `ACCESS_TOKEN_IP_RESTRICTED` → the token only works from listed IPs; at gateway.telegram.org → Settings remove the IP restriction (Render's and Railway's outbound IPs are shared and change). `unexpected answer (HTTP 200, text/html)` → the API address is wrong: it is `https://gatewayapi.telegram.org` (the default; don't set `TELEGRAM_GATEWAY_URL` on the server — gateway.telegram.org is only the dashboard). Also in the host's logs: search "Telegram Gateway refused". |
+| The website says "Telegram isn't available right now" | `TELEGRAM_BOT_TOKEN` is empty, or Telegram refused it: Sentry (and the Telegram alert) shows `Telegram bot getMe failed: Unauthorized` → copy the token again from @BotFather → /mybots → API Token. |
+| The bot doesn't answer "Start" | Telegram doesn't know the webhook yet. Render → **Logs**: search `telegram:webhook` / "Telegram bot" at the last start. `bad webhook: HTTPS url must be provided` → set `APP_URL` to the API's https address and redeploy. While the free API is asleep the first answer can take ~30 s (Telegram retries). |
 | Deployment stuck on "Waiting for CI" | the GitHub Actions run for that commit failed or is still running — open the Actions tab |
 | Pre-deploy failed | a migration error; the old version is still serving. Read the deploy logs, fix, push again |
 | Health check fails with `down` | `DB_URL` not set (re-run `railway config apply`) or the database is still starting |
