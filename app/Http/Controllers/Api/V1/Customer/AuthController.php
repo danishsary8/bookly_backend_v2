@@ -44,7 +44,8 @@ class AuthController extends Controller
         $byTelegram = $request->input('verify_by') === 'telegram';
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'email', 'max:190', function (string $attribute, mixed $value, \Closure $fail) {
+            // Owner (2026-10-08): with a Telegram code the phone proves the account, so the email is optional.
+            'email' => [$byTelegram ? 'nullable' : 'required', 'email', 'max:190', function (string $attribute, mixed $value, \Closure $fail) {
                 if (is_string($value) && $this->emailIsTaken(strtolower($value))) {
                     $fail(self::EMAIL_TAKEN);
                 }
@@ -54,13 +55,16 @@ class AuthController extends Controller
             'verify_by' => ['nullable', Rule::in(['email', 'telegram'])],
             'turnstile_token' => [new Turnstile($request->ip())],
         ]);
-        $email = strtolower($data['email']);
+        $email = filled($data['email'] ?? null) ? strtolower($data['email']) : null;
         $phone = $byTelegram ? PhoneNumber::normalize($data['phone']) : null;
         if ($phone !== null && $this->phoneIsTaken($phone)) {
             throw ValidationException::withMessages(['phone' => self::PHONE_TAKEN]);
         }
         $this->unverified->pruneIfDue();
-        $existing = Customer::where('email', $email)->first(); // an unfinished sign-up, taken over below
+        // An unfinished sign-up with this email (or, without an email, this number) is taken over below.
+        $existing = $email !== null
+            ? Customer::where('email', $email)->first()
+            : Customer::unverified()->whereNull('email')->where('is_active', true)->where('phone', PhoneNumber::display($phone))->latest('id')->first();
 
         // One transaction: if the code email can't be sent, nothing changes (no half-made account,
         // no half-replaced one), so the customer can simply try again with the same email.
