@@ -5,6 +5,7 @@ namespace App\Services\Telegram;
 use App\Exceptions\TelegramBotProblem;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -45,19 +46,47 @@ class TelegramBot
         return hash_hmac('sha256', 'telegram-webhook|'.config('services.telegram_bot.token'), (string) config('app.key'));
     }
 
-    public function webhookUrl(): string
+    /** Where Telegram sends the bot's messages: APP_URL, or the address a request came in on. */
+    public function webhookUrl(?string $base = null): string
     {
-        return rtrim((string) config('app.url'), '/').'/api/v1/telegram/webhook';
+        return rtrim($base ?? (string) config('app.url'), '/').'/api/v1/telegram/webhook';
     }
 
     /** Points Telegram at our webhook (safe to repeat; the container does it at every start). */
-    public function registerWebhook(): void
+    public function registerWebhook(?string $base = null): void
     {
         $this->call('setWebhook', [
-            'url' => $this->webhookUrl(),
+            'url' => $this->webhookUrl($base),
             'secret_token' => $this->webhookSecret(),
             'allowed_updates' => ['message'],
         ]);
+    }
+
+    /**
+     * Makes sure Telegram really delivers the bot's messages to this API. Checked when a customer starts a link,
+     * at most every 10 minutes: if Telegram has another address (or none, e.g. a wrong APP_URL at start-up),
+     * this API's own address is set; if Telegram reports that delivering failed lately, the owner is alerted
+     * (Sentry) with Telegram's reason.
+     *
+     * Found live (2026-10-08): the bot never answered "Start", and nothing said why.
+     *
+     * @throws TelegramBotProblem
+     */
+    public function ensureWebhook(string $base): void
+    {
+        $expected = $this->webhookUrl($base);
+        $checked = 'telegram-webhook-checked:'.$this->tokenId().':'.md5($expected);
+        if (Cache::has($checked)) {
+            return;
+        }
+        $info = $this->call('getWebhookInfo');
+        if (($info['url'] ?? '') !== $expected) {
+            Log::warning('Telegram bot webhook was '.(($info['url'] ?? '') ?: 'not set').'; now '.$expected);
+            $this->registerWebhook($base);
+        } elseif (filled($info['last_error_message'] ?? null) && (int) ($info['last_error_date'] ?? 0) > now()->subMinutes(30)->timestamp) {
+            report(TelegramBotProblem::undelivered((string) $info['last_error_message'], $expected));
+        }
+        Cache::put($checked, true, now()->addMinutes(10));
     }
 
     /**

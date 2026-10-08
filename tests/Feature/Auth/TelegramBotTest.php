@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use App\Models\Customer;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
@@ -24,6 +25,25 @@ class TelegramBotTest extends TestCase
         parent::setUp();
         config(['services.telegram_bot.token' => '123:bot-token', 'services.telegram_bot.username' => 'BooklyBot']);
         Http::preventStrayRequests();
+        $this->webhook['url'] = $this->ourWebhook();
+        Http::fake(['api.telegram.org/bot123:bot-token/getWebhookInfo' => fn () => Http::response(['ok' => true, 'result' => array_filter([
+            'url' => $this->webhook['url'], 'pending_update_count' => 0,
+            'last_error_date' => $this->webhook['error'] ? now()->subMinute()->timestamp : null, 'last_error_message' => $this->webhook['error'],
+        ], fn ($v) => $v !== null)])]);
+    }
+
+    /** This API's webhook as tests call it (the test client uses APP_URL as its address). */
+    private function ourWebhook(): string
+    {
+        return rtrim((string) config('app.url'), '/').'/api/v1/telegram/webhook';
+    }
+
+    /** @var array{url: string, error: ?string} what Telegram's getWebhookInfo answers */
+    private array $webhook = ['url' => '', 'error' => null];
+
+    private function telegramKnows(string $url, ?string $lastError = null): void
+    {
+        $this->webhook = ['url' => $url, 'error' => $lastError];
     }
 
     /** A message from Telegram to our webhook, as the customer with Telegram id CHAT. */
@@ -216,7 +236,7 @@ class TelegramBotTest extends TestCase
 
         $this->postJson('/api/v1/auth/telegram')->assertCreated()->assertJsonPath('url', fn (string $url) => str_starts_with($url, 'https://t.me/BooklyShopBot?start='));
         $this->postJson('/api/v1/auth/telegram')->assertCreated();
-        Http::assertSentCount(1);
+        Http::assertSentCount(2); // getMe once, getWebhookInfo once (checked every 10 minutes)
     }
 
     public function test_a_wrong_bot_token_is_reported_and_the_customer_told_to_use_another_way(): void
@@ -294,5 +314,50 @@ class TelegramBotTest extends TestCase
 
         $this->artisan('telegram:webhook')->assertSuccessful();
         Http::assertNothingSent();
+    }
+
+    public function test_a_missing_or_wrong_webhook_is_set_to_this_apis_address(): void
+    {
+        // Live (2026-10-08): the bot never answered Start because Telegram didn't have our address.
+        $this->telegramKnows('');
+        Http::fake(['api.telegram.org/bot123:bot-token/setWebhook' => Http::response(['ok' => true, 'result' => true])]);
+
+        $this->postJson('/api/v1/auth/telegram')->assertCreated();
+
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook')
+            && $request['url'] === $this->ourWebhook()
+            && $request['secret_token'] === app(TelegramBot::class)->webhookSecret());
+    }
+
+    public function test_the_webhook_is_checked_at_most_every_ten_minutes(): void
+    {
+        $this->postJson('/api/v1/auth/telegram')->assertCreated();
+        $this->postJson('/api/v1/auth/telegram')->assertCreated();
+        Http::assertSentCount(1);
+
+        $this->travel(11)->minutes();
+        $this->postJson('/api/v1/auth/telegram')->assertCreated();
+        Http::assertSentCount(2);
+    }
+
+    public function test_telegrams_delivery_errors_reach_the_owner(): void
+    {
+        Exceptions::fake();
+        $this->telegramKnows($this->ourWebhook(), 'Wrong response from the webhook: 404 Not Found');
+
+        $this->postJson('/api/v1/auth/telegram')->assertCreated();
+
+        Exceptions::assertReported(fn (TelegramBotProblem $e) => str_contains($e->getMessage(), "couldn't deliver the bot's messages to ".$this->ourWebhook())
+            && str_contains($e->getMessage(), '404 Not Found'));
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/setWebhook'));
+    }
+
+    public function test_the_link_still_works_when_the_check_fails(): void
+    {
+        Exceptions::fake();
+        Http::fake(['api.telegram.org/*' => fn () => throw new ConnectionException('timed out')]);
+
+        $this->postJson('/api/v1/auth/telegram')->assertCreated();
+        Exceptions::assertReported(TelegramBotProblem::class);
     }
 }

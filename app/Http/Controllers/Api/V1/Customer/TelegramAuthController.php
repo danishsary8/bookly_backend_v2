@@ -30,14 +30,14 @@ class TelegramAuthController extends Controller
 
     public function __construct(private readonly TelegramBot $bot, private readonly TelegramLinks $links) {}
 
-    public function login(): JsonResponse
+    public function login(Request $request): JsonResponse
     {
-        return $this->start('login');
+        return $this->start($request, 'login');
     }
 
     public function phone(Request $request): JsonResponse
     {
-        return $this->start('phone', $request->user()->getKey());
+        return $this->start($request, 'phone', $request->user()->getKey());
     }
 
     public function status(Request $request): JsonResponse
@@ -69,7 +69,7 @@ class TelegramAuthController extends Controller
         ]);
     }
 
-    private function start(string $purpose, ?int $customerId = null): JsonResponse
+    private function start(Request $request, string $purpose, ?int $customerId = null): JsonResponse
     {
         if (! TelegramBot::enabled()) {
             return response()->json(['message' => self::OFF], 503);
@@ -82,6 +82,12 @@ class TelegramAuthController extends Controller
             report($e);
 
             return response()->json(['message' => self::OFF], 503);
+        }
+        try {
+            // Telegram must call this API when the customer taps Start; the address is this request's own.
+            $this->bot->ensureWebhook(app()->isProduction() ? 'https://'.$request->getHttpHost() : $request->getSchemeAndHttpHost());
+        } catch (TelegramBotProblem $e) {
+            report($e); // the link still works if Telegram already has the right address
         }
 
         return response()->json(['url' => $url, 'key' => $link['key'], 'expires_at' => $link['expires_at']], 201);
