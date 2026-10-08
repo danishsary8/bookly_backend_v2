@@ -7,6 +7,7 @@ use App\Enums\ReturnStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffCustomerResource;
 use App\Models\Customer;
+use App\Notifications\AccountReopenedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Customers\ClosedCustomers;
 use App\Services\Customers\UnverifiedCustomers;
@@ -25,30 +26,35 @@ class CustomerController extends Controller
             'q' => ['nullable', 'string', 'max:190'],
             'active' => ['nullable', 'boolean'],
             'verified' => ['nullable', 'boolean'],
+            'closed' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $term = isset($data['q']) ? '%'.addcslashes($data['q'], '%_').'%' : null;
         $this->unverified->pruneIfDue();
         $this->closed->eraseIfDue();
 
-        // Search and active filters, without the verified filter: the tabs show both counts.
-        $base = Customer::query()
-            ->when($term, fn ($q) => $q->where(fn ($w) => $w
-                ->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)->orWhere('phone', 'ilike', $term)->orWhere('phone_e164', 'ilike', $term)))
+        $search = fn ($q) => $q->when($term, fn ($q) => $q->where(fn ($w) => $w
+            ->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)->orWhere('phone', 'ilike', $term)->orWhere('phone_e164', 'ilike', $term)));
+
+        // Search and active filters, without the verified filter: the tabs show every count.
+        $base = $search(Customer::query())
             ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')));
+        // Closed by the customer, still inside the 30 days before their details are erased (newest first).
+        $closed = $search($this->closed->reopenable());
+
+        $list = $request->boolean('closed')
+            ? (clone $closed)->latest('deleted_at')
+            : (clone $base)->when($request->has('verified'), fn ($q) => $request->boolean('verified') ? $q->verified() : $q->unverified())->latest();
 
         return StaffCustomerResource::collection(
-            (clone $base)
-                ->withCount('orders')
-                ->when($request->has('verified'), fn ($q) => $request->boolean('verified')
-                    ? $q->verified() : $q->unverified())
-                ->latest()
+            $list->withCount('orders')
                 ->orderByDesc('id')
                 ->paginate($data['per_page'] ?? 20)
                 ->withQueryString()
         )->additional(['meta' => ['counts' => [
             'verified' => (clone $base)->verified()->count(),
             'unverified' => (clone $base)->unverified()->count(),
+            'closed' => (clone $closed)->count(),
         ]]]);
     }
 
@@ -89,6 +95,29 @@ class CustomerController extends Controller
         $this->unverified->delete($customer);
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Admins: reopen an account the customer closed, while it's inside its 30 days (they changed their mind
+     * and asked the shop). Audit-logged; the customer gets an email and signs in again as before.
+     */
+    public function reopen(Request $request, Customer $customer): JsonResponse|StaffCustomerResource
+    {
+        if (! $customer->trashed()) {
+            return response()->json(['message' => 'This account is open.'], 422);
+        }
+        if (! $this->closed->canReopen($customer)) {
+            return response()->json(['message' => 'This account was closed more than '.ClosedCustomers::days().' days ago and its details were erased, so it can\'t be reopened.'], 422);
+        }
+
+        $closedAt = $customer->deleted_at;
+        $this->closed->reopen($customer);
+        $this->audit->custom($request->user(), 'reopened', $customer, ['closed_at' => $closedAt->toIso8601String()], ['closed_at' => null]);
+        if ($customer->email !== null) {
+            $customer->notify(new AccountReopenedNotification);
+        }
+
+        return new StaffCustomerResource($customer->loadCount('orders'));
     }
 
     public function deactivate(Request $request, Customer $customer): StaffCustomerResource

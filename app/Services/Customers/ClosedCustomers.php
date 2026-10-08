@@ -7,6 +7,7 @@ use App\Enums\ReturnStatus;
 use App\Models\Customer;
 use App\Models\VerificationToken;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -57,6 +58,33 @@ class ClosedCustomers
         });
 
         return $customer->deleted_at->copy()->addDays(self::days());
+    }
+
+    /** When a closed account's details are erased (null for open accounts). */
+    public static function eraseAt(Customer $customer): ?CarbonInterface
+    {
+        return $customer->deleted_at?->copy()->addDays(self::days());
+    }
+
+    /** Closed accounts still inside their 30 days: the only ones staff see in "Closed" and can reopen. */
+    public function reopenable(): Builder
+    {
+        return Customer::onlyTrashed()->where('deleted_at', '>', now()->subDays(self::days()));
+    }
+
+    public function canReopen(Customer $customer): bool
+    {
+        return $customer->trashed() && $customer->deleted_at->gt(now()->subDays(self::days()));
+    }
+
+    /**
+     * Opens a closed account again (an admin, at the customer's request). The email, phone and sign-in ids
+     * stayed reserved while it was closed, so nothing can clash. Reviews, wishlist and cart removed at
+     * closing stay removed; the customer signs in again as before.
+     */
+    public function reopen(Customer $customer): void
+    {
+        $customer->restore();
     }
 
     /** Erases closed accounts past their 30 days. Returns how many. */

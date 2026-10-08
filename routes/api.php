@@ -171,7 +171,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/returns/{return}/refund', [StaffReturnController::class, 'refund'])->whereNumber('return');
 
     Route::get('/customers', [StaffCustomerController::class, 'index']);
-    Route::get('/customers/{customer}', [StaffCustomerController::class, 'show']);
+    Route::get('/customers/{customer}', [StaffCustomerController::class, 'show'])->withTrashed();
 
     Route::get('/reviews', [StaffReviewController::class, 'index']);
     Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review');
@@ -207,6 +207,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::post('/customers/{customer}/deactivate', [StaffCustomerController::class, 'deactivate']);
         Route::post('/customers/{customer}/activate', [StaffCustomerController::class, 'activate']);
         Route::delete('/customers/{customer}', [StaffCustomerController::class, 'destroy']);
+        Route::post('/customers/{customer}/reopen', [StaffCustomerController::class, 'reopen'])->withTrashed();
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);

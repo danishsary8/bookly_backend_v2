@@ -210,8 +210,9 @@ Rules (422 on `staff`): you cannot change your own role, deactivate or reset you
 ### Customers
 | Method | Path | Auth | Body / notes |
 | --- | --- | --- | --- |
-| GET | /staff/customers | staff | `q` (name/email/phone), `active`, `verified`, `per_page` — includes `orders_count`, `login_methods`, `removal_at` (unfinished sign-ups: when they're deleted); `meta.counts {verified, unverified}` for the tabs |
+| GET | /staff/customers | staff | `q` (name/email/phone), `active`, `verified`, `closed`, `per_page` — includes `orders_count`, `login_methods`, `removal_at` (unfinished sign-ups: when they're deleted), `closed_at` / `erase_at` (closed accounts); `closed=1` lists accounts closed in the last 30 days, newest first; `meta.counts {verified, unverified, closed}` for the tabs |
 | GET | /staff/customers/{id} | staff | adds `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd, last_order_at}` and `recent_orders` (5) |
+| POST | /staff/customers/{id}/reopen | admin | Reopens an account the customer closed, within its 30 days (422 if open or past 30 days). Audit `customer.reopened`; emails the customer; reviews, wishlist and cart removed at closing aren't restored. The detail endpoint also returns closed accounts. |
 | POST | /staff/customers/{id}/deactivate | admin | signs them out, blocks login |
 | POST | /staff/customers/{id}/activate | admin | |
 | DELETE | /staff/customers/{id} | admin | deletes an unfinished sign-up now (frees its email); 422 for verified customers or anything with orders, returns, reviews or addresses; audit-logged |
