@@ -256,7 +256,7 @@ Use `pg_dump`/`pg_restore` version 18 or newer (same as the server).
 | Symptom | Cause / fix |
 | --- | --- |
 | The website says "Telegram isn't available right now" | `TELEGRAM_BOT_TOKEN` is empty, or Telegram refused it: Sentry (and the Telegram alert) shows `Telegram bot getMe failed: Unauthorized` → copy the token again from @BotFather → /mybots → API Token. |
-| The bot doesn't answer "Start" | Telegram doesn't know the webhook yet. Render → **Logs**: search `telegram:webhook` / "Telegram bot" at the last start. `bad webhook: HTTPS url must be provided` → set `APP_URL` to the API's https address and redeploy. While the free API is asleep the first answer can take ~30 s (Telegram retries). |
+| The bot doesn't answer "Start" | Telegram isn't delivering the bot's messages to the API. The API checks this whenever a customer taps a Telegram button (at most every 10 minutes) and sets its own address if Telegram has another one (log: "Telegram bot webhook was … now …"), so first just try again. If Telegram reports a delivery error, Sentry (and the Telegram alert) says `Telegram couldn't deliver the bot's messages to …: <reason>` with a hint. While the free API is asleep the first answer can take ~30 s (Telegram retries). |
 | Deployment stuck on "Waiting for CI" | the GitHub Actions run for that commit failed or is still running — open the Actions tab |
 | Pre-deploy failed | a migration error; the old version is still serving. Read the deploy logs, fix, push again |
 | Health check fails with `down` | `DB_URL` not set (re-run `railway config apply`) or the database is still starting |
