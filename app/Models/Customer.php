@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Auth\TelegramGateway;
 use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -63,8 +64,9 @@ class Customer extends Authenticatable
     }
 
     /**
-     * The ways this customer can sign in today: `password` (needs an email to type), `google`, `facebook`.
-     * Account → Sign-in & security never removes the last one.
+     * The ways this customer can sign in today: `password` (needs an email to type), `google`, `facebook`,
+     * `phone` (a verified number, while Telegram codes are switched on). Account → Sign-in & security never
+     * removes the last one.
      *
      * @return list<string>
      */
@@ -74,6 +76,7 @@ class Customer extends Authenticatable
             $this->password_hash !== null && $this->email !== null ? 'password' : null,
             $this->google_id !== null ? 'google' : null,
             $this->facebook_id !== null ? 'facebook' : null,
+            $this->hasVerifiedPhone() && TelegramGateway::enabled() ? 'phone' : null,
         ]));
     }
 

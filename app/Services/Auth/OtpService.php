@@ -56,6 +56,36 @@ class OtpService
         Cache::put($this->pendingKey($customer), $phoneE164, now()->addMinutes($ttl));
     }
 
+    /**
+     * A sign-in code to an account's verified number (POST /auth/phone-login). Same per-number limits as
+     * every Telegram code.
+     *
+     * @throws TelegramCodeNotSent
+     */
+    public function issueLoginCode(Customer $customer): void
+    {
+        [$code, $ttl] = $this->newCode($customer, VerificationPurpose::PhoneLogin);
+        try {
+            $this->telegram->send($customer->phone_e164, $code, $ttl * 60);
+        } catch (TelegramCodeNotSent $e) {
+            $this->cancel($customer, VerificationPurpose::PhoneLogin);
+            throw $e;
+        }
+    }
+
+    /**
+     * Counts a code request against a number, whether or not an account has it, so the limits answer the
+     * same for every number and can't be used to find out which numbers are customers.
+     *
+     * @throws ValidationException when this number has had too many codes
+     */
+    public function spendPhoneAllowance(string $phoneE164): void
+    {
+        $this->guardPhoneLimits($phoneE164);
+        RateLimiter::hit('phone-codes-hour:'.$phoneE164, 3600);
+        RateLimiter::hit('phone-codes-day:'.$phoneE164, 86400);
+    }
+
     /** The number waiting for its code, if any. */
     public function pendingPhone(Customer $customer): ?string
     {

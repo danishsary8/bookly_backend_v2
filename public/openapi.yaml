@@ -215,7 +215,7 @@ components:
         verified: { type: boolean, description: 'Email or phone proven; only verified customers can shop' }
         has_password: { type: boolean }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
-        sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook] }, description: 'Ways this account can sign in today (password counts only with an email). The last one cannot be removed.' }
+        sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, phone] }, description: 'Ways this account can sign in today (password counts only with an email; phone only while Telegram codes are on). The last one cannot be removed.' }
         created_at: { type: string, format: date-time }
     BookCard:
       type: object
@@ -536,6 +536,22 @@ paths:
     post: { tags: [Customer auth], summary: 'Verify the phone number with the Telegram code', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string, pattern: '^[0-9]{6}$' } } } } } }, responses: { '200': { description: 'Verified (customer in the body)' }, '422': { description: 'Wrong or expired code, or the number is taken' } } }
   /auth/forgot-password:
     post: { tags: [Customer auth], summary: 'Email a reset code (same answer whether the email exists or not)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, turnstile_token: { type: string } } } } } }, responses: { '200': { description: OK } } }
+  /auth/phone-login:
+    post:
+      tags: [Customer auth]
+      summary: Sign in with a phone number, step 1 (Telegram code)
+      security: []
+      description: 'Sends a sign-in code to the Telegram of an active account that proved this +855 number. Answers the same for every number (known or not), and counts against the number''s limits (3 an hour, 10 a day) either way, so it cannot be used to find customers. 503 while Telegram codes are off.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string }, turnstile_token: { type: string } } } } } }
+      responses: { '200': { description: 'Same answer for every number' }, '422': { $ref: '#/components/responses/Validation' }, '503': { description: Telegram codes are off } }
+  /auth/phone-login/verify:
+    post:
+      tags: [Customer auth]
+      summary: Sign in with a phone number, step 2 (the code)
+      security: []
+      description: 'Five wrong codes throw the code away. Signs in like POST /auth/login.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone, code], properties: { phone: { type: string }, code: { type: string, pattern: '^[0-9]{6}$' } } } } } }
+      responses: { '200': { description: 'Signed in: customer, token, expires_at' }, '422': { description: Wrong or expired code } }
   /auth/reset-password:
     post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
   /me:

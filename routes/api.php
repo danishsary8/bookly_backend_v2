@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\EmailController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
+use App\Http\Controllers\Api\V1\Customer\PhoneLoginController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
@@ -68,6 +69,8 @@ Route::prefix('auth')->group(function () {
         Route::post('/social/{provider}', SocialAuthController::class)->whereIn('provider', ['google', 'facebook']);
     });
     Route::post('/forgot-password', [CustomerAuthController::class, 'forgotPassword'])->middleware('throttle:otp-send');
+    Route::post('/phone-login', [PhoneLoginController::class, 'store'])->middleware('throttle:otp-send');
+    Route::post('/phone-login/verify', [PhoneLoginController::class, 'verify'])->middleware('throttle:auth');
 
     Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
         Route::post('/logout', [CustomerAuthController::class, 'logout']);
