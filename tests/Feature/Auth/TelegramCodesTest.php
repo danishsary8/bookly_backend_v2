@@ -112,18 +112,47 @@ class TelegramCodesTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_a_number_gets_at_most_three_codes_an_hour(): void
+    public function test_a_customer_can_ask_for_a_new_code_as_often_as_they_need(): void
     {
+        // Owner (2026-10-08): no cap per number by default; a missing code is often our side, not theirs.
+        $this->gateway();
+        $token = $this->register()->assertCreated()->json('token');
+        foreach ([1, 2, 3, 4] as $_) {
+            $this->travel(4)->minutes(); // past the per-visitor limit (3 sends per 10 minutes)
+            $this->withToken($token)->postJson('/api/v1/auth/resend-verification', ['channel' => 'telegram'])->assertOk();
+        }
+
+        $this->assertCount(5, $this->sent);
+    }
+
+    public function test_a_cap_per_number_can_be_switched_on(): void
+    {
+        config(['auth.otp.phone_codes_per_hour' => 3]);
         $this->gateway();
         $token = $this->register()->assertCreated()->json('token');
         foreach ([1, 2] as $_) {
             $this->withToken($token)->postJson('/api/v1/auth/resend-verification', ['channel' => 'telegram'])->assertOk();
-            $this->travel(4)->minutes(); // past the per-request limit, still within the hour
+            $this->travel(4)->minutes();
         }
 
         $this->withToken($token)->postJson('/api/v1/auth/resend-verification', ['channel' => 'telegram'])
             ->assertUnprocessable()->assertJsonValidationErrors(['phone' => '3 codes in the last hour']);
         $this->assertCount(3, $this->sent);
+    }
+
+    public function test_codes_telegram_could_not_send_never_count_against_the_cap(): void
+    {
+        config(['auth.otp.phone_codes_per_hour' => 1]);
+        Http::fake([self::GATEWAY => Http::sequence()
+            ->push(['ok' => false, 'error' => 'BALANCE_NOT_ENOUGH']) // our side: nothing reached the customer
+            ->push(['ok' => true, 'result' => ['request_id' => 'r1']])
+            ->push(['ok' => true, 'result' => ['request_id' => 'r2']])]);
+
+        $this->register()->assertUnprocessable()->assertJsonValidationErrors('phone');
+        $token = $this->register()->assertCreated()->json('token'); // the failed send didn't use up the one code
+        $this->travel(11)->minutes();
+        $this->withToken($token)->postJson('/api/v1/auth/resend-verification', ['channel' => 'telegram'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['phone' => '1 code in the last hour']);
     }
 
     public function test_send_it_by_email_instead(): void

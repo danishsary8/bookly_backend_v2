@@ -60,7 +60,7 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `CORS_ALLOWED_ORIGINS` | your frontend URL |
 | `LOG_REQUESTS` | `true` |
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | see "Email on Render" below |
-| optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_GATEWAY_TOKEN` (verification codes by Telegram; gateway.telegram.org, prepaid ~$0.01 per code) |
+| optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_GATEWAY_TOKEN` (verification codes by Telegram; gateway.telegram.org, prepaid ~$0.01 per code), `PHONE_CODES_PER_HOUR` / `PHONE_CODES_PER_DAY` (cap Telegram codes per number; leave unset for no cap, set e.g. 5 / 20 if bots ever drain the balance) |
 
 Save → Render builds the image (a few minutes) and deploys. Check `https://<your-app>.onrender.com/api/v1/health`
 → `{"status":"ok",...}` and `/docs`.

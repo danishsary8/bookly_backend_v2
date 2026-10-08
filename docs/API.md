@@ -23,7 +23,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | POST | /auth/login | email, password, turnstile_token* | token (7 days) |
 | POST | /auth/logout | — | auth |
 | POST | /auth/verify-email | code | auth. A code is thrown away after 5 wrong guesses (ask for a new one) |
-| POST | /auth/resend-verification | channel? (`email` default / `telegram`), turnstile_token* | auth, 3 per 10 min; Telegram also 3 per hour and 10 per day per number |
+| POST | /auth/resend-verification | channel? (`email` default / `telegram`), turnstile_token* | auth, 3 per 10 min per visitor. No cap per phone number unless `PHONE_CODES_PER_HOUR` / `PHONE_CODES_PER_DAY` are set (off by default); codes Telegram couldn't send never count |
 | POST | /auth/phone | phone, turnstile_token* | auth. Add or change the phone: sends a Telegram code; the number is saved only when verified (a typo never replaces a proven number). A number already on another account: 422 |
 | POST | /auth/verify-phone | code | auth. Saves the number as verified (`phone_number`, `phone_verified`); this alone makes the account verified |
 | POST | /auth/forgot-password | email, turnstile_token* | always 200 |
