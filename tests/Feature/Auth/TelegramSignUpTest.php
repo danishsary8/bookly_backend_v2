@@ -28,6 +28,8 @@ class TelegramSignUpTest extends TestCase
         parent::setUp();
         Notification::fake();
         config(['services.telegram_bot.token' => '123:bot-token', 'services.telegram_bot.username' => 'BooklyBot']);
+        // Telegram already delivers the bot's messages here (checked when a link starts).
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['url' => rtrim((string) config('app.url'), '/').'/api/v1/telegram/webhook']])]);
     }
 
     private function register(array $overrides = []): TestResponse
