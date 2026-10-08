@@ -215,7 +215,7 @@ components:
         verified: { type: boolean, description: 'Email or phone proven; only verified customers can shop' }
         has_password: { type: boolean }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
-        sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, phone] }, description: 'Ways this account can sign in today (password counts only with an email; phone only while Telegram codes are on). The last one cannot be removed.' }
+        sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, telegram] }, description: 'Ways this account can sign in today (password counts only with an email; telegram means a verified number, while the Telegram bot is on). The last one cannot be removed.' }
         created_at: { type: string, format: date-time }
     BookCard:
       type: object
@@ -480,8 +480,8 @@ paths:
   /auth/register:
     post:
       tags: [Customer auth]
-      summary: Create an account; a 6-digit code goes to the email, or to the phone's Telegram (verify_by)
-      description: 'verify_by=telegram needs a Cambodian phone and GET /auth/options telegram_codes=true; the email is then optional (phone-only accounts sign in with POST /auth/phone-login). If Telegram cannot deliver, nothing is created and the phone field explains why. A phone-only sign-up that was never verified is taken over by signing up again with the same number. If the email belongs to a sign-up that was never verified, that account is taken over (new name and password, its old sessions and codes cancelled). Sign-ups still unverified after UNVERIFIED_CUSTOMER_HOURS (48) are deleted. A verified, deactivated or deleted account keeps its email (422).'
+      summary: Create an account; confirm it with an email code, or with your phone number in the Telegram bot (verify_by)
+      description: 'verify_by=telegram needs GET /auth/options telegram=true (else 422 on verify_by); the email is then optional and no code is sent: the website continues with POST /auth/telegram/phone, and the number shared in the bot verifies the account (it then signs in with Continue with Telegram). If the email belongs to a sign-up that was never verified, that account is taken over (new name and password, its old sessions and codes cancelled). Sign-ups still unverified after UNVERIFIED_CUSTOMER_HOURS (48) are deleted. A verified, deactivated or deleted account keeps its email (422).'
       security: []
       requestBody:
         required: true
@@ -495,12 +495,12 @@ paths:
                 email: { type: string, format: email, description: 'Required unless verify_by=telegram' }
                 password: { type: string, minLength: 8, description: Letters and numbers }
                 password_confirmation: { type: string }
-                phone: { type: string, description: 'Required with verify_by=telegram (+855 only)' }
+                phone: { type: string, description: 'Contact number for email sign-ups; ignored with verify_by=telegram (the bot gives the proven number)' }
                 verify_by: { type: string, enum: [email, telegram], default: email }
                 turnstile_token: { type: string, description: 'Cloudflare Turnstile token; required once TURNSTILE_SECRET_KEY is set' }
       responses:
         '201':
-          description: Account + token + verify_by. Shopping routes return 403 until the code is entered.
+          description: Account + token + verify_by. Shopping routes return 403 until the account is confirmed.
           content:
             application/json:
               schema:
@@ -510,7 +510,7 @@ paths:
                     properties: { customer: { $ref: '#/components/schemas/Customer' }, message: { type: string }, verify_by: { type: string, enum: [email, telegram] } }
         '422': { $ref: '#/components/responses/Validation' }
   /auth/options:
-    get: { tags: [Customer auth], summary: 'What sign-up can offer: telegram_codes is true once TELEGRAM_GATEWAY_TOKEN is set', security: [], responses: { '200': { description: Options, content: { application/json: { schema: { type: object, properties: { telegram_codes: { type: boolean } } } } } } } }
+    get: { tags: [Customer auth], summary: 'What sign-up and sign-in can offer: telegram is true once TELEGRAM_BOT_TOKEN is set', security: [], responses: { '200': { description: Options, content: { application/json: { schema: { type: object, properties: { telegram: { type: boolean } } } } } } } }
   /auth/login:
     post:
       tags: [Customer auth]
@@ -526,39 +526,19 @@ paths:
     post:
       tags: [Customer auth]
       summary: Log in with a Google or Facebook access token
-      description: 'Signs in the account already linked to this Google/Facebook id, or creates one. An email that already has a verified (or closed) account is refused with 409 and told how to sign in instead; an unfinished sign-up with that email becomes the social account (its password and sessions are removed). A new Facebook account needs a Cambodian phone number and its email is optional: without phone the answer is 422 with needs=phone and profile {name, email}; call again with the same access_token, phone, optional email and turnstile_token. The response then says where the code went (verify_by: telegram, email, or null when Facebook confirmed the email).'
+      description: 'Signs in the account already linked to this Google/Facebook id, or creates one. An email that already has a verified (or closed) account is refused with 409 and told how to sign in instead; an unfinished sign-up with that email becomes the social account (its password and sessions are removed). A new Facebook account confirms a phone number in the Telegram bot, or gives an email: without verify_by the answer is 422 with needs=phone, profile {name, email} and telegram (bot on); call again with the same access_token, verify_by (telegram or email), the email (optional with telegram) and turnstile_token. verify_by in the response says what is next: telegram (POST /auth/telegram/phone), email (a code was sent) or null (Facebook confirmed the email).'
       security: []
       parameters: [ { name: provider, in: path, required: true, schema: { type: string, enum: [google, facebook] } } ]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [access_token], properties: { access_token: { type: string }, phone: { type: string, description: 'Facebook sign-up only' }, email: { type: string, description: 'Facebook sign-up only, optional' }, turnstile_token: { type: string } } } } } }
-      responses: { '200': { description: Existing account }, '201': { description: New account }, '401': { description: Provider rejected the token }, '409': { description: 'The email already has an account: sign in as before' }, '422': { description: 'needs=phone (Facebook sign-up), or the phone/email is invalid, taken or cannot get a code' } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [access_token], properties: { access_token: { type: string }, verify_by: { type: string, enum: [telegram, email], description: 'Facebook sign-up only' }, email: { type: string, description: 'Facebook sign-up only; required with verify_by=email' }, turnstile_token: { type: string } } } } } }
+      responses: { '200': { description: Existing account }, '201': { description: New account }, '401': { description: Provider rejected the token }, '409': { description: 'The email already has an account: sign in as before' }, '422': { description: 'needs=phone (Facebook sign-up), the email is missing or taken, or Telegram is off' } }
   /auth/logout:
     post: { tags: [Customer auth], summary: 'Revoke the current token', responses: { '200': { description: Logged out } } }
   /auth/verify-email:
     post: { tags: [Customer auth], summary: 'Verify the email with the 6-digit code', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string, pattern: '^[0-9]{6}$' } } } } } }, responses: { '200': { description: Verified }, '422': { description: Wrong or expired code } } }
   /auth/resend-verification:
-    post: { tags: [Customer auth], summary: 'Send a new verification code by email or Telegram (3 per 10 min per visitor; optional cap per phone number with PHONE_CODES_PER_HOUR / PHONE_CODES_PER_DAY, off by default)', requestBody: { content: { application/json: { schema: { type: object, properties: { channel: { type: string, enum: [email, telegram], default: email }, turnstile_token: { type: string } } } } } }, responses: { '200': { description: Sent }, '422': { $ref: '#/components/responses/Validation' } } }
-  /auth/phone:
-    post: { tags: [Customer auth], summary: 'Add or change the phone number: sends a Telegram code; the number is saved once verified', requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string }, turnstile_token: { type: string } } } } } }, responses: { '200': { description: Code sent }, '422': { $ref: '#/components/responses/Validation' } } }
-  /auth/verify-phone:
-    post: { tags: [Customer auth], summary: 'Verify the phone number with the Telegram code', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string, pattern: '^[0-9]{6}$' } } } } } }, responses: { '200': { description: 'Verified (customer in the body)' }, '422': { description: 'Wrong or expired code, or the number is taken' } } }
+    post: { tags: [Customer auth], summary: 'Send a new email verification code (3 per 10 min per visitor; 422 without an email)', requestBody: { content: { application/json: { schema: { type: object, properties: { turnstile_token: { type: string } } } } } }, responses: { '200': { description: Sent }, '422': { $ref: '#/components/responses/Validation' } } }
   /auth/forgot-password:
     post: { tags: [Customer auth], summary: 'Email a reset code (same answer whether the email exists or not)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, turnstile_token: { type: string } } } } } }, responses: { '200': { description: OK } } }
-  /auth/phone-login:
-    post:
-      tags: [Customer auth]
-      summary: Sign in with a phone number, step 1 (Telegram code)
-      security: []
-      description: 'Sends a sign-in code to the Telegram of the active account that proved this +855 number. 422 on phone when no account has this verified number, when Telegram cannot deliver to it, or when the gateway fails on our side (each with its own message); 403 for a deactivated account; 503 while Telegram codes are off.'
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string }, turnstile_token: { type: string } } } } } }
-      responses: { '200': { description: 'Code sent; phone is the number it went to' }, '403': { description: Deactivated account }, '422': { $ref: '#/components/responses/Validation' }, '503': { description: Telegram codes are off } }
-  /auth/phone-login/verify:
-    post:
-      tags: [Customer auth]
-      summary: Sign in with a phone number, step 2 (the code)
-      security: []
-      description: 'Five wrong codes throw the code away. Signs in like POST /auth/login.'
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone, code], properties: { phone: { type: string }, code: { type: string, pattern: '^[0-9]{6}$' } } } } } }
-      responses: { '200': { description: 'Signed in: customer, token, expires_at' }, '422': { description: Wrong or expired code } }
   /auth/telegram:
     post:
       tags: [Customer auth]
