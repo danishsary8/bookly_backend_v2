@@ -42,14 +42,6 @@ return [
     ],
 
     // Cloudflare Turnstile (bot check on sign-up, sign-in and code emails); off while the secret is empty.
-    // Verification codes by Telegram (phone numbers). The token comes from the dashboard (gateway.telegram.org →
-    // Settings); the API itself lives on gatewayapi.telegram.org (core.telegram.org/gateway/api).
-    'telegram_gateway' => [
-        'token' => env('TELEGRAM_GATEWAY_TOKEN'),
-        // Only changed for local testing against a stand-in.
-        'url' => env('TELEGRAM_GATEWAY_URL', 'https://gatewayapi.telegram.org'),
-    ],
-
     // The Bookly Telegram bot (free Bot API): customers confirm their phone number by tapping "Share my phone
     // number" in the bot, and sign in the same way. Token from @BotFather; off while it is empty.
     'telegram_bot' => [

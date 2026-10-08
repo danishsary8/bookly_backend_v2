@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\EmailController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
-use App\Http\Controllers\Api\V1\Customer\PhoneLoginController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
@@ -74,17 +73,13 @@ Route::prefix('auth')->group(function () {
         Route::post('/social/{provider}', SocialAuthController::class)->whereIn('provider', ['google', 'facebook']);
     });
     Route::post('/forgot-password', [CustomerAuthController::class, 'forgotPassword'])->middleware('throttle:otp-send');
-    Route::post('/phone-login', [PhoneLoginController::class, 'store'])->middleware('throttle:otp-send');
     Route::post('/telegram', [TelegramAuthController::class, 'login'])->middleware('throttle:telegram-link');
     Route::post('/telegram/status', [TelegramAuthController::class, 'status']);
-    Route::post('/phone-login/verify', [PhoneLoginController::class, 'verify'])->middleware('throttle:auth');
 
     Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
         Route::post('/logout', [CustomerAuthController::class, 'logout']);
         Route::post('/verify-email', [CustomerAuthController::class, 'verifyEmail'])->middleware('throttle:auth');
         Route::post('/resend-verification', [CustomerAuthController::class, 'resendVerification'])->middleware('throttle:otp-send');
-        Route::post('/phone', [CustomerAuthController::class, 'sendPhoneVerification'])->middleware('throttle:otp-send');
-        Route::post('/verify-phone', [CustomerAuthController::class, 'verifyPhone'])->middleware('throttle:auth');
         Route::post('/telegram/phone', [TelegramAuthController::class, 'phone'])->middleware('throttle:telegram-link');
     });
 });

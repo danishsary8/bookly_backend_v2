@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Sign-ups that were never finished (the email or Telegram code was never entered).
+ * Sign-ups that were never finished (the email code was never entered, or the phone never confirmed in Telegram).
  *
  * They can't shop, so they only hold an email address hostage. After `auth.unverified_customer_hours`
  * (48 by default) they are deleted for good. Deactivated accounts are kept: staff turned them off on
