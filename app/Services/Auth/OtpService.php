@@ -12,16 +12,12 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OtpService
 {
     public const MAX_WRONG_GUESSES = 5;
-
-    /** Telegram codes per phone number (owner's limits): they cost money, so bots can't farm them. */
-    public const PHONE_CODES_PER_HOUR = 3;
-
-    public const PHONE_CODES_PER_DAY = 10;
 
     public function __construct(private readonly TelegramGateway $telegram) {}
 
@@ -51,8 +47,7 @@ class OtpService
             $this->tokensFor($customer, VerificationPurpose::PhoneVerify)->whereNull('used_at')->update(['used_at' => now()]);
             throw $e;
         }
-        RateLimiter::hit('phone-codes-hour:'.$phoneE164, 3600);
-        RateLimiter::hit('phone-codes-day:'.$phoneE164, 86400);
+        $this->countPhoneCode($phoneE164);
         Cache::put($this->pendingKey($customer), $phoneE164, now()->addMinutes($ttl));
     }
 
@@ -127,15 +122,38 @@ class OtpService
         return 'email-pending:'.$customer->getKey();
     }
 
+    /**
+     * Optional cap on Telegram codes per number (`PHONE_CODES_PER_HOUR` / `PHONE_CODES_PER_DAY`). Off by default
+     * (owner, 2026-10-08): when a code goes missing it is often our side, and the customer must be able to ask
+     * again. Turnstile and the per-visitor `otp-send` limit still apply; set a cap if bots ever drain the balance.
+     *
+     * @return list<array{string, int, string}> [cache key prefix, max codes, period in words]
+     */
+    private function phoneLimits(): array
+    {
+        return array_values(array_filter([
+            ['phone-codes-hour:', (int) config('auth.otp.phone_codes_per_hour'), 'the last hour'],
+            ['phone-codes-day:', (int) config('auth.otp.phone_codes_per_day'), 'the last day'],
+        ], fn (array $limit) => $limit[1] > 0));
+    }
+
     private function guardPhoneLimits(string $phoneE164): void
     {
-        foreach ([['phone-codes-hour:', self::PHONE_CODES_PER_HOUR, 'the last hour'], ['phone-codes-day:', self::PHONE_CODES_PER_DAY, 'the last day']] as [$key, $max, $period]) {
+        foreach ($this->phoneLimits() as [$key, $max, $period]) {
             if (RateLimiter::tooManyAttempts($key.$phoneE164, $max)) {
                 $minutes = max(1, (int) ceil(RateLimiter::availableIn($key.$phoneE164) / 60));
                 throw ValidationException::withMessages([
-                    'phone' => "This number has had {$max} codes in {$period}. Try again in {$minutes} min, or use email.",
+                    'phone' => "This number has had {$max} ".Str::plural('code', $max)." in {$period}. Try again in {$minutes} min, or use email.",
                 ]);
             }
+        }
+    }
+
+    /** Counts a code Telegram accepted (failed sends never count). */
+    private function countPhoneCode(string $phoneE164): void
+    {
+        foreach ($this->phoneLimits() as [$key, , $period]) {
+            RateLimiter::hit($key.$phoneE164, $period === 'the last hour' ? 3600 : 86400);
         }
     }
 

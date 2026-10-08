@@ -128,6 +128,9 @@ return [
     'otp' => [
         'ttl_minutes' => (int) env('OTP_TTL_MINUTES', 15),
         'length' => 6,
+        // Telegram codes per phone number; 0 = no cap (default). Set them if bots ever drain the Gateway balance.
+        'phone_codes_per_hour' => (int) env('PHONE_CODES_PER_HOUR', 0),
+        'phone_codes_per_day' => (int) env('PHONE_CODES_PER_DAY', 0),
     ],
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
