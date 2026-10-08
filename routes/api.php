@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Customer\CartController;
 use App\Http\Controllers\Api\V1\Customer\CheckoutController;
 use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
+use App\Http\Controllers\Api\V1\Customer\EmailController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
@@ -85,6 +86,8 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::patch('/', [ProfileController::class, 'update']);
     Route::put('/password', [ProfileController::class, 'changePassword'])->middleware('throttle:auth');
     Route::delete('/', [ProfileController::class, 'destroy'])->middleware('throttle:auth');
+    Route::post('/email', [EmailController::class, 'store'])->middleware('throttle:otp-send');
+    Route::post('/email/verify', [EmailController::class, 'verify'])->middleware('throttle:auth');
     Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
     Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
 });

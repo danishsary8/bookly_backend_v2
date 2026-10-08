@@ -25,9 +25,11 @@ class OtpCodeNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $subject = $this->purpose === VerificationPurpose::EmailVerify
-            ? 'Verify your email address'
-            : 'Reset your password';
+        $subject = match ($this->purpose) {
+            VerificationPurpose::EmailVerify => 'Verify your email address',
+            VerificationPurpose::EmailChange => 'Confirm your new email address',
+            default => 'Reset your password',
+        };
 
         return (new MailMessage)
             ->subject($subject)
