@@ -58,6 +58,7 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `SESSION_DRIVER` | `array` |
 | `TRUSTED_PROXIES` | `REMOTE_ADDR` |
 | `CORS_ALLOWED_ORIGINS` | your frontend URL |
+| `CORS_ALLOWED_ORIGIN_PATTERNS` | optional comma-separated regexes without delimiters for previews, e.g. `^https://bookly-frontend-[a-z0-9-]+-danishsary8s-projects\.vercel\.app$`; leave empty to allow only the exact origin list |
 | `LOG_REQUESTS` | `true` |
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | see "Email on Render" below |
 | optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_BOT_TOKEN` (the free Bookly Telegram bot: phone sign-in and phone confirmation; see "Telegram bot" below) |
