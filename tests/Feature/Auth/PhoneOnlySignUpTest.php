@@ -23,7 +23,7 @@ class PhoneOnlySignUpTest extends TestCase
         parent::setUp();
         Notification::fake();
         config(['services.telegram_gateway.token' => 'gateway-token']);
-        Http::fake(['gateway.telegram.org/*' => function (HttpRequest $request) {
+        Http::fake(['gatewayapi.telegram.org/*' => function (HttpRequest $request) {
             $this->sent[] = $request['code'];
 
             return Http::response(['ok' => true, 'result' => ['request_id' => 'r1']]);

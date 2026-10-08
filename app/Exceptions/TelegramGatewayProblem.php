@@ -22,6 +22,11 @@ class TelegramGatewayProblem extends RuntimeException
         return new self("Telegram Gateway refused a code: {$error}.{$hint}");
     }
 
+    public static function unexpected(int $status, string $contentType, string $url): self
+    {
+        return new self("Telegram Gateway gave an unexpected answer (HTTP {$status}, {$contentType}) from {$url}. The API address should be https://gatewayapi.telegram.org (TELEGRAM_GATEWAY_URL is only for local testing).");
+    }
+
     public static function unreachable(string $reason): self
     {
         return new self("Telegram Gateway could not be reached: {$reason}");
