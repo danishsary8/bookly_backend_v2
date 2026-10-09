@@ -13,7 +13,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | /ping | `{"status":"ok","version":"v1"}` |
-| GET | /health | `{status: ok\|degraded\|down, checks: {database, queue {pending, failed, oldest_pending_seconds}}}`. 503 when the database is down; `degraded` when a queued job has waited over 10 minutes (worker not running). For uptime monitors. |
+| GET | /health | `{status: ok\|degraded\|down, checks: {database, queue {pending, failed, oldest_pending_seconds}, telegram_bot {status: off\|ok\|degraded, error?}}}`. Database down keeps the existing 503 response. Otherwise HTTP 200; overall `degraded` when a queued job has waited over 10 minutes or the bot is degraded. Bot `off` without a token; `getWebhookInfo` cached 10 minutes (including failures). Bot `ok` when its URL matches this request's webhook address (HTTPS in production, as with `ensureWebhook()`) and no delivery error is dated within the last 30 minutes; otherwise `error` is the delivery message (token redacted), `webhook not set`, or `Telegram unreachable`. For uptime monitors. |
 
 ## Customer auth
 | Method | Path | Body | Notes |

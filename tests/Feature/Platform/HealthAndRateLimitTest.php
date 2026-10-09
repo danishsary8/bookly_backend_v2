@@ -13,7 +13,7 @@ class HealthAndRateLimitTest extends TestCase
 
     public function test_health_is_ok_with_a_working_database_and_queue(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'services.telegram_bot.token' => null]);
 
         $this->getJson('/api/v1/health')->assertOk()
             ->assertJsonPath('status', 'ok')
@@ -24,7 +24,7 @@ class HealthAndRateLimitTest extends TestCase
 
     public function test_old_unprocessed_jobs_mark_the_queue_degraded(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'services.telegram_bot.token' => null]);
         DB::table('jobs')->insert(['queue' => 'default', 'payload' => '{}', 'attempts' => 0, 'available_at' => now()->getTimestamp(), 'created_at' => now()->subMinutes(20)->getTimestamp()]);
 
         $this->getJson('/api/v1/health')->assertOk()
