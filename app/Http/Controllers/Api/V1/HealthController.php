@@ -50,7 +50,8 @@ class HealthController extends Controller
 
         try {
             $bot = app(TelegramBot::class);
-            $expected = $bot->webhookUrl();
+            $base = app()->isProduction() ? 'https://'.request()->getHttpHost() : request()->getSchemeAndHttpHost();
+            $expected = $bot->webhookUrl($base);
             $token = (string) config('services.telegram_bot.token');
             $key = 'health-telegram-bot:'.hash('sha256', $token.'|'.$expected);
             $cached = Cache::remember($key, now()->addMinutes(10), function () use ($bot) {

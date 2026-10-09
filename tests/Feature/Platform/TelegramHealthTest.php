@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Platform;
 
-use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -34,7 +33,7 @@ class TelegramHealthTest extends TestCase
     {
         Http::fake([self::URL => Http::response([
             'ok' => true,
-            'result' => array_replace(['url' => app(TelegramBot::class)->webhookUrl()], $info),
+            'result' => array_replace(['url' => url('/api/v1/telegram/webhook')], $info),
         ])]);
     }
 
@@ -58,6 +57,17 @@ class TelegramHealthTest extends TestCase
             ->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
         $this->assertStringNotContainsString(self::TOKEN, $response->getContent());
         Http::assertSent(fn ($request) => $request->method() === 'POST' && $request->url() === self::URL);
+        Http::assertSentCount(1);
+    }
+
+    public function test_webhook_matches_the_request_host_even_when_app_url_differs(): void
+    {
+        config(['app.url' => 'https://configured-api.example.com']);
+        $this->webhookInfo(['url' => 'https://live-api.example.com/api/v1/telegram/webhook']);
+
+        $this->getJson('https://live-api.example.com/api/v1/health')->assertOk()
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
         Http::assertSentCount(1);
     }
 
@@ -145,7 +155,7 @@ class TelegramHealthTest extends TestCase
     public function test_webhook_info_is_cached_for_ten_minutes_then_refreshed(): void
     {
         Http::fake([self::URL => Http::sequence()
-            ->push(['ok' => true, 'result' => ['url' => app(TelegramBot::class)->webhookUrl()]])
+            ->push(['ok' => true, 'result' => ['url' => url('/api/v1/telegram/webhook')]])
             ->push(['ok' => true, 'result' => ['url' => '']])]);
 
         $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.status', 'ok');

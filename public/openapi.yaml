@@ -394,7 +394,7 @@ paths:
       tags: [Public]
       summary: Database, queue and Telegram bot health for uptime monitors
       security: []
-      description: 'Includes checks.telegram_bot: off without a bot token; otherwise getWebhookInfo is cached for 10 minutes, including failures. Status is ok when the webhook URL matches the configured API URL and no delivery error is dated within the last 30 minutes. Otherwise degraded with error: Telegram delivery message (token redacted), webhook not set, or Telegram unreachable. A degraded queue or bot makes overall status degraded; HTTP stays 200. Database down keeps the existing 503 response.'
+      description: 'Includes checks.telegram_bot: off without a bot token; otherwise getWebhookInfo is cached for 10 minutes, including failures. Status is ok when the webhook URL matches this request''s API address (HTTPS in production) and no delivery error is dated within the last 30 minutes. Otherwise degraded with error: Telegram delivery message (token redacted), webhook not set, or Telegram unreachable. A degraded queue or bot makes overall status degraded; HTTP stays 200. Database down keeps the existing 503 response.'
       responses:
         '200': { description: 'status ok or degraded (queue jobs waiting > 10 min or Telegram bot degraded); checks include database, queue and telegram_bot' }
         '503': { description: Database unreachable }
