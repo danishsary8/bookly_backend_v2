@@ -63,6 +63,8 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | see "Email on Render" below |
 | optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_BOT_TOKEN` (the free Bookly Telegram bot: phone sign-in and phone confirmation; see "Telegram bot" below) |
 
+Sentry's release tag comes automatically from Render's `RENDER_GIT_COMMIT`; `SENTRY_RELEASE` overrides it.
+
 Save → Render builds the image (a few minutes) and deploys. Check `https://<your-app>.onrender.com/api/v1/health`
 → `{"status":"ok",...}` and `/docs`.
 
