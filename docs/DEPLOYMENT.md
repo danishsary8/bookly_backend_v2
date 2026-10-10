@@ -295,16 +295,59 @@ Watch the run; the last step uploads `bookly-db-YYYY-MM-DD`. After that the sche
 ### 3. Restore from a backup
 
 > **Always restore into a new Neon branch first — never straight over production.**
+> Never paste connection strings or the passphrase in chat or screenshots.
 
 1. GitHub → **Actions** → pick the backup run → download the `bookly-db-YYYY-MM-DD` artifact (a zip containing `bookly.dump.gpg`).
 2. Decrypt:
+   On Windows, install [Gpg4win](https://www.gpg4win.org/) or use `gpg` from Git for Windows (`C:\Program Files\Git\usr\bin\gpg.exe`).
+   Use `-o` instead of PowerShell `>` redirection (PowerShell `>` corrupts binary output):
    ```bash
-   gpg -d bookly.dump.gpg > bookly.dump
+   gpg -o bookly.dump -d bookly.dump.gpg
    ```
    Enter the `BACKUP_PASSPHRASE` when prompted.
 3. In Neon: **Branches → New Branch** from the current production branch (this gives you a safe copy to test on).
 4. Restore into the new branch:
+   A new Neon branch already contains production tables, so `--clean` and `--if-exists` are needed:
    ```bash
-   pg_restore --no-owner --no-privileges -d "postgresql://…new-branch-connection-string…" bookly.dump
+   pg_restore --clean --if-exists --no-owner --no-privileges -d "$RESTORE_URL" bookly.dump
    ```
-5. Verify the data, then (only if correct) repeat step 4 against the production connection string, or promote the branch.
+   (Replace `$RESTORE_URL` with the new Neon branch's direct connection string).
+5. Compare row counts between the test branch and production (e.g. check `books`, `orders`, `customers`; the temporary `cache` table may differ by a few rows).
+6. Clean up: delete the unencrypted `bookly.dump` file from your machine, and delete the temporary test branch in Neon once verified. (If you ever need a real production restore, repeat step 4 against the production connection string, or promote the restored branch in Neon).
+
+---
+
+## Backup failure alert
+
+When a nightly backup fails (or is skipped because `BACKUP_DATABASE_URL` is missing), GitHub Actions sends a Telegram message to your private chat from a dedicated "Bookly Alerts" bot. Successful backups stay silent.
+
+### 1. Create the alert bot in Telegram (free)
+
+1. In Telegram, open **@BotFather** → send `/newbot`.
+2. Give it a name (e.g. `Bookly Alerts`) and a username ending in `bot` (e.g. `BooklyAlertsBot`).
+3. BotFather replies with the **bot token** (e.g. `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`). Copy it.
+4. Open your new bot in Telegram and press **Start** (bots cannot message you until you start the conversation).
+
+### 2. Get your numeric Telegram chat ID
+
+1. In Telegram, message **@userinfobot** (or send `/start`).
+2. It replies with your account info, including your numeric **Id** (e.g. `123456789`). Copy this number.
+
+### 3. Add the two repository secrets
+
+GitHub → your repository → **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret name | Value |
+| --- | --- |
+| `TELEGRAM_ALERT_BOT_TOKEN` | The bot token from BotFather |
+| `TELEGRAM_ALERT_CHAT_ID` | Your numeric chat ID from @userinfobot |
+
+### 4. Test the alert
+
+1. GitHub → **Actions** → **Nightly database backup** (left sidebar) → **Run workflow**.
+2. Tick **test_alert** (checkbox).
+3. Click **Run workflow** (green button).
+
+The workflow finishes in a few seconds without dumping or uploading anything, and sends a test message to your Telegram chat:
+`Bookly backup alert test: this message means alerts work.`
+
