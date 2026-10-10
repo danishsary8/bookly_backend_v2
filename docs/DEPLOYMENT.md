@@ -351,3 +351,7 @@ GitHub → your repository → **Settings → Secrets and variables → Actions 
 The workflow finishes in a few seconds without dumping or uploading anything, and sends a test message to your Telegram chat:
 `Bookly backup alert test: this message means alerts work.`
 
+If the test or a real alert fails, open the run and read the red line `Telegram rejected the alert (HTTP ...)`. Common reasons:
+- `chat not found`: wrong chat ID, or **Start** was not pressed in the Alerts bot conversation.
+- `Unauthorized`: wrong bot token.
+

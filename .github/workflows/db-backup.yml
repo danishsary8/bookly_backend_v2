@@ -138,9 +138,24 @@ jobs:
               "$RUN_URL")
           fi
 
-          curl --fail --silent --show-error --max-time 20 \
+          tmp_resp=$(mktemp)
+          trap 'rm -f "$tmp_resp"' EXIT INT TERM
+
+          http_code=$(curl --silent --show-error --max-time 20 \
+            -o "$tmp_resp" \
+            -w '%{http_code}' \
             "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT_ID}" \
-            --data-urlencode "text=${text}" \
-            > /dev/null
+            --data-urlencode "text=${text}")
 
+          if [ "$http_code" = "200" ]; then
+            exit 0
+          fi
+
+          desc=$(jq -r '.description // empty' "$tmp_resp" 2>/dev/null || true)
+          if [ -z "$desc" ]; then
+            desc=$(head -c 200 "$tmp_resp")
+          fi
+
+          echo "::error::Telegram rejected the alert (HTTP ${http_code}): ${desc}"
+          exit 1
