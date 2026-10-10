@@ -1,0 +1,101 @@
+name: Nightly database backup
+
+on:
+  schedule:
+    - cron: '0 19 * * *'          # 02:00 Cambodia (UTC+7)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false       # let a running backup finish; the next one queues
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    name: Dump, encrypt and upload
+    timeout-minutes: 20
+
+    steps:
+      - name: Check that BACKUP_DATABASE_URL is configured
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::BACKUP_DATABASE_URL is not set. Add it in Settings → Secrets and variables → Actions. Skipping backup."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pick the pg_dump version that matches the server
+        if: steps.check.outputs.skip != 'true'
+        id: pg
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          # postgres:17 only reads the version; the dump itself uses the server's own major version,
+          # because pg_dump must never be older than the server it dumps.
+          server_version=$(docker run --rm -e DATABASE_URL postgres:17 \
+            bash -c 'psql "$DATABASE_URL" -tAc "SELECT current_setting('"'"'server_version_num'"'"')"' | tr -d '[:space:]')
+          if ! [[ "$server_version" =~ ^[0-9]+$ ]]; then
+            echo "::error::Could not determine server PostgreSQL version (got: '$server_version'). Check BACKUP_DATABASE_URL."
+            exit 1
+          fi
+          server_major=$((server_version / 10000))
+          image="postgres:$(( server_major > 17 ? server_major : 17 ))"
+          echo "Server: PostgreSQL $server_major (version_num $server_version) -> using $image"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Dump database
+        if: steps.check.outputs.skip != 'true'
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          PG_IMAGE: ${{ steps.pg.outputs.image }}
+        run: |
+          # --user: the file belongs to the runner user, so the encrypt step (not in Docker) can read it.
+          docker run --rm --user "$(id -u):$(id -g)" -e DATABASE_URL -v "$PWD:/backup" "$PG_IMAGE" \
+            bash -c 'pg_dump -Fc --no-owner --no-privileges -f /backup/bookly.dump "$DATABASE_URL"'
+
+      - name: Validate dump
+        if: steps.check.outputs.skip != 'true'
+        env:
+          PG_IMAGE: ${{ steps.pg.outputs.image }}
+        run: |
+          size=$(stat --format=%s bookly.dump)
+          echo "Dump size: $size bytes"
+          if [ "$size" -le 1024 ]; then
+            echo "::error::Dump is only $size bytes (expected > 1 KB). The database may be empty or the connection failed."
+            exit 1
+          fi
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/backup:ro" "$PG_IMAGE" pg_restore --list /backup/bookly.dump > /dev/null
+          echo "pg_restore --list succeeded"
+
+      - name: Encrypt and remove plain dump
+        if: steps.check.outputs.skip != 'true'
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::BACKUP_PASSPHRASE is not set. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          gpg --batch --yes --symmetric --cipher-algo AES256 --pinentry-mode loopback \
+            --passphrase-fd 3 3<<< "$BACKUP_PASSPHRASE" \
+            -o bookly.dump.gpg bookly.dump
+          rm -f bookly.dump
+          echo "Encrypted backup: $(stat --format=%s bookly.dump.gpg) bytes"
+
+      - name: Set artifact date
+        if: steps.check.outputs.skip != 'true'
+        id: date
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload encrypted backup
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bookly-db-${{ steps.date.outputs.date }}
+          path: bookly.dump.gpg
+          retention-days: 30
