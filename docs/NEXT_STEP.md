@@ -1,14 +1,10 @@
 # Next step
 
 ## Now (2026-10-10)
-The full ordered to-do list and the next session's prompt live in the frontend repo: docs/ROADMAP.md and docs/NEXT_STEP.md.
+The full ordered to-do list and the next session's prompt live in the frontend repo: docs/ROADMAP.md and docs/NEXT_STEP.md. Open items are tracked there.
 
-- **Backup alert rejection reason (`chore/backup-alert-reason`)**: done. Enhanced the Telegram failure alert step in `.github/workflows/db-backup.yml` to preserve curl responses, parse error descriptions using `jq` (with a 200-char truncated fallback), and log a descriptive GitHub Actions error line `::error::Telegram rejected the alert (HTTP <code>): <description>` without leaking bot tokens or chat IDs. Tested against a local mock server for HTTP 200, 400 (chat not found), and non-JSON 502 responses. Updated troubleshooting notes in `docs/DEPLOYMENT.md`. Owner actions needed:
-  1. Create the alert bot in @BotFather and press Start in it.
-  2. Get your numeric chat ID from @userinfobot.
-  3. Add repository secrets `TELEGRAM_ALERT_BOT_TOKEN` and `TELEGRAM_ALERT_CHAT_ID` in GitHub repository settings.
-  4. Run the workflow manually from GitHub Actions with `test_alert` ticked to confirm Telegram delivery.
-- Next: owner merges `chore/backup-alert-reason` to `main`.
+- **Backup alert bot and secrets**: done and verified. The alert bot was created, repository secrets were added, and the workflow manual trigger with `test_alert` ran green with Telegram delivery confirmed.
+- **Backup alert rejection reason (`chore/backup-alert-reason`)**: done and merged. Enhanced the Telegram failure alert step in `.github/workflows/db-backup.yml` to preserve curl responses, parse error descriptions using `jq` (with a 200-char truncated fallback), and log a descriptive GitHub Actions error line `::error::Telegram rejected the alert (HTTP <code>): <description>` without leaking bot tokens or chat IDs. Tested against a local mock server for HTTP 200, 400 (chat not found), and non-JSON 502 responses. Updated troubleshooting notes in `docs/DEPLOYMENT.md`.
 
 ## Roadmap complete
 
