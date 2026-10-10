@@ -1,12 +1,12 @@
 # Next step
 
-## Now (2026-10-08)
-The paid Telegram Gateway is replaced by the free Bookly Telegram bot (`feature/telegram-bot` →
-`feature/phone-by-telegram-bot`, merge in that order after `docs/shelve-railway`, then the frontend's
-`feature/telegram-bot-sign-in`). Owner: create the bot in @BotFather and add `TELEGRAM_BOT_TOKEN` on Render
-(`docs/DEPLOYMENT.md` → "Telegram bot (free)"); `TELEGRAM_GATEWAY_TOKEN` can be deleted there. The API stays on Render
-(`docs/RAILWAY_PLAN.md` is shelved). The full ordered to-do list and the next session's prompt live in the frontend repo:
-`docs/ROADMAP.md` and `docs/NEXT_STEP.md`.
+## Now (2026-10-10)
+- **Backup failure alerts (`feature/backup-failure-alert`)**: done. Telegram failure notifications and test dispatch mode added to `.github/workflows/db-backup.yml`, with full BotFather and restore setup in `docs/DEPLOYMENT.md`. Owner actions needed:
+  1. Create the alert bot in @BotFather and press Start in it.
+  2. Get your numeric chat ID from @userinfobot.
+  3. Add repository secrets `TELEGRAM_ALERT_BOT_TOKEN` and `TELEGRAM_ALERT_CHAT_ID` in GitHub repository settings (along with `BACKUP_DATABASE_URL` and `BACKUP_PASSPHRASE` if not yet added).
+  4. Run the workflow manually from GitHub Actions with `test_alert` ticked to confirm Telegram delivery.
+- Next: merge `feature/backup-failure-alert` to `main`.
 
 ## Roadmap complete
 
