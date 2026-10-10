@@ -268,3 +268,43 @@ Use `pg_dump`/`pg_restore` version 18 or newer (same as the server).
 | No emails arrive | without a verified Resend domain only your own address receives mail; check `worker` logs and Resend → Logs |
 | Every visitor shares one rate limit | `TRUSTED_PROXIES` must be `REMOTE_ADDR` (set by the file); never `*` |
 | `MissingAppKeyException` | shared variable `APP_KEY` missing or not `base64:` + 44 characters |
+
+---
+
+## Nightly database backup
+
+A GitHub Actions workflow (`.github/workflows/db-backup.yml`) runs every night at 02:00 Cambodia time (19:00 UTC).
+It dumps the production database with `pg_dump`, encrypts the dump with AES-256 (`gpg --symmetric`), and uploads the
+`.gpg` file as a GitHub Actions artifact kept for 30 days. Only the encrypted file is stored; the plain dump is deleted
+immediately after encryption.
+
+### 1. Add the two repository secrets
+
+GitHub → your repository → **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret name | Value |
+| --- | --- |
+| `BACKUP_DATABASE_URL` | The Neon **direct** connection string (not the pooler). In Neon: **Connect** → turn **Connection pooling off** → copy the `postgresql://…` string. |
+| `BACKUP_PASSPHRASE` | A long random passphrase (e.g. `openssl rand -base64 48`). Save a copy in your password manager — you need it to decrypt backups. |
+
+### 2. Run once by hand
+
+GitHub → **Actions** → **Nightly database backup** (left sidebar) → **Run workflow** → **Run workflow** (green button).
+Watch the run; the last step uploads `bookly-db-YYYY-MM-DD`. After that the schedule takes over automatically.
+
+### 3. Restore from a backup
+
+> **Always restore into a new Neon branch first — never straight over production.**
+
+1. GitHub → **Actions** → pick the backup run → download the `bookly-db-YYYY-MM-DD` artifact (a zip containing `bookly.dump.gpg`).
+2. Decrypt:
+   ```bash
+   gpg -d bookly.dump.gpg > bookly.dump
+   ```
+   Enter the `BACKUP_PASSPHRASE` when prompted.
+3. In Neon: **Branches → New Branch** from the current production branch (this gives you a safe copy to test on).
+4. Restore into the new branch:
+   ```bash
+   pg_restore --no-owner --no-privileges -d "postgresql://…new-branch-connection-string…" bookly.dump
+   ```
+5. Verify the data, then (only if correct) repeat step 4 against the production connection string, or promote the branch.
