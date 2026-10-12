@@ -28,7 +28,7 @@ Use this when a paid Railway plan is not an option. Same Docker image, two free 
 | Database | [Neon](https://neon.tech) free PostgreSQL | 0.5 GB, does not expire (Render's own free database is deleted after 30 days) |
 
 Differences from the Railway setup: no queue worker (`QUEUE_CONNECTION=sync`, emails are sent during the request — if
-Resend is down, that request fails), no scheduler (expired tokens are still rejected, they just stay in the table),
+Resend is down, that request fails), no scheduler (the housekeeping jobs run from web requests instead, see "Housekeeping without a scheduler" below),
 and migrations run when the container starts (`RUN_MIGRATIONS=true`) because the free plan has no pre-deploy step
 and no shell — admin and demo data are created from your own computer (steps F5-F6).
 
@@ -54,6 +54,7 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `DB_URL` | the Neon connection string from F1 |
 | `RUN_MIGRATIONS` | `true` |
 | `QUEUE_CONNECTION` | `sync` |
+| `RUN_MAINTENANCE_ON_REQUEST` | `true` (runs the housekeeping jobs from web traffic; see "Housekeeping without a scheduler") |
 | `CACHE_STORE` | `database` |
 | `SESSION_DRIVER` | `array` |
 | `TRUSTED_PROXIES` | `REMOTE_ADDR` |
@@ -81,6 +82,16 @@ Bot API is free; nothing to top up.
    "Telegram bot @… now sends its messages to …").
 4. Check: on the website, Sign in → **Continue with Telegram** opens the bot; **Start** shows the
    "Share my phone number" button.
+
+### Housekeeping without a scheduler
+Render's free plan runs only the web process, so `schedule:work` never runs. The recurring jobs are listed in
+`app/Support/MaintenanceTasks.php` (expired API tokens daily, unfinished sign-ups hourly, closed accounts erased daily,
+old failed jobs and job batches daily). With `RUN_MAINTENANCE_ON_REQUEST=true`, any API request checks (at most once a
+minute, shared through the cache) whether a job is due and runs it **after the response has been prepared**, so visitors
+do not wait. "Due" means a scheduled time has passed since the job last ran, so it catches up even though requests come at
+random times. Your uptime monitor's 5-minute ping of `/api/v1/health` keeps this running all day. Failures never change a
+response: they are reported (Sentry) and the job is retried after 10 minutes. Leave the setting off wherever a real
+scheduler runs (Railway). The first request after turning it on runs every job once to clear any backlog.
 
 ### Email on Render
 Render's free plan blocks outgoing SMTP on ports 25, 465 and 587, and Resend without a verified domain only delivers to
