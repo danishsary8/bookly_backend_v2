@@ -83,6 +83,16 @@ Bot API is free; nothing to top up.
 4. Check: on the website, Sign in → **Continue with Telegram** opens the bot; **Start** shows the
    "Share my phone number" button.
 
+### Owner alerts on Telegram (new orders, low stock)
+A message from the separate **Bookly Alerts** bot (the same bot as the backup-failure alert) to your private chat for
+every new order and whenever a sale pushes a book format to its low-stock threshold. It is sent after the customer's
+response, and a failed message is only logged, so it never blocks or slows an order. Off while either setting is empty.
+1. Render → service → **Environment** → add `OPS_ALERT_BOT_TOKEN` = the Bookly Alerts bot's token (the same value as the
+   GitHub secret used by the backup alert) and `OPS_ALERT_CHAT_ID` = your private chat id (same as that secret too)
+   → **Save, rebuild and deploy**. Never paste either value into chat, docs or code.
+2. Check: place a test order on the website → the alert arrives within a few seconds. If not, Render's log shows
+   "Ops alert was not delivered" with Telegram's reason (e.g. you never pressed **Start** in the Alerts bot).
+
 ### Housekeeping without a scheduler
 Render's free plan runs only the web process, so `schedule:work` never runs. The recurring jobs are listed in
 `app/Support/MaintenanceTasks.php` (expired API tokens daily, unfinished sign-ups hourly, closed accounts erased daily,
