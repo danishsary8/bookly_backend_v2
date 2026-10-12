@@ -6,8 +6,10 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\StaffUser;
+use App\Notifications\OrderStatusChangedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Inventory\InventoryService;
+use App\Support\SafeNotifier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -52,7 +54,7 @@ class OrderStatusService
 
     private function transition(Order $order, OrderStatus $to, ?StaffUser $staff, ?string $note, bool $customer = false): Order
     {
-        return DB::transaction(function () use ($order, $to, $staff, $note, $customer) {
+        $updated = DB::transaction(function () use ($order, $to, $staff, $note, $customer) {
             $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
             $from = $locked->status;
 
@@ -83,6 +85,13 @@ class OrderStatusService
 
             return $locked;
         });
+
+        // After the commit, so a mail outage can never undo or block the status change.
+        if (OrderStatusChangedNotification::covers($to)) {
+            SafeNotifier::toCustomer($updated->customer, new OrderStatusChangedNotification($updated, $to, $note));
+        }
+
+        return $updated;
     }
 
     /** Cancellation: stock back on the shelf, the coupon use given back, the pending payment marked failed. */
