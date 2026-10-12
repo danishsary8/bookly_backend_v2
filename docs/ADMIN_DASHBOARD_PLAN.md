@@ -9,21 +9,21 @@ Comprehensive implementation plan for ROADMAP Phase 3: the operational and analy
 The backend already has robust core abstractions, services, security gates, and database tables implementing admin and staff controls:
 
 ### Existing Routes & Middleware Architecture
-- **Route Guard Group:** [`routes/api.php:161`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/routes/api.php#L161) enforces `['auth:sanctum', 'abilities:staff', 'staff.2fa']`.
-- **Admin-Only Group:** [`routes/api.php:202`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/routes/api.php#L202) enforces `abilities:admin` on top of staff 2FA.
+- **Route Guard Group:** [`routes/api.php:161`](../routes/api.php#L161) enforces `['auth:sanctum', 'abilities:staff', 'staff.2fa']`.
+- **Admin-Only Group:** [`routes/api.php:202`](../routes/api.php#L202) enforces `abilities:admin` on top of staff 2FA.
 - **Existing Dashboard Routes:**
-  - `GET /api/v1/staff/dashboard/summary` ([`routes/api.php:217`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/routes/api.php#L217)) handled by `DashboardController::summary` ([`DashboardController.php:15`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Http/Controllers/Api/V1/Staff/Admin/DashboardController.php#L15)).
-  - `GET /api/v1/staff/dashboard/sales` ([`routes/api.php:218`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/routes/api.php#L218)) handled by `DashboardController::sales` ([`DashboardController.php:22`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Http/Controllers/Api/V1/Staff/Admin/DashboardController.php#L22)).
-  - `GET /api/v1/staff/orders/export` ([`routes/api.php:219`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/routes/api.php#L219)) handled by `OrderExportController` ([`OrderExportController.php:22`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Http/Controllers/Api/V1/Staff/Admin/OrderExportController.php#L22)).
-  - `GET /api/v1/staff/audit-logs` ([`routes/api.php:216`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/routes/api.php#L216)) handled by `AuditLogController` ([`AuditLogController.php:15`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Http/Controllers/Api/V1/Staff/Admin/AuditLogController.php#L15)).
-  - `GET /api/v1/staff/exchange-rates` & `POST /api/v1/staff/exchange-rates` ([`routes/api.php:214-215`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/routes/api.php#L214-L215)).
+  - `GET /api/v1/staff/dashboard/summary` ([`routes/api.php:217`](../routes/api.php#L217)) handled by `DashboardController::summary` ([`DashboardController.php:15`](../app/Http/Controllers/Api/V1/Staff/Admin/DashboardController.php#L15)).
+  - `GET /api/v1/staff/dashboard/sales` ([`routes/api.php:218`](../routes/api.php#L218)) handled by `DashboardController::sales` ([`DashboardController.php:22`](../app/Http/Controllers/Api/V1/Staff/Admin/DashboardController.php#L22)).
+  - `GET /api/v1/staff/orders/export` ([`routes/api.php:219`](../routes/api.php#L219)) handled by `OrderExportController` ([`OrderExportController.php:22`](../app/Http/Controllers/Api/V1/Staff/Admin/OrderExportController.php#L22)).
+  - `GET /api/v1/staff/audit-logs` ([`routes/api.php:216`](../routes/api.php#L216)) handled by `AuditLogController` ([`AuditLogController.php:15`](../app/Http/Controllers/Api/V1/Staff/Admin/AuditLogController.php#L15)).
+  - `GET /api/v1/staff/exchange-rates` & `POST /api/v1/staff/exchange-rates` ([`routes/api.php:214-215`](../routes/api.php#L214-L215)).
 
 ### Existing Services & Models
-- `DashboardService` ([`DashboardService.php:21`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Services/Admin/DashboardService.php#L21)): Computes periods (`today`, `7d`, `30d`, `custom`), gross/refund/net revenue, delivered order count, average order value, order counts by status, new verified customers count, top 10 best sellers by copies sold, open returns count, and top 20 low-stock variants.
-- `AuditLogger` ([`app/Services/Admin/AuditLogger.php`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Services/Admin/AuditLogger.php)): Structured audit logging (`created`, `updated`, `deleted`, `custom`) recording `staff_user_id`, `action`, `entity_type`, `entity_id`, and `before_data`/`after_data` into `admin_audit_logs`.
-- `StaffManagementService` ([`app/Services/Staff/StaffManagementService.php`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Services/Staff/StaffManagementService.php)): Prevents self-demotion, self-deactivation, and demotion of the last active admin.
-- `OrderStatusService` ([`app/Services/Orders/OrderStatusService.php`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Services/Orders/OrderStatusService.php)): Centralized transitions writing to `order_status_history` and `admin_audit_logs`.
-- `InventoryService` ([`app/Services/Inventory/InventoryService.php`](file:///e:/xampp/htdocs/book_project/bookly_backend_v2/app/Services/Inventory/InventoryService.php)): Atomic row locking and tracking in `inventory_movements`.
+- `DashboardService` ([`DashboardService.php:21`](../app/Services/Admin/DashboardService.php#L21)): Computes periods (`today`, `7d`, `30d`, `custom`), gross/refund/net revenue, delivered order count, average order value, order counts by status, new verified customers count, top 10 best sellers by copies sold, open returns count, and top 20 low-stock variants.
+- `AuditLogger` ([`app/Services/Admin/AuditLogger.php`](../app/Services/Admin/AuditLogger.php)): Structured audit logging (`created`, `updated`, `deleted`, `custom`) recording `staff_user_id`, `action`, `entity_type`, `entity_id`, and `before_data`/`after_data` into `admin_audit_logs`.
+- `StaffManagementService` ([`app/Services/Staff/StaffManagementService.php`](../app/Services/Staff/StaffManagementService.php)): Prevents self-demotion, self-deactivation, and demotion of the last active admin.
+- `OrderStatusService` ([`app/Services/Orders/OrderStatusService.php`](../app/Services/Orders/OrderStatusService.php)): Centralized transitions writing to `order_status_history` and `admin_audit_logs`.
+- `InventoryService` ([`app/Services/Inventory/InventoryService.php`](../app/Services/Inventory/InventoryService.php)): Atomic row locking and tracking in `inventory_movements`.
 
 ### Existing Domain Tables & Columns
 - `orders`: `id`, `customer_id`, `order_number`, `status`, `subtotal`, `discount_amount`, `shipping_fee`, `tax_amount`, `total_amount`, `currency`, `payment_method`, `placed_at`, `deleted_at`, `created_at`, `updated_at`.
@@ -41,7 +41,7 @@ The backend already has robust core abstractions, services, security gates, and 
 
 ### Target Endpoints
 - `GET /api/v1/staff/dashboard/summary`
-  - **Permission:** `['auth:sanctum', 'abilities:staff,admin', 'staff.2fa']`
+  - **Permission:** Today both dashboard routes sit inside the admin-only route group (`abilities:admin` at [`routes/api.php:202`](../routes/api.php#L202)). This plan keeps them admin-only (`['auth:sanctum', 'abilities:admin', 'staff.2fa']`). Opening them or a subset of operational metrics to general staff (`abilities:staff`) is an **open question** for the owner (see Section 4, Question 4), not decided here.
   - **Query Parameters:**
     - `period`: `today` | `7d` | `30d` (default) | `custom`
     - `from`: `YYYY-MM-DD` (required if `period=custom`)
