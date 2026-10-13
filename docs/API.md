@@ -29,13 +29,13 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | POST | /auth/telegram/phone | — | auth. Same, to confirm or change the signed-in customer's number: the shared number is saved as verified (and as the contact number), which also verifies a new account. A number on another account (closed ones too) is refused. |
 | POST | /auth/telegram/status | key | `{status: pending}`, `{status: failed, message}` (no account with this number, number on another account, not +855, deactivated) or `{status: done, customer}` (+ `token`, `expires_at` for a sign-in; handed out once). 404 for an unknown or expired key (links live 10 minutes). |
 | POST | /telegram/webhook | Telegram update | Called by Telegram only (header `X-Telegram-Bot-Api-Secret-Token`, set by `php artisan telegram:webhook`); 404 otherwise. Replies are a `sendMessage` call in the answer. |
-| POST | /auth/reset-password | email, code, password, password_confirmation | revokes all tokens |
+| POST | /auth/reset-password | email, code, password, password_confirmation | revokes all tokens, emails a security notice |
 | POST | /auth/social/{google\|facebook} | access_token | 201 new / 200 returning (matched by the provider's account id). An email that already has a verified or closed account is **not** linked: 409 "This email already has a Bookly account. Sign in with your email and password instead." (names how that account signs in). An unfinished sign-up with that email becomes the social account (its password and sessions are removed). 401 unless the token was issued to our app (`GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID`; off until set). Google email must be verified by Google (else 422). **New Facebook accounts confirm a phone number in the Telegram bot, or give an email (owner, 2026-10-08):** the first call answers 422 `{ needs: "phone", profile: { name, email }, telegram }`; call again with the same access_token + `verify_by` (`telegram` / `email`) + email (required with `email`) + turnstile_token*. The email counts as verified only if it's the one Facebook gave. The answer's `verify_by` says what is next: `telegram` (`POST /auth/telegram/phone`), `email` (a code was sent) or null (Facebook's email already verifies the account). |
 
 \* `turnstile_token`: the Cloudflare Turnstile token from the form. Required (422 `turnstile_token` "We couldn't check that you're a person…") once `TURNSTILE_SECRET_KEY` is set; ignored while it's empty. Checked with Cloudflare's siteverify and the visitor's IP; if Cloudflare can't be reached the request is refused.
 | GET | /me | — | auth |
 | PATCH | /me | name?, phone? | auth |
-| PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions |
+| PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions, emails a security notice ("Your Bookly password was changed") |
 | DELETE | /me | confirm=`DELETE`, password (or provider + access_token for accounts without a password) | auth. Closes the account: refused (422) while an order is on its way or a return is open; signs out everywhere, removes reviews, wishlist and cart, hides the account. `customers:erase-closed` (daily, and at most hourly from the staff customer list) erases name, email, phone, sign-in ids and addresses after `CLOSED_ACCOUNT_DAYS` (30); orders and returns are kept. |
 | POST | /me/email | email, password (when the account has one), turnstile_token* | auth. Add or change the email: emails a 6-digit code to the **new** address (kept aside until confirmed). 422 when the password is wrong, the address is already yours, or another account (also a closed one) uses it. At most 5 codes an hour per account. |
 | POST | /me/email/verify | code | auth. Saves the new address as verified, cancels codes sent to the old one, signs out other devices, and emails the old (proven) address "Your Bookly email was changed to n***@…". |
@@ -60,7 +60,7 @@ Customer `verified` = email **or** phone proven. Unverified customers can log in
 Every staff feature route returns 403 `{two_factor_setup_required: true}` until 2FA is confirmed. Admin-only routes need an admin account.
 
 ## Rate limits
-Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP (`X-RateLimit-*` headers; 429 + `Retry-After`). On top of that: login/OTP/reset 5 per minute per email+IP and 30 per minute per IP; sending codes 3 per 10 minutes; checkout, coupon check and posting reviews 10 per minute; checkout preview 30 per minute; orders export 10 per minute. Email codes die after 5 wrong guesses; staff 2FA allows 5 wrong codes per account per 15 minutes.
+Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP (`X-RateLimit-*` headers; 429 + `Retry-After`); Telegram's own webhook calls with the right `X-Telegram-Bot-Api-Secret-Token` are not limited. On top of that (owner, 2026-10-13): login/OTP/reset 5 per minute per email+IP and 30 per minute per IP; sending codes 3 per 10 minutes; **checkout** 5 per 5 minutes and 20 per hour per customer; checkout preview 30 per minute; **coupon check** 10 per minute per customer, and 5 codes that don't exist in a row lock it for 15 minutes (429, `Retry-After: 900`; a real but unusable code doesn't count, a right code resets the count); **`GET /books`** with `q` 60 per minute per IP, without `q` 120; **`POST /auth/telegram/status`** 60 per minute per IP and link (the website asks every 2 s); **dashboard** summary/sales 30 per minute per staff member; orders export 10 per minute; posting reviews 10 per minute. Email codes die after 5 wrong guesses; staff 2FA allows 5 wrong codes per account per 15 minutes.
 
 ## Public catalog (no login)
 | Method | Path | Query / notes |
@@ -108,7 +108,7 @@ Every staff create/update/delete is recorded in `admin_audit_logs` (who, action 
 | PATCH | /cart/items/{id} | quantity (1-10) |
 | DELETE | /cart/items/{id} | returns the cart |
 | DELETE | /cart | empties the cart |
-| POST | /cart/coupon/check | code — preview only (10 per minute); send the code again at checkout |
+| POST | /cart/coupon/check | code — preview only (10 per minute; 5 unknown codes in a row lock it 15 minutes); send the code again at checkout |
 | GET | /wishlist | book cards, newest first, paginated |
 | POST | /wishlist | book_id — 201 added, 200 already there |
 | DELETE | /wishlist/{book_id} | 204 |

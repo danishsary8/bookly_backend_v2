@@ -7,10 +7,12 @@ use App\Http\Controllers\Api\V1\Concerns\IssuesTokens;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
+use App\Notifications\AccountSecurityNotice;
 use App\Rules\Turnstile;
 use App\Services\Auth\OtpService;
 use App\Services\Customers\UnverifiedCustomers;
 use App\Services\Telegram\TelegramBot;
+use App\Support\SafeNotifier;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -208,6 +210,7 @@ class AuthController extends Controller
             'email_verified_at' => $customer->email_verified_at ?? now(),
         ])->save();
         $customer->tokens()->delete();
+        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was reset', 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.'));
 
         return response()->json(['message' => 'Password reset. Please log in again.']);
     }
