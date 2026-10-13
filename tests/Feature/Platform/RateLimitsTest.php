@@ -152,8 +152,8 @@ class RateLimitsTest extends TestCase
 
     public function test_a_wrong_current_password_sends_nothing(): void
     {
-        Notification::fake();
         $customer = Customer::factory()->create(['password_hash' => 'old-password1']);
+        Notification::fake();
 
         $this->asToken($this->customerToken($customer))->putJson('/api/v1/me/password', [
             'current_password' => 'nope-nope1', 'password' => 'new-password2', 'password_confirmation' => 'new-password2',

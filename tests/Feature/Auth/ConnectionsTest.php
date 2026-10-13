@@ -149,6 +149,7 @@ class ConnectionsTest extends TestCase
     public function test_disconnecting_something_not_connected_is_harmless(): void
     {
         $customer = Customer::factory()->create(['password_hash' => 'reading123', 'facebook_id' => null]);
+        Notification::fake(); // start counting after the account exists: its welcome email is not what this test checks
 
         $this->as($customer)->deleteJson('/api/v1/me/connections/facebook')->assertOk()->assertJsonPath('message', 'Facebook is not connected.');
         Notification::assertNothingSent();

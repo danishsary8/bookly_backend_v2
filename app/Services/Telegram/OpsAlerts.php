@@ -4,12 +4,14 @@ namespace App\Services\Telegram;
 
 use App\Models\BookVariant;
 use App\Models\Order;
+use App\Models\Review;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * Owner alerts on Telegram through the separate "Bookly Alerts" bot (new order, low stock).
+ * Owner alerts on Telegram through the separate "Bookly Alerts" bot (new order, low stock, 1-2 star review).
  * Best effort by design: it is off until both settings exist, it runs after the response is sent,
  * and any failure is only logged (without the bot token), so it can never block or slow an order.
  */
@@ -42,6 +44,21 @@ class OpsAlerts
             ($variant->book?->title ?? 'Book')." ({$variant->format->value})",
             "Left: {$variant->stock_quantity} (alert at {$variant->low_stock_threshold})",
         ]));
+    }
+
+    /** A 1 or 2 star review: the owner can answer it or hide it in the admin (Reviews). The comment is shortened. */
+    public function lowRatedReview(Review $review, bool $edited = false): void
+    {
+        $review->loadMissing(['book', 'customer']);
+        $comment = trim((string) $review->comment);
+
+        $this->send(implode("\n", array_filter([
+            ($edited ? '✏️ Review changed to ' : '⭐ New ').str_repeat('★', (int) $review->rating).str_repeat('☆', 5 - (int) $review->rating).' review',
+            'Book: '.($review->book?->title ?? 'Book'),
+            'Customer: '.($review->customer?->name ?? 'Customer'),
+            $comment !== '' ? '"'.Str::limit($comment, 300).'"' : null,
+            "Admin → Reviews, review #{$review->id}",
+        ])));
     }
 
     /** Sends after the HTTP response (or at once in the console). Never throws. */
