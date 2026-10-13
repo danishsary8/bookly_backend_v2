@@ -50,7 +50,7 @@ class HealthController extends Controller
 
         try {
             $bot = app(TelegramBot::class);
-            $base = app()->isProduction() ? 'https://'.request()->getHttpHost() : request()->getSchemeAndHttpHost();
+            $base = (string) config('app.url'); // the only address the bot may use (see repairWebhook())
             $expected = $bot->webhookUrl($base);
             $token = (string) config('services.telegram_bot.token');
             $key = 'health-telegram-bot:'.hash('sha256', $token.'|'.$expected);
@@ -69,7 +69,7 @@ class HealthController extends Controller
 
             $info = $cached['info'];
             if (($info['url'] ?? '') !== $expected) {
-                return ['status' => 'degraded', 'error' => 'webhook not set'];
+                return ['status' => 'degraded', 'error' => 'webhook not set'] + $this->repairWebhook($bot, $base, $key);
             }
             if (filled($info['last_error_message'] ?? null) && (int) ($info['last_error_date'] ?? 0) > now()->subMinutes(30)->timestamp) {
                 return ['status' => 'degraded', 'error' => str_replace($token, '***', (string) $info['last_error_message'])];
@@ -79,5 +79,31 @@ class HealthController extends Controller
         } catch (Throwable) {
             return ['status' => 'degraded', 'error' => 'Telegram unreachable'];
         }
+    }
+
+    /**
+     * Render and the uptime monitor call this every few seconds/minutes, so a lost webhook is put back here instead
+     * of waiting for the next customer to start a Telegram sign-in (found live 2026-10-13: Telegram had no address).
+     * Always to APP_URL, never to the request's host (behind the proxy it is an internal name, and it can be faked).
+     * At most one attempt per 10 minutes, so a Telegram outage does not flood Sentry.
+     *
+     * @return array{repaired?: bool}
+     */
+    private function repairWebhook(TelegramBot $bot, string $base, string $healthCacheKey): array
+    {
+        if (! Cache::add('health-telegram-webhook-repair', true, now()->addMinutes(10))) {
+            return [];
+        }
+
+        try {
+            $bot->ensureWebhook($base);
+        } catch (Throwable $e) {
+            report($e);
+
+            return ['repaired' => false];
+        }
+        Cache::forget($healthCacheKey); // the next check reads Telegram again and shows "ok"
+
+        return ['repaired' => true];
     }
 }

@@ -225,11 +225,11 @@ Rules (422 on `staff`): you cannot change your own role, deactivate or reset you
 | GET | /staff/audit-logs | `staff_user_id`, `action` (e.g. `book_variant.updated`), `entity_type`, `entity_id`, `from`, `to`, `per_page` (50) — `{id, staff {id,name,email}, action, entity_type, entity_id, before, after, created_at}`; `meta.entity_types` lists filter values |
 
 ### Dashboard
-Query for both: `period` = today \| 7d \| 30d (default) \| custom with `from` and `to` (YYYY-MM-DD, max 366 days). Days follow `SHOP_TIMEZONE` (default Asia/Phnom_Penh).
+Query for both: `period` = today \| 7d \| 30d (default) \| custom with `from` and `to` (YYYY-MM-DD, max 366 days); summary also `compare` (boolean, default true). Days follow `SHOP_TIMEZONE` (default Asia/Phnom_Penh). Revenue is cash basis: an order counts on the day it was delivered, a refund on the day it was paid back (shipping is never refunded). Admin only.
 | Method | Path | Returns |
 | --- | --- | --- |
-| GET | /staff/dashboard/summary | `period`, `revenue {gross_usd, refunds_usd, net_usd}`, `delivered_orders`, `average_order_value_usd`, `orders_placed`, `orders_by_status`, `new_customers` (verified sign-ups in the period), `best_sellers[{book_id, title, copies_sold, sales_usd}]` (top 10), `open_returns`, `low_stock[{book_variant_id, book_id, title, format, sku, stock_quantity, low_stock_threshold}]` |
-| GET | /staff/dashboard/sales | one row per day: `{date, orders_placed, gross_revenue_usd, refunds_usd, net_revenue_usd}` (days without sales are 0) |
+| GET | /staff/dashboard/summary | `period`, `revenue {gross_usd, refunds_usd, net_usd, gross_khr, refunds_khr, net_khr}`, `delivered_orders`, `average_order_value_usd`, `average_order_value_khr`, `orders_placed`, `orders_by_status`, `new_customers` (verified sign-ups in the period), `best_sellers[{book_id, title, copies_sold, sales_usd, sales_khr}]` (top 10), `top_categories[{category_id, name, copies_sold, sales_usd, sales_khr}]` (top 5; a book in two categories counts in both), `open_returns`, `low_stock[{book_variant_id, book_id, title, format, sku, stock_quantity, low_stock_threshold}]`, and unless `compare=0`: `comparison {period, revenue, delivered_orders, average_order_value_usd, average_order_value_khr, orders_placed, new_customers, change_percent {gross_revenue, refunds, net_revenue, delivered_orders, average_order_value, orders_placed, new_customers}}` for the period of the same length just before. `change_percent` has 2 decimals; when the previous value is 0 it is 100.0 if there is something now, else 0.0. `*_khr` amounts are whole riel at the current rate, null while no USD→KHR rate is set. |
+| GET | /staff/dashboard/sales | one row per day: `{date, orders_placed, gross_revenue_usd, refunds_usd, net_revenue_usd, net_revenue_khr}` (days without sales are 0) |
 
 Revenue is cash basis: an order counts on the day it was delivered (cash on delivery is collected then); a refund counts on the day it was refunded.
 

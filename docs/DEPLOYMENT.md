@@ -28,7 +28,7 @@ Use this when a paid Railway plan is not an option. Same Docker image, two free 
 | Database | [Neon](https://neon.tech) free PostgreSQL | 0.5 GB, does not expire (Render's own free database is deleted after 30 days) |
 
 Differences from the Railway setup: no queue worker (`QUEUE_CONNECTION=sync`, emails are sent during the request — if
-Resend is down, that request fails), no scheduler (expired tokens are still rejected, they just stay in the table),
+Resend is down, that request fails), no scheduler (the housekeeping jobs run from web requests instead, see "Housekeeping without a scheduler" below),
 and migrations run when the container starts (`RUN_MIGRATIONS=true`) because the free plan has no pre-deploy step
 and no shell — admin and demo data are created from your own computer (steps F5-F6).
 
@@ -54,6 +54,7 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `DB_URL` | the Neon connection string from F1 |
 | `RUN_MIGRATIONS` | `true` |
 | `QUEUE_CONNECTION` | `sync` |
+| `RUN_MAINTENANCE_ON_REQUEST` | `true` (runs the housekeeping jobs from web traffic; see "Housekeeping without a scheduler") |
 | `CACHE_STORE` | `database` |
 | `SESSION_DRIVER` | `array` |
 | `TRUSTED_PROXIES` | `REMOTE_ADDR` |
@@ -81,6 +82,26 @@ Bot API is free; nothing to top up.
    "Telegram bot @… now sends its messages to …").
 4. Check: on the website, Sign in → **Continue with Telegram** opens the bot; **Start** shows the
    "Share my phone number" button.
+
+### Owner alerts on Telegram (new orders, low stock)
+A message from the separate **Bookly Alerts** bot (the same bot as the backup-failure alert) to your private chat for
+every new order and whenever a sale pushes a book format to its low-stock threshold. It is sent after the customer's
+response, and a failed message is only logged, so it never blocks or slows an order. Off while either setting is empty.
+1. Render → service → **Environment** → add `OPS_ALERT_BOT_TOKEN` = the Bookly Alerts bot's token (the same value as the
+   GitHub secret used by the backup alert) and `OPS_ALERT_CHAT_ID` = your private chat id (same as that secret too)
+   → **Save, rebuild and deploy**. Never paste either value into chat, docs or code.
+2. Check: place a test order on the website → the alert arrives within a few seconds. If not, Render's log shows
+   "Ops alert was not delivered" with Telegram's reason (e.g. you never pressed **Start** in the Alerts bot).
+
+### Housekeeping without a scheduler
+Render's free plan runs only the web process, so `schedule:work` never runs. The recurring jobs are listed in
+`app/Support/MaintenanceTasks.php` (expired API tokens daily, unfinished sign-ups hourly, closed accounts erased daily,
+old failed jobs and job batches daily). With `RUN_MAINTENANCE_ON_REQUEST=true`, any API request checks (at most once a
+minute, shared through the cache) whether a job is due and runs it **after the response has been prepared**, so visitors
+do not wait. "Due" means a scheduled time has passed since the job last ran, so it catches up even though requests come at
+random times. Your uptime monitor's 5-minute ping of `/api/v1/health` keeps this running all day. Failures never change a
+response: they are reported (Sentry) and the job is retried after 10 minutes. Leave the setting off wherever a real
+scheduler runs (Railway). The first request after turning it on runs every job once to clear any backlog.
 
 ### Email on Render
 Render's free plan blocks outgoing SMTP on ports 25, 465 and 587, and Resend without a verified domain only delivers to
@@ -260,6 +281,7 @@ Use `pg_dump`/`pg_restore` version 18 or newer (same as the server).
 | --- | --- |
 | The website says "Telegram isn't available right now" | `TELEGRAM_BOT_TOKEN` is empty, or Telegram refused it: Sentry (and the Telegram alert) shows `Telegram bot getMe failed: Unauthorized` → copy the token again from @BotFather → /mybots → API Token. |
 | The bot doesn't answer "Start" | Telegram isn't delivering the bot's messages to the API. The API checks this whenever a customer taps a Telegram button (at most every 10 minutes) and sets its own address if Telegram has another one (log: "Telegram bot webhook was … now …"), so first just try again. If Telegram reports a delivery error, Sentry (and the Telegram alert) says `Telegram couldn't deliver the bot's messages to …: <reason>` with a hint. While the free API is asleep the first answer can take ~30 s (Telegram retries). |
+| `/health` shows `telegram_bot: "webhook not set"` | Telegram has no address (or another one) for the shop bot, so the bot answers nobody. The health check repairs this itself (Render and the uptime monitor call it all the time): the answer shows `"repaired": true` once and `ok` on the next check; the log shows "Telegram bot webhook was not set; now …". The bot's address is always `APP_URL` + `/api/v1/telegram/webhook` (never the request's host: behind Render's proxy the app sees an internal host name), so `APP_URL` must be exactly `https://bookly-api-zasc.onrender.com`. Something outside the API removed it (seen 2026-10-13: getWebhookInfo showed `url: ""`): never run `deleteWebhook`/`getUpdates` tools or a local copy of the API with the shop bot's token; use the separate Alerts bot for experiments. |
 | Deployment stuck on "Waiting for CI" | the GitHub Actions run for that commit failed or is still running — open the Actions tab |
 | Pre-deploy failed | a migration error; the old version is still serving. Read the deploy logs, fix, push again |
 | Health check fails with `down` | `DB_URL` not set (re-run `railway config apply`) or the database is still starting |
