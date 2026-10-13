@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OrderDocumentResource;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\Orders\OrderStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -43,6 +45,17 @@ class OrderController extends Controller
         $statuses->cancelByCustomer($this->find($request, $order), $data['reason'] ?? null);
 
         return new OrderResource($this->find($request, $order));
+    }
+
+    /** The customer's own invoice (printed in the browser); a cancelled order has none. */
+    public function invoice(Request $request, int $order): OrderDocumentResource
+    {
+        $found = $request->user()->orders()->with(Order::documentRelations())->findOrFail($order);
+        if ($found->status === OrderStatus::Cancelled) {
+            throw ValidationException::withMessages(['order' => 'A cancelled order has no invoice.']);
+        }
+
+        return new OrderDocumentResource($found);
     }
 
     private function find(Request $request, int $order): Order

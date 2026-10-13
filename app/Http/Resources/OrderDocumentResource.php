@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Http\Resources;
+
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Enums\ReturnStatus;
+use App\Models\ExchangeRate;
+use App\Models\Order;
+use App\Support\Money;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * Everything an invoice or packing slip prints for one order: the lines with SKU/ISBN and authors, the totals,
+ * refunds, what the courier collects, and KHR at the rate in force when the order was placed (so a reprint never
+ * changes). Load with Order::documentRelations().
+ *
+ * @mixin Order
+ */
+class OrderDocumentResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        $rate = ExchangeRate::at('USD', 'KHR', $this->placed_at);
+        $khr = fn (string $usd) => $rate ? Money::convert($usd, (string) $rate->rate) : null;
+
+        $paid = $this->payments->sortByDesc('id')->first()?->status === PaymentStatus::Succeeded;
+        $collect = $this->payment_method === PaymentMethod::Cod && ! $paid && $this->status !== OrderStatus::Cancelled
+            ? (string) $this->total_amount : '0.00';
+        $refunded = Money::format($this->returns
+            ->filter(fn ($r) => $r->status === ReturnStatus::Refunded)
+            ->sum(fn ($r) => Money::toCents($r->refund_amount)));
+
+        return [
+            'id' => $this->id,
+            'order_number' => $this->order_number,
+            'status' => $this->status->value,
+            'placed_at' => $this->placed_at,
+            'delivered_at' => $this->statusHistory->firstWhere('status', OrderStatus::Delivered)?->created_at,
+            'payment_method' => $this->payment_method->value,
+            'payment_status' => $this->payments->sortByDesc('id')->first()?->status->value,
+            'customer' => [
+                'name' => $this->customer?->name,
+                'email' => $this->customer?->email,
+                'phone' => $this->customer?->phone,
+            ],
+            'shipping_address' => [
+                'recipient_name' => $this->shipping_recipient_name,
+                'phone' => $this->shipping_phone,
+                'address_line1' => $this->shipping_address_line1,
+                'address_line2' => $this->shipping_address_line2,
+                'city' => $this->shipping_city,
+                'state' => $this->shipping_state,
+                'postal_code' => $this->shipping_postal_code,
+                'country' => $this->shipping_country,
+            ],
+            'items' => $this->items->map(fn ($item) => [
+                'id' => $item->id,
+                'title' => $item->variant?->book?->title,
+                'authors' => $item->variant?->book?->authors->pluck('name')->values() ?? [],
+                'format' => $item->variant?->format->value,
+                'is_digital' => (bool) $item->variant?->format->isDigital(),
+                'sku' => $item->variant?->sku,
+                'isbn' => $item->variant?->isbn,
+                'quantity' => $item->quantity,
+                'unit_price_usd' => $item->unit_price,
+                'subtotal_usd' => $item->subtotal,
+            ])->values(),
+            'subtotal_usd' => $this->subtotal,
+            'discount_usd' => $this->discount_amount,
+            'coupon_code' => $this->coupon?->code,
+            'shipping_fee_usd' => $this->shipping_fee,
+            'tax_usd' => $this->tax_amount,
+            'total_usd' => $this->total_amount,
+            'refunded_usd' => $refunded,
+            'amount_to_collect_usd' => $collect,
+            'khr' => $rate ? [
+                'rate' => $rate->rate,
+                'rate_effective_at' => $rate->effective_at,
+                'total' => $khr((string) $this->total_amount),
+                'amount_to_collect' => $khr($collect),
+            ] : null,
+        ];
+    }
+}

@@ -135,6 +135,7 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 | GET | /orders | `status`, `per_page` — newest first |
 | GET | /orders/{id} | includes `status_history` |
 | POST | /orders/{id}/cancel | reason? — only while `pending` |
+| GET | /orders/{id}/invoice | print data for the customer's own invoice (same shape as `/staff/orders/documents`); 422 for a cancelled order; 30/min |
 
 Checkout rules: always today's price; shipping fee by the address's area when any hardcover/paperback is in the order (Phnom Penh `SHIPPING_FEE_PHNOM_PENH`, default 1.50 USD, matched on city or province; everywhere else `SHIPPING_FEE_PROVINCES`, default 3.00 USD), 0 if all digital; `POST /checkout/preview` takes an optional `address_id` (else the default address) and returns `delivery_area`; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `idempotency_key`.
 
@@ -146,6 +147,7 @@ Status flow: `pending -> processing -> shipped -> delivered`; `cancelled` only f
 | Method | Path | Body / notes |
 | --- | --- | --- |
 | GET | /staff/orders | `status`, `q` (order number, customer email or name), `from`, `to` (dates), `per_page` |
+| GET | /staff/orders/documents | `ids[]` (1–50, distinct): print data for invoices and packing slips, in the order asked, unknown ids left out. Per order: `customer`, `shipping_address`, `items[{title, authors[], format, is_digital, sku, isbn, quantity, unit_price_usd, subtotal_usd}]`, totals, `coupon_code`, `refunded_usd` (refunded returns), `amount_to_collect_usd` (an unpaid cash-on-delivery order: the total; else 0.00), `delivered_at`, `khr {rate, rate_effective_at, total, amount_to_collect}` at the rate in force when the order was placed (null if none was set then). 30/min |
 | GET | /staff/orders/{id} | adds `customer {id,name,email,phone}`, history with `changed_by`, `allowed_next_statuses` |
 | POST | /staff/orders/{id}/status | status (processing\|shipped\|delivered\|cancelled), note? — 422 for a move the flow does not allow |
 | GET | /staff/notifications | `unread=1`, `per_page` — in-app alerts; `meta.unread_count` |

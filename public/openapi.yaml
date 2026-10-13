@@ -347,6 +347,50 @@ components:
         status_history:
           type: array
           items: { type: object, properties: { status: { type: string }, note: { type: string, nullable: true }, created_at: { type: string, format: date-time } } }
+    OrderDocument:
+      type: object
+      description: 'What an invoice or packing slip prints. KHR uses the rate in force when the order was placed (null when no rate was set then), so a reprint never changes.'
+      properties:
+        id: { type: integer }
+        order_number: { type: string, example: ORD-20261003-7K2QX }
+        status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
+        placed_at: { type: string, format: date-time }
+        delivered_at: { type: string, format: date-time, nullable: true }
+        payment_method: { type: string, enum: [card, cod, khqr] }
+        payment_status: { type: string, enum: [pending, succeeded, failed, refunded], nullable: true }
+        customer: { type: object, properties: { name: { type: string }, email: { type: string, nullable: true }, phone: { type: string, nullable: true } } }
+        shipping_address: { $ref: '#/components/schemas/AddressInput' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              authors: { type: array, items: { type: string } }
+              format: { type: string, enum: [hardcover, paperback, ebook, audiobook] }
+              is_digital: { type: boolean }
+              sku: { type: string }
+              isbn: { type: string, nullable: true }
+              quantity: { type: integer }
+              unit_price_usd: { $ref: '#/components/schemas/Money' }
+              subtotal_usd: { $ref: '#/components/schemas/Money' }
+        subtotal_usd: { $ref: '#/components/schemas/Money' }
+        discount_usd: { $ref: '#/components/schemas/Money' }
+        coupon_code: { type: string, nullable: true }
+        shipping_fee_usd: { $ref: '#/components/schemas/Money' }
+        tax_usd: { $ref: '#/components/schemas/Money' }
+        total_usd: { $ref: '#/components/schemas/Money' }
+        refunded_usd: { $ref: '#/components/schemas/Money' }
+        amount_to_collect_usd: { allOf: [ { $ref: '#/components/schemas/Money' } ], description: 'What the courier collects: the total for an unpaid cash-on-delivery order, else 0.00' }
+        khr:
+          type: object
+          nullable: true
+          properties:
+            rate: { type: string, example: '4100.000000' }
+            rate_effective_at: { type: string, format: date-time }
+            total: { $ref: '#/components/schemas/Riel' }
+            amount_to_collect: { $ref: '#/components/schemas/Riel' }
     Return:
       type: object
       properties:
@@ -648,6 +692,8 @@ paths:
     get: { tags: [Checkout & orders], summary: 'One order with status history', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order }, '404': { $ref: '#/components/responses/NotFound' } } }
   /orders/{id}/cancel:
     post: { tags: [Checkout & orders], summary: 'Cancel while pending (stock and coupon use are given back)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cancelled }, '422': { description: No longer cancellable } } }
+  /orders/{id}/invoice:
+    get: { tags: [Checkout & orders], summary: 'Print data for your invoice (not for a cancelled order)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Invoice data, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/OrderDocument' } } } } } }, '404': { $ref: '#/components/responses/NotFound' }, '422': { description: Cancelled order } } }
   /orders/{id}/returnable-items:
     get: { tags: [Returns & reviews], summary: 'What can still be returned, and until when', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Returnable items } } }
   /orders/{id}/returns:
@@ -728,6 +774,12 @@ paths:
     delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
   /staff/orders:
     get: { tags: [Staff operations], summary: 'Orders (status, q = order number/customer, from, to)', responses: { '200': { description: Orders } } }
+  /staff/orders/documents:
+    get:
+      tags: [Staff operations]
+      summary: 'Print data for invoices and packing slips, in the order asked (up to 50; unknown ids are left out)'
+      parameters: [ { name: 'ids[]', in: query, required: true, schema: { type: array, items: { type: integer }, maxItems: 50 }, style: form, explode: true } ]
+      responses: { '200': { description: One document per order, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/OrderDocument' } } } } } } }, '422': { $ref: '#/components/responses/Validation' } }
   /staff/orders/{id}:
     get: { tags: [Staff operations], summary: 'Order with customer and allowed_next_statuses', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order } } }
   /staff/orders/{id}/status:
