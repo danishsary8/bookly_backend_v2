@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Notifications\WelcomeNotification;
 use App\Services\Telegram\TelegramBot;
 use App\Support\PhoneNumber;
+use App\Support\SafeNotifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 
 class Customer extends Authenticatable
@@ -30,6 +33,32 @@ class Customer extends Authenticatable
             'is_active' => 'boolean',
             'password_hash' => 'hashed',
         ];
+    }
+
+    /**
+     * The welcome email goes out once, when the account first becomes verified, wherever that happens (email code,
+     * Telegram phone, a verified Google/Facebook email at sign-up, a password reset by email code). After the
+     * transaction commits, through SafeNotifier: a mail problem never blocks the sign-up.
+     */
+    protected static function booted(): void
+    {
+        // Created already verified (a verified Google/Facebook email at sign-up).
+        static::created(function (Customer $customer) {
+            if ($customer->isVerified()) {
+                DB::afterCommit(fn () => SafeNotifier::toCustomer($customer, new WelcomeNotification));
+            }
+        });
+
+        // Became verified later (email code, Telegram phone, password reset by email code). Only the change from
+        // "not verified" to "verified" counts, so saving the same account again never sends a second email.
+        static::updated(function (Customer $customer) {
+            $wasVerified = $customer->getOriginal('email_verified_at') !== null
+                || ($customer->getOriginal('phone_verified_at') !== null && $customer->getOriginal('phone_e164') !== null);
+
+            if (! $wasVerified && $customer->isVerified()) {
+                DB::afterCommit(fn () => SafeNotifier::toCustomer($customer, new WelcomeNotification));
+            }
+        });
     }
 
     public function getAuthPasswordName(): string

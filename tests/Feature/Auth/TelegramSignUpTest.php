@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\Customer;
 use App\Models\VerificationToken;
 use App\Notifications\OtpCodeNotification;
+use App\Notifications\WelcomeNotification;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -204,7 +205,9 @@ class TelegramSignUpTest extends TestCase
         $this->facebookSignIn(['verify_by' => 'email', 'email' => 'sok@gmail.com'])->assertCreated()
             ->assertJsonPath('verify_by', null)
             ->assertJsonPath('customer.email_verified', true);
-        Notification::assertNothingSent();
+        // No code to type (Facebook's email is already verified); each of the two new accounts gets one welcome.
+        Notification::assertSentTimes(OtpCodeNotification::class, 0);
+        Notification::assertSentTimes(WelcomeNotification::class, 2);
     }
 
     public function test_facebook_without_telegram_gets_an_email_code(): void

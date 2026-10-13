@@ -8,12 +8,16 @@ use App\Http\Resources\OwnReviewResource;
 use App\Models\Book;
 use App\Models\OrderItem;
 use App\Models\Review;
+use App\Services\Telegram\OpsAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ReviewController extends Controller
 {
+    /** Reviews at or below this many stars alert the owner on Telegram (owner, 2026-10-13). */
+    public const LOW_RATING = 2;
+
     /** The customer's own reviews, including ones staff have hidden. */
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -46,6 +50,9 @@ class ReviewController extends Controller
         }
 
         $review = $customer->reviews()->create([...$data, 'book_id' => $book->id, 'order_item_id' => $orderItemId]);
+        if ($review->rating <= self::LOW_RATING) {
+            app(OpsAlerts::class)->lowRatedReview($review);
+        }
 
         return (new OwnReviewResource($review->refresh()->load(['customer', 'book'])))->response()->setStatusCode(201);
     }
@@ -54,7 +61,12 @@ class ReviewController extends Controller
     {
         $model = $request->user()->reviews()->findOrFail($review);
         // Editing never un-hides a review that staff have hidden.
+        $before = (int) $model->rating;
         $model->update($this->validated($request, partial: true));
+        // Only when an edit brings a review down to 1-2 stars (not every edit of an already low review).
+        if ($model->rating <= self::LOW_RATING && $before > self::LOW_RATING) {
+            app(OpsAlerts::class)->lowRatedReview($model, edited: true);
+        }
 
         return new OwnReviewResource($model->load(['customer', 'book' => fn ($q) => $q->withTrashed()]));
     }

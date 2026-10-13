@@ -85,7 +85,8 @@ Bot API is free; nothing to top up.
 
 ### Owner alerts on Telegram (new orders, low stock)
 A message from the separate **Bookly Alerts** bot (the same bot as the backup-failure alert) to your private chat for
-every new order and whenever a sale pushes a book format to its low-stock threshold. It is sent after the customer's
+every new order, whenever a sale pushes a book format to its low-stock threshold, and for every 1-2 star review
+(also when an edit brings a review down to 1-2 stars). It is sent after the customer's
 response, and a failed message is only logged, so it never blocks or slows an order. Off while either setting is empty.
 1. Render → service → **Environment** → add `OPS_ALERT_BOT_TOKEN` = the Bookly Alerts bot's token (the same value as the
    GitHub secret used by the backup alert) and `OPS_ALERT_CHAT_ID` = your private chat id (same as that secret too)

@@ -46,6 +46,7 @@ class ChangeEmailTest extends TestCase
     public function test_a_customer_changes_their_email_with_their_password_and_a_code(): void
     {
         $customer = Customer::factory()->create(['email' => 'old@example.com', 'password_hash' => 'reading123']);
+        Notification::fake(); // start counting after the account exists: its welcome email is not what this test checks
         $token = $this->token($customer);
         $other = $this->token($customer);
 

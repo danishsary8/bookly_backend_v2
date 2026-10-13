@@ -82,6 +82,7 @@ class ReopenClosedAccountsTest extends TestCase
     public function test_after_30_days_it_cannot_be_reopened(): void
     {
         $customer = $this->closed([], 31);
+        Notification::fake(); // start counting after the account exists: its welcome email is not what this test checks
 
         $this->asToken($this->staffToken(admin: true))->postJson("/api/v1/staff/customers/{$customer->id}/reopen")
             ->assertUnprocessable()->assertJsonPath('message', fn ($m) => str_contains($m, "can't be reopened"));
