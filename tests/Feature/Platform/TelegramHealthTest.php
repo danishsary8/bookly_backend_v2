@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
@@ -15,6 +17,8 @@ class TelegramHealthTest extends TestCase
     private const TOKEN = '123:health-test-token';
 
     private const URL = 'https://api.telegram.org/bot'.self::TOKEN.'/getWebhookInfo';
+
+    private const OWN = 'https://bookly-api.example.com/api/v1/telegram/webhook';
 
     protected function setUp(): void
     {
@@ -33,7 +37,7 @@ class TelegramHealthTest extends TestCase
     {
         Http::fake([self::URL => Http::response([
             'ok' => true,
-            'result' => array_replace(['url' => url('/api/v1/telegram/webhook')], $info),
+            'result' => array_replace(['url' => self::OWN], $info),
         ])]);
     }
 
@@ -60,12 +64,12 @@ class TelegramHealthTest extends TestCase
         Http::assertSentCount(1);
     }
 
-    public function test_webhook_matches_the_request_host_even_when_app_url_differs(): void
+    public function test_webhook_is_compared_with_app_url_whatever_host_the_request_came_in_on(): void
     {
-        config(['app.url' => 'https://configured-api.example.com']);
-        $this->webhookInfo(['url' => 'https://live-api.example.com/api/v1/telegram/webhook']);
+        // Behind Render's proxy the app sees an internal host name, not the public one.
+        $this->webhookInfo();
 
-        $this->getJson('https://live-api.example.com/api/v1/health')->assertOk()
+        $this->getJson('http://10.0.0.5:10000/api/v1/health')->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
         Http::assertSentCount(1);
@@ -77,7 +81,8 @@ class TelegramHealthTest extends TestCase
 
         $this->getJson('/api/v1/health')->assertOk()
             ->assertJsonPath('status', 'degraded')
-            ->assertJsonPath('checks.telegram_bot', ['status' => 'degraded', 'error' => 'webhook not set']);
+            ->assertJsonPath('checks.telegram_bot.status', 'degraded')
+            ->assertJsonPath('checks.telegram_bot.error', 'webhook not set');
     }
 
     public function test_wrong_webhook_degrades_health_without_exposing_its_url(): void
@@ -155,7 +160,7 @@ class TelegramHealthTest extends TestCase
     public function test_webhook_info_is_cached_for_ten_minutes_then_refreshed(): void
     {
         Http::fake([self::URL => Http::sequence()
-            ->push(['ok' => true, 'result' => ['url' => url('/api/v1/telegram/webhook')]])
+            ->push(['ok' => true, 'result' => ['url' => self::OWN]])
             ->push(['ok' => true, 'result' => ['url' => '']])]);
 
         $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.status', 'ok');
@@ -166,6 +171,56 @@ class TelegramHealthTest extends TestCase
         $this->travel(5)->minutes();
         $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.error', 'webhook not set');
         Http::assertSentCount(2);
+    }
+
+    public function test_a_lost_webhook_is_put_back_on_app_url_even_when_checked_on_an_internal_host(): void
+    {
+        // Found live 2026-10-13: Telegram had no address at all, so the bot answered nobody.
+        Http::fake([
+            self::URL => Http::sequence()
+                ->push(['ok' => true, 'result' => ['url' => '']])         // health check
+                ->push(['ok' => true, 'result' => ['url' => '']])         // ensureWebhook() looks again
+                ->push(['ok' => true, 'result' => ['url' => self::OWN]]), // next health check
+            'api.telegram.org/bot'.self::TOKEN.'/setWebhook' => Http::response(['ok' => true, 'result' => true]),
+        ]);
+
+        $this->getJson('http://10.0.0.5:10000/api/v1/health')->assertOk()
+            ->assertJsonPath('checks.telegram_bot', ['status' => 'degraded', 'error' => 'webhook not set', 'repaired' => true]);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook') && $request['url'] === self::OWN
+            && $request['secret_token'] === app(TelegramBot::class)->webhookSecret());
+
+        $this->getJson('http://10.0.0.5:10000/api/v1/health')->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
+    }
+
+    public function test_a_faked_forwarded_host_cannot_point_the_bot_elsewhere(): void
+    {
+        Http::fake([
+            self::URL => Http::response(['ok' => true, 'result' => ['url' => '']]),
+            'api.telegram.org/bot'.self::TOKEN.'/setWebhook' => Http::response(['ok' => true, 'result' => true]),
+        ]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.5'])
+            ->getJson('https://bookly-api.example.com/api/v1/health', ['X-Forwarded-Host' => 'evil.example.com', 'X-Forwarded-Port' => '8443'])
+            ->assertJsonPath('checks.telegram_bot.repaired', true);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook') && $request['url'] === self::OWN);
+        Http::assertNotSent(fn ($request) => str_contains(json_encode($request->data()), 'evil.example.com'));
+    }
+
+    public function test_repair_is_tried_at_most_once_per_ten_minutes(): void
+    {
+        // Render checks every few seconds; a Telegram outage must not flood Sentry.
+        Exceptions::fake();
+        Http::fake([
+            self::URL => Http::response(['ok' => true, 'result' => ['url' => '']]),
+            'api.telegram.org/bot'.self::TOKEN.'/setWebhook' => Http::response(['ok' => false, 'description' => 'Too Many Requests'], 429),
+        ]);
+
+        $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.repaired', false);
+        $this->travel(5)->seconds();
+        $this->getJson('/api/v1/health')->assertJsonMissingPath('checks.telegram_bot.repaired');
+
+        Http::assertSentCount(3); // getWebhookInfo (health), getWebhookInfo + setWebhook (one repair)
+        Exceptions::assertReportedCount(1);
     }
 
     public function test_database_down_keeps_the_existing_response_and_does_not_call_telegram(): void

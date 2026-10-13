@@ -4,6 +4,8 @@ Comprehensive audit of rate-limiting configurations, middleware, controller-leve
 
 ---
 
+> **Status 2026-10-13:** applied in `feature/rate-limits` with the owner's "looser" numbers: checkout 5 per 5 min + 20 per hour per customer, coupon check 10/min + a 15-minute lock after 5 unknown codes in a row, `GET /books` 60/min with `q` and 120/min without, Telegram status 60/min per IP + link (the website polls every 2 s, so the 30/min below would block real customers), dashboard 30/min per staff member, Telegram webhook calls with the right secret not limited. The tables below are the original proposal; `docs/API.md` lists what is live.
+
 ## 1. Audited Endpoints Table
 
 The API enforces a global base limiter on all routes defined via `$middleware->throttleApi('api')` in [`bootstrap/app.php:30`](../bootstrap/app.php#L30) and [`AppServiceProvider.php:27-28`](../app/Providers/AppServiceProvider.php#L27-L28) (120 req/min keyed by authenticated model key or guest IP). Endpoints below list their effective rate limiters, abuse vectors, and recommendations.

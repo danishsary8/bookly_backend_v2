@@ -1,10 +1,14 @@
 # Next step
 
-## Now (2026-10-10)
+## Now (2026-10-12)
+Owner action after merging `feature/scheduler-on-ping`: in Render add `RUN_MAINTENANCE_ON_REQUEST` = `true` (the housekeeping jobs then run from web traffic; the 5-minute uptime ping is enough).
+
+## Earlier (2026-10-10)
 The full ordered to-do list and the next session's prompt live in the frontend repo: docs/ROADMAP.md and docs/NEXT_STEP.md. Open items are tracked there.
 
 - **Backup alert bot and secrets**: done and verified. The alert bot was created, repository secrets were added, and the workflow manual trigger with `test_alert` ran green with Telegram delivery confirmed.
 - **Backup alert rejection reason (`chore/backup-alert-reason`)**: done and merged. Enhanced the Telegram failure alert step in `.github/workflows/db-backup.yml` to preserve curl responses, parse error descriptions using `jq` (with a 200-char truncated fallback), and log a descriptive GitHub Actions error line `::error::Telegram rejected the alert (HTTP <code>): <description>` without leaking bot tokens or chat IDs. Tested against a local mock server for HTTP 200, 400 (chat not found), and non-JSON 502 responses. Updated troubleshooting notes in `docs/DEPLOYMENT.md`.
+- **Safe backend dependency updates (`chore/backend-safe-updates`)**: done and verified (2026-10-12). Pinned `config.platform.php` to `8.3.0` so dependencies remain installable and compatible with PHP 8.3 CI jobs while skipping PHP 8.4+ major bumps (Symfony 8.1 requires PHP >= 8.4.1). 13 packages updated within minor/patch constraints; 0 major changes, 0 downgrades. Production-style installation (`composer install --no-dev --optimize-autoloader`), platform requirements, Pint formatting, and test suite (319 tests, 1931 assertions) all verified.
 
 ## Roadmap complete
 

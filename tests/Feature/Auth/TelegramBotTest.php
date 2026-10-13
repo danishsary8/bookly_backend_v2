@@ -329,6 +329,21 @@ class TelegramBotTest extends TestCase
             && $request['secret_token'] === app(TelegramBot::class)->webhookSecret());
     }
 
+    public function test_sign_in_points_the_bot_at_app_url_never_at_the_request_host(): void
+    {
+        // Behind Render's proxy the app sees an internal host, and a forwarded host header can be faked.
+        $this->telegramKnows('');
+        Http::fake(['api.telegram.org/bot123:bot-token/setWebhook' => Http::response(['ok' => true, 'result' => true])]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.5'])
+            ->postJson('http://10.0.0.5:10000/api/v1/auth/telegram', [], ['X-Forwarded-Host' => 'evil.example.com'])
+            ->assertCreated();
+
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook') && $request['url'] === $this->ourWebhook());
+        Http::assertNotSent(fn ($request) => str_contains(json_encode($request->data()), 'evil.example.com')
+            || str_contains(json_encode($request->data()), '10.0.0.5'));
+    }
+
     public function test_the_webhook_is_checked_at_most_every_ten_minutes(): void
     {
         $this->postJson('/api/v1/auth/telegram')->assertCreated();
