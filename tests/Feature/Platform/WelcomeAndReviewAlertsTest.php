@@ -96,6 +96,7 @@ class WelcomeAndReviewAlertsTest extends TestCase
     public function test_a_one_or_two_star_review_alerts_the_owner(): void
     {
         $this->alerts();
+        config(['services.ops_alerts.staff_chat_id' => '-100555']); // reviews are for the owner only
         [$token, $bookId] = $this->buyer();
 
         $this->withToken($token)->postJson("/api/v1/books/{$bookId}/reviews", ['rating' => 1, 'comment' => 'The cover was torn.'])->assertCreated();

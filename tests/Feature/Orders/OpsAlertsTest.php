@@ -104,4 +104,45 @@ class OpsAlertsTest extends TestCase
 
         Log::shouldHaveReceived('warning')->once()->withArgs(fn ($message, $context = []) => $message === 'Ops alert was not delivered' && $context['status'] === 403);
     }
+
+    public function test_the_staff_group_also_gets_new_orders_with_the_lines_and_a_link(): void
+    {
+        $this->enableAlerts();
+        config(['services.ops_alerts.staff_chat_id' => '-100555', 'shop.url' => 'https://shop.example/']);
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+        $variant = BookVariant::factory()->create(['stock_quantity' => 50, 'low_stock_threshold' => 2]);
+        $variant->book->update(['title' => 'Emma']);
+
+        $id = $this->placeOrder($variant, 2)->assertCreated()->json('data.id');
+
+        Http::assertSentCount(2);
+        foreach (['777', '-100555'] as $chat) {
+            Http::assertSent(fn (Request $r) => $r['chat_id'] === $chat
+                && str_contains($r['text'], '• 2 × Emma (paperback)')
+                && str_contains($r['text'], "Open: https://shop.example/admin/orders/{$id}"));
+        }
+    }
+
+    public function test_low_stock_goes_to_the_staff_group_too_and_one_chat_never_gets_it_twice(): void
+    {
+        $this->enableAlerts();
+        config(['services.ops_alerts.staff_chat_id' => '777']); // the owner used the same chat for both
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $this->placeOrder(BookVariant::factory()->create(['stock_quantity' => 3, 'low_stock_threshold' => 2]), 2)->assertCreated();
+
+        Http::assertSentCount(2); // new order + low stock, each once
+        Http::assertSent(fn (Request $r) => $r['chat_id'] === '777' && str_contains($r['text'], 'Low stock'));
+    }
+
+    public function test_only_the_staff_group_can_be_set_up(): void
+    {
+        config(['services.ops_alerts.token' => self::TOKEN, 'services.ops_alerts.chat_id' => null, 'services.ops_alerts.staff_chat_id' => '-100555']);
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $this->placeOrder(BookVariant::factory()->create(['stock_quantity' => 50]))->assertCreated();
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r) => $r['chat_id'] === '-100555' && ! str_contains($r['text'], 'Open:'));
+    }
 }

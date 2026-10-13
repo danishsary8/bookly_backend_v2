@@ -83,7 +83,7 @@ Bot API is free; nothing to top up.
 4. Check: on the website, Sign in → **Continue with Telegram** opens the bot; **Start** shows the
    "Share my phone number" button.
 
-### Owner alerts on Telegram (new orders, low stock)
+### Owner alerts on Telegram (new orders, low stock, low reviews)
 A message from the separate **Bookly Alerts** bot (the same bot as the backup-failure alert) to your private chat for
 every new order, whenever a sale pushes a book format to its low-stock threshold, and for every 1-2 star review
 (also when an edit brings a review down to 1-2 stars). It is sent after the customer's
@@ -93,6 +93,21 @@ response, and a failed message is only logged, so it never blocks or slows an or
    → **Save, rebuild and deploy**. Never paste either value into chat, docs or code.
 2. Check: place a test order on the website → the alert arrives within a few seconds. If not, Render's log shows
    "Ops alert was not delivered" with Telegram's reason (e.g. you never pressed **Start** in the Alerts bot).
+
+### Staff Telegram group (new orders, low stock)
+The same Bookly Alerts bot can post new orders (with the books, the delivery city and an **Open** link to the order in
+the admin) and low stock to a Telegram group of your staff. Reviews stay in your private chat only. Off while
+`OPS_STAFF_CHAT_ID` is empty; if it equals `OPS_ALERT_CHAT_ID` each message is sent once.
+1. In Telegram: create a group (e.g. "Bookly Staff"), add your staff, then **Add member** → the Bookly Alerts bot.
+2. Get the group's chat id without sharing it: in the group send any message, then open
+   `https://api.telegram.org/bot<ALERTS_BOT_TOKEN>/getUpdates` in your own browser (replace `<ALERTS_BOT_TOKEN>` there,
+   never in chat) and copy the `"chat":{"id":-100…}` number of the group (it starts with `-`). If the list is empty,
+   send another message in the group and reload.
+3. Render → service → **Environment** → add `OPS_STAFF_CHAT_ID` = that number, and `SHOP_URL` =
+   `https://bookly-frontend-five.vercel.app` (for the **Open** links; optional) → **Save, rebuild and deploy**.
+4. Check: place a test order → the group and your private chat each get one message. If the group gets nothing, Render's
+   log shows "Ops alert was not delivered" with Telegram's reason (e.g. "chat not found": wrong id or the bot is not in
+   the group).
 
 ### Housekeeping without a scheduler
 Render's free plan runs only the web process, so `schedule:work` never runs. The recurring jobs are listed in
