@@ -52,6 +52,14 @@ return [
         'url' => env('TELEGRAM_BOT_API_URL', 'https://api.telegram.org'),
     ],
 
+    // The "Bookly Alerts" Telegram bot: tells the owner about each new order and low stock. A separate bot from
+    // the shop bot above. Off while either value is empty; a failed message never blocks an order.
+    'ops_alerts' => [
+        'token' => env('OPS_ALERT_BOT_TOKEN'),
+        'chat_id' => env('OPS_ALERT_CHAT_ID'),
+        'url' => env('TELEGRAM_BOT_API_URL', 'https://api.telegram.org'),
+    ],
+
     'turnstile' => [
         'secret' => env('TURNSTILE_SECRET_KEY'),
     ],

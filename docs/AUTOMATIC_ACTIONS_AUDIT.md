@@ -6,6 +6,8 @@
 
 ---
 
+> **Status update 2026-10-13 (after this audit):** fixed and merged: housekeeping now runs from requests (`RUN_MAINTENANCE_ON_REQUEST`, covers token, unverified/closed customers, failed jobs and batches pruning); customer emails for every order change and return step (mail failure never blocks); owner Telegram alert for new orders and low stock. Still open from this list: welcome email, password-changed email, back-in-stock, review notices, orphan carts / audit-log / cache retention, exchange-rate refresh, TOTP lockout. See the frontend `docs/ROADMAP.md` for the order of work.
+
 ## 1. Summary
 
 ### Action Counts

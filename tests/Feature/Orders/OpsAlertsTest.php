@@ -1,0 +1,107 @@
+<?php
+
+namespace Tests\Feature\Orders;
+
+use App\Models\BookVariant;
+use App\Models\Customer;
+use App\Models\CustomerAddress;
+use App\Models\Order;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Tests\Concerns\ActsAsStaff;
+use Tests\TestCase;
+
+class OpsAlertsTest extends TestCase
+{
+    use ActsAsStaff, RefreshDatabase;
+
+    private const TOKEN = '123456:secret-alert-token';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Notification::fake();
+    }
+
+    private function enableAlerts(): void
+    {
+        config(['services.ops_alerts.token' => self::TOKEN, 'services.ops_alerts.chat_id' => '777']);
+    }
+
+    private function placeOrder(BookVariant $variant, int $qty = 1)
+    {
+        $customer = Customer::factory()->create(['name' => 'Dara']);
+        $address = CustomerAddress::factory()->for($customer)->create(['city' => 'Phnom Penh']);
+        $this->asToken($customer->createToken('t', ['customer'])->plainTextToken)
+            ->postJson('/api/v1/cart/items', ['book_variant_id' => $variant->id, 'quantity' => $qty])->assertCreated();
+
+        return $this->withHeader('Idempotency-Key', 'checkout-key-'.md5((string) $customer->id))->postJson('/api/v1/checkout', ['address_id' => $address->id, 'payment_method' => 'cod']);
+    }
+
+    public function test_a_new_order_sends_one_alert_to_the_owner_chat(): void
+    {
+        $this->enableAlerts();
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $id = $this->placeOrder(BookVariant::factory()->create(['stock_quantity' => 50, 'low_stock_threshold' => 2]), 2)->assertCreated()->json('data.id');
+
+        Http::assertSentCount(1);
+        Http::assertSent(function (Request $r) use ($id) {
+            $number = Order::find($id)->order_number;
+
+            return str_contains($r->url(), '/bot'.self::TOKEN.'/sendMessage')
+                && $r['chat_id'] === '777'
+                && str_contains($r['text'], "New order {$number}")
+                && str_contains($r['text'], 'Dara')
+                && str_contains($r['text'], 'Phnom Penh');
+        });
+    }
+
+    public function test_crossing_the_low_stock_threshold_sends_a_second_alert(): void
+    {
+        $this->enableAlerts();
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $this->placeOrder(BookVariant::factory()->create(['stock_quantity' => 5, 'low_stock_threshold' => 4]), 2)->assertCreated();
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn (Request $r) => str_contains($r['text'], 'Low stock') && str_contains($r['text'], 'Left: 3'));
+    }
+
+    public function test_nothing_is_sent_while_the_alerts_are_not_configured(): void
+    {
+        config(['services.ops_alerts.token' => null, 'services.ops_alerts.chat_id' => null]);
+        Http::fake();
+
+        $this->placeOrder(BookVariant::factory()->create(['stock_quantity' => 50]))->assertCreated();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_a_telegram_outage_never_blocks_the_order_and_the_token_is_not_logged(): void
+    {
+        $this->enableAlerts();
+        Log::spy();
+        Http::fake(['api.telegram.org/*' => fn () => throw new ConnectionException('cURL error for https://api.telegram.org/bot'.self::TOKEN.'/sendMessage')]);
+
+        $id = $this->placeOrder(BookVariant::factory()->create(['stock_quantity' => 50]))->assertCreated()->json('data.id');
+
+        $this->assertNotNull(Order::find($id));
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn ($message, $context = []) => $message === 'Ops alert could not be sent' && ! str_contains(json_encode($context), self::TOKEN));
+    }
+
+    public function test_a_rejected_message_is_logged_and_the_order_still_succeeds(): void
+    {
+        $this->enableAlerts();
+        Log::spy();
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => false, 'description' => 'Forbidden: bot was blocked'], 403)]);
+
+        $this->placeOrder(BookVariant::factory()->create(['stock_quantity' => 50]))->assertCreated();
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn ($message, $context = []) => $message === 'Ops alert was not delivered' && $context['status'] === 403);
+    }
+}
