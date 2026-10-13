@@ -57,6 +57,8 @@ return [
     'ops_alerts' => [
         'token' => env('OPS_ALERT_BOT_TOKEN'),
         'chat_id' => env('OPS_ALERT_CHAT_ID'),
+        // The staff Telegram group (the Bookly Alerts bot must be a member): new orders and low stock. Optional.
+        'staff_chat_id' => env('OPS_STAFF_CHAT_ID'),
         'url' => env('TELEGRAM_BOT_API_URL', 'https://api.telegram.org'),
     ],
 
