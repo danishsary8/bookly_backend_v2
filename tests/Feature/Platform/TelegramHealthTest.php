@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -166,6 +167,51 @@ class TelegramHealthTest extends TestCase
         $this->travel(5)->minutes();
         $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.error', 'webhook not set');
         Http::assertSentCount(2);
+    }
+
+    public function test_a_lost_webhook_is_put_back_when_checked_on_this_apis_own_address(): void
+    {
+        // Found live 2026-10-13: Telegram had no address at all, so the bot answered nobody.
+        $own = 'https://bookly-api.example.com/api/v1/telegram/webhook';
+        Http::fake([
+            self::URL => Http::sequence()
+                ->push(['ok' => true, 'result' => ['url' => '']])     // health check
+                ->push(['ok' => true, 'result' => ['url' => '']])     // ensureWebhook() looks again
+                ->push(['ok' => true, 'result' => ['url' => $own]]),  // next health check
+            'api.telegram.org/bot'.self::TOKEN.'/setWebhook' => Http::response(['ok' => true, 'result' => true]),
+        ]);
+
+        $this->getJson('https://bookly-api.example.com/api/v1/health')->assertOk()
+            ->assertJsonPath('checks.telegram_bot', ['status' => 'degraded', 'error' => 'webhook not set', 'repaired' => true]);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook') && $request['url'] === $own
+            && $request['secret_token'] === app(TelegramBot::class)->webhookSecret());
+
+        $this->getJson('https://bookly-api.example.com/api/v1/health')->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
+    }
+
+    public function test_checks_on_another_host_name_never_change_the_webhook(): void
+    {
+        // Render's own health checks arrive on an internal address; the bot must never be pointed there.
+        $this->webhookInfo(['url' => '']);
+
+        $this->getJson('http://10.0.0.5:10000/api/v1/health')->assertOk()
+            ->assertJsonPath('checks.telegram_bot', ['status' => 'degraded', 'error' => 'webhook not set']);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/setWebhook'));
+    }
+
+    public function test_a_faked_forwarded_host_cannot_point_the_bot_elsewhere(): void
+    {
+        Http::fake([
+            self::URL => Http::response(['ok' => true, 'result' => ['url' => '']]),
+            'api.telegram.org/bot'.self::TOKEN.'/setWebhook' => Http::response(['ok' => true, 'result' => true]),
+        ]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.5'])
+            ->getJson('https://bookly-api.example.com/api/v1/health', ['X-Forwarded-Host' => 'evil.example.com', 'X-Forwarded-Port' => '8443'])
+            ->assertJsonPath('checks.telegram_bot.repaired', true);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook')
+            && $request['url'] === 'https://bookly-api.example.com/api/v1/telegram/webhook');
+        Http::assertNotSent(fn ($request) => str_contains(json_encode($request->data()), 'evil.example.com'));
     }
 
     public function test_database_down_keeps_the_existing_response_and_does_not_call_telegram(): void

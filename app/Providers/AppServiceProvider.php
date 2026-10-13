@@ -22,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
         // Real visitor IP + HTTPS detection behind the host's load balancer (config/app.php, TRUSTED_PROXIES).
         $proxies = trim((string) config('app.trusted_proxies'));
         TrustProxies::at($proxies === '*' ? '*' : array_values(array_filter(array_map('trim', explode(',', $proxies)))));
+        // Only the visitor IP and the scheme come from the proxy. The host and port always come from the Host header
+        // (the host routes by it), so a visitor cannot fake this API's own address with X-Forwarded-Host/-Port: the
+        // Telegram webhook is registered on that address, and a faked one would send the bot's secret elsewhere.
+        TrustProxies::withHeaders(Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO);
 
         // Every API route: 120 requests per minute per logged-in user, or per IP for guests.
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)
