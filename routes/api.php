@@ -51,7 +51,7 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 /*
 | Public catalog (no login needed)
 */
-Route::get('/books', [BookController::class, 'index']);
+Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
 Route::get('/books/{book}/reviews', [BookReviewController::class, 'index'])->whereNumber('book');
 Route::get('/authors', [AuthorController::class, 'index']);
@@ -74,7 +74,7 @@ Route::prefix('auth')->group(function () {
     });
     Route::post('/forgot-password', [CustomerAuthController::class, 'forgotPassword'])->middleware('throttle:otp-send');
     Route::post('/telegram', [TelegramAuthController::class, 'login'])->middleware('throttle:telegram-link');
-    Route::post('/telegram/status', [TelegramAuthController::class, 'status']);
+    Route::post('/telegram/status', [TelegramAuthController::class, 'status'])->middleware('throttle:telegram-status');
 
     Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
         Route::post('/logout', [CustomerAuthController::class, 'logout']);
@@ -112,11 +112,11 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::post('/cart/items', [CartController::class, 'addItem']);
     Route::patch('/cart/items/{item}', [CartController::class, 'updateItem'])->whereNumber('item');
     Route::delete('/cart/items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
-    // 10 tries per minute so coupon codes cannot be guessed by brute force.
-    Route::post('/cart/coupon/check', CouponCheckController::class)->middleware('throttle:10,1');
+    // Coupon codes cannot be guessed: 10 tries a minute, and 5 wrong codes in a row lock checking for 15 minutes.
+    Route::post('/cart/coupon/check', CouponCheckController::class)->middleware('throttle:coupon-check');
 
     Route::post('/checkout/preview', [CheckoutController::class, 'preview'])->middleware('throttle:30,1');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:checkout');
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
@@ -214,8 +214,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
-        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
-        Route::get('/dashboard/sales', [DashboardController::class, 'sales']);
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary'])->middleware('throttle:admin-analytics');
+        Route::get('/dashboard/sales', [DashboardController::class, 'sales'])->middleware('throttle:admin-analytics');
         Route::get('/orders/export', OrderExportController::class)->middleware('throttle:10,1');
 
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);

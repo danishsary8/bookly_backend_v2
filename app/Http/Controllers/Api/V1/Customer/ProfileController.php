@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
+use App\Notifications\AccountSecurityNotice;
 use App\Services\Auth\SocialTokenVerifier;
 use App\Services\Customers\ClosedCustomers;
+use App\Support\SafeNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -47,6 +49,8 @@ class ProfileController extends Controller
 
         $customer->update(['password_hash' => $data['password']]);
         $customer->tokens()->where('id', '!=', $customer->currentAccessToken()->id)->delete();
+        // So the owner of the account notices a change they didn't make. Never blocks the change.
+        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was changed', 'The password of your Bookly account was just changed, and other devices were signed out.'));
 
         return response()->json(['message' => 'Password changed. Other sessions were signed out.']);
     }
