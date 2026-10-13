@@ -9,6 +9,9 @@ use Illuminate\Validation\ValidationException;
 
 class CouponService
 {
+    /** The answer for a code that doesn't exist (the only refusal that counts as a guess for the coupon lock). */
+    public const NOT_FOUND = 'This coupon code is not valid.';
+
     public static function normalize(string $code): string
     {
         return strtoupper(trim($code));
@@ -24,7 +27,7 @@ class CouponService
     {
         $fail = fn (string $message) => throw ValidationException::withMessages(['code' => $message]);
 
-        $coupon = Coupon::where('code', self::normalize($code))->first() ?? $fail('This coupon code is not valid.');
+        $coupon = Coupon::where('code', self::normalize($code))->first() ?? $fail(self::NOT_FOUND);
 
         if ($reason = $coupon->unusableReason(number_format($subtotalCents / 100, 2, '.', ''))) {
             $fail($reason);
