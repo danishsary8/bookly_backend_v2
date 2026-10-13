@@ -412,7 +412,7 @@ paths:
       summary: List, search, filter and sort books
       security: []
       parameters:
-        - { name: q, in: query, description: Full-text search, schema: { type: string } }
+        - { name: q, in: query, description: 'Search as you type: every word must match the title, description, an author, the series or a category name; words match as prefixes', schema: { type: string } }
         - { name: category_id, in: query, schema: { type: integer } }
         - { name: author_id, in: query, schema: { type: integer } }
         - { name: series_id, in: query, schema: { type: integer } }

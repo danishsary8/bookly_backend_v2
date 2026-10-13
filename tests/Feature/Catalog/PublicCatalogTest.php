@@ -50,6 +50,82 @@ class PublicCatalogTest extends TestCase
         $this->getJson('/api/v1/books?q=zzzz')->assertOk()->assertJsonCount(0, 'data');
     }
 
+    public function test_search_matches_author_series_and_category_names_and_word_prefixes(): void
+    {
+        $austen = Author::factory()->create(['name' => 'Jane Austen']);
+        $holmes = Series::factory()->create(['name' => 'Sherlock Holmes']);
+        $poetry = Category::factory()->create(['name' => 'Poetry', 'slug' => 'poetry']);
+
+        $emma = $this->book(['title' => 'Emma', 'description' => 'A matchmaker in Highbury']);
+        $emma->authors()->attach($austen);
+        $hound = $this->book(['title' => 'The Hound of the Baskervilles', 'description' => 'A legend on the moor', 'series_id' => $holmes->id]);
+        $leaves = $this->book(['title' => 'Leaves of Grass', 'description' => 'Collected verse']);
+        $leaves->categories()->attach($poetry);
+        $other = $this->book(['title' => 'Cooking Basics', 'description' => 'Recipes']);
+
+        $this->assertSame([$emma->id], $this->searchIds('austen'));
+        $this->assertSame([$emma->id], $this->searchIds('Jane Aus'), 'every word is a prefix');
+        $this->assertSame([$hound->id], $this->searchIds('Sherlock'));
+        $this->assertSame([$hound->id], $this->searchIds('sherlock holm'));
+        $this->assertSame([$hound->id], $this->searchIds('baskerv'));
+        $this->assertSame([$leaves->id], $this->searchIds('poetry'));
+        $this->assertSame([$leaves->id], $this->searchIds('poe'));
+        $this->assertSame([], $this->searchIds('&|!:*()'), 'operators are ignored, not a SQL error');
+        $this->assertSame([], $this->searchIds("o'brien <-> ! zz"), 'quotes and operators are word breaks');
+        $this->assertNotContains($other->id, $this->searchIds('austen'));
+    }
+
+    public function test_every_word_must_match_but_may_match_a_different_field(): void
+    {
+        $austen = Author::factory()->create(['name' => 'Jane Austen']);
+        $emma = $this->book(['title' => 'Emma', 'description' => 'A matchmaker in Highbury']);
+        $emma->authors()->attach($austen);
+        $persuasion = $this->book(['title' => 'Persuasion', 'description' => 'A second chance']);
+        $persuasion->authors()->attach($austen);
+        $this->book(['title' => 'Emma and the Dragon', 'description' => 'A children\'s story']);
+
+        $this->assertSame([$emma->id], $this->searchIds('austen emma'), 'author + title');
+        $this->assertSame([$emma->id], $this->searchIds('emma austen'), 'word order does not matter');
+        $this->assertSame([], $this->searchIds('austen dragon'));
+    }
+
+    public function test_half_typed_words_still_match_while_typing(): void
+    {
+        $running = $this->book(['title' => 'Running Wild', 'description' => 'A long journey']);
+        $this->book(['title' => 'Cooking Basics', 'description' => 'Recipes']);
+
+        // English stemming stores "run", so "runn" and "runni" only match through the unstemmed title.
+        foreach (['ru', 'run', 'runn', 'runni', 'running', 'running wi'] as $typed) {
+            $this->assertSame([$running->id], $this->searchIds($typed), "typed '{$typed}'");
+        }
+    }
+
+    public function test_stop_words_never_block_a_longer_search(): void
+    {
+        $hobbit = $this->book(['title' => 'Hobbit', 'description' => 'Dwarves and a dragon']);
+        $hound = $this->book(['title' => 'The Hound of the Baskervilles', 'description' => 'A legend on the moor']);
+
+        $this->assertSame([$hobbit->id], $this->searchIds('the hobbit'), '"the" is not in the title');
+        $this->assertSame([$hound->id], $this->searchIds('hound of baskervilles'));
+        $this->assertSame([$hound->id], $this->searchIds('the'), 'a lone stop word still has to match');
+    }
+
+    public function test_title_matches_rank_above_name_matches(): void
+    {
+        $doyle = Author::factory()->create(['name' => 'Arthur Conan Doyle']);
+        $byDoyle = $this->book(['title' => 'A Study in Scarlet', 'description' => 'Detective story']);
+        $byDoyle->authors()->attach($doyle);
+        $aboutDoyle = $this->book(['title' => 'Doyle: A Life', 'description' => 'Biography of Doyle']);
+
+        $this->assertSame([$aboutDoyle->id, $byDoyle->id], $this->searchIds('doyle'));
+    }
+
+    /** @return list<int> book ids in the order the API returns them */
+    private function searchIds(string $q): array
+    {
+        return collect($this->getJson('/api/v1/books?q='.urlencode($q))->assertOk()->json('data'))->pluck('id')->all();
+    }
+
     public function test_filters(): void
     {
         $category = Category::factory()->create();
