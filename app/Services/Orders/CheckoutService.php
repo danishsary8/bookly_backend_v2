@@ -12,6 +12,7 @@ use App\Models\Coupon;
 use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\StaffUser;
 use App\Notifications\LowStockNotification;
 use App\Notifications\OrderPlacedNotification;
@@ -72,6 +73,7 @@ class CheckoutService
             // 3. Lock every format in the cart, always in id order so two checkouts cannot deadlock.
             $variantIds = $cart->items()->orderBy('book_variant_id')->pluck('book_variant_id');
             $variants = BookVariant::whereIn('id', $variantIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $variants->load(['book' => fn ($q) => $q->withTrashed()->with('authors')]);
 
             // 4. Re-check the cart with today's prices and stock now that nothing can change underneath us.
             $summary = $this->carts->summary($customer);
@@ -122,6 +124,7 @@ class CheckoutService
                     'quantity' => $item->quantity,
                     'unit_price' => $variant->price_usd,
                     'subtotal' => Money::format($line['line_total_cents']),
+                    ...OrderItem::detailsOf($variant),
                 ]);
 
                 if (! $variant->format->isDigital() && $this->inventory->deductForSale($variant, $item->quantity, $order)) {

@@ -20,8 +20,8 @@ class ReturnResource extends JsonResource
             'items' => $this->items->map(fn ($ri) => [
                 'id' => $ri->id,
                 'order_item_id' => $ri->order_item_id,
-                'title' => $ri->orderItem->variant?->book?->title,
-                'format' => $ri->orderItem->variant?->format->value,
+                'title' => $ri->orderItem->bookTitle(),
+                'format' => $ri->orderItem->bookFormat()?->value,
                 'quantity' => $ri->quantity,
                 'unit_price_usd' => $ri->orderItem->unit_price,
                 'reason' => $ri->reason,

@@ -133,7 +133,7 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 | POST | /checkout/preview | coupon_code? — totals for the current cart: `{subtotal, discount, shipping_fee, tax, total}` each `{usd, khr}`, plus `coupon_code`, `requires_shipping`, `can_checkout`. Nothing is saved |
 | POST | /checkout | Header `Idempotency-Key: <8-100 chars, A-Z a-z 0-9 - _>` (required, new value per order). Body: address_id, payment_method (`cod` only for now), coupon_code? — 201 + order. Same key again: 200 + the same order and header `Idempotent-Replayed: true` |
 | GET | /orders | `status`, `per_page` — newest first |
-| GET | /orders/{id} | includes `status_history` |
+| GET | /orders/{id} | includes `status_history`. Line `title`/`format` (and the documents' `sku`, `isbn`, `authors`) are what the book was when ordered, not today's book |
 | POST | /orders/{id}/cancel | reason? — only while `pending` |
 | GET | /orders/{id}/invoice | print data for the customer's own invoice (same shape as `/staff/orders/documents`); 422 for a cancelled order; 30/min |
 

@@ -31,8 +31,8 @@ class ReturnController extends Controller
             'reason_unavailable' => $block,
             'items' => $this->returns->returnableItems($model)->map(fn ($row) => [
                 'order_item_id' => $row['item']->id,
-                'title' => $row['item']->variant->book?->title,
-                'format' => $row['item']->variant->format->value,
+                'title' => $row['item']->bookTitle(),
+                'format' => $row['item']->bookFormat()?->value,
                 'purchased_quantity' => $row['item']->quantity,
                 'returnable_quantity' => $row['returnable_quantity'],
             ])->values(),
