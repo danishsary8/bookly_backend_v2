@@ -15,8 +15,9 @@ class DashboardController extends Controller
     public function summary(Request $request): JsonResponse
     {
         [$start, $end] = $this->period($request);
+        $compare = $request->validate(['compare' => ['nullable', 'boolean']])['compare'] ?? true;
 
-        return response()->json(['data' => $this->dashboard->summary($start, $end)]);
+        return response()->json(['data' => $this->dashboard->summary($start, $end, (bool) $compare)]);
     }
 
     public function sales(Request $request): JsonResponse

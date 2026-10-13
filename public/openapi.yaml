@@ -787,8 +787,12 @@ paths:
   /staff/dashboard/summary:
     get:
       tags: [Admin]
-      summary: (admin) Revenue (cash basis), orders, best sellers, low stock
-      parameters: [ { $ref: '#/components/parameters/Period' }, { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
+      summary: (admin) Revenue (cash basis, USD + KHR), orders, best sellers, top categories, low stock, comparison with the previous period
+      parameters:
+        - { $ref: '#/components/parameters/Period' }
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: compare, in: query, required: false, description: 'Also return the previous period of the same length and the change in percent (default true)', schema: { type: boolean } }
       responses: { '200': { description: Summary } }
   /staff/dashboard/sales:
     get:
