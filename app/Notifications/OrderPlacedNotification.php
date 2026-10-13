@@ -31,7 +31,7 @@ class OrderPlacedNotification extends Notification implements ShouldQueue
             ->line("Order number: {$order->order_number}");
 
         foreach ($order->items as $item) {
-            $mail->line("{$item->quantity} x {$item->variant->book?->title} ({$item->variant->format->value}) — {$item->subtotal} USD");
+            $mail->line("{$item->quantity} x {$item->bookTitle()} ({$item->bookFormat()?->value}) — {$item->subtotal} USD");
         }
 
         $mail->line("Subtotal: {$order->subtotal} USD");
