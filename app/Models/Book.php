@@ -72,13 +72,61 @@ class Book extends Model
         return $query->whereHas('variants', fn (Builder $q) => $q->where('is_active', true));
     }
 
-    public function scopeSearch(Builder $query, string $term): Builder
+    /**
+     * Splits what the customer typed into lower-case words, each used as a prefix ("sherlock hol" -> sherlock:*, hol:*),
+     * so results appear while typing. Only letters, digits and combining marks (Khmer) are kept, so a word can never be
+     * a tsquery operator; at most 8 words.
+     *
+     * @return list<string>
+     */
+    public static function searchPrefixes(string $term): array
     {
-        return $query->whereRaw("search_vector @@ plainto_tsquery('english', ?)", [$term]);
+        $words = preg_split('/[^\p{L}\p{N}\p{M}]+/u', mb_strtolower($term), -1, PREG_SPLIT_NO_EMPTY);
+
+        return array_map(fn (string $word) => $word.':*', array_slice($words, 0, 8));
     }
 
+    /**
+     * Every word must match somewhere: the title or description, an author, the series or a category name.
+     * So "austen emma" finds Emma by Jane Austen, and "sherlock" finds the books of the Sherlock Holmes series.
+     * The title is also matched unstemmed ('simple'), because English stemming breaks half-typed words
+     * ("runni" is not a prefix of the stem "run"). A stop word ("the", "of") never blocks a longer search.
+     */
+    public function scopeSearch(Builder $query, string $term): Builder
+    {
+        $prefixes = self::searchPrefixes($term);
+        if ($prefixes === []) {
+            return $query->whereRaw('false');
+        }
+
+        foreach ($prefixes as $prefix) {
+            $query->where(fn (Builder $q) => $q
+                ->whereRaw("books.search_vector @@ to_tsquery('english', ?)", [$prefix])
+                ->orWhereRaw("to_tsvector('simple', books.title) @@ to_tsquery('simple', ?)", [$prefix])
+                ->orWhereHas('authors', fn (Builder $a) => $a->whereRaw("to_tsvector('simple', authors.name) @@ to_tsquery('simple', ?)", [$prefix]))
+                ->orWhereHas('series', fn (Builder $s) => $s->whereRaw("to_tsvector('english', series.name) @@ to_tsquery('english', ?)", [$prefix]))
+                ->orWhereHas('categories', fn (Builder $c) => $c->whereRaw("to_tsvector('english', categories.name) @@ to_tsquery('english', ?)", [$prefix]))
+                ->when(count($prefixes) > 1, fn (Builder $q) => $q->orWhereRaw("numnode(to_tsquery('english', ?)) = 0", [$prefix])));
+        }
+
+        return $query;
+    }
+
+    /** Title matches first, then author, series and category name matches; text rank breaks ties. */
     public function scopeOrderByRelevance(Builder $query, string $term): Builder
     {
-        return $query->orderByRaw("ts_rank(search_vector, plainto_tsquery('english', ?)) DESC", [$term]);
+        $any = implode(' | ', self::searchPrefixes($term));
+
+        return $query->orderByRaw(
+            "ts_rank(books.search_vector, to_tsquery('english', ?))
+            + CASE WHEN to_tsvector('simple', books.title) @@ to_tsquery('simple', ?) THEN 1 ELSE 0 END
+            + CASE WHEN EXISTS (SELECT 1 FROM book_authors ba JOIN authors a ON a.id = ba.author_id
+                WHERE ba.book_id = books.id AND to_tsvector('simple', a.name) @@ to_tsquery('simple', ?)) THEN 0.6 ELSE 0 END
+            + CASE WHEN EXISTS (SELECT 1 FROM series s
+                WHERE s.id = books.series_id AND to_tsvector('english', s.name) @@ to_tsquery('english', ?)) THEN 0.4 ELSE 0 END
+            + CASE WHEN EXISTS (SELECT 1 FROM book_categories bc JOIN categories c ON c.id = bc.category_id
+                WHERE bc.book_id = books.id AND to_tsvector('english', c.name) @@ to_tsquery('english', ?)) THEN 0.2 ELSE 0 END DESC",
+            [$any, $any, $any, $any, $any],
+        );
     }
 }
