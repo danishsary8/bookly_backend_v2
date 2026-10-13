@@ -46,7 +46,7 @@ class TelegramBot
         return hash_hmac('sha256', 'telegram-webhook|'.config('services.telegram_bot.token'), (string) config('app.key'));
     }
 
-    /** Where Telegram sends the bot's messages: APP_URL, or the address a request came in on. */
+    /** Where Telegram sends the bot's messages: APP_URL (callers may pass another base only in tests). */
     public function webhookUrl(?string $base = null): string
     {
         return rtrim($base ?? (string) config('app.url'), '/').'/api/v1/telegram/webhook';

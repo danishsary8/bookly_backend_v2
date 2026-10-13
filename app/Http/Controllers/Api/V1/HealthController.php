@@ -50,7 +50,7 @@ class HealthController extends Controller
 
         try {
             $bot = app(TelegramBot::class);
-            $base = app()->isProduction() ? 'https://'.request()->getHttpHost() : request()->getSchemeAndHttpHost();
+            $base = (string) config('app.url'); // the only address the bot may use (see repairWebhook())
             $expected = $bot->webhookUrl($base);
             $token = (string) config('services.telegram_bot.token');
             $key = 'health-telegram-bot:'.hash('sha256', $token.'|'.$expected);
@@ -82,16 +82,16 @@ class HealthController extends Controller
     }
 
     /**
-     * The uptime monitor calls this every few minutes, so a lost webhook is put back here instead of waiting for
-     * the next customer to start a Telegram sign-in (found live 2026-10-13: Telegram had no address at all).
-     * Only for requests on this API's own address (APP_URL): Render's internal checks use another host name,
-     * and the bot must never be pointed there. ensureWebhook() checks Telegram afresh, at most every 10 minutes.
+     * Render and the uptime monitor call this every few seconds/minutes, so a lost webhook is put back here instead
+     * of waiting for the next customer to start a Telegram sign-in (found live 2026-10-13: Telegram had no address).
+     * Always to APP_URL, never to the request's host (behind the proxy it is an internal name, and it can be faked).
+     * At most one attempt per 10 minutes, so a Telegram outage does not flood Sentry.
      *
      * @return array{repaired?: bool}
      */
     private function repairWebhook(TelegramBot $bot, string $base, string $healthCacheKey): array
     {
-        if (strcasecmp(request()->getHost(), (string) parse_url((string) config('app.url'), PHP_URL_HOST)) !== 0) {
+        if (! Cache::add('health-telegram-webhook-repair', true, now()->addMinutes(10))) {
             return [];
         }
 

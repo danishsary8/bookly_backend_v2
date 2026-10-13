@@ -84,8 +84,9 @@ class TelegramAuthController extends Controller
             return response()->json(['message' => self::OFF], 503);
         }
         try {
-            // Telegram must call this API when the customer taps Start; the address is this request's own.
-            $this->bot->ensureWebhook(app()->isProduction() ? 'https://'.$request->getHttpHost() : $request->getSchemeAndHttpHost());
+            // Telegram must call this API when the customer taps Start. The address is always APP_URL, never the
+            // request's host: behind Render's proxy that host is not the public one, and headers can be faked.
+            $this->bot->ensureWebhook((string) config('app.url'));
         } catch (TelegramBotProblem $e) {
             report($e); // the link still works if Telegram already has the right address
         }
