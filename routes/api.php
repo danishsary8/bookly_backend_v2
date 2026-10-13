@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublis
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
+use App\Http\Controllers\Api\V1\Staff\Orders\OrderBulkStatusController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderDocumentController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
@@ -170,6 +171,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/orders/documents', OrderDocumentController::class)->middleware('throttle:30,1');
     Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order');
     Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order');
+    // One status for up to 50 orders (not cancel); each order changes on its own and failures are listed.
+    Route::post('/orders/bulk-status', OrderBulkStatusController::class)->middleware('throttle:20,1');
 
     Route::get('/returns', [StaffReturnController::class, 'index']);
     Route::get('/returns/{return}', [StaffReturnController::class, 'show'])->whereNumber('return');
