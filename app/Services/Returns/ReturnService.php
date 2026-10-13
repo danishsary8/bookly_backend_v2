@@ -8,10 +8,12 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderReturn;
 use App\Models\StaffUser;
+use App\Notifications\ReturnUpdatedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Inventory\InventoryService;
 use App\Services\Orders\OrderStatusService;
 use App\Support\Money;
+use App\Support\SafeNotifier;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -73,7 +75,7 @@ class ReturnService
     /** @param array<int, array{order_item_id: int, quantity: int, reason?: string|null}> $lines */
     public function request(Customer $customer, Order $order, string $reason, array $lines): OrderReturn
     {
-        return DB::transaction(function () use ($customer, $order, $reason, $lines) {
+        $return = DB::transaction(function () use ($customer, $order, $reason, $lines) {
             $locked = Order::whereKey($order->id)->where('customer_id', $customer->id)->lockForUpdate()->firstOrFail();
 
             if ($block = $this->blockReason($locked)) {
@@ -110,6 +112,10 @@ class ReturnService
 
             return $return;
         });
+
+        SafeNotifier::toCustomer($customer, new ReturnUpdatedNotification($return));
+
+        return $return;
     }
 
     /** A request nobody has acted on yet is simply removed (there is no "withdrawn" status). */
@@ -188,7 +194,7 @@ class ReturnService
 
     private function resolve(OrderReturn $return, StaffUser $staff, array $allowedFrom, callable $change): OrderReturn
     {
-        return DB::transaction(function () use ($return, $staff, $allowedFrom, $change) {
+        $resolved = DB::transaction(function () use ($return, $staff, $allowedFrom, $change) {
             $locked = OrderReturn::whereKey($return->id)->lockForUpdate()->firstOrFail();
             $from = $locked->status;
 
@@ -204,6 +210,11 @@ class ReturnService
 
             return $locked;
         });
+
+        // After the commit, so a mail outage can never undo or block the return step.
+        SafeNotifier::toCustomer($resolved->customer, new ReturnUpdatedNotification($resolved));
+
+        return $resolved;
     }
 
     /** True when every physical copy in the order is in a refunded return. */

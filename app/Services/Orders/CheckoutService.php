@@ -18,6 +18,7 @@ use App\Notifications\OrderPlacedNotification;
 use App\Services\Cart\CartService;
 use App\Services\Cart\CouponService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Telegram\OpsAlerts;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -146,12 +147,14 @@ class CheckoutService
         });
 
         if ($result['created']) {
+            app(OpsAlerts::class)->newOrder($result['order']);
             $customer->notify(new OrderPlacedNotification($result['order']));
 
             if ($crossedLowStock !== []) {
                 $staff = StaffUser::all();
                 foreach ($crossedLowStock as $variant) {
                     Notification::send($staff, LowStockNotification::for($variant->load('book')));
+                    app(OpsAlerts::class)->lowStock($variant);
                 }
             }
         }

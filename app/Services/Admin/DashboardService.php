@@ -9,6 +9,7 @@ use App\Models\BookVariant;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderReturn;
+use App\Services\CurrencyService;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,8 @@ class DashboardService
     public const PERIODS = ['today', '7d', '30d', 'custom'];
 
     private const MAX_DAYS = 366;
+
+    public function __construct(private readonly CurrencyService $currency) {}
 
     /** @return array{0: CarbonImmutable, 1: CarbonImmutable} [start, end) in the shop's timezone */
     public function period(string $period, ?string $from = null, ?string $to = null): array
@@ -44,7 +47,67 @@ class DashboardService
         return [$start, $end];
     }
 
-    public function summary(CarbonImmutable $start, CarbonImmutable $end): array
+    /**
+     * The period's numbers, plus (unless $compare is false) the same numbers for the period of equal length just
+     * before it and the change in percent. USD amounts have a KHR twin at the current rate (null without a rate).
+     */
+    public function summary(CarbonImmutable $start, CarbonImmutable $end, bool $compare = true): array
+    {
+        [$from, $to] = $this->utc($start, $end);
+        $now = $this->totals($start, $end);
+        $placed = Order::whereBetween('placed_at', [$from, $to->subSecond()]);
+
+        $summary = [
+            'period' => ['from' => $start->toDateString(), 'to' => $end->subDay()->toDateString(), 'timezone' => $start->timezoneName],
+            'revenue' => $this->revenue($now),
+            'delivered_orders' => $now['delivered_orders'],
+            'average_order_value_usd' => Money::format($now['average_order_value']),
+            'average_order_value_khr' => $this->khr($now['average_order_value']),
+            'orders_placed' => $now['orders_placed'],
+            'orders_by_status' => collect(OrderStatus::cases())->mapWithKeys(fn ($s) => [$s->value => 0])
+                ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n)),
+            'new_customers' => $now['new_customers'],
+            'best_sellers' => $this->bestSellers($from, $to),
+            'top_categories' => $this->topCategories($from, $to),
+            'open_returns' => OrderReturn::whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->count(),
+            'low_stock' => $this->lowStock(),
+        ];
+
+        if ($compare) {
+            $days = (int) $start->diffInDays($end);
+            [$prevStart, $prevEnd] = [$start->subDays($days), $start];
+            $before = $this->totals($prevStart, $prevEnd);
+
+            $summary['comparison'] = [
+                'period' => ['from' => $prevStart->toDateString(), 'to' => $prevEnd->subDay()->toDateString(), 'timezone' => $start->timezoneName],
+                'revenue' => $this->revenue($before),
+                'delivered_orders' => $before['delivered_orders'],
+                'average_order_value_usd' => Money::format($before['average_order_value']),
+                'average_order_value_khr' => $this->khr($before['average_order_value']),
+                'orders_placed' => $before['orders_placed'],
+                'new_customers' => $before['new_customers'],
+                'change_percent' => [
+                    'gross_revenue' => $this->change($now['gross'], $before['gross']),
+                    'refunds' => $this->change($now['refunds'], $before['refunds']),
+                    'net_revenue' => $this->change($now['gross'] - $now['refunds'], $before['gross'] - $before['refunds']),
+                    'delivered_orders' => $this->change($now['delivered_orders'], $before['delivered_orders']),
+                    'average_order_value' => $this->change($now['average_order_value'], $before['average_order_value']),
+                    'orders_placed' => $this->change($now['orders_placed'], $before['orders_placed']),
+                    'new_customers' => $this->change($now['new_customers'], $before['new_customers']),
+                ],
+            ];
+        }
+
+        return $summary;
+    }
+
+    /**
+     * The comparable numbers of one period. Cash basis: an order is revenue on the day it was delivered,
+     * a refund counts on the day it was paid back. Money in cents.
+     *
+     * @return array{gross: int, refunds: int, delivered_orders: int, average_order_value: int, orders_placed: int, new_customers: int}
+     */
+    private function totals(CarbonImmutable $start, CarbonImmutable $end): array
     {
         [$from, $to] = $this->utc($start, $end);
 
@@ -56,29 +119,50 @@ class DashboardService
             ->first();
 
         $gross = Money::toCents($delivered->total);
-        $refunds = Money::toCents(OrderReturn::where('status', ReturnStatus::Refunded)->whereBetween('resolved_at', [$from, $to->subSecond()])->sum('refund_amount'));
-        $deliveredCount = (int) $delivered->n;
-
-        $placed = Order::whereBetween('placed_at', [$from, $to->subSecond()]);
+        $count = (int) $delivered->n;
 
         return [
-            'period' => ['from' => $start->toDateString(), 'to' => $end->subDay()->toDateString(), 'timezone' => $start->timezoneName],
-            'revenue' => [
-                'gross_usd' => Money::format($gross),
-                'refunds_usd' => Money::format($refunds),
-                'net_usd' => Money::format($gross - $refunds),
-            ],
-            'delivered_orders' => $deliveredCount,
-            'average_order_value_usd' => Money::format($deliveredCount > 0 ? intdiv($gross, $deliveredCount) : 0),
-            'orders_placed' => (clone $placed)->count(),
-            'orders_by_status' => collect(OrderStatus::cases())->mapWithKeys(fn ($s) => [$s->value => 0])
-                ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n)),
+            'gross' => $gross,
+            'refunds' => Money::toCents(OrderReturn::where('status', ReturnStatus::Refunded)->whereBetween('resolved_at', [$from, $to->subSecond()])->sum('refund_amount')),
+            'delivered_orders' => $count,
+            'average_order_value' => $count > 0 ? intdiv($gross, $count) : 0,
+            'orders_placed' => Order::whereBetween('placed_at', [$from, $to->subSecond()])->count(),
             // Unfinished sign-ups aren't customers yet.
             'new_customers' => Customer::verified()->whereBetween('created_at', [$from, $to->subSecond()])->count(),
-            'best_sellers' => $this->bestSellers($from, $to),
-            'open_returns' => OrderReturn::whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->count(),
-            'low_stock' => $this->lowStock(),
         ];
+    }
+
+    /** @param array{gross: int, refunds: int} $totals */
+    private function revenue(array $totals): array
+    {
+        $net = $totals['gross'] - $totals['refunds'];
+
+        return [
+            'gross_usd' => Money::format($totals['gross']),
+            'refunds_usd' => Money::format($totals['refunds']),
+            'net_usd' => Money::format($net),
+            'gross_khr' => $this->khr($totals['gross']),
+            'refunds_khr' => $this->khr($totals['refunds']),
+            'net_khr' => $this->khr($net),
+        ];
+    }
+
+    /**
+     * Change from the previous period in percent, 2 decimals. Previous 0: 100.0 when there is something now,
+     * else 0.0 (documented in docs/API.md; the frontend shows "new" instead of +100% in that case).
+     */
+    private function change(int $now, int $before): float
+    {
+        if ($before === 0) {
+            return $now > 0 ? 100.0 : 0.0;
+        }
+
+        return round(($now - $before) / abs($before) * 100, 2);
+    }
+
+    private function khr(int $cents): ?string
+    {
+        return $this->currency->usdToKhr(Money::format($cents));
     }
 
     /** One row per day of the period, including days without sales. */
@@ -112,6 +196,7 @@ class DashboardService
                 'gross_revenue_usd' => Money::format($g),
                 'refunds_usd' => Money::format($r),
                 'net_revenue_usd' => Money::format($g - $r),
+                'net_revenue_khr' => $this->khr($g - $r),
             ];
         }
 
@@ -138,6 +223,36 @@ class DashboardService
                 'title' => $row->title,
                 'copies_sold' => (int) $row->copies,
                 'sales_usd' => Money::format(Money::toCents($row->sales)),
+                'sales_khr' => $this->khr(Money::toCents($row->sales)),
+            ])
+            ->all();
+    }
+
+    /**
+     * Top 5 categories by copies in orders placed in the period (cancelled orders excluded). A book in two
+     * categories counts in both, so these rows can add up to more than the copies sold.
+     */
+    private function topCategories(CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->join('book_categories', 'book_categories.book_id', '=', 'book_variants.book_id')
+            ->join('categories', 'categories.id', '=', 'book_categories.category_id')
+            ->whereNull('orders.deleted_at')
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->whereBetween('orders.placed_at', [$from, $to->subSecond()])
+            ->groupBy('categories.id', 'categories.name')
+            ->selectRaw('categories.id AS category_id, categories.name, SUM(order_items.quantity) AS copies, SUM(order_items.subtotal) AS sales')
+            ->orderByDesc('copies')->orderBy('categories.id')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => [
+                'category_id' => $row->category_id,
+                'name' => $row->name,
+                'copies_sold' => (int) $row->copies,
+                'sales_usd' => Money::format(Money::toCents($row->sales)),
+                'sales_khr' => $this->khr(Money::toCents($row->sales)),
             ])
             ->all();
     }

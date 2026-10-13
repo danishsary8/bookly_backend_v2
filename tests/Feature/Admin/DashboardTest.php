@@ -5,7 +5,9 @@ namespace Tests\Feature\Admin;
 use App\Enums\BookFormat;
 use App\Enums\OrderStatus;
 use App\Models\BookVariant;
+use App\Models\Category;
 use App\Models\Customer;
+use App\Models\ExchangeRate;
 use App\Models\OrderReturn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -110,5 +112,84 @@ class DashboardTest extends TestCase
         $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=year')->assertUnprocessable();
 
         $this->asToken($this->staffToken())->getJson('/api/v1/staff/dashboard/summary')->assertForbidden();
+    }
+
+    public function test_seven_days_are_compared_with_the_seven_days_before(): void
+    {
+        $data = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=7d')->assertOk()
+            ->assertJsonPath('data.comparison.period.from', '2026-09-27')
+            ->assertJsonPath('data.comparison.period.to', '2026-10-03')
+            ->assertJsonPath('data.comparison.revenue.gross_usd', '0.00')
+            ->assertJsonPath('data.comparison.delivered_orders', 0)
+            ->json('data.comparison.change_percent');
+
+        // Nothing in the week before: "new" is reported as 100.0, an unchanged zero as 0.0 (never a division by zero).
+        $this->assertSame(100.0, (float) $data['gross_revenue']);
+        $this->assertSame(100.0, (float) $data['orders_placed']);
+    }
+
+    public function test_change_percent_against_a_previous_period_with_sales(): void
+    {
+        // August (31 days) is compared with July 1-31: the old order was placed 30 July, add one delivered 15 July.
+        $july = $this->deliveredOrder(Customer::factory()->create(), [[$this->physical('33.00'), 1]], deliveredAt: Carbon::parse('2026-07-15 03:00:00', 'UTC'));
+        $july->update(['placed_at' => Carbon::parse('2026-07-14 03:00:00', 'UTC')]);
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=custom&from=2026-08-01&to=2026-08-31')->assertOk()
+            ->assertJsonPath('data.comparison.period.from', '2026-07-01')
+            ->assertJsonPath('data.comparison.period.to', '2026-07-31')
+            ->assertJsonPath('data.revenue.gross_usd', '99.00')
+            ->assertJsonPath('data.comparison.revenue.gross_usd', '33.00')
+            ->assertJsonPath('data.comparison.change_percent.gross_revenue', 200)   // (99 - 33) / 33
+            ->assertJsonPath('data.comparison.change_percent.net_revenue', 200)
+            ->assertJsonPath('data.comparison.change_percent.orders_placed', -100) // 0 in August, 2 in July
+            ->assertJsonPath('data.comparison.change_percent.delivered_orders', 0);
+    }
+
+    public function test_compare_can_be_turned_off(): void
+    {
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=7d&compare=0')->assertOk()
+            ->assertJsonMissingPath('data.comparison');
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?compare=maybe')->assertUnprocessable();
+    }
+
+    public function test_khr_amounts_are_null_until_a_rate_is_set(): void
+    {
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()
+            ->assertJsonPath('data.revenue.gross_usd', '40.00')
+            ->assertJsonPath('data.revenue.gross_khr', null)
+            ->assertJsonPath('data.average_order_value_khr', null);
+    }
+
+    public function test_khr_amounts_use_the_current_rate(): void
+    {
+        ExchangeRate::create(['base_currency' => 'USD', 'target_currency' => 'KHR', 'rate' => '4100', 'effective_at' => now()->subDay()]);
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()
+            ->assertJsonPath('data.revenue.gross_khr', '164000')   // 40.00 USD
+            ->assertJsonPath('data.revenue.refunds_khr', '61500')  // 15.00
+            ->assertJsonPath('data.revenue.net_khr', '102500')     // 25.00
+            ->assertJsonPath('data.average_order_value_khr', '164000')
+            ->assertJsonPath('data.best_sellers.0.sales_khr', '28700'); // today's only placed order: 7.00 USD
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/sales?period=today')->assertOk()
+            ->assertJsonPath('data.0.net_revenue_khr', '102500');
+    }
+
+    public function test_top_categories_count_copies_of_orders_placed_in_the_period(): void
+    {
+        $fiction = Category::factory()->create(['name' => 'Fiction']);
+        $history = Category::factory()->create(['name' => 'History']);
+        $novel = $this->physical('10.00');
+        $novel->book->categories()->attach([$fiction->id, $history->id]);
+        $atlas = $this->physical('5.00');
+        $atlas->book->categories()->attach($history->id);
+        $order = $this->deliveredOrder(Customer::factory()->create(), [[$novel, 3], [$atlas, 1]]);
+        $order->update(['placed_at' => now()]);
+
+        $rows = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data.top_categories');
+
+        $this->assertSame(['History', 'Fiction'], array_column($rows, 'name'));
+        $this->assertSame(4, $rows[0]['copies_sold']);
+        $this->assertSame('35.00', $rows[0]['sales_usd']);
+        $this->assertSame(3, $rows[1]['copies_sold']);
     }
 }

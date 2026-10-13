@@ -13,4 +13,8 @@ return [
 
     // Day boundaries for the admin dashboard ("today", daily sales). Timestamps are stored in UTC.
     'timezone' => env('SHOP_TIMEZONE', 'Asia/Phnom_Penh'),
+
+    // Hosts without a scheduler (Render free) set this to true: the housekeeping jobs then run, when due, after any API
+    // request (the uptime monitor's 5-minute ping is enough). Leave it off where `schedule:work` runs.
+    'maintenance_on_request' => (bool) env('RUN_MAINTENANCE_ON_REQUEST', false),
 ];

@@ -1,6 +1,9 @@
 # Next step
 
-## Now (2026-10-10)
+## Now (2026-10-12)
+Owner action after merging `feature/scheduler-on-ping`: in Render add `RUN_MAINTENANCE_ON_REQUEST` = `true` (the housekeeping jobs then run from web traffic; the 5-minute uptime ping is enough).
+
+## Earlier (2026-10-10)
 The full ordered to-do list and the next session's prompt live in the frontend repo: docs/ROADMAP.md and docs/NEXT_STEP.md. Open items are tracked there.
 
 - **Backup alert bot and secrets**: done and verified. The alert bot was created, repository secrets were added, and the workflow manual trigger with `test_alert` ran green with Telegram delivery confirmed.
