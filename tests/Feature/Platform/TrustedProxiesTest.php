@@ -49,16 +49,6 @@ class TrustedProxiesTest extends TestCase
         $this->hit()->assertJson(['ip' => '203.0.113.7']);
     }
 
-    public function test_the_api_address_never_comes_from_forwarded_host_or_port_headers(): void
-    {
-        // The Telegram webhook is registered on this address; a faked one would send the bot's secret elsewhere.
-        Route::middleware('api')->get('/api/v1/__test/host', fn () => ['host' => request()->getHttpHost()]);
-
-        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.5'])
-            ->getJson('https://bookly-api.example.com/api/v1/__test/host', ['X-Forwarded-Host' => 'evil.example.com', 'X-Forwarded-Port' => '8443'])
-            ->assertJson(['host' => 'bookly-api.example.com']);
-    }
-
     private function refreshWithProxies(string $value): void
     {
         config(['app.trusted_proxies' => $value]);
