@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesCon
 use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
+use App\Http\Controllers\Api\V1\Staff\Orders\OrderDocumentController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
@@ -120,6 +121,7 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
+    Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->whereNumber('order')->middleware('throttle:30,1');
     Route::get('/orders/{order}/returnable-items', [ReturnController::class, 'returnable'])->whereNumber('order');
     Route::post('/orders/{order}/returns', [ReturnController::class, 'store'])->whereNumber('order');
     Route::get('/returns', [ReturnController::class, 'index']);
@@ -164,6 +166,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead'])->whereUuid('notification');
 
     Route::get('/orders', [StaffOrderController::class, 'index']);
+    // Invoices and packing slips: ?ids[]=1&ids[]=2 (up to 50 orders per print).
+    Route::get('/orders/documents', OrderDocumentController::class)->middleware('throttle:30,1');
     Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order');
     Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order');
 

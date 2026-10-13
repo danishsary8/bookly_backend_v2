@@ -38,6 +38,15 @@ class Order extends Model
 
     protected $hidden = ['idempotency_key'];
 
+    /** What OrderDocumentResource (invoice, packing slip) reads; deleted books still print. */
+    public static function documentRelations(): array
+    {
+        return [
+            'customer', 'coupon', 'payments', 'statusHistory', 'returns',
+            'items.variant.book' => fn ($q) => $q->withTrashed()->with('authors'),
+        ];
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class)->withTrashed();
