@@ -26,8 +26,11 @@ class OrderDocumentResource extends JsonResource
         $rate = ExchangeRate::at('USD', 'KHR', $this->placed_at);
         $khr = fn (string $usd) => $rate ? Money::convert($usd, (string) $rate->rate) : null;
 
-        $paid = $this->payments->sortByDesc('id')->first()?->status === PaymentStatus::Succeeded;
-        $collect = $this->payment_method === PaymentMethod::Cod && ! $paid && $this->status !== OrderStatus::Cancelled
+        // The courier collects cash only while the order is still on its way and nothing was paid or refunded yet
+        // (a returned order's payment is `refunded`, a delivered one's `succeeded`).
+        $payment = $this->payments->sortByDesc('id')->first()?->status;
+        $open = ! in_array($this->status, [OrderStatus::Cancelled, OrderStatus::Delivered, OrderStatus::Returned], true);
+        $collect = $this->payment_method === PaymentMethod::Cod && $open && in_array($payment, [null, PaymentStatus::Pending], true)
             ? (string) $this->total_amount : '0.00';
         $refunded = Money::format($this->returns
             ->filter(fn ($r) => $r->status === ReturnStatus::Refunded)

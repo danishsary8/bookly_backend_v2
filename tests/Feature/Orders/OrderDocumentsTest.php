@@ -12,7 +12,9 @@ use App\Models\CustomerAddress;
 use App\Models\ExchangeRate;
 use App\Models\Order;
 use App\Models\OrderReturn;
+use App\Models\StaffUser;
 use App\Services\CurrencyService;
+use App\Services\Orders\OrderStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\ActsAsStaff;
@@ -124,6 +126,23 @@ class OrderDocumentsTest extends TestCase
             ->assertJsonPath('data.0.amount_to_collect_usd', '0.00')
             ->assertJsonPath('data.0.refunded_usd', '7.50')
             ->assertJsonPath('data.0.delivered_at', fn ($at) => $at !== null);
+    }
+
+    public function test_a_fully_returned_order_has_nothing_to_collect(): void
+    {
+        [$id] = $this->placeOrder();
+        $staff = $this->staffToken();
+        foreach (['processing', 'shipped', 'delivered'] as $status) {
+            $this->asToken($staff)->postJson("/api/v1/staff/orders/{$id}/status", ['status' => $status])->assertOk();
+        }
+        // What the returns flow does once every returnable item is refunded.
+        $order = Order::find($id);
+        app(OrderStatusService::class)->markReturned($order, StaffUser::first());
+
+        $this->documents($staff, [$id])->assertOk()
+            ->assertJsonPath('data.0.status', 'returned')
+            ->assertJsonPath('data.0.payment_status', 'refunded')
+            ->assertJsonPath('data.0.amount_to_collect_usd', '0.00');
     }
 
     public function test_a_deleted_book_still_prints(): void
