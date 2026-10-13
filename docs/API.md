@@ -147,6 +147,7 @@ Status flow: `pending -> processing -> shipped -> delivered`; `cancelled` only f
 | Method | Path | Body / notes |
 | --- | --- | --- |
 | GET | /staff/orders | `status`, `q` (order number, customer email or name), `from`, `to` (dates), `per_page` |
+| POST | /staff/orders/bulk-status | `ids[]` (1–50, distinct), `status` (processing\|shipped\|delivered; cancel stays one order at a time: 422), `note?` (≤ 500, added to every timeline). Each order changes on its own through the same rules as `/staff/orders/{id}/status` (stock, payment, history, audit, customer email); returns `{status, updated[{id, order_number, status}], failed[{id, order_number, reason}]}` in the order asked (unknown id: "Order not found."). 20/min |
 | GET | /staff/orders/documents | `ids[]` (1–50, distinct): print data for invoices and packing slips, in the order asked, unknown ids left out. Per order: `customer`, `shipping_address`, `items[{title, authors[], format, is_digital, sku, isbn, quantity, unit_price_usd, subtotal_usd}]`, totals, `coupon_code`, `refunded_usd` (refunded returns), `amount_to_collect_usd` (an unpaid cash-on-delivery order: the total; else 0.00), `delivered_at`, `khr {rate, rate_effective_at, total, amount_to_collect}` at the rate in force when the order was placed (null if none was set then). 30/min |
 | GET | /staff/orders/{id} | adds `customer {id,name,email,phone}`, history with `changed_by`, `allowed_next_statuses` |
 | POST | /staff/orders/{id}/status | status (processing\|shipped\|delivered\|cancelled), note? — 422 for a move the flow does not allow |
