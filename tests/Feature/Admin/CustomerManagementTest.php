@@ -146,6 +146,30 @@ class CustomerManagementTest extends TestCase
         ])->assertStatus(422)->assertJsonPath('message', 'This customer has an order on its way. Wait until it is delivered or cancelled before closing the account.');
     }
 
+    public function test_a_typo_or_an_open_order_does_not_use_up_the_code(): void
+    {
+        $admin = StaffUser::factory()->admin()->withTwoFactor()->create(['password_hash' => 'SecretPass123!']);
+        $token = $admin->createToken('test', $admin->tokenAbilities())->plainTextToken;
+        $customer = Customer::factory()->create(['email' => 'client@example.com']);
+        $order = $this->deliveredOrder($customer, [[$this->physical('10.00'), 1]]);
+        $order->update(['status' => OrderStatus::Shipped]);
+        $code = app(TotpService::class)->codeAt($admin->two_factor_secret, time());
+        $close = fn (string $confirm) => $this->asToken($token)->postJson("/api/v1/staff/customers/{$customer->id}/close", [
+            'password' => 'SecretPass123!',
+            'code' => $code,
+            'confirm' => $confirm,
+        ]);
+
+        $close('client@example.co')->assertStatus(422)->assertJsonValidationErrors(['confirm'])->assertJsonMissingValidationErrors(['code']);
+        $close('client@example.com')->assertStatus(422)->assertJsonPath('message', 'This customer has an order on its way. Wait until it is delivered or cancelled before closing the account.');
+
+        $order->update(['status' => OrderStatus::Delivered]);
+
+        // The same code still works once the typo is fixed and the order is delivered.
+        $close('client@example.com')->assertOk();
+        $this->assertSoftDeleted($customer);
+    }
+
     public function test_admin_closes_customer_account_successfully(): void
     {
         config([
