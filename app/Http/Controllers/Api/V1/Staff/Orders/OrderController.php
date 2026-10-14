@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffOrderResource;
 use App\Models\Order;
+use App\Services\Admin\AuditLogger;
 use App\Services\Orders\OrderStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -55,6 +56,25 @@ class OrderController extends Controller
         ]);
 
         $statuses->changeByStaff($this->find($order), OrderStatus::from($data['status']), $request->user(), $data['note'] ?? null);
+
+        return new StaffOrderResource($this->find($order));
+    }
+
+    public function updateStaffNote(Request $request, int $order, AuditLogger $audit): StaffOrderResource
+    {
+        $data = $request->validate([
+            'staff_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $orderModel = $this->find($order);
+        $before = $orderModel->getAttributes();
+        $staffNote = isset($data['staff_note']) ? trim((string) $data['staff_note']) : null;
+        if ($staffNote === '') {
+            $staffNote = null;
+        }
+
+        $orderModel->update(['staff_note' => $staffNote]);
+        $audit->updated($request->user(), $orderModel, $before);
 
         return new StaffOrderResource($this->find($order));
     }

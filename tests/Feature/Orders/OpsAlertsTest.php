@@ -145,4 +145,25 @@ class OpsAlertsTest extends TestCase
         Http::assertSentCount(1);
         Http::assertSent(fn (Request $r) => $r['chat_id'] === '-100555' && ! str_contains($r['text'], 'Open:'));
     }
+
+    public function test_new_order_alert_includes_note_when_present(): void
+    {
+        $this->enableAlerts();
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $variant = BookVariant::factory()->create(['stock_quantity' => 50]);
+        $customer = Customer::factory()->create(['name' => 'Sok']);
+        $address = CustomerAddress::factory()->for($customer)->create(['city' => 'Phnom Penh']);
+        $this->asToken($customer->createToken('t', ['customer'])->plainTextToken)
+            ->postJson('/api/v1/cart/items', ['book_variant_id' => $variant->id, 'quantity' => 1])->assertCreated();
+
+        $this->withHeader('Idempotency-Key', 'checkout-key-with-note')->postJson('/api/v1/checkout', [
+            'address_id' => $address->id,
+            'payment_method' => 'cod',
+            'delivery_note' => 'Please call 012345678 before delivery',
+        ])->assertCreated();
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r) => str_contains($r['text'], 'Note: Please call 012345678 before delivery'));
+    }
 }

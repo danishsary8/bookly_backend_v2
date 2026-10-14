@@ -344,6 +344,7 @@ components:
         coupon_code: { type: string, nullable: true }
         shipping_address: { $ref: '#/components/schemas/AddressInput' }
         can_cancel: { type: boolean }
+        delivery_note: { type: string, maxLength: 300, nullable: true }
         status_history:
           type: array
           items: { type: object, properties: { status: { type: string }, note: { type: string, nullable: true }, created_at: { type: string, format: date-time } } }
@@ -356,6 +357,7 @@ components:
         status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
         placed_at: { type: string, format: date-time }
         delivered_at: { type: string, format: date-time, nullable: true }
+        delivery_note: { type: string, maxLength: 300, nullable: true }
         payment_method: { type: string, enum: [card, cod, khqr] }
         payment_status: { type: string, enum: [pending, succeeded, failed, refunded], nullable: true }
         customer: { type: object, properties: { name: { type: string }, email: { type: string, nullable: true }, phone: { type: string, nullable: true } } }
@@ -673,7 +675,7 @@ paths:
     delete: { tags: [Customer], summary: 'Remove a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
 
   /checkout/preview:
-    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', description: 'Delivery is priced for address_id, else the default address: Phnom Penh 1.50 USD, the provinces 3.00 USD (SHIPPING_FEE_PHNOM_PENH / SHIPPING_FEE_PROVINCES).', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer } } } } } }, responses: { '422': { description: 'address_id is not one of your addresses, or a bad coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
+    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', description: 'Delivery is priced for address_id, else the default address: Phnom Penh 1.50 USD, the provinces 3.00 USD (SHIPPING_FEE_PHNOM_PENH / SHIPPING_FEE_PROVINCES).', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'address_id is not one of your addresses, or a bad coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
       tags: [Checkout & orders]
@@ -681,7 +683,7 @@ paths:
       description: Prices are re-checked at today's price, stock is taken out of stock, the coupon is applied and the cart is emptied. Repeating a request with the same Idempotency-Key returns the same order.
       parameters:
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 100 }, description: New random value per order }
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [address_id, payment_method], properties: { address_id: { type: integer }, payment_method: { type: string, enum: [cod] }, coupon_code: { type: string } } } } } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [address_id, payment_method], properties: { address_id: { type: integer }, payment_method: { type: string, enum: [cod] }, coupon_code: { type: string }, delivery_note: { type: string, maxLength: 300 } } } } } }
       responses:
         '201': { description: Order placed, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Order' } } } } } }
         '200': { description: Same key repeated — the existing order (header Idempotent-Replayed true) }
@@ -804,6 +806,22 @@ paths:
     get: { tags: [Staff operations], summary: 'Order with customer and allowed_next_statuses', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order } } }
   /staff/orders/{id}/status:
     post: { tags: [Staff operations], summary: 'Move to processing, shipped, delivered or cancelled (with note)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '422': { description: Not allowed by the flow } } }
+  /staff/orders/{id}/staff-note:
+    patch:
+      tags: [Staff operations]
+      summary: Update private staff note on an order
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                staff_note: { type: string, maxLength: 1000, nullable: true }
+      responses:
+        '200': { description: Updated order }
+        '422': { $ref: '#/components/responses/Validation' }
   /staff/returns:
     get: { tags: [Staff operations], summary: 'Returns (status, q)', responses: { '200': { description: Returns } } }
   /staff/returns/{id}:

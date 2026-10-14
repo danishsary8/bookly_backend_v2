@@ -19,7 +19,7 @@ class Order extends Model
         'shipping_recipient_name', 'shipping_phone', 'shipping_address_line1', 'shipping_address_line2',
         'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',
         'coupon_id', 'status', 'subtotal', 'discount_amount', 'shipping_fee', 'tax_amount', 'total_amount',
-        'currency', 'payment_method', 'placed_at',
+        'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note',
     ];
 
     protected function casts(): array

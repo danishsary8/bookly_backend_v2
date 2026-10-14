@@ -228,4 +228,44 @@ class CheckoutTest extends TestCase
 
         $this->withToken($token)->withHeader('Idempotency-Key', 'abcdefgh1')->postJson('/api/v1/checkout', [])->assertForbidden();
     }
+
+    public function test_checkout_saves_trimmed_delivery_note_and_empty_string_becomes_null(): void
+    {
+        $variant = BookVariant::factory()->create(['price_usd' => '10.00']);
+        $this->addToCart($variant);
+
+        $response = $this->checkout(['delivery_note' => '  Please call upon arrival  '], 'key-note-1')
+            ->assertCreated()
+            ->assertJsonPath('data.delivery_note', 'Please call upon arrival');
+
+        $order = Order::find($response->json('data.id'));
+        $this->assertSame('Please call upon arrival', $order->delivery_note);
+
+        $this->addToCart($variant);
+        $response2 = $this->checkout(['delivery_note' => '   '], 'key-note-2')
+            ->assertCreated()
+            ->assertJsonPath('data.delivery_note', null);
+
+        $order2 = Order::find($response2->json('data.id'));
+        $this->assertNull($order2->delivery_note);
+    }
+
+    public function test_delivery_note_longer_than_300_characters_is_rejected(): void
+    {
+        $variant = BookVariant::factory()->create(['price_usd' => '10.00']);
+        $this->addToCart($variant);
+
+        $tooLong = str_repeat('a', 301);
+
+        $this->checkout(['delivery_note' => $tooLong], 'key-too-long')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('delivery_note');
+
+        $this->postJson('/api/v1/checkout/preview', ['delivery_note' => $tooLong])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('delivery_note');
+
+        $this->postJson('/api/v1/checkout/preview', ['delivery_note' => 'Valid preview note'])
+            ->assertOk();
+    }
 }

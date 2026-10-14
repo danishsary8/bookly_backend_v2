@@ -130,16 +130,16 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 ## Checkout and orders (customer token + verified email)
 | Method | Path | Body / notes |
 | --- | --- | --- |
-| POST | /checkout/preview | coupon_code? — totals for the current cart: `{subtotal, discount, shipping_fee, tax, total}` each `{usd, khr}`, plus `coupon_code`, `requires_shipping`, `can_checkout`. Nothing is saved |
-| POST | /checkout | Header `Idempotency-Key: <8-100 chars, A-Z a-z 0-9 - _>` (required, new value per order). Body: address_id, payment_method (`cod` only for now), coupon_code? — 201 + order. Same key again: 200 + the same order and header `Idempotent-Replayed: true` |
+| POST | /checkout/preview | coupon_code?, address_id?, delivery_note? — totals for the current cart: `{subtotal, discount, shipping_fee, tax, total}` each `{usd, khr}`, plus `coupon_code`, `requires_shipping`, `can_checkout`. Nothing is saved |
+| POST | /checkout | Header `Idempotency-Key: <8-100 chars, A-Z a-z 0-9 - _>` (required, new value per order). Body: address_id, payment_method (`cod` only for now), coupon_code?, delivery_note? (max 300) — 201 + order. Same key again: 200 + the same order and header `Idempotent-Replayed: true` |
 | GET | /orders | `status`, `per_page` — newest first |
 | GET | /orders/{id} | includes `status_history`. Line `title`/`format` (and the documents' `sku`, `isbn`, `authors`) are what the book was when ordered, not today's book |
 | POST | /orders/{id}/cancel | reason? — only while `pending` |
 | GET | /orders/{id}/invoice | print data for the customer's own invoice (same shape as `/staff/orders/documents`); 422 for a cancelled order; 30/min |
 
-Checkout rules: always today's price; shipping fee by the address's area when any hardcover/paperback is in the order (Phnom Penh `SHIPPING_FEE_PHNOM_PENH`, default 1.50 USD, matched on city or province; everywhere else `SHIPPING_FEE_PROVINCES`, default 3.00 USD), 0 if all digital; `POST /checkout/preview` takes an optional `address_id` (else the default address) and returns `delivery_area`; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `idempotency_key`.
+Checkout rules: always today's price; shipping fee by the address's area when any hardcover/paperback is in the order (Phnom Penh `SHIPPING_FEE_PHNOM_PENH`, default 1.50 USD, matched on city or province; everywhere else `SHIPPING_FEE_PROVINCES`, default 3.00 USD), 0 if all digital; `POST /checkout/preview` takes an optional `address_id` (else the default address) and returns `delivery_area`; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `delivery_note`, `idempotency_key`.
 
-Order shape: `{id, order_number (ORD-YYYYMMDD-XXXXX), status, payment_method, payment_status, placed_at, item_count, items[{id, book_variant_id, book_id, title, format, quantity, unit_price_usd, subtotal_usd}], subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, total_khr, coupon_code, shipping_address{...}, can_cancel, status_history[{status, note, created_at}]}`.
+Order shape: `{id, order_number (ORD-YYYYMMDD-XXXXX), status, payment_method, payment_status, placed_at, item_count, items[{id, book_variant_id, book_id, title, format, quantity, unit_price_usd, subtotal_usd}], subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, total_khr, coupon_code, shipping_address{...}, can_cancel, delivery_note, status_history[{status, note, created_at}]}`.
 
 Status flow: `pending -> processing -> shipped -> delivered`; `cancelled` only from pending (customer or staff) or processing (staff). Cash on delivery: payment `pending` at checkout, `succeeded` when delivered, `failed` when cancelled.
 
@@ -148,9 +148,10 @@ Status flow: `pending -> processing -> shipped -> delivered`; `cancelled` only f
 | --- | --- | --- |
 | GET | /staff/orders | `status`, `q` (order number, customer email or name), `from`, `to` (dates), `per_page` |
 | POST | /staff/orders/bulk-status | `ids[]` (1–50, distinct), `status` (processing\|shipped\|delivered; cancel stays one order at a time: 422), `note?` (≤ 500, added to every timeline). Each order changes on its own through the same rules as `/staff/orders/{id}/status` (stock, payment, history, audit, customer email); returns `{status, updated[{id, order_number, status}], failed[{id, order_number, reason}]}` in the order asked (unknown id: "Order not found."). 20/min |
-| GET | /staff/orders/documents | `ids[]` (1–50, distinct): print data for invoices and packing slips, in the order asked, unknown ids left out. Per order: `customer`, `shipping_address`, `items[{title, authors[], format, is_digital, sku, isbn, quantity, unit_price_usd, subtotal_usd}]`, totals, `coupon_code`, `refunded_usd` (refunded returns), `amount_to_collect_usd` (an unpaid cash-on-delivery order: the total; else 0.00), `delivered_at`, `khr {rate, rate_effective_at, total, amount_to_collect}` at the rate in force when the order was placed (null if none was set then). 30/min |
-| GET | /staff/orders/{id} | adds `customer {id,name,email,phone}`, history with `changed_by`, `allowed_next_statuses` |
+| GET | /staff/orders/documents | `ids[]` (1–50, distinct): print data for invoices and packing slips, in the order asked, unknown ids left out. Per order: `customer`, `shipping_address`, `items[{title, authors[], format, is_digital, sku, isbn, quantity, unit_price_usd, subtotal_usd}]`, totals, `coupon_code`, `refunded_usd` (refunded returns), `amount_to_collect_usd` (an unpaid cash-on-delivery order: the total; else 0.00), `delivered_at`, `delivery_note`, `khr {rate, rate_effective_at, total, amount_to_collect}` at the rate in force when the order was placed (null if none was set then). 30/min |
+| GET | /staff/orders/{id} | adds `customer {id,name,email,phone}`, `staff_note`, history with `changed_by`, `allowed_next_statuses` |
 | POST | /staff/orders/{id}/status | status (processing\|shipped\|delivered\|cancelled), note? — 422 for a move the flow does not allow |
+| PATCH | /staff/orders/{id}/staff-note | `staff_note` (nullable, max 1000) — private staff note; audited (order.updated); 30/min |
 | GET | /staff/notifications | `unread=1`, `per_page` — in-app alerts; `meta.unread_count` |
 | POST | /staff/notifications/{id}/read | |
 | POST | /staff/notifications/read-all | |

@@ -26,6 +26,7 @@ class CheckoutController extends Controller
         $data = $request->validate([
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'address_id' => ['nullable', 'integer'],
+            'delivery_note' => ['nullable', 'string', 'max:300'],
         ]);
         $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null);
 
@@ -61,14 +62,20 @@ class CheckoutController extends Controller
             'address_id' => ['required', 'integer'],
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
             'coupon_code' => ['nullable', 'string', 'max:50'],
+            'delivery_note' => ['nullable', 'string', 'max:300'],
         ]);
 
         if ($data['payment_method'] !== PaymentMethod::Cod->value) {
             throw ValidationException::withMessages(['payment_method' => 'Only cash on delivery is available right now.']);
         }
 
+        $deliveryNote = isset($data['delivery_note']) ? trim((string) $data['delivery_note']) : null;
+        if ($deliveryNote === '') {
+            $deliveryNote = null;
+        }
+
         ['order' => $order, 'created' => $created] = $this->checkout->place(
-            $request->user(), $data['address_id'], $data['coupon_code'] ?? null, $key,
+            $request->user(), $data['address_id'], $data['coupon_code'] ?? null, $key, $deliveryNote,
         );
 
         $order->load(['items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon', 'statusHistory']);

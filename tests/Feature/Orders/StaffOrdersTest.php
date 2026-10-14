@@ -115,4 +115,84 @@ class StaffOrdersTest extends TestCase
         $this->asToken($customer)->postJson("/api/v1/staff/orders/{$id}/status", ['status' => 'processing'])->assertForbidden();
         $this->assertSame(OrderStatus::Pending, Order::find($id)->status);
     }
+
+    public function test_staff_can_view_and_update_staff_note_with_audit_log(): void
+    {
+        $id = $this->placeOrder();
+        Order::where('id', $id)->update(['delivery_note' => 'Leave with the guard']);
+
+        $staff = $this->staffToken();
+
+        // Staff sees both notes
+        $this->asToken($staff)->getJson("/api/v1/staff/orders/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.delivery_note', 'Leave with the guard')
+            ->assertJsonPath('data.staff_note', null);
+
+        // Staff updates staff note
+        $this->asToken($staff)->patchJson("/api/v1/staff/orders/{$id}/staff-note", [
+            'staff_note' => 'Customer called to reschedule delivery',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.delivery_note', 'Leave with the guard')
+            ->assertJsonPath('data.staff_note', 'Customer called to reschedule delivery');
+
+        $this->assertSame('Customer called to reschedule delivery', Order::find($id)->staff_note);
+
+        // Audit entry recorded
+        $log = AdminAuditLog::where('action', 'order.updated')->where('entity_id', $id)->first();
+        $this->assertNotNull($log);
+        $this->assertSame(['staff_note' => null], $log->before_data);
+        $this->assertSame(['staff_note' => 'Customer called to reschedule delivery'], $log->after_data);
+
+        // Trimming and empty string becomes null
+        $this->asToken($staff)->patchJson("/api/v1/staff/orders/{$id}/staff-note", [
+            'staff_note' => '   ',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.staff_note', null);
+        $this->assertNull(Order::find($id)->staff_note);
+
+        // Too long rejected
+        $this->asToken($staff)->patchJson("/api/v1/staff/orders/{$id}/staff-note", [
+            'staff_note' => str_repeat('a', 1001),
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('staff_note');
+    }
+
+    public function test_customers_never_receive_staff_note(): void
+    {
+        $customer = Customer::factory()->create();
+        $address = CustomerAddress::factory()->for($customer)->create();
+        $token = $customer->createToken('t', ['customer'])->plainTextToken;
+
+        $order = Order::factory()->create([
+            'customer_id' => $customer->id,
+            'shipping_address_id' => $address->id,
+            'delivery_note' => 'Ring the doorbell',
+            'staff_note' => 'SECRET STAFF NOTE DO NOT LEAK',
+        ]);
+
+        // Customer order detail
+        $response = $this->asToken($token)->getJson("/api/v1/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.delivery_note', 'Ring the doorbell')
+            ->assertJsonMissingPath('data.staff_note');
+
+        $this->assertArrayNotHasKey('staff_note', $response->json('data'));
+
+        // Customer orders list
+        $listResponse = $this->asToken($token)->getJson('/api/v1/orders')
+            ->assertOk()
+            ->assertJsonPath('data.0.delivery_note', 'Ring the doorbell')
+            ->assertJsonMissingPath('data.0.staff_note');
+
+        $this->assertArrayNotHasKey('staff_note', $listResponse->json('data.0'));
+
+        // Customer forbidden from patching staff note
+        $this->asToken($token)->patchJson("/api/v1/staff/orders/{$order->id}/staff-note", [
+            'staff_note' => 'Hacked',
+        ])->assertForbidden();
+    }
 }

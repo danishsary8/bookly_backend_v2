@@ -47,6 +47,7 @@ class OrderResource extends JsonResource
                 'country' => $this->shipping_country,
             ],
             'can_cancel' => $this->status === OrderStatus::Pending,
+            'delivery_note' => $this->delivery_note,
             'status_history' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($h) => [
                 'status' => $h->status->value,
                 'note' => $h->note,
