@@ -6,8 +6,8 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ReturnStatus;
-use App\Models\ExchangeRate;
 use App\Models\Order;
+use App\Services\KhrRateHistory;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -23,7 +23,7 @@ class OrderDocumentResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $rate = ExchangeRate::at('USD', 'KHR', $this->placed_at);
+        $rate = app(KhrRateHistory::class)->at($this->placed_at);
         $khr = fn (string $usd) => $rate ? Money::convert($usd, (string) $rate->rate) : null;
 
         // The courier collects cash only while the order is still on its way and nothing was paid or refunded yet
