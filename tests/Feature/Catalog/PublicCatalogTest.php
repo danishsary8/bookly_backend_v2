@@ -120,6 +120,23 @@ class PublicCatalogTest extends TestCase
         $this->assertSame([$aboutDoyle->id, $byDoyle->id], $this->searchIds('doyle'));
     }
 
+    public function test_an_isbn_or_sku_finds_its_book(): void
+    {
+        $emma = $this->book(['title' => 'Emma'], ['isbn' => '9780141439587', 'sku' => 'EMMA-PB']);
+        $hidden = $this->book(['title' => 'Dracula'], ['isbn' => '9780141439846', 'sku' => 'DRAC-PB']);
+        BookVariant::factory()->for($hidden)->create(['format' => BookFormat::Hardcover, 'isbn' => '9780141199337', 'sku' => 'DRAC-OLD', 'is_active' => false]);
+        $this->book(['title' => 'Cooking Basics']);
+
+        $this->assertSame([$emma->id], $this->searchIds('9780141439587'));
+        $this->assertSame([$emma->id], $this->searchIds('978-0-14-143958-7'), 'hyphens are ignored');
+        $this->assertSame([$emma->id], $this->searchIds('978 0 14 143958 7'), 'spaces are ignored');
+        $this->assertSame([$emma->id], $this->searchIds('emma-pb'), 'SKU in any case');
+        $this->assertSame([], $this->searchIds('DRAC-OLD'), 'an inactive format is not searched');
+        $this->assertSame([], $this->searchIds('9780141199337'));
+        $this->assertSame([$emma->id], $this->searchIds('emma'), 'normal words still search the text');
+        $this->assertSame([], $this->searchIds('9780000000000'));
+    }
+
     /** @return list<int> book ids in the order the API returns them */
     private function searchIds(string $q): array
     {
