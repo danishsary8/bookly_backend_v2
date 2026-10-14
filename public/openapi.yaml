@@ -827,6 +827,27 @@ paths:
     delete: { tags: [Admin], summary: '(admin) Delete an unfinished sign-up now, freeing its email', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { description: Deleted }, '422': { description: 'Verified, or has orders, returns, reviews or addresses' } } }
   /staff/customers/{id}/reopen:
     post: { tags: [Admin], summary: '(admin) Reopen an account the customer closed, within its 30 days', description: 'Audit-logged as customer.reopened; the customer gets an email (when they have one) and signs in as before. Reviews, wishlist and cart removed at closing are not restored.', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: 'Reopened customer' }, '422': { description: 'The account is open, or was closed more than 30 days ago' } } }
+  /staff/customers/{id}/close:
+    post:
+      tags: [Admin]
+      summary: '(admin) Close customer account'
+      description: 'Closes a customer account, revoking tokens and scheduling personal data erasure after 30 days. Requires admin password, 2FA code, and confirmation of email/phone.'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, code, confirm]
+              properties:
+                password: { type: string }
+                code: { type: string }
+                confirm: { type: string }
+      responses:
+        '200': { description: 'Closed customer' }
+        '403': { description: Forbidden }
+        '422': { description: 'Validation error, invalid password/code, wrong confirm, or open orders/returns' }
   /staff/notifications:
     get: { tags: [Staff operations], summary: 'In-app alerts (low stock); unread=1', responses: { '200': { description: Notifications } } }
   /staff/notifications/read-all:
