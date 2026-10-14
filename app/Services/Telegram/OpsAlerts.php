@@ -28,6 +28,9 @@ class OpsAlerts
         $order->loadMissing(['customer', 'items.variant.book']);
         $lines = $order->items->map(fn ($item) => "• {$item->quantity} × {$item->bookTitle()} ({$item->bookFormat()?->value})");
         $shop = rtrim((string) config('shop.url'), '/');
+        $note = $order->delivery_note !== null && $order->delivery_note !== ''
+            ? 'Note: '.Str::limit($order->delivery_note, 300)
+            : null;
 
         $this->send(implode("\n", array_filter([
             "🛒 New order {$order->order_number}",
@@ -36,6 +39,7 @@ class OpsAlerts
             $lines->count() > 10 ? '• … and '.($lines->count() - 10).' more lines' : null,
             "Customer: {$order->customer?->name}",
             "Delivery: {$order->shipping_city}, {$order->shipping_country}",
+            $note,
             'Payment: cash on delivery',
             $shop !== '' ? "Open: {$shop}/admin/orders/{$order->id}" : null,
         ])), staff: true);

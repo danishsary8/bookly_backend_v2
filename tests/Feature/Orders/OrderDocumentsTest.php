@@ -215,4 +215,14 @@ class OrderDocumentsTest extends TestCase
         $this->asToken($token)->getJson("/api/v1/orders/{$id}/invoice")
             ->assertUnprocessable()->assertJsonPath('errors.order.0', 'A cancelled order has no invoice.');
     }
+
+    public function test_document_data_includes_delivery_note(): void
+    {
+        [$id] = $this->placeOrder('note@example.com');
+        Order::where('id', $id)->update(['delivery_note' => 'Please leave with reception']);
+        $staff = $this->staffToken();
+
+        $this->documents($staff, [$id])->assertOk()
+            ->assertJsonPath('data.0.delivery_note', 'Please leave with reception');
+    }
 }

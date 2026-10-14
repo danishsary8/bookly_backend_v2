@@ -11,6 +11,7 @@ class StaffOrderResource extends OrderResource
     {
         return [
             ...parent::toArray($request),
+            'staff_note' => $this->staff_note,
             'customer' => $this->whenLoaded('customer', fn () => [
                 'id' => $this->customer->id,
                 'name' => $this->customer->name,

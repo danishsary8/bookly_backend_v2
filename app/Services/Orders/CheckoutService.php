@@ -52,11 +52,11 @@ class CheckoutService
      *
      * @return array{order: Order, created: bool} created=false when the idempotency key was already used
      */
-    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey): array
+    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null): array
     {
         $crossedLowStock = [];
 
-        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, &$crossedLowStock) {
+        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, &$crossedLowStock) {
             // 1. Lock the cart: concurrent checkouts by the same customer run one after another.
             $cart = $this->carts->cartFor($customer);
             Cart::whereKey($cart->id)->lockForUpdate()->first();
@@ -113,6 +113,7 @@ class CheckoutService
                 'currency' => 'USD',
                 'payment_method' => PaymentMethod::Cod,
                 'placed_at' => now(),
+                'delivery_note' => $deliveryNote,
             ]);
 
             foreach ($summary['lines'] as $line) {
