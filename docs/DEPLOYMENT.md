@@ -393,3 +393,21 @@ If the test or a real alert fails, open the run and read the red line `Telegram 
 - `chat not found`: wrong chat ID, or **Start** was not pressed in the Alerts bot conversation.
 - `Unauthorized`: wrong bot token.
 
+## Missed-backup check (Healthchecks.io, free)
+
+The failure alert above only fires when the backup workflow runs. If it never starts (GitHub pauses scheduled
+workflows in a public repository after 60 days without activity, or a schedule is skipped), nobody would know. After
+every successful backup the workflow now "checks in" with Healthchecks.io; if a check-in is late, Healthchecks.io
+alerts you. Off while the `BACKUP_HEALTHCHECK_URL` secret is empty.
+
+1. Sign up free at https://healthchecks.io (email or GitHub).
+2. **Add Check** → name `Bookly nightly backup` → **Period** `1 day`, **Grace** `3 hours` → **Save**. (Cron mode also
+   works: `0 19 * * *`, time zone UTC.)
+3. Copy the check's **ping URL** (`https://hc-ping.com/…`). Treat it like a password: never paste it in chat or docs.
+4. GitHub → backend repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** →
+   Name `BACKUP_HEALTHCHECK_URL`, Secret = the ping URL → **Add secret**.
+5. Alerts: Healthchecks.io emails you by default. For Telegram: **Integrations** → **Telegram** → follow its link to
+   add their bot to your chat.
+6. Test: GitHub → **Actions** → **Nightly database backup** → **Run workflow** (leave **test_alert** unticked). When it
+   is green, the check in Healthchecks.io turns **up** (green) with a "last ping" time.
+
