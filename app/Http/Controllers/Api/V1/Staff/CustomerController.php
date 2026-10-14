@@ -7,18 +7,30 @@ use App\Enums\ReturnStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffCustomerResource;
 use App\Models\Customer;
+use App\Models\StaffUser;
 use App\Notifications\AccountReopenedNotification;
 use App\Services\Admin\AuditLogger;
+use App\Services\Auth\TotpService;
 use App\Services\Customers\ClosedCustomers;
 use App\Services\Customers\UnverifiedCustomers;
+use App\Services\Telegram\OpsAlerts;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class CustomerController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit, private readonly UnverifiedCustomers $unverified, private readonly ClosedCustomers $closed) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly UnverifiedCustomers $unverified,
+        private readonly ClosedCustomers $closed,
+        private readonly TotpService $totp,
+        private readonly OpsAlerts $opsAlerts,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -118,6 +130,82 @@ class CustomerController extends Controller
         }
 
         return new StaffCustomerResource($customer->loadCount('orders'));
+    }
+
+    /**
+     * Admins: close a customer's account (fraud, abuse, customer request).
+     * Requires the admin's password, 2FA code, and the customer's email or phone typed to confirm.
+     * Tokens revoked, restorable within 30 days, personal details erased after 30 days.
+     */
+    public function close(Request $request, Customer $customer): JsonResponse|StaffCustomerResource
+    {
+        if ($customer->trashed()) {
+            return response()->json(['message' => 'This account is already closed.'], 422);
+        }
+
+        $data = $request->validate([
+            'password' => ['required', 'string'],
+            'code' => ['required', 'digits:6'],
+            'confirm' => ['required', 'string'],
+        ]);
+
+        $admin = $request->user();
+
+        if (! Hash::check($data['password'], $admin->password_hash)) {
+            return response()->json([
+                'message' => 'That password is incorrect.',
+                'errors' => ['password' => ['That password is incorrect.']],
+            ], 422);
+        }
+
+        $limiter = "staff-2fa-wrong:{$admin->id}";
+        if (RateLimiter::tooManyAttempts($limiter, 5)) {
+            return response()->json(['message' => 'Too many invalid codes. Please try again later.'], 429)
+                ->header('Retry-After', (string) RateLimiter::availableIn($limiter));
+        }
+
+        if (! $this->verifyFreshTotpCode($admin, $data['code'])) {
+            RateLimiter::hit($limiter, 900);
+
+            return response()->json([
+                'message' => 'Invalid authentication code.',
+                'errors' => ['code' => ['Invalid authentication code.']],
+            ], 422);
+        }
+
+        RateLimiter::clear($limiter);
+
+        $expectedConfirm = $customer->email ?? $customer->phone ?? '';
+        if ($data['confirm'] !== $expectedConfirm) {
+            $field = $customer->email !== null ? 'email' : 'phone number';
+
+            return response()->json([
+                'message' => "Type the customer's {$field} to confirm.",
+                'errors' => ['confirm' => ["Type the customer's {$field} to confirm."]],
+            ], 422);
+        }
+
+        if ($customer->orders()->whereIn('status', [OrderStatus::Pending, OrderStatus::Paid, OrderStatus::Processing, OrderStatus::Shipped])->exists()) {
+            return response()->json(['message' => 'This customer has an order on its way. Wait until it is delivered or cancelled before closing the account.'], 422);
+        }
+        if ($customer->returns()->whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->exists()) {
+            return response()->json(['message' => 'This customer has a return in progress. Close the account once it is finished.'], 422);
+        }
+
+        $eraseAt = $this->closed->close($customer);
+        $this->audit->custom($admin, 'closed', $customer, ['closed_at' => null], ['closed_at' => $customer->deleted_at->toIso8601String()]);
+        $this->opsAlerts->customerClosedByAdmin($admin->name, $customer->name, $eraseAt);
+
+        return new StaffCustomerResource($customer->loadCount('orders'));
+    }
+
+    private function verifyFreshTotpCode(StaffUser $staff, string $code): bool
+    {
+        if (! $this->totp->verify($staff->two_factor_secret, $code)) {
+            return false;
+        }
+
+        return Cache::add("staff-totp-used:{$staff->id}:{$code}", true, now()->addSeconds(120));
     }
 
     public function deactivate(Request $request, Customer $customer): StaffCustomerResource

@@ -5,6 +5,7 @@ namespace App\Services\Telegram;
 use App\Models\BookVariant;
 use App\Models\Order;
 use App\Models\Review;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -69,6 +70,12 @@ class OpsAlerts
             $comment !== '' ? '"'.Str::limit($comment, 300).'"' : null,
             "Admin → Reviews, review #{$review->id}",
         ])));
+    }
+
+    public function customerClosedByAdmin(string $adminName, string $customerName, CarbonInterface|string $reopenUntil): void
+    {
+        $date = $reopenUntil instanceof CarbonInterface ? $reopenUntil->toFormattedDayDateString() : $reopenUntil;
+        $this->send("Customer account closed by {$adminName}: {$customerName}, can be reopened until {$date}");
     }
 
     /** The chats a message goes to: the owner's, plus the staff group for staff messages; the same chat only once. */
