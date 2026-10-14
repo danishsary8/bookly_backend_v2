@@ -112,6 +112,24 @@ jobs:
           path: bookly.dump.gpg
           retention-days: 30
 
+      # Missed-backup check: an outside check-in service (e.g. Healthchecks.io, period 1 day, grace 3 hours) alerts the
+      # owner when this ping does not arrive, which also covers a run that never starts (GitHub pauses scheduled
+      # workflows in public repos after 60 days without activity). Off while the secret is empty.
+      - name: Tell the check-in service the backup succeeded
+        if: success() && steps.check.outputs.skip != 'true'
+        env:
+          PING_URL: ${{ secrets.BACKUP_HEALTHCHECK_URL }}
+        run: |
+          if [ -z "$PING_URL" ]; then
+            echo "::notice::BACKUP_HEALTHCHECK_URL is not set; no missed-backup check is told."
+            exit 0
+          fi
+          if curl --silent --show-error --fail --max-time 10 --retry 3 --output /dev/null "$PING_URL"; then
+            echo "Check-in sent."
+          else
+            echo "::warning::The check-in service did not answer; it will alert if the next backups are missing too."
+          fi
+
       - name: Send Telegram failure alert
         if: failure() || steps.check.outputs.skip == 'true'
         env:
