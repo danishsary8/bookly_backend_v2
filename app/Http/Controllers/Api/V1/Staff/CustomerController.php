@@ -151,6 +151,24 @@ class CustomerController extends Controller
 
         $admin = $request->user();
 
+        // Checks that cost nothing come first, so a typo or an open order does not use up the one-time code.
+        $expectedConfirm = $customer->email ?? $customer->phone ?? '';
+        if ($data['confirm'] !== $expectedConfirm) {
+            $field = $customer->email !== null ? 'email' : 'phone number';
+
+            return response()->json([
+                'message' => "Type the customer's {$field} to confirm.",
+                'errors' => ['confirm' => ["Type the customer's {$field} to confirm."]],
+            ], 422);
+        }
+
+        if ($customer->orders()->whereIn('status', [OrderStatus::Pending, OrderStatus::Paid, OrderStatus::Processing, OrderStatus::Shipped])->exists()) {
+            return response()->json(['message' => 'This customer has an order on its way. Wait until it is delivered or cancelled before closing the account.'], 422);
+        }
+        if ($customer->returns()->whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->exists()) {
+            return response()->json(['message' => 'This customer has a return in progress. Close the account once it is finished.'], 422);
+        }
+
         if (! Hash::check($data['password'], $admin->password_hash)) {
             return response()->json([
                 'message' => 'That password is incorrect.',
@@ -174,23 +192,6 @@ class CustomerController extends Controller
         }
 
         RateLimiter::clear($limiter);
-
-        $expectedConfirm = $customer->email ?? $customer->phone ?? '';
-        if ($data['confirm'] !== $expectedConfirm) {
-            $field = $customer->email !== null ? 'email' : 'phone number';
-
-            return response()->json([
-                'message' => "Type the customer's {$field} to confirm.",
-                'errors' => ['confirm' => ["Type the customer's {$field} to confirm."]],
-            ], 422);
-        }
-
-        if ($customer->orders()->whereIn('status', [OrderStatus::Pending, OrderStatus::Paid, OrderStatus::Processing, OrderStatus::Shipped])->exists()) {
-            return response()->json(['message' => 'This customer has an order on its way. Wait until it is delivered or cancelled before closing the account.'], 422);
-        }
-        if ($customer->returns()->whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->exists()) {
-            return response()->json(['message' => 'This customer has a return in progress. Close the account once it is finished.'], 422);
-        }
 
         $eraseAt = $this->closed->close($customer);
         $this->audit->custom($admin, 'closed', $customer, ['closed_at' => null], ['closed_at' => $customer->deleted_at->toIso8601String()]);
