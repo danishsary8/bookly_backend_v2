@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
 use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
 use App\Http\Controllers\Api\V1\Staff\Admin\OrderExportController;
+use App\Http\Controllers\Api\V1\Staff\Admin\ReportsController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
@@ -226,6 +227,15 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/dashboard/summary', [DashboardController::class, 'summary'])->middleware('throttle:admin-analytics');
         Route::get('/dashboard/sales', [DashboardController::class, 'sales'])->middleware('throttle:admin-analytics');
         Route::get('/orders/export', OrderExportController::class)->middleware('throttle:10,1');
+
+        Route::prefix('reports')->middleware('throttle:admin-analytics')->group(function () {
+            Route::get('/sales', [ReportsController::class, 'sales']);
+            Route::get('/orders', [ReportsController::class, 'orders']);
+            Route::get('/products', [ReportsController::class, 'products']);
+            Route::get('/customers', [ReportsController::class, 'customers']);
+            Route::get('/funnel', [ReportsController::class, 'funnel']);
+            Route::get('/coupons', [ReportsController::class, 'coupons']);
+        });
 
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
         Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');

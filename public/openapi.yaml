@@ -917,3 +917,59 @@ paths:
       summary: (admin) Orders placed in a date range as CSV
       parameters: [ { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
       responses: { '200': { description: CSV file, content: { text/csv: { schema: { type: string } } } } }
+  /staff/reports/sales:
+    get:
+      tags: [Admin]
+      summary: (admin) Sales report totals and series by day/week/month (format json|csv)
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: group, in: query, required: false, schema: { type: string, enum: [day, week, month], default: day } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses: { '200': { description: Sales report data or CSV stream } }
+  /staff/reports/orders:
+    get:
+      tags: [Admin]
+      summary: (admin) Orders breakdown by status, payment method, delivery area, and fulfillment hours
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses: { '200': { description: Orders report data or CSV stream } }
+  /staff/reports/products:
+    get:
+      tags: [Admin]
+      summary: (admin) Best sellers, worst sellers with stock, low-stock, and category revenue
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: limit, in: query, required: false, schema: { type: integer, default: 10 } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses: { '200': { description: Products report data or CSV stream } }
+  /staff/reports/customers:
+    get:
+      tags: [Admin]
+      summary: (admin) Verified customer acquisition series, returning rate, and top spenders
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses: { '200': { description: Customers report data or CSV stream } }
+  /staff/reports/funnel:
+    get:
+      tags: [Admin]
+      summary: '(admin) Conversion funnel: carts with items -> orders placed -> delivered -> returned'
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses: { '200': { description: Funnel report data or CSV stream } }
+  /staff/reports/coupons:
+    get:
+      tags: [Admin]
+      summary: (admin) Coupon usage performance and refunds by return reason
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses: { '200': { description: Coupons and refunds report data or CSV stream } }
