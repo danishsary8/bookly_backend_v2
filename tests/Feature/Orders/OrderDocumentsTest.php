@@ -16,6 +16,7 @@ use App\Models\StaffUser;
 use App\Services\CurrencyService;
 use App\Services\Orders\OrderStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\ActsAsStaff;
 use Tests\TestCase;
@@ -143,6 +144,25 @@ class OrderDocumentsTest extends TestCase
             ->assertJsonPath('data.0.status', 'returned')
             ->assertJsonPath('data.0.payment_status', 'refunded')
             ->assertJsonPath('data.0.amount_to_collect_usd', '0.00');
+    }
+
+    public function test_a_batch_reads_the_exchange_rates_once_and_each_order_gets_its_own_date(): void
+    {
+        ExchangeRate::create(['base_currency' => 'USD', 'target_currency' => 'KHR', 'rate' => '4000', 'effective_at' => now()->subDay()]);
+        [$first] = $this->placeOrder('a@example.com');
+        $this->travel(1)->hours();
+        ExchangeRate::create(['base_currency' => 'USD', 'target_currency' => 'KHR', 'rate' => '4100', 'effective_at' => now()->subMinute()]);
+        [$second] = $this->placeOrder('b@example.com');
+        [$third] = $this->placeOrder('c@example.com');
+        $staff = $this->staffToken();
+
+        DB::enableQueryLog();
+        $this->documents($staff, [$first, $second, $third])->assertOk()
+            ->assertJsonPath('data.0.khr.rate', '4000.000000')
+            ->assertJsonPath('data.1.khr.rate', '4100.000000')
+            ->assertJsonPath('data.2.khr.rate', '4100.000000');
+        $rateQueries = collect(DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], 'exchange_rates'));
+        $this->assertCount(1, $rateQueries);
     }
 
     public function test_a_deleted_book_still_prints(): void

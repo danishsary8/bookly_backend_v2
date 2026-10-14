@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\CurrencyService;
+use App\Services\KhrRateHistory;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -16,6 +17,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // One instance per request so the exchange rate is read once, not per book.
         $this->app->scoped(CurrencyService::class);
+        $this->app->scoped(KhrRateHistory::class);
     }
 
     public function boot(): void
