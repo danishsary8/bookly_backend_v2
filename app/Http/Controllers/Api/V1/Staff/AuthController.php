@@ -7,8 +7,10 @@ use App\Http\Controllers\Api\V1\Concerns\IssuesTokens;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffUserResource;
 use App\Models\StaffUser;
+use App\Notifications\AccountSecurityNotice;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\TotpService;
+use App\Support\SafeNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -190,6 +192,14 @@ class AuthController extends Controller
         // 2FA stays enabled: a reset email alone is not enough to get into a staff account.
         $staff->forceFill(['password_hash' => $data['password']])->save();
         $staff->tokens()->delete();
+
+        SafeNotifier::toStaff(
+            $staff,
+            new AccountSecurityNotice(
+                'Your Bookly staff password was reset',
+                'Your Bookly staff password was reset.',
+            )
+        );
 
         return response()->json(['message' => 'Password reset. Please log in again.']);
     }
