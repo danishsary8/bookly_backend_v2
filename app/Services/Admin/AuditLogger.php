@@ -10,17 +10,25 @@ use Illuminate\Support\Str;
 /** Records who changed what in admin_audit_logs, with before/after snapshots. */
 class AuditLogger
 {
-    private const HIDDEN = ['created_at', 'updated_at', 'search_vector'];
+    private const HIDDEN = [
+        'created_at',
+        'updated_at',
+        'search_vector',
+        'password_hash',
+        'two_factor_secret',
+        'remember_token',
+    ];
 
     public function created(StaffUser $staff, Model $model): void
     {
-        $this->write($staff, 'created', $model, null, $this->snapshot($model->getAttributes()));
+        $this->write($staff, 'created', $model, null, $this->snapshot($model, $model->getAttributes()));
     }
 
     /** Call with the original attributes captured before update(). */
     public function updated(StaffUser $staff, Model $model, array $before): void
     {
-        $changed = array_keys(array_diff_key($model->getChanges(), array_flip(self::HIDDEN)));
+        $hidden = array_merge(self::HIDDEN, $model->getHidden());
+        $changed = array_keys(array_diff_key($model->getChanges(), array_flip($hidden)));
 
         if ($changed === []) {
             return;
@@ -28,19 +36,22 @@ class AuditLogger
 
         $this->write(
             $staff, 'updated', $model,
-            $this->snapshot(array_intersect_key($before, array_flip($changed))),
-            $this->snapshot(array_intersect_key($model->getAttributes(), array_flip($changed))),
+            $this->snapshot($model, array_intersect_key($before, array_flip($changed))),
+            $this->snapshot($model, array_intersect_key($model->getAttributes(), array_flip($changed))),
         );
     }
 
     public function deleted(StaffUser $staff, Model $model): void
     {
-        $this->write($staff, 'deleted', $model, $this->snapshot($model->getAttributes()), null);
+        $this->write($staff, 'deleted', $model, $this->snapshot($model, $model->getAttributes()), null);
     }
 
     /** $verb is the action without the entity prefix, e.g. 'restored' becomes 'book.restored'. */
     public function custom(StaffUser $staff, string $verb, Model $model, ?array $before = null, ?array $after = null): void
     {
+        $before = $before !== null ? $this->snapshot($model, $before) : null;
+        $after = $after !== null ? $this->snapshot($model, $after) : null;
+
         $this->write($staff, $verb, $model, $before, $after);
     }
 
@@ -58,8 +69,10 @@ class AuditLogger
         ]);
     }
 
-    private function snapshot(array $attributes): array
+    private function snapshot(Model $model, array $attributes): array
     {
-        return array_diff_key($attributes, array_flip(self::HIDDEN));
+        $hidden = array_flip(array_merge(self::HIDDEN, $model->getHidden()));
+
+        return array_diff_key($attributes, $hidden);
     }
 }
