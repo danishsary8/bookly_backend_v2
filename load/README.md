@@ -15,11 +15,14 @@ This directory contains load testing scripts for Bookly API public catalog endpo
    - Windows (winget): `winget install k6 --source winget`
    - Windows (choco): `choco install k6`
    - MacOS (brew): `brew install k6`
+   - Direct download: download `k6-vX.Y.Z-windows-amd64.zip` from https://github.com/grafana/k6/releases/latest, unzip, and run `k6.exe` by path.
 
-2. Ensure your local backend is running:
+2. Ensure your local backend is running on local demo data with trusted proxies enabled for IP spreading:
    ```bash
-   php artisan serve --port=8000
+   TRUSTED_PROXIES="*" php artisan serve --port=8000
    ```
+   > [!CAUTION]
+   > `TRUSTED_PROXIES="*"` must ONLY be set in the shell for this local test run, and NEVER in production or on any shared deployment.
 
 3. Ensure local PostgreSQL database has seeded demo catalog data:
    ```bash
@@ -30,16 +33,20 @@ This directory contains load testing scripts for Bookly API public catalog endpo
 
 ## Running the Test
 
+The API enforces strict per-IP rate limits (`GET /books` at 120/min, `?q=` search at 60/min). Because all virtual users from one machine share the same loopback IP, requests would quickly hit HTTP 429 without simulated distinct IPs.
+
+When `SPREAD_IPS=1` is set, each virtual user sends a simulated header `X-Forwarded-For: 10.0.<vu>.1` (where `<vu>` is the k6 virtual user ID `__VU`). This header is only respected by the local API when started with `TRUSTED_PROXIES=*`. Any HTTP 429 responses are tracked in the custom `rate_limited_429` metric so they are not hidden.
+
 Run the test against your local API:
 
 ```bash
-k6 run load/load-test.js
+SPREAD_IPS=1 BASE_URL=http://127.0.0.1:8000/api/v1 k6 run load/load-test.js
 ```
 
-To customize the target URL:
+To customize the target URL via `API_BASE_URL` or `BASE_URL`:
 
 ```bash
-k6 run -e API_BASE_URL=http://127.0.0.1:8000/api/v1 load/load-test.js
+SPREAD_IPS=1 BASE_URL=http://127.0.0.1:8000/api/v1 k6 run load/load-test.js
 ```
 
 ---
