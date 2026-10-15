@@ -30,7 +30,9 @@ use App\Http\Controllers\Api\V1\Staff\Admin\ReportsController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookBulkController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookCsvController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
@@ -209,6 +211,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/variants/{variant}/restock', [StockController::class, 'restock'])->whereNumber('variant');
     Route::get('/variants/{variant}/stock-history', [StockController::class, 'history'])->whereNumber('variant');
     Route::get('/stock', [StockController::class, 'index']);
+    Route::post('/books/bulk', [BookBulkController::class, 'bulkBooks']);
+    Route::post('/variants/bulk', [BookBulkController::class, 'bulkVariants']);
     Route::post('/authors', [StaffAuthorController::class, 'store']);
     Route::patch('/authors/{author}', [StaffAuthorController::class, 'update']);
     Route::post('/categories', [StaffCategoryController::class, 'store']);
@@ -221,6 +225,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show']);
 
     Route::middleware('abilities:admin')->group(function () {
+        Route::get('/books/export', [BookCsvController::class, 'export']);
+        Route::get('/books/export-template', [BookCsvController::class, 'template']);
+        Route::post('/books/import/preview', [BookCsvController::class, 'preview'])->middleware('throttle:book-import');
+        Route::post('/books/import/confirm', [BookCsvController::class, 'confirm'])->middleware('throttle:book-import');
         Route::get('/members', [StaffMemberController::class, 'index']);
         Route::post('/members', [StaffMemberController::class, 'store']);
         Route::patch('/members/{member}', [StaffMemberController::class, 'update']);

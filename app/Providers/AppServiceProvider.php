@@ -92,5 +92,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Dashboard numbers run several aggregate queries each time.
         RateLimiter::for('admin-analytics', fn (Request $request) => Limit::perMinute(30)->by('analytics|'.$who($request)));
+
+        // CSV book import preview and confirm rate limit (10 per hour per admin).
+        RateLimiter::for('book-import', fn (Request $request) => Limit::perHour(10)->by('book-import|'.($request->user()?->id ?? $request->ip())));
     }
 }

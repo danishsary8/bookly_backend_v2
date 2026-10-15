@@ -14,6 +14,8 @@ class ReviewController extends Controller
 {
     public function index(Request $request, Book $book): JsonResponse
     {
+        abort_unless($book->isPublic(), 404);
+
         $data = $request->validate([
             'sort' => ['nullable', Rule::in(['newest', 'highest', 'lowest'])],
             'rating' => ['nullable', 'integer', 'between:1,5'],

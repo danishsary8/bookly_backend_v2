@@ -92,7 +92,7 @@ class CartService
         $variant = $item->variant;
         $issues = [];
 
-        if (! $variant->is_active || $variant->book === null || $variant->book->trashed()) {
+        if (! $variant->is_active || $variant->book === null || $variant->book->trashed() || ! $variant->book->isPublic()) {
             $issues[] = ['code' => 'unavailable', 'message' => 'This item is no longer available.'];
         } elseif (! $variant->format->isDigital() && $variant->stock_quantity === 0) {
             $issues[] = ['code' => 'out_of_stock', 'message' => 'This item is out of stock.'];
@@ -126,7 +126,7 @@ class CartService
     {
         $fail = fn (string $message) => throw ValidationException::withMessages(['quantity' => $message]);
 
-        if (! $variant->is_active || $variant->book === null || $variant->book->trashed()) {
+        if (! $variant->is_active || $variant->book === null || $variant->book->trashed() || ! $variant->book->isPublic()) {
             throw ValidationException::withMessages(['book_variant_id' => 'This item is not available.']);
         }
 

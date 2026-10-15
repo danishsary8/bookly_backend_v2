@@ -766,12 +766,24 @@ paths:
     post: { tags: [Staff auth], summary: 'Set password with an emailed code (also used by newly invited staff)', security: [], responses: { '200': { description: Reset } } }
 
   /staff/books:
-    get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, trashed)', responses: { '200': { description: Books } } }
-    post: { tags: [Staff catalog], summary: 'Create a book (title, publisher_id, series_id, author_ids, category_ids, ...)', responses: { '201': { description: Created } } }
+    get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, status, trashed)', responses: { '200': { description: Books } } }
+    post: { tags: [Staff catalog], summary: 'Create a book (title, status, publish_at, publisher_id, series_id, author_ids, category_ids, ...)', responses: { '201': { description: Created } } }
+  /staff/books/bulk:
+    post: { tags: [Staff catalog], summary: 'Bulk update books (ids, add/remove categories, status, publish_at)', responses: { '200': { description: Updated } } }
+  /staff/books/export:
+    get: { tags: [Staff catalog], summary: '(admin) Export books and variants as UTF-8 CSV with BOM', responses: { '200': { description: CSV } } }
+  /staff/books/export-template:
+    get: { tags: [Staff catalog], summary: '(admin) Download CSV import template', responses: { '200': { description: CSV } } }
+  /staff/books/import/preview:
+    post: { tags: [Staff catalog], summary: '(admin) Preview CSV book import (file)', responses: { '200': { description: Preview } } }
+  /staff/books/import/confirm:
+    post: { tags: [Staff catalog], summary: '(admin) Confirm CSV book import (preview_token)', responses: { '200': { description: Imported } } }
   /staff/books/{id}:
     get: { tags: [Staff catalog], summary: 'Book with all variants', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Book } } }
     patch: { tags: [Staff catalog], summary: 'Update a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Staff catalog], summary: '(admin) Soft delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/variants/bulk:
+    post: { tags: [Staff catalog], summary: 'Bulk update variants (ids, stock_quantity, low_stock_threshold, is_active, price_usd)', responses: { '200': { description: Updated } } }
   /staff/books/{id}/restore:
     post: { tags: [Staff catalog], summary: '(admin) Restore a deleted book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Restored } } }
   /staff/books/{id}/variants:

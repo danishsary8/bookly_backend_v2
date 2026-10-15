@@ -105,6 +105,10 @@ The API enforces a global base limiter on all routes defined via `$middleware->t
 | `POST` | `/api/v1/staff/books` | Staff (2FA) | `api` (120/min) [`routes/api.php:185`](../routes/api.php#L185) | Catalog spam / DB write churn | 30/min | Audit logged. |
 | `POST` | `/api/v1/staff/books/{id}/variants` | Staff (2FA) | `api` (120/min) [`routes/api.php:187`](../routes/api.php#L187) | Inventory movement generation | 30/min | Logs initial restock movement and audit log. |
 | `PATCH` | `/api/v1/staff/variants/{id}` | Staff (2FA) | `api` (120/min) [`routes/api.php:188`](../routes/api.php#L188) | Stock adjustment logging | 30/min | Generates adjustment inventory movements. |
+| `POST` | `/api/v1/staff/books/bulk` | Staff (2FA) | `api` (120/min) | Mass book updates | 20/min | Bulk category and status updates. |
+| `POST` | `/api/v1/staff/variants/bulk` | Staff (2FA) | `api` (120/min) | Mass variant updates | 20/min | Bulk stock, price, and active flag updates. |
+| `POST` | `/api/v1/staff/books/import/preview` | Admin (2FA) | `throttle:book-import` (10/hour) | CSV parsing and validation compute load | 10/hour per admin | Parses up to 2,000 rows, caches preview for 30 minutes. |
+| `POST` | `/api/v1/staff/books/import/confirm` | Admin (2FA) | `throttle:book-import` (10/hour) | Heavy transactional catalog writes | 10/hour per admin | Applies validated CSV rows in single transaction with audit logging. |
 | `POST` | `/api/v1/staff/coupons` | Staff (2FA) | `api` (120/min) [`routes/api.php:199`](../routes/api.php#L199) | Promotion coupon generation | 30/min | Audit logged. |
 | `POST` | `/api/v1/staff/members` | Admin (2FA) | `api` (120/min) [`routes/api.php:204`](../routes/api.php#L204) | Staff invitation spam, mail quota consumption | 10/min per admin | Sends 72-hour invitation email. |
 | `POST` | `/api/v1/staff/members/{id}/resend-invitation` | Admin (2FA) | `throttle:otp-send` (3 per 10 min) [`routes/api.php:209`](../routes/api.php#L209) | Invitation email spam | 3 per 10 min | Explicitly limited by `otp-send`. |

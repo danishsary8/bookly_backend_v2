@@ -31,6 +31,8 @@ class ReviewController extends Controller
 
     public function store(Request $request, Book $book): JsonResponse
     {
+        abort_unless($book->isPublic(), 404);
+
         $data = $this->validated($request);
         $customer = $request->user();
 

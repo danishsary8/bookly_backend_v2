@@ -80,10 +80,16 @@ Only books with at least one active variant are public. Book card fields: `id, t
 ## Staff catalog (staff token + 2FA; DELETE and restore are admin-only)
 | Method | Path | Body |
 | --- | --- | --- |
-| GET | /staff/books | `q`, `trashed=1`, `per_page` — all books incl. not yet visible; `is_visible` flag |
-| GET | /staff/books/{id} | also works for deleted books |
-| POST | /staff/books | title, description?, publisher_id?, series_id?, series_order?, language? (default English), page_count?, publish_date?, author_ids[]?, category_ids[]? |
-| PATCH | /staff/books/{id} | any of the above; `author_ids`/`category_ids` replace the current list |
+| GET | /staff/books | `q`, `status=draft\|scheduled\|live`, `trashed=1`, `per_page` — all books incl. not yet visible; `is_visible` flag |
+| GET | /staff/books/{id} | also works for deleted books; includes `status` and `publish_at` |
+| POST | /staff/books | title, description?, status? (admin only; staff always draft), publish_at? (admin only, required if scheduled), publisher_id?, series_id?, series_order?, language? (default English), page_count?, publish_date?, author_ids[]?, category_ids[]? |
+| PATCH | /staff/books/{id} | any of the above; `status` and `publish_at` can only be changed by admin; editing live book as staff keeps it live |
+| POST | /staff/books/bulk | ids (1-100), add_category_ids?, remove_category_ids?, status? (admin only), publish_at? (admin only) |
+| POST | /staff/variants/bulk | ids (1-100), stock_quantity? (sets via adjustment), low_stock_threshold?, is_active?, price_usd? (admin only) |
+| GET | /staff/books/export | admin only; UTF-8 CSV with BOM of all books and variants; formula injection protected |
+| GET | /staff/books/export-template | admin only; sample CSV import template |
+| POST | /staff/books/import/preview | admin only (throttle: 10/hour); multipart `file` (.csv <= 2MB, <= 2000 rows); returns `preview_token`, totals (new/update/error), and per-row preview |
+| POST | /staff/books/import/confirm | admin only (throttle: 10/hour); `preview_token`; applies non-error rows in one transaction |
 | DELETE | /staff/books/{id} | admin; soft delete (hidden from catalog) |
 | POST | /staff/books/{id}/restore | admin |
 | POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |

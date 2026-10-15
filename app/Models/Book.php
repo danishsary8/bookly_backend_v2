@@ -15,7 +15,7 @@ class Book extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'title', 'description', 'publisher_id', 'series_id', 'series_order',
+        'title', 'description', 'status', 'publish_at', 'publisher_id', 'series_id', 'series_order',
         'language', 'page_count', 'publish_date',
     ];
 
@@ -23,7 +23,10 @@ class Book extends Model
 
     protected function casts(): array
     {
-        return ['publish_date' => 'date'];
+        return [
+            'publish_date' => 'date',
+            'publish_at' => 'datetime',
+        ];
     }
 
     public function publisher(): BelongsTo
@@ -66,10 +69,33 @@ class Book extends Model
         return $this->hasMany(Review::class)->where('is_approved', true);
     }
 
-    /** Books customers can see: at least one active format. */
+    public function isPublic(): bool
+    {
+        if ($this->deleted_at !== null) {
+            return false;
+        }
+
+        if ($this->status === 'live') {
+            return true;
+        }
+
+        if ($this->status === 'scheduled' && $this->publish_at !== null && $this->publish_at->isPast()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /** Books customers can see: live or reached scheduled publish time, and at least one active format. */
     public function scopeVisible(Builder $query): Builder
     {
-        return $query->whereHas('variants', fn (Builder $q) => $q->where('is_active', true));
+        return $query->where(function (Builder $q) {
+            $q->where('status', 'live')
+                ->orWhere(function (Builder $sub) {
+                    $sub->where('status', 'scheduled')
+                        ->where('publish_at', '<=', now());
+                });
+        })->whereHas('variants', fn (Builder $q) => $q->where('is_active', true));
     }
 
     /**

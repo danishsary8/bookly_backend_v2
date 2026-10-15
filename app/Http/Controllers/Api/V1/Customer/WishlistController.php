@@ -18,6 +18,10 @@ class WishlistController extends Controller
 
         return BookResource::collection(
             $request->user()->wishlistBooks()
+                ->where(function ($q) {
+                    $q->where('status', 'live')
+                        ->orWhere(fn ($sub) => $sub->where('status', 'scheduled')->where('publish_at', '<=', now()));
+                })
                 ->with(['authors', 'activeVariants'])
                 ->withMin('activeVariants as min_price', 'price_usd')
                 ->withAvg('approvedReviews as rating_avg', 'rating')
@@ -31,7 +35,16 @@ class WishlistController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'book_id' => ['required', 'integer', Rule::exists('books', 'id')->whereNull('deleted_at')],
+            'book_id' => [
+                'required',
+                'integer',
+                Rule::exists('books', 'id')
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) {
+                        $q->where('status', 'live')
+                            ->orWhere(fn ($sub) => $sub->where('status', 'scheduled')->where('publish_at', '<=', now()));
+                    }),
+            ],
         ]);
 
         $result = $request->user()->wishlistBooks()->syncWithoutDetaching([
