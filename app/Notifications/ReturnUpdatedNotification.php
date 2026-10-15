@@ -27,29 +27,29 @@ class ReturnUpdatedNotification extends Notification implements ShouldQueue
         $number = $return->order->order_number;
 
         [$subject, $intro] = match ($return->status) {
-            ReturnStatus::Requested => ["We received your return request for {$number}", 'We received your return request. We will review it and email you the result.'],
-            ReturnStatus::Approved => ["Your return for {$number} was approved", 'Your return was approved. Please send the books back as agreed with the shop.'],
-            ReturnStatus::Rejected => ["Your return for {$number} was rejected", 'Sorry, your return request was rejected.'],
-            ReturnStatus::Refunded => ["Your refund for {$number} is done", 'We received your books and paid your refund.'],
+            ReturnStatus::Requested => [__('mail.return_requested_subject', ['number' => $number]), __('mail.return_requested_intro')],
+            ReturnStatus::Approved => [__('mail.return_approved_subject', ['number' => $number]), __('mail.return_approved_intro')],
+            ReturnStatus::Rejected => [__('mail.return_rejected_subject', ['number' => $number]), __('mail.return_rejected_intro')],
+            ReturnStatus::Refunded => [__('mail.return_refunded_subject', ['number' => $number]), __('mail.return_refunded_intro')],
         };
 
         $mail = (new MailMessage)
             ->subject($subject)
-            ->greeting("Hello {$notifiable->name},")
+            ->greeting(__('mail.welcome_greeting', ['name' => $notifiable->name]))
             ->line($intro)
-            ->line("Order number: {$number}");
+            ->line(__('mail.order_number', ['number' => $number]));
 
         if ($return->status === ReturnStatus::Refunded) {
-            $mail->line("Refund amount: {$return->refund_amount} USD (the shipping fee is not refunded).");
+            $mail->line(__('mail.refund_amount', ['amount' => $return->refund_amount]));
             if ($return->refund_method === 'store_credit' && filled($return->refund_reference)) {
-                $mail->line("Your refund has been issued as store credit. You can use coupon code {$return->refund_reference} at checkout (valid for 1 year).");
+                $mail->line(__('mail.refund_store_credit', ['code' => $return->refund_reference]));
             } elseif ($return->refund_method === 'manual_offline' && filled($return->refund_reference)) {
-                $mail->line("Refund reference / receipt: {$return->refund_reference}");
+                $mail->line(__('mail.refund_manual_offline', ['reference' => $return->refund_reference]));
             }
         }
 
         if (filled($return->staff_note) && $return->status !== ReturnStatus::Requested) {
-            $mail->line("Note from the shop: {$return->staff_note}");
+            $mail->line(__('mail.shop_note', ['note' => $return->staff_note]));
         }
 
         return $mail;

@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureCustomerEmailIsVerified;
 use App\Http\Middleware\EnsureStaffTwoFactorEnabled;
 use App\Http\Middleware\RunDueMaintenance;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetAppLocaleFromHeader;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -31,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi('api');
 
         // The free host has no scheduler: the housekeeping jobs run from API traffic (needs RUN_MAINTENANCE_ON_REQUEST=true).
-        $middleware->api(append: [RunDueMaintenance::class]);
+        $middleware->api(append: [RunDueMaintenance::class, SetAppLocaleFromHeader::class]);
 
         // No browser logins or forms here (the API uses Bearer tokens), so web pages such as /docs need no
         // session: visiting them must not write a sessions row or depend on the database.

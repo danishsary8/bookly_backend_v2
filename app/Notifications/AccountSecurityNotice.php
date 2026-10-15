@@ -27,10 +27,22 @@ class AccountSecurityNotice extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $subject = match ($this->subject) {
+            'Your Bookly password was reset' => __('mail.security_password_reset_subject'),
+            'Your Bookly password was changed' => __('mail.security_password_changed_subject'),
+            default => $this->subject,
+        };
+
+        $what = match ($this->what) {
+            'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.' => __('mail.security_password_reset_body'),
+            'The password of your Bookly account was just changed, and other devices were signed out.' => __('mail.security_password_changed_body'),
+            default => $this->what,
+        };
+
         return (new MailMessage)
-            ->subject($this->subject)
-            ->line($this->what)
-            ->line('If this was you, there is nothing to do.')
-            ->line('If it was not you, reset your password straight away and contact us.');
+            ->subject($subject)
+            ->line($what)
+            ->line(__('mail.security_ignore'))
+            ->line(__('mail.security_alert'));
     }
 }

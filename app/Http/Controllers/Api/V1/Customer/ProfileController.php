@@ -31,6 +31,7 @@ class ProfileController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'locale' => ['sometimes', 'required', 'string', Rule::in(['en', 'km'])],
         ]);
 
         $request->user()->update($data);

@@ -52,10 +52,10 @@ class ReturnService
         $until = $this->returnableUntil($order);
 
         return match (true) {
-            $order->status !== OrderStatus::Delivered => 'Only delivered orders can be returned.',
-            $until === null || $until->isPast() => 'The return window for this order has closed.',
-            $order->returns()->whereIn('status', self::OPEN)->exists() => 'This order already has a return request in progress.',
-            $this->returnableItems($order)->sum('returnable_quantity') === 0 => 'There is nothing left to return in this order.',
+            $order->status !== OrderStatus::Delivered => __('messages.return_not_delivered'),
+            $until === null || $until->isPast() => __('messages.return_window_closed'),
+            $order->returns()->whereIn('status', self::OPEN)->exists() => __('messages.return_in_progress'),
+            $this->returnableItems($order)->sum('returnable_quantity') === 0 => __('messages.return_nothing_left'),
             default => null,
         };
     }

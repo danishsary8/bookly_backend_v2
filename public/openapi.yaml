@@ -214,6 +214,7 @@ components:
         email_verified: { type: boolean }
         verified: { type: boolean, description: 'Email or phone proven; only verified customers can shop' }
         has_password: { type: boolean }
+        locale: { type: string, enum: [en, km], example: en }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
         sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, telegram] }, description: 'Ways this account can sign in today (password counts only with an email; telegram means a verified number, while the Telegram bot is on). The last one cannot be removed.' }
         pending_email: { type: string, nullable: true, description: 'Only on the customer''s own account: an address that was sent a code (Telegram sign-up, change email) and is added once POST /me/email/verify gets that code.' }
@@ -615,7 +616,7 @@ paths:
     post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
   /me:
     get: { tags: [Customer], summary: 'Your profile', responses: { '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '200': { description: Customer, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } } } }
-    patch: { tags: [Customer], summary: 'Update name or phone', responses: { '200': { description: Updated } } }
+    patch: { tags: [Customer], summary: 'Update name, phone, or locale (en|km)', responses: { '200': { description: Updated } } }
     delete:
       tags: [Customer]
       summary: Close your own account

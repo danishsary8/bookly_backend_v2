@@ -20,9 +20,9 @@ class AccountReopenedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Bookly account is open again')
-            ->line('We reopened the Bookly account you closed. Sign in the same way as before.')
-            ->line('Your orders are all there. Reviews, wishlist and cart removed when you closed it are not restored.')
-            ->line('If you did not ask us to reopen it, reply to this email or contact us and we will close it again.');
+            ->subject(__('mail.account_reopened_subject'))
+            ->line(__('mail.account_reopened_line1'))
+            ->line(__('mail.account_reopened_line2'))
+            ->line(__('mail.account_reopened_line3'));
     }
 }

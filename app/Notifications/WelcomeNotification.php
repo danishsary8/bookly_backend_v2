@@ -20,10 +20,10 @@ class WelcomeNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Welcome to Bookly')
-            ->greeting("Welcome, {$notifiable->name}!")
-            ->line('Your Bookly account is ready. You can now add books to your cart and order with cash on delivery.')
-            ->line('We email you at every step of your order: confirmed, shipped (with the tracking note), delivered, and for any return.')
-            ->line('Happy reading!');
+            ->subject(__('mail.welcome_subject'))
+            ->greeting(__('mail.welcome_greeting', ['name' => $notifiable->name]))
+            ->line(__('mail.welcome_line1'))
+            ->line(__('mail.welcome_line2'))
+            ->line(__('mail.welcome_closing'));
     }
 }
