@@ -39,14 +39,22 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Login, OTP and reset endpoints: 5 attempts per minute per email (or user) + IP,
-        // plus 30 per minute per IP so rotating through many emails does not bypass the limit.
+        // plus 30 per minute per IP so rotating through many emails does not bypass the limit,
+        // plus 20 per hour per email across any IP to block distributed credential-stuffing.
         RateLimiter::for('auth', function (Request $request) {
-            $who = strtolower((string) $request->input('email')) ?: ($request->user()?->getKey() ?? 'guest');
+            $email = strtolower(trim((string) $request->input('email')));
+            $who = $email ?: ($request->user()?->getKey() ?? 'guest');
 
-            return [
+            $limits = [
                 Limit::perMinute(5)->by($who.'|'.$request->ip()),
                 Limit::perMinute(30)->by('ip|'.$request->ip()),
             ];
+
+            if ($email !== '') {
+                $limits[] = Limit::perHour(20)->by('email|'.$email);
+            }
+
+            return $limits;
         });
 
         // Sending new codes: 3 per 10 minutes so the endpoint cannot be used to spam inboxes.
