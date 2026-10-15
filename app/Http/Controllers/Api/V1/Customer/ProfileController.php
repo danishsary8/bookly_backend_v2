@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Customer;
 
+use App\Http\Controllers\Api\V1\Concerns\ConfirmsIdentity;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Notifications\AccountSecurityNotice;
@@ -18,6 +19,8 @@ use Throwable;
 
 class ProfileController extends Controller
 {
+    use ConfirmsIdentity;
+
     public function show(Request $request): CustomerResource
     {
         return new CustomerResource($request->user());
@@ -45,6 +48,10 @@ class ProfileController extends Controller
 
         if ($customer->password_hash !== null && ! Hash::check($data['current_password'] ?? '', $customer->password_hash)) {
             return response()->json(['message' => 'Current password is incorrect.'], 422);
+        }
+        // A first password is a new way in: a recent sign-in proves it's the owner, not a stolen session.
+        if ($customer->password_hash === null && ($problem = $this->identityProblem($customer, null))) {
+            return $problem;
         }
 
         $customer->update(['password_hash' => $data['password']]);

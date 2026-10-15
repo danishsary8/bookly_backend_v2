@@ -598,7 +598,8 @@ paths:
       tags: [Customer auth]
       summary: Confirm or change your phone number with Telegram
       description: 'Same as POST /auth/telegram, for the signed-in customer: the number shared in the bot becomes the account''s verified number (and contact number), which also verifies a new account. Refused in the bot and in the status when another account (also a closed one) has the number.'
-      responses: { '201': { description: 'url, key, expires_at' }, '401': { $ref: '#/components/responses/Unauthorized' }, '503': { description: 'The bot is off' } }
+      requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { password: { type: string, description: 'Verified accounts with a password: required (a new number is a new way in)' } } } } } }
+      responses: { '201': { description: 'url, key, expires_at' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { description: 'reason=sign_in_again: a verified account without a password signed in more than 10 minutes ago' }, '422': { $ref: '#/components/responses/Validation' }, '503': { description: 'The bot is off' } }
   /auth/telegram/status:
     post:
       tags: [Customer auth]
@@ -618,14 +619,14 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [confirm], properties: { confirm: { type: string, enum: [DELETE] }, password: { type: string }, provider: { type: string, enum: [google, facebook] }, access_token: { type: string } } } } } }
       responses: { '200': { description: 'Closed; erase_at says when the details are erased' }, '422': { $ref: '#/components/responses/Validation' } }
   /me/password:
-    put: { tags: [Customer], summary: 'Change password (signs out other devices)', responses: { '200': { description: Changed }, '422': { $ref: '#/components/responses/Validation' } } }
+    put: { tags: [Customer], summary: 'Change password (signs out other devices)', description: 'A first password (account without one) needs a sign-in in the last 10 minutes.', responses: { '200': { description: Changed }, '403': { description: 'reason=sign_in_again' }, '422': { $ref: '#/components/responses/Validation' } } }
   /me/email:
     post:
       tags: [Customer]
       summary: Add or change your email (step 1, code to the new address)
       description: 'The password is required when the account has one. Nothing changes until the code comes back (step 2). Refused when another account (also a closed one) uses the address, or it is already yours. At most 5 codes an hour per account, plus the otp-send limit and Turnstile.'
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email }, password: { type: string }, turnstile_token: { type: string } } } } } }
-      responses: { '200': { description: 'Code sent; email is the address it went to' }, '422': { $ref: '#/components/responses/Validation' } }
+      responses: { '200': { description: 'Code sent; email is the address it went to' }, '403': { description: 'reason=sign_in_again: no password and the last sign-in is more than 10 minutes old' }, '422': { $ref: '#/components/responses/Validation' } }
   /me/email/verify:
     post:
       tags: [Customer]
@@ -640,7 +641,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Provider' } ]
       description: 'A fresh access token from the provider (checked as issued to our app; the profile is read from the provider) plus the password when the account has one. The provider account must not be linked to another Bookly account. A verified email gets a notice.'
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [access_token], properties: { access_token: { type: string }, password: { type: string } } } } } }
-      responses: { '200': { description: 'Connected (customer in the body)' }, '409': { description: 'Used by another Bookly account, or another account of this provider is connected' }, '422': { description: 'Wrong password, or the token could not be verified (422, not 401, so the session stays)' } }
+      responses: { '200': { description: 'Connected (customer in the body)' }, '403': { description: 'reason=sign_in_again: no password and the last sign-in is more than 10 minutes old' }, '409': { description: 'Used by another Bookly account, or another account of this provider is connected' }, '422': { description: 'Wrong password, or the token could not be verified (422, not 401, so the session stays)' } }
     delete:
       tags: [Customer]
       summary: Disconnect Google or Facebook

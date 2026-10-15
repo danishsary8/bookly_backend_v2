@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Api\V1\Customer\AuthController;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Notifications\AccountSecurityNotice;
 use App\Services\Telegram\TelegramBot;
 use App\Services\Telegram\TelegramLinks;
 use App\Support\PhoneNumber;
+use App\Support\SafeNotifier;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -138,12 +140,20 @@ class TelegramWebhookController extends Controller
         if (Customer::withTrashed()->where('phone_e164', $phone)->whereKeyNot($customer->getKey())->exists()) {
             return ['failed', AuthController::PHONE_TAKEN.' Sign in with Telegram instead.'];
         }
+        $wasVerified = $customer->isVerified();
         try {
             $customer->markPhoneVerified($phone);
         } catch (UniqueConstraintViolationException) {
             return ['failed', AuthController::PHONE_TAKEN.' Sign in with Telegram instead.'];
         }
         $this->links->finish($code, ['status' => 'done']);
+        // Not at sign-up: the owner hears about a new way into the account they didn't add.
+        if ($wasVerified) {
+            SafeNotifier::toCustomer($customer, new AccountSecurityNotice(
+                'A phone number was added to your Bookly account',
+                PhoneNumber::display($phone).' can now sign in to your Bookly account with Telegram. If this wasn\'t you, reset your password and contact us.',
+            ));
+        }
 
         return ['done', PhoneNumber::display($phone).' is now the verified number of your Bookly account. Go back to Bookly.'];
     }

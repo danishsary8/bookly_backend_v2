@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Exceptions\TelegramBotProblem;
+use App\Http\Controllers\Api\V1\Concerns\ConfirmsIdentity;
 use App\Http\Controllers\Api\V1\Concerns\IssuesTokens;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
@@ -24,7 +25,7 @@ use Illuminate\Http\Request;
  */
 class TelegramAuthController extends Controller
 {
-    use IssuesTokens;
+    use ConfirmsIdentity, IssuesTokens;
 
     public const OFF = "Telegram isn't available right now. Use your email, Google or Facebook.";
 
@@ -35,9 +36,21 @@ class TelegramAuthController extends Controller
         return $this->start($request, 'login');
     }
 
+    /**
+     * Confirms (sign-up) or changes the account's phone in the bot. Once the account is verified, a new number is
+     * a new way in (Continue with Telegram), so the customer proves it's them first (ConfirmsIdentity).
+     */
     public function phone(Request $request): JsonResponse
     {
-        return $this->start($request, 'phone', $request->user()->getKey());
+        $customer = $request->user();
+        if ($customer->isVerified()) {
+            $data = $request->validate(['password' => ['nullable', 'string']]);
+            if ($problem = $this->identityProblem($customer, $data['password'] ?? null)) {
+                return $problem;
+            }
+        }
+
+        return $this->start($request, 'phone', $customer->getKey());
     }
 
     public function status(Request $request): JsonResponse

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Customer;
 
+use App\Http\Controllers\Api\V1\Concerns\ConfirmsIdentity;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
@@ -10,7 +11,6 @@ use App\Services\Auth\SocialTokenVerifier;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 /**
  * Account → Sign-in & security: connect or disconnect Google and Facebook.
@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Hash;
  */
 class ConnectionController extends Controller
 {
+    use ConfirmsIdentity;
+
     private const COLUMNS = ['google' => 'google_id', 'facebook' => 'facebook_id'];
 
     public const LAST_WAY_IN = 'Add a password first, so you can still sign in.';
@@ -37,8 +39,8 @@ class ConnectionController extends Controller
         $name = ucfirst($provider);
         $column = self::COLUMNS[$provider];
 
-        if ($customer->password_hash !== null && ! Hash::check($data['password'], $customer->password_hash)) {
-            return response()->json(['message' => 'That password is incorrect.', 'errors' => ['password' => ['That password is incorrect.']]], 422);
+        if ($problem = $this->identityProblem($customer, $data['password'] ?? null)) {
+            return $problem;
         }
 
         $profile = $verifier->profile($provider, $data['access_token']);

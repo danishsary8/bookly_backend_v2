@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Enums\VerificationPurpose;
+use App\Http\Controllers\Api\V1\Concerns\ConfirmsIdentity;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
@@ -13,7 +14,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -28,6 +28,8 @@ use Illuminate\Validation\ValidationException;
  */
 class EmailController extends Controller
 {
+    use ConfirmsIdentity;
+
     public const EMAIL_TAKEN = 'This email is already used by another Bookly account.';
 
     /** Codes per account per hour, whatever address they go to: the form can't be used to spam inboxes. */
@@ -46,8 +48,8 @@ class EmailController extends Controller
         ]);
         $email = strtolower($data['email']);
 
-        if ($customer->password_hash !== null && ! Hash::check($data['password'], $customer->password_hash)) {
-            throw ValidationException::withMessages(['password' => 'That password is incorrect.']);
+        if ($problem = $this->identityProblem($customer, $data['password'] ?? null)) {
+            return $problem;
         }
         if ($email === $customer->email) {
             throw ValidationException::withMessages(['email' => $customer->hasVerifiedEmail()

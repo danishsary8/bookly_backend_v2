@@ -5,11 +5,13 @@ namespace Tests\Feature\Auth;
 use App\Exceptions\TelegramBotProblem;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use App\Models\Customer;
+use App\Notifications\AccountSecurityNotice;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -273,12 +275,42 @@ class TelegramBotTest extends TestCase
         $this->customer();
         $customer = Customer::factory()->create(['phone_e164' => '+85598765432', 'phone_verified_at' => now()]);
 
-        $response = $this->withToken($customer->createToken('t', ['customer'])->plainTextToken)->postJson('/api/v1/auth/telegram/phone')->assertCreated();
+        $response = $this->withToken($customer->createToken('t', ['customer'])->plainTextToken)->postJson('/api/v1/auth/telegram/phone', ['password' => 'Password123!'])->assertCreated();
         $this->telegram(['text' => '/start '.substr($response->json('url'), -32)]);
         $this->share()->assertJsonPath('text', fn (string $text) => str_contains($text, 'already on another Bookly account'));
 
         $this->linkStatus($response->json('key'))->assertJsonPath('status', 'failed');
         $this->assertSame('+85598765432', $customer->fresh()->phone_e164);
+    }
+
+    // Security review 2026-10-15: a stolen session must not add the thief's phone as a way in.
+
+    public function test_a_verified_account_types_its_password_before_adding_a_phone(): void
+    {
+        Notification::fake();
+        $customer = Customer::factory()->create(['email' => 'dara@example.com']);
+        $token = $customer->createToken('t', ['customer'])->plainTextToken;
+
+        $this->withToken($token)->postJson('/api/v1/auth/telegram/phone')->assertUnprocessable()->assertJsonPath('errors.password.0', 'That password is incorrect.');
+        $this->withToken($token)->postJson('/api/v1/auth/telegram/phone', ['password' => 'wrong-pass1'])->assertUnprocessable();
+        $response = $this->withToken($token)->postJson('/api/v1/auth/telegram/phone', ['password' => 'Password123!'])->assertCreated();
+
+        $this->telegram(['text' => '/start '.substr($response->json('url'), -32)]);
+        $this->share()->assertOk();
+        Notification::assertSentTo($customer, AccountSecurityNotice::class, fn ($notice) => $notice->subject === 'A phone number was added to your Bookly account');
+    }
+
+    public function test_an_account_without_a_password_must_have_signed_in_recently_to_add_a_phone(): void
+    {
+        $customer = Customer::factory()->create(['password_hash' => null, 'google_id' => 'g-1']);
+        $token = $customer->createToken('t', ['customer'])->plainTextToken;
+
+        $this->travel(11)->minutes();
+        $this->withToken($token)->postJson('/api/v1/auth/telegram/phone')->assertForbidden()->assertJsonPath('reason', 'sign_in_again');
+
+        $this->app['auth']->forgetGuards(); // a new request with another token
+        $fresh = $customer->createToken('t', ['customer'])->plainTextToken;
+        $this->withToken($fresh)->postJson('/api/v1/auth/telegram/phone')->assertCreated();
     }
 
     public function test_confirming_needs_a_signed_in_customer(): void
