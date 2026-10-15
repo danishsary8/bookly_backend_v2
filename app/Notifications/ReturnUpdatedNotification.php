@@ -41,6 +41,11 @@ class ReturnUpdatedNotification extends Notification implements ShouldQueue
 
         if ($return->status === ReturnStatus::Refunded) {
             $mail->line("Refund amount: {$return->refund_amount} USD (the shipping fee is not refunded).");
+            if ($return->refund_method === 'store_credit' && filled($return->refund_reference)) {
+                $mail->line("Your refund has been issued as store credit. You can use coupon code {$return->refund_reference} at checkout (valid for 1 year).");
+            } elseif ($return->refund_method === 'manual_offline' && filled($return->refund_reference)) {
+                $mail->line("Refund reference / receipt: {$return->refund_reference}");
+            }
         }
 
         if (filled($return->staff_note) && $return->status !== ReturnStatus::Requested) {

@@ -12,15 +12,20 @@ class OrderReturn extends Model
 {
     protected $table = 'returns';
 
-    protected $fillable = ['order_id', 'customer_id', 'reason', 'status', 'refund_amount', 'staff_note', 'handled_by_staff_id', 'requested_at', 'resolved_at'];
+    protected $fillable = [
+        'order_id', 'customer_id', 'reason', 'status', 'refund_amount', 'staff_note', 'handled_by_staff_id',
+        'requested_at', 'resolved_at', 'refunded_at', 'refund_method', 'refund_amount_usd', 'refund_reference', 'refunded_by_id',
+    ];
 
     protected function casts(): array
     {
         return [
             'status' => ReturnStatus::class,
             'refund_amount' => 'decimal:2',
+            'refund_amount_usd' => 'decimal:2',
             'requested_at' => 'datetime',
             'resolved_at' => 'datetime',
+            'refunded_at' => 'datetime',
         ];
     }
 
@@ -37,6 +42,11 @@ class OrderReturn extends Model
     public function handledBy(): BelongsTo
     {
         return $this->belongsTo(StaffUser::class, 'handled_by_staff_id');
+    }
+
+    public function refundedBy(): BelongsTo
+    {
+        return $this->belongsTo(StaffUser::class, 'refunded_by_id');
     }
 
     public function items(): HasMany

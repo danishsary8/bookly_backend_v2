@@ -29,7 +29,11 @@ class CouponService
 
         $coupon = Coupon::where('code', self::normalize($code))->first() ?? $fail(self::NOT_FOUND);
 
-        if ($reason = $coupon->unusableReason(number_format($subtotalCents / 100, 2, '.', ''))) {
+        if ($coupon->is_store_credit && $coupon->user_id !== $customer->id) {
+            $fail('This store credit is not valid for your account.');
+        }
+
+        if ($reason = $coupon->unusableReason(number_format($subtotalCents / 100, 2, '.', ''), $customer)) {
             $fail($reason);
         }
 

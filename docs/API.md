@@ -41,6 +41,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | POST | /me/email/verify | code | auth. Saves the new address as verified, cancels codes sent to the old one, signs out other devices, and emails the old (proven) address "Your Bookly email was changed to n***@…". |
 | POST | /me/connections/{google\|facebook} | access_token, password (when the account has one) | auth. Connects the provider: the token must be issued to our app (profile read from the provider); 409 if that provider account is linked to another Bookly account or another one is already connected; 422 if the token can't be verified (not 401: the customer stays signed in). A verified email gets a "was connected" notice.. **New way in** (security review 2026-10-15): accounts with a password type it; accounts without one must have signed in within the last 10 minutes, else 403 `reason: sign_in_again` "For your safety, sign in again first, then try this within 10 minutes." |
 | DELETE | /me/connections/{google\|facebook} | — | auth. Disconnects it; 422 `reason: last_way_in` "Add a password first, so you can still sign in." when it's the only way left (`sign_in_methods` on the customer: `password` (with an email), `google`, `facebook`, `telegram` (a verified number, while the Telegram bot is on)). |
+| GET | /me/store-credits | — | auth (customer). Active, unused store credit coupons bound to this customer account. |
 
 Token response shape: `{ "customer": {...}, "token": "...", "token_type": "Bearer", "expires_at": "ISO-8601" }`.
 Customer `verified` = email **or** phone proven. Unverified customers can log in but shopping routes return 403 "Please verify your account first: enter the code we sent you." `email` is null for Facebook accounts that signed up without one. Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).
@@ -180,7 +181,7 @@ Return shape: `{id, order_id, order_number, status (requested|approved|rejected|
 | GET | /staff/returns/{id} | |
 | POST | /staff/returns/{id}/approve | note? — requested -> approved (no stock change yet) |
 | POST | /staff/returns/{id}/reject | note (required) — requested or approved -> rejected |
-| POST | /staff/returns/{id}/refund | note? — approved -> refunded: books back in stock, refund amount saved. Pay the customer back outside the system (cash / bank transfer) |
+| POST | /staff/returns/{id}/refund | method (`store_credit`\|`manual_offline`), reference? (required for manual_offline), note? — approved -> refunded: books back in stock, refund amount saved. Issues a store credit coupon (1 year expiry) or records offline reference. |
 
 When every physical copy of an order has been refunded, the order becomes `returned` and its payment `refunded`.
 

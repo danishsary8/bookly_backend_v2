@@ -11,6 +11,7 @@ use App\Services\Returns\ReturnService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ReturnController extends Controller
 {
@@ -62,14 +63,36 @@ class ReturnController extends Controller
 
     public function refund(Request $request, int $return): StaffReturnResource
     {
-        $data = $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
-        $this->returns->refund($this->find($return), $request->user(), $data['note'] ?? null);
+        $hasExplicitMethod = $request->has('method');
+        $data = $request->validate([
+            'method' => [$hasExplicitMethod ? 'required' : 'nullable', 'string', 'in:store_credit,manual_offline'],
+            'note' => ['nullable', 'string', 'max:1000'],
+            'reference' => [$hasExplicitMethod && $request->input('method') === 'manual_offline' ? 'required' : 'nullable', 'string', 'max:255'],
+        ]);
+
+        $orderReturn = $this->find($return);
+        if ($orderReturn->refunded_at !== null || $orderReturn->status === ReturnStatus::Refunded) {
+            throw ValidationException::withMessages([
+                'status' => 'This return has already been refunded.',
+            ]);
+        }
+
+        $method = $data['method'] ?? 'manual_offline';
+        $reference = $data['reference'] ?? ($method === 'manual_offline' ? ($data['note'] ?? 'Manual offline refund') : null);
+
+        $this->returns->refund(
+            $orderReturn,
+            $request->user(),
+            $data['note'] ?? null,
+            $method,
+            $reference
+        );
 
         return new StaffReturnResource($this->find($return));
     }
 
     private function find(int $return): OrderReturn
     {
-        return OrderReturn::with([...CustomerReturnController::relations(), 'customer', 'handledBy'])->findOrFail($return);
+        return OrderReturn::with([...CustomerReturnController::relations(), 'customer', 'handledBy', 'refundedBy'])->findOrFail($return);
     }
 }

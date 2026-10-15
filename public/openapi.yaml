@@ -407,6 +407,9 @@ components:
           items: { type: object, properties: { id: { type: integer }, order_item_id: { type: integer }, title: { type: string }, format: { type: string }, quantity: { type: integer }, unit_price_usd: { $ref: '#/components/schemas/Money' }, reason: { type: string, nullable: true } } }
         refund_amount_usd: { $ref: '#/components/schemas/Money' }
         is_refund_final: { type: boolean, description: false while the amount is an estimate }
+        refund_method: { type: string, nullable: true, enum: [store_credit, manual_offline] }
+        refund_reference: { type: string, nullable: true }
+        refunded_at: { type: string, format: date-time, nullable: true }
         staff_note: { type: string, nullable: true }
         requested_at: { type: string, format: date-time }
         resolved_at: { type: string, format: date-time, nullable: true }
@@ -649,6 +652,33 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Provider' } ]
       description: 'Refused with reason=last_way_in when it is the only way left to sign in ("Add a password first, so you can still sign in."). A verified email gets a notice.'
       responses: { '200': { description: 'Disconnected (customer in the body)' }, '422': { description: 'It is the last way in' } }
+  /me/store-credits:
+    get:
+      tags: [Customer]
+      summary: Active store credits for the signed-in customer
+      description: 'Lists active, unexpired, and unused store credit coupons bound to the current customer.'
+      responses:
+        '200':
+          description: Store credits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        code: { type: string, example: CREDIT-ABCD-1234 }
+                        value_usd: { type: string, example: '25.00' }
+                        type: { type: string, example: fixed }
+                        used_count: { type: integer }
+                        max_uses: { type: integer, nullable: true }
+                        starts_at: { type: string, format: date-time, nullable: true }
+                        expires_at: { type: string, format: date-time, nullable: true }
+                        created_at: { type: string, format: date-time }
 
   /addresses:
     get: { tags: [Customer], summary: 'Saved addresses (default first)', responses: { '200': { description: Addresses, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Address' } } } } } } } } }
@@ -879,7 +909,20 @@ paths:
   /staff/returns/{id}/reject:
     post: { tags: [Staff operations], summary: 'Reject (note required)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Rejected } } }
   /staff/returns/{id}/refund:
-    post: { tags: [Staff operations], summary: 'Mark refunded: books back in stock, amount saved', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Refunded } } }
+    post:
+      tags: [Staff operations]
+      summary: 'Mark refunded: books back in stock, issue store credit or record manual offline refund'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method: { type: string, enum: [store_credit, manual_offline], default: manual_offline }
+                reference: { type: string, description: 'Required for manual_offline: receipt or transaction ref' }
+                note: { type: string }
+      responses: { '200': { description: Refunded } }
   /staff/reviews:
     get: { tags: [Staff operations], summary: 'Reviews (visible, book_id, max_rating, q)', responses: { '200': { description: Reviews } } }
   /staff/reviews/{id}/hide:

@@ -30,6 +30,9 @@ class ReturnResource extends JsonResource
             'refund_amount_usd' => $this->refund_amount
                 ?? Money::format(app(ReturnService::class)->refundCents($this->order, $this->items)),
             'is_refund_final' => $this->refund_amount !== null,
+            'refund_method' => $this->refund_method,
+            'refund_reference' => $this->refund_reference,
+            'refunded_at' => $this->refunded_at,
             'staff_note' => $this->staff_note,
             'requested_at' => $this->requested_at,
             'resolved_at' => $this->resolved_at,
