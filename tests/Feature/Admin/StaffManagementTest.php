@@ -60,6 +60,18 @@ class StaffManagementTest extends TestCase
         $this->assertDatabaseHas('admin_audit_logs', ['action' => 'staff_user.created', 'entity_id' => $id]);
     }
 
+    public function test_creating_staff_member_does_not_record_password_hash_in_audit_log(): void
+    {
+        $id = $this->asAdmin()->postJson('/api/v1/staff/members', ['name' => 'SecretTest', 'email' => 'secrettest@shop.test', 'role' => 'staff'])
+            ->assertCreated()->json('data.id');
+
+        $log = AdminAuditLog::where('action', 'staff_user.created')->where('entity_id', $id)->firstOrFail();
+        $this->assertNotNull($log->after_data);
+        $this->assertArrayNotHasKey('password_hash', $log->after_data);
+        $this->assertArrayNotHasKey('two_factor_secret', $log->after_data);
+        $this->assertArrayNotHasKey('remember_token', $log->after_data);
+    }
+
     public function test_invitation_expires_and_can_be_resent(): void
     {
         $member = StaffUser::factory()->create(['email' => 'new@shop.test']);
