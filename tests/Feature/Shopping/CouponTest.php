@@ -19,9 +19,9 @@ class CouponTest extends TestCase
 
     // ---- staff side ----
 
-    public function test_staff_creates_coupon_with_normalized_code_and_audit(): void
+    public function test_admin_creates_coupon_with_normalized_code_and_audit(): void
     {
-        $token = $this->staffToken();
+        $token = $this->staffToken(admin: true);
 
         $this->asToken($token)->postJson('/api/v1/staff/coupons', [
             'code' => ' welcome10 ', 'type' => 'percentage', 'value' => '10', 'min_order_amount' => '20', 'max_uses' => 100,
@@ -34,7 +34,7 @@ class CouponTest extends TestCase
 
     public function test_coupon_validation_rules(): void
     {
-        $token = $this->staffToken();
+        $token = $this->staffToken(admin: true);
 
         $this->asToken($token)->postJson('/api/v1/staff/coupons', [
             'code' => 'BAD', 'type' => 'percentage', 'value' => '150', 'starts_at' => '2026-12-01', 'expires_at' => '2026-11-01',
@@ -44,7 +44,7 @@ class CouponTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['code', 'type', 'value']);
     }
 
-    public function test_staff_lists_and_updates_coupons(): void
+    public function test_staff_list_coupons_and_admins_update_them(): void
     {
         $token = $this->staffToken();
         $coupon = Coupon::factory()->create(['code' => 'SUMMER', 'is_active' => true]);
@@ -52,10 +52,22 @@ class CouponTest extends TestCase
 
         $this->asToken($token)->getJson('/api/v1/staff/coupons?q=summ')->assertJsonCount(1, 'data');
         $this->asToken($token)->getJson('/api/v1/staff/coupons?active=0')->assertJsonCount(1, 'data')->assertJsonPath('data.0.code', 'WINTER');
-        $this->asToken($token)->patchJson("/api/v1/staff/coupons/{$coupon->id}", ['is_active' => false])->assertOk()->assertJsonPath('data.is_active', false);
+        $this->asToken($this->staffToken(admin: true))->patchJson("/api/v1/staff/coupons/{$coupon->id}", ['is_active' => false])->assertOk()->assertJsonPath('data.is_active', false);
 
         $log = AdminAuditLog::where('action', 'coupon.updated')->sole();
         $this->assertSame(['is_active' => false], $log->after_data);
+    }
+
+    public function test_staff_cannot_create_or_change_coupons(): void
+    {
+        // Owner 2026-10-15 (security review): a 100%-off coupon made by a staff account gives books away.
+        $token = $this->staffToken();
+        $coupon = Coupon::factory()->create(['code' => 'SUMMER', 'value' => '10']);
+
+        $this->asToken($token)->postJson('/api/v1/staff/coupons', ['code' => 'FREE', 'type' => 'percentage', 'value' => '100'])->assertForbidden();
+        $this->asToken($token)->patchJson("/api/v1/staff/coupons/{$coupon->id}", ['value' => '100'])->assertForbidden();
+        $this->assertDatabaseMissing('coupons', ['code' => 'FREE']);
+        $this->assertSame('10.00', $coupon->fresh()->value);
     }
 
     public function test_only_admin_deletes_and_used_coupons_are_protected(): void

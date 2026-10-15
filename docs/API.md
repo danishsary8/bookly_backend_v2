@@ -85,8 +85,8 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | PATCH | /staff/books/{id} | any of the above; `author_ids`/`category_ids` replace the current list |
 | DELETE | /staff/books/{id} | admin; soft delete (hidden from catalog) |
 | POST | /staff/books/{id}/restore | admin |
-| POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active? |
-| PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment |
+| POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
+| PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment. Staff (not admin): a new price of $0 or below half the current one is 422 (same message); admins can |
 | DELETE | /staff/variants/{id} | admin; 409 if ever ordered (set `is_active=false` instead) |
 | POST / PATCH | /staff/authors, /staff/authors/{id} | name, bio?, photo_url? (http/https only) |
 | POST / PATCH | /staff/categories, /staff/categories/{id} | name, slug? (auto from name) |
@@ -123,8 +123,8 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 | --- | --- | --- |
 | GET | /staff/coupons | `q`, `active=0/1`, `per_page` |
 | GET | /staff/coupons/{id} | |
-| POST | /staff/coupons | code (stored uppercase), type (percentage\|fixed), value (percentage max 100), min_order_amount?, max_uses?, starts_at?, expires_at?, is_active? |
-| PATCH | /staff/coupons/{id} | any of the above (`used_count` is read-only) |
+| POST | /staff/coupons | **admin** (owner 2026-10-15). code (stored uppercase), type (percentage\|fixed), value (percentage max 100), min_order_amount?, max_uses?, starts_at?, expires_at?, is_active? |
+| PATCH | /staff/coupons/{id} | **admin**. any of the above (`used_count` is read-only) |
 | DELETE | /staff/coupons/{id} | 409 once used — set `is_active=false` instead |
 
 ## Checkout and orders (customer token + verified email)

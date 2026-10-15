@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class BookVariantController extends Controller
 {
@@ -31,6 +32,7 @@ class BookVariantController extends Controller
             'isbn' => ['nullable', 'string', 'max:20', 'unique:book_variants,isbn'],
             'price_usd' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
         ]);
+        $this->checkStaffPrice($request, null, $data['price_usd']);
         $stock = (int) ($data['stock_quantity'] ?? 0);
         unset($data['stock_quantity']);
 
@@ -55,6 +57,10 @@ class BookVariantController extends Controller
             'price_usd' => ['sometimes', 'required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
         ]);
 
+        if (array_key_exists('price_usd', $data)) {
+            $this->checkStaffPrice($request, $variant->price_usd, $data['price_usd']);
+        }
+
         DB::transaction(function () use ($variant, $data, $request) {
             $before = $variant->getAttributes();
 
@@ -73,6 +79,22 @@ class BookVariantController extends Controller
         });
 
         return new StaffBookVariantResource($variant);
+    }
+
+    public const PRICE_NEEDS_ADMIN = 'A price of $0, or a cut of more than half, needs an admin.';
+
+    /**
+     * Owner 2026-10-15 (security review): staff set prices, but a free book or a cut of more than half (a way to
+     * buy cheap and put the price back) is left to admins. The audit log keeps every change either way.
+     */
+    private function checkStaffPrice(Request $request, int|float|string|null $old, int|float|string $new): void
+    {
+        if ($request->user()->isAdmin()) {
+            return;
+        }
+        if ((float) $new <= 0 || ($old !== null && (float) $new < (float) $old / 2)) {
+            throw ValidationException::withMessages(['price_usd' => self::PRICE_NEEDS_ADMIN]);
+        }
     }
 
     /** Only variants that were never ordered can be deleted; ordered ones must be deactivated. */

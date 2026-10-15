@@ -87,6 +87,23 @@ class StaffVariantManagementTest extends TestCase
         $this->assertSame(1, InventoryMovement::count());
     }
 
+    public function test_staff_need_an_admin_for_a_free_book_or_a_cut_of_more_than_half(): void
+    {
+        // Owner 2026-10-15 (security review): no buying a book for $0 and putting the price back.
+        $staff = $this->staffToken();
+        $variant = BookVariant::factory()->create(['price_usd' => '10.00']);
+        $error = ['price_usd' => 'A price of $0, or a cut of more than half, needs an admin.'];
+
+        $this->asToken($staff)->patchJson("/api/v1/staff/variants/{$variant->id}", ['price_usd' => '0'])->assertUnprocessable()->assertJsonValidationErrors($error);
+        $this->asToken($staff)->patchJson("/api/v1/staff/variants/{$variant->id}", ['price_usd' => '4.99'])->assertUnprocessable()->assertJsonValidationErrors($error);
+        $this->asToken($staff)->postJson("/api/v1/staff/books/{$variant->book_id}/variants", ['format' => 'ebook', 'sku' => 'FREE-EB', 'price_usd' => '0'])
+            ->assertUnprocessable()->assertJsonValidationErrors($error);
+        $this->assertSame('10.00', $variant->fresh()->price_usd);
+
+        $this->asToken($staff)->patchJson("/api/v1/staff/variants/{$variant->id}", ['price_usd' => '5.00'])->assertOk();
+        $this->asToken($this->staffToken(admin: true))->patchJson("/api/v1/staff/variants/{$variant->id}", ['price_usd' => '1.00'])->assertOk()->assertJsonPath('data.price_usd', '1.00');
+    }
+
     public function test_deactivated_variant_hides_from_public_catalog(): void
     {
         $variant = BookVariant::factory()->create();

@@ -769,10 +769,10 @@ paths:
     delete: { tags: [Staff catalog], summary: '(admin) Delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
   /staff/coupons:
     get: { tags: [Staff operations], summary: 'List coupons (q, active)', responses: { '200': { description: Coupons } } }
-    post: { tags: [Staff operations], summary: 'Create (code, type percentage|fixed, value, min_order_amount, max_uses, starts_at, expires_at)', responses: { '201': { description: Created } } }
+    post: { tags: [Staff operations], summary: '(admin) Create (code, type percentage|fixed, value, min_order_amount, max_uses, starts_at, expires_at)', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /staff/coupons/{id}:
     get: { tags: [Staff operations], summary: 'One coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Coupon } } }
-    patch: { tags: [Staff operations], summary: 'Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    patch: { tags: [Staff operations], summary: '(admin) Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' } } }
     delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
   /staff/orders:
     get: { tags: [Staff operations], summary: 'Orders (status, q = order number/customer, from, to)', responses: { '200': { description: Orders } } }
