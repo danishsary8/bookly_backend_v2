@@ -129,6 +129,31 @@ class ReportsTest extends TestCase
         $this->assertEquals(50.0, $res->json('data.comparison.change_percent.net_revenue'));
     }
 
+    public function test_monthly_series_does_not_skip_short_months(): void
+    {
+        $customer = Customer::factory()->create();
+        $feb = $this->deliveredOrder($customer, [[$this->physical('20.00'), 1]], deliveredAt: Carbon::parse('2026-02-14 05:00:00', 'UTC'));
+        $feb->update(['placed_at' => Carbon::parse('2026-02-13 05:00:00', 'UTC')]);
+
+        $res = $this->asToken($this->admin)->getJson('/api/v1/staff/reports/sales?from=2026-01-31&to=2026-03-31&group=month')->assertOk();
+
+        $this->assertSame(['2026-01-01', '2026-02-01', '2026-03-01'], array_column($res->json('data.series'), 'date'));
+        $this->assertSame('20.00', $res->json('data.series.1.gross_revenue_usd'));
+    }
+
+    public function test_orders_report_counts_delivery_areas_with_the_checkout_rule(): void
+    {
+        $customer = Customer::factory()->create();
+        foreach (['Phnom Penh', 'phnom-penh', 'ភ្នំពេញ', 'Siem Reap'] as $i => $city) {
+            $order = $this->deliveredOrder($customer, [[$this->physical('10.00'), 1]]);
+            $order->update(['shipping_city' => $city, 'shipping_state' => null, 'placed_at' => Carbon::parse('2026-10-0'.($i + 2).' 04:00:00', 'UTC')]);
+        }
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/reports/orders?from=2026-10-01&to=2026-10-10')->assertOk()
+            ->assertJsonPath('data.orders_by_delivery_area.phnom_penh', 3)
+            ->assertJsonPath('data.orders_by_delivery_area.provinces', 1);
+    }
+
     public function test_orders_report(): void
     {
         $customer = Customer::factory()->create();

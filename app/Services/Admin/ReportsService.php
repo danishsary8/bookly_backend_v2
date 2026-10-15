@@ -11,7 +11,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderReturn;
 use App\Services\CurrencyService;
-use App\Services\KhrRateHistory;
+use App\Services\Orders\DeliveryArea;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +24,6 @@ class ReportsService
 
     public function __construct(
         private readonly CurrencyService $currency,
-        private readonly KhrRateHistory $khrHistory,
     ) {}
 
     /**
@@ -476,7 +475,12 @@ class ReportsService
             ->pluck('total', 'bucket');
 
         $series = [];
-        $cursor = $start;
+        // Step from the start of the first bucket: adding a month to 31 January would skip February.
+        $cursor = match ($group) {
+            'week' => $start->startOfWeek(CarbonImmutable::MONDAY),
+            'month' => $start->startOfMonth(),
+            default => $start,
+        };
 
         while ($cursor->lt($end)) {
             $key = match ($group) {
@@ -555,26 +559,15 @@ class ReportsService
             ->merge($paymentMethods->map(fn ($n) => (int) $n))
             ->all();
 
-        // Delivery area derived from city / state
-        $ordersList = (clone $placedQuery)->select('shipping_city', 'shipping_state')->get();
-        $phnomPenhCount = 0;
-        $provincesCount = 0;
-
-        foreach ($ordersList as $ord) {
-            $isPhnomPenh = false;
-            foreach ([$ord->shipping_city, $ord->shipping_state] as $part) {
-                $flat = mb_strtolower(preg_replace('/[\s\-_.]+/u', '', (string) $part));
-                if (str_contains($flat, 'phnompenh') || str_contains($flat, 'ភ្នំពេញ')) {
-                    $isPhnomPenh = true;
-                    break;
-                }
-            }
-            if ($isPhnomPenh) {
-                $phnomPenhCount++;
-            } else {
-                $provincesCount++;
-            }
-        }
+        // Delivery area: the checkout rule (DeliveryArea), applied once per distinct city/province pair.
+        $areaCounts = [DeliveryArea::PHNOM_PENH => 0, DeliveryArea::PROVINCES => 0];
+        (clone $placedQuery)->toBase()
+            ->selectRaw('shipping_city, shipping_state, COUNT(*) AS n')
+            ->groupBy('shipping_city', 'shipping_state')
+            ->get()
+            ->each(function ($row) use (&$areaCounts) {
+                $areaCounts[DeliveryArea::forPlace($row->shipping_city, $row->shipping_state)] += (int) $row->n;
+            });
 
         return [
             'total_orders' => $totalOrders,
@@ -583,8 +576,8 @@ class ReportsService
             'average_delivery_hours' => $avgDelivery !== null ? round((float) $avgDelivery, 1) : null,
             'orders_by_payment_method' => $allPaymentMethods,
             'orders_by_delivery_area' => [
-                'phnom_penh' => $phnomPenhCount,
-                'provinces' => $provincesCount,
+                'phnom_penh' => $areaCounts[DeliveryArea::PHNOM_PENH],
+                'provinces' => $areaCounts[DeliveryArea::PROVINCES],
             ],
         ];
     }
