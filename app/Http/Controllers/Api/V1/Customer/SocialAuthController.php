@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Rules\Turnstile;
+use App\Services\Auth\EmailClaims;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\SocialTokenVerifier;
 use App\Services\Telegram\TelegramBot;
@@ -39,7 +40,7 @@ class SocialAuthController extends Controller
 
     public const NEEDS_PHONE = 'Confirm your phone number (or add your email) to finish signing up with Facebook.';
 
-    public function __construct(private readonly OtpService $otp) {}
+    public function __construct(private readonly OtpService $otp, private readonly EmailClaims $claims) {}
 
     public function __invoke(Request $request, string $provider, SocialTokenVerifier $verifier): JsonResponse
     {
@@ -72,7 +73,13 @@ class SocialAuthController extends Controller
 
         $column = self::COLUMNS[$provider];
         $customer = Customer::where($column, $profile->getId())->first();
-        $sameEmail = $customer === null && $email !== null ? Customer::withTrashed()->where('email', $email)->first() : null;
+        $sameEmail = $customer === null && $email !== null ? $this->claims->holder($email) : null;
+        // An unproven copy of this address on a phone account isn't that account's (EmailClaims): the provider
+        // has just proven who owns it, so it comes off that account and this sign-in goes on as a new customer.
+        if ($sameEmail !== null && $this->claims->isUnprovenOnAnotherAccount($sameEmail)) {
+            $this->claims->release($sameEmail);
+            $sameEmail = null;
+        }
 
         $account = $customer ?? ($sameEmail?->trashed() ? null : $sameEmail);
         if ($account !== null && ! $account->is_active) {
@@ -88,7 +95,7 @@ class SocialAuthController extends Controller
             return $this->signedIn($customer, 200);
         }
 
-        if ($sameEmail !== null && ($sameEmail->trashed() || $sameEmail->isVerified())) {
+        if ($sameEmail !== null && $this->claims->keeps($sameEmail)) {
             return response()->json(['message' => $this->signInAsBefore($sameEmail)], 409);
         }
 
@@ -131,16 +138,22 @@ class SocialAuthController extends Controller
         $email = filled($data['email'] ?? null) ? strtolower($data['email']) : null;
         $emailProven = $email !== null && $email === $facebookEmail;
 
-        if ($email !== null && Customer::withTrashed()->where('email', $email)->when($unfinished, fn ($q) => $q->whereKeyNot($unfinished->getKey()))->exists()) {
+        $holder = $email !== null ? $this->claims->holder($email, $unfinished) : null;
+        if ($holder !== null && $this->claims->keeps($holder)) {
             throw ValidationException::withMessages(['email' => 'This email is already used by another Bookly account. Leave it empty or use another one.']);
         }
+        // With Telegram, a typed email Facebook didn't vouch for is only added once its code comes back.
+        $pending = $byTelegram && $email !== null && ! $emailProven ? $email : null;
 
-        $customer = DB::transaction(function () use ($profile, $facebookEmail, $unfinished, $email, $emailProven, $byTelegram) {
+        $customer = DB::transaction(function () use ($profile, $facebookEmail, $unfinished, $email, $emailProven, $byTelegram, $holder, $pending) {
+            if ($holder !== null && $pending === null) {
+                $this->claims->release($holder);
+            }
             $customer = $unfinished ?? new Customer;
             $this->takeOver($customer, $profile, $email ?? $facebookEmail);
             $customer->forceFill([
                 'facebook_id' => $profile->getId(),
-                'email' => $email,
+                'email' => $pending === null ? $email : null,
                 'email_verified_at' => $emailProven ? now() : null,
             ])->save();
             if (! $byTelegram && ! $emailProven) {
@@ -153,8 +166,16 @@ class SocialAuthController extends Controller
         // Where the customer confirms next: Telegram (the website opens the bot), an email code, or nowhere
         // (Facebook's own email already verifies the account).
         $verifyBy = $byTelegram ? 'telegram' : ($emailProven ? null : 'email');
+        if ($pending !== null) {
+            try {
+                $this->otp->issueToNewEmail($customer, $pending);
+            } catch (Throwable $e) {
+                report($e);
+                $pending = null;
+            }
+        }
 
-        return $this->signedIn($customer, $unfinished === null ? 201 : 200, ['verify_by' => $verifyBy]);
+        return $this->signedIn($customer, $unfinished === null ? 201 : 200, ['verify_by' => $verifyBy, 'pending_email' => $pending]);
     }
 
     /** Unfinished sign-ups lose their unproven password and sessions when a provider claims them. */

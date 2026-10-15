@@ -47,6 +47,12 @@ class OtpService
         return $email;
     }
 
+    /** The address an email-change code was sent to and not yet confirmed, if any. */
+    public function pendingEmail(Customer $customer): ?string
+    {
+        return Cache::get($this->pendingEmailKey($customer));
+    }
+
     /** Cancels a customer's unused codes of one kind (e.g. a reset code for an address they just left). */
     public function cancel(Customer $customer, VerificationPurpose $purpose): void
     {

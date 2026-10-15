@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Models\StaffUser;
+use App\Services\Auth\OtpService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,6 +23,8 @@ class CustomerResource extends JsonResource
             'has_password' => $this->password_hash !== null,
             'connected' => ['google' => $this->google_id !== null, 'facebook' => $this->facebook_id !== null],
             'sign_in_methods' => $this->signInMethods(),
+            // To the customer only, not to staff: an address waiting for its code (Telegram sign-up, change email).
+            'pending_email' => $this->when(! $request->user() instanceof StaffUser, fn () => app(OtpService::class)->pendingEmail($this->resource)),
             'created_at' => $this->created_at,
         ];
     }

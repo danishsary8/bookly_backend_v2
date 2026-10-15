@@ -9,6 +9,7 @@ use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Notifications\AccountSecurityNotice;
 use App\Rules\Turnstile;
+use App\Services\Auth\EmailClaims;
 use App\Services\Auth\OtpService;
 use App\Services\Customers\UnverifiedCustomers;
 use App\Services\Telegram\TelegramBot;
@@ -36,7 +37,7 @@ class AuthController extends Controller
         return response()->json(['telegram' => TelegramBot::enabled()]);
     }
 
-    public function __construct(private readonly OtpService $otp, private readonly UnverifiedCustomers $unverified) {}
+    public function __construct(private readonly OtpService $otp, private readonly UnverifiedCustomers $unverified, private readonly EmailClaims $claims) {}
 
     public function register(Request $request): JsonResponse
     {
@@ -60,14 +61,20 @@ class AuthController extends Controller
         }
         $email = filled($data['email'] ?? null) ? strtolower($data['email']) : null;
         $this->unverified->pruneIfDue();
-        // An unfinished sign-up with this email is taken over below.
-        $existing = $email !== null ? Customer::where('email', $email)->first() : null;
+        // Email sign-ups: an unfinished sign-up with this email is taken over below, and an unproven copy of the
+        // address on a phone account is taken off it. Telegram sign-ups never hold an email they haven't proven:
+        // the address gets a code and is added once it comes back (POST /me/email/verify).
+        $holder = $email !== null && ! $byTelegram ? $this->claims->holder($email) : null;
+        $existing = $holder !== null && ! $this->claims->isUnprovenOnAnotherAccount($holder) ? $holder : null;
 
         // One transaction: if the code email can't be sent, nothing changes (no half-made account,
         // no half-replaced one), so the customer can simply try again with the same email.
         try {
-            $customer = DB::transaction(function () use ($data, $email, $existing, $byTelegram) {
-                $customer = $existing ?? new Customer(['email' => $email]);
+            $customer = DB::transaction(function () use ($data, $email, $holder, $existing, $byTelegram) {
+                if ($holder !== null && $existing === null) {
+                    $this->claims->release($holder);
+                }
+                $customer = $existing ?? new Customer(['email' => $byTelegram ? null : $email]);
                 $customer->fill([
                     'name' => $data['name'],
                     'password_hash' => $data['password'],
@@ -88,10 +95,12 @@ class AuthController extends Controller
             // Two sign-ups with the same new email at the same moment: the other one won.
             throw ValidationException::withMessages(['email' => self::EMAIL_TAKEN]);
         }
+        $pending = $byTelegram && $email !== null ? $this->sendPendingEmailCode($customer, $email) : null;
 
         return response()->json([
             'message' => $byTelegram ? 'Account created. Confirm your phone number in Telegram.' : 'Account created. We sent a 6-digit code to your email.',
             'verify_by' => $byTelegram ? 'telegram' : 'email',
+            'pending_email' => $pending,
             'customer' => new CustomerResource($customer),
             ...$this->issueToken($customer, ['customer']),
         ], 201);
@@ -99,14 +108,28 @@ class AuthController extends Controller
 
     /**
      * An email that was signed up but never verified isn't anyone's yet: signing up again takes it over
-     * (new name and password, old sessions and codes cancelled). Verified, deactivated or deleted
-     * accounts keep their email.
+     * (new name and password, old sessions and codes cancelled). Proven emails and deactivated or deleted
+     * accounts keep their email; an unproven email on a phone account does not (EmailClaims).
      */
     private function emailIsTaken(string $email): bool
     {
-        $existing = Customer::withTrashed()->where('email', $email)->first();
+        $holder = $this->claims->holder($email);
 
-        return $existing !== null && ($existing->trashed() || $existing->isVerified() || ! $existing->is_active);
+        return $holder !== null && $this->claims->keeps($holder);
+    }
+
+    /** A code to the email a Telegram sign-up typed; the account works without it, so a mail failure is only reported. */
+    private function sendPendingEmailCode(Customer $customer, string $email): ?string
+    {
+        try {
+            $this->otp->issueToNewEmail($customer, $email);
+
+            return $email;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     public function login(Request $request): JsonResponse
@@ -182,7 +205,8 @@ class AuthController extends Controller
         $data = $request->validate(['email' => ['required', 'email'], 'turnstile_token' => [new Turnstile($request->ip())]]);
         $customer = Customer::where('email', strtolower($data['email']))->first();
 
-        if ($customer !== null) {
+        // Not for an unproven email on a phone account: whoever reads that inbox doesn't own the account.
+        if ($customer !== null && ! $this->claims->isUnprovenOnAnotherAccount($customer)) {
             $this->otp->issue($customer, VerificationPurpose::PasswordReset);
         }
 
@@ -200,7 +224,7 @@ class AuthController extends Controller
 
         $customer = Customer::where('email', strtolower($data['email']))->first();
 
-        if ($customer === null || ! $this->otp->verify($customer, VerificationPurpose::PasswordReset, $data['code'])) {
+        if ($customer === null || $this->claims->isUnprovenOnAnotherAccount($customer) || ! $this->otp->verify($customer, VerificationPurpose::PasswordReset, $data['code'])) {
             return response()->json(['message' => 'The code is invalid or has expired.'], 422);
         }
 
