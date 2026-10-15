@@ -205,8 +205,6 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/series/{series}', [StaffSeriesController::class, 'update']);
     Route::get('/coupons', [StaffCouponController::class, 'index']);
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show']);
-    Route::post('/coupons', [StaffCouponController::class, 'store']);
-    Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
 
     Route::middleware('abilities:admin')->group(function () {
         Route::get('/members', [StaffMemberController::class, 'index']);
@@ -245,5 +243,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::delete('/publishers/{publisher}', [StaffPublisherController::class, 'destroy']);
         Route::delete('/series/{series}', [StaffSeriesController::class, 'destroy']);
         Route::delete('/coupons/{coupon}', [StaffCouponController::class, 'destroy']);
+        // Owner 2026-10-15 (security review): a coupon gives money away, so only admins make or change them.
+        Route::post('/coupons', [StaffCouponController::class, 'store']);
+        Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
     });
 });
