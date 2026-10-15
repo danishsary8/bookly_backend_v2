@@ -1,10 +1,10 @@
 # Next step
 
 ## Now (2026-10-15)
-Merged 2026-10-15: `fix/close-account-check-order`, the Khmer storefront, and the Reports API (`feature/reports-api`, with its
-frontend page). Waiting for the owner's merge: `docs/reports-batch` (this repo first, then the frontend one).
-Next, chosen by the owner: a **security review of both repos** (read-only audit first, then fixes the owner picks, one
-branch each). The ordered to-do list lives in the frontend repo: docs/ROADMAP.md and docs/NEXT_STEP.md.
+Security review done; the fixes wait for the owner's merge (order and owner steps in the frontend repo's
+docs/NEXT_STEP.md): `fix/otp-wrong-guess-limit` first, then each pair backend → frontend, `fix/backup-public-key`,
+then the two `docs/security-review` branches. After merging: make the backup key (DEPLOYMENT.md → 1b) and run the
+backup workflow once by hand.
 
 ## Earlier (2026-10-12)
 Owner action after merging `feature/scheduler-on-ping`: in Render add `RUN_MAINTENANCE_ON_REQUEST` = `true` (the housekeeping jobs then run from web traffic; the 5-minute uptime ping is enough).
