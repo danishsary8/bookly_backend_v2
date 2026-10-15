@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Enums\VerificationPurpose;
 use App\Models\Customer;
 use App\Models\StaffUser;
+use App\Notifications\AccountSecurityNotice;
 use App\Notifications\OtpCodeNotification;
 use App\Services\Auth\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -202,6 +203,28 @@ class StaffAuthTest extends TestCase
 
         $this->assertTrue(Hash::check('newpass123', $staff->fresh()->password_hash));
         $this->assertTrue($staff->fresh()->two_factor_enabled);
+    }
+
+    public function test_staff_password_reset_sends_security_notice(): void
+    {
+        Notification::fake();
+        $staff = StaffUser::factory()->withTwoFactor()->create(['email' => 's@shop.test']);
+
+        $this->postJson('/api/v1/staff/auth/forgot-password', ['email' => 's@shop.test'])->assertOk();
+        $code = null;
+        Notification::assertSentTo($staff, OtpCodeNotification::class, function ($n) use (&$code) {
+            $code = $n->code;
+
+            return $n->purpose === VerificationPurpose::PasswordReset;
+        });
+
+        $this->postJson('/api/v1/staff/auth/reset-password', [
+            'email' => 's@shop.test', 'code' => $code, 'password' => 'newpass123', 'password_confirmation' => 'newpass123',
+        ])->assertOk();
+
+        Notification::assertSentTo($staff, AccountSecurityNotice::class, function ($n) {
+            return str_contains($n->subject, 'Your Bookly staff password was reset');
+        });
     }
 
     public function test_staff_login_is_rate_limited_per_email_across_different_ips(): void
