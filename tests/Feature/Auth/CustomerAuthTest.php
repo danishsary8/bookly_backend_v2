@@ -170,6 +170,18 @@ class CustomerAuthTest extends TestCase
 
     public function test_a_reset_code_is_thrown_away_after_five_wrong_guesses_from_any_ip(): void
     {
+        $this->assertResetCodeThrownAwayAfterFiveWrongGuesses();
+    }
+
+    public function test_the_wrong_guess_limit_also_works_on_the_database_cache_used_in_production(): void
+    {
+        // The database store returns false when incrementing a missing key (the array store starts at 1).
+        config(['cache.default' => 'database']);
+        $this->assertResetCodeThrownAwayAfterFiveWrongGuesses();
+    }
+
+    private function assertResetCodeThrownAwayAfterFiveWrongGuesses(): void
+    {
         $customer = Customer::factory()->create(['email' => 'dara@example.com', 'password_hash' => 'oldpass123']);
         $this->postJson('/api/v1/auth/forgot-password', ['email' => 'dara@example.com'])->assertOk();
         $code = $this->lastCode($customer, VerificationPurpose::PasswordReset);

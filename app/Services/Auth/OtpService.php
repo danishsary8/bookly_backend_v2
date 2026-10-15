@@ -94,10 +94,10 @@ class OtpService
         }
 
         if (! Hash::check($code, $token->code_hash)) {
-            $wrong = Cache::increment($key = "otp-wrong:{$token->id}");
-            if ($wrong === 1) {
-                Cache::put($key, 1, $token->expires_at);
-            }
+            // Start the counter first: the database store (production) returns false when incrementing a
+            // missing key, so incrementing alone never counted. add() keeps an existing count.
+            Cache::add($key = "otp-wrong:{$token->id}", 0, $token->expires_at);
+            $wrong = (int) Cache::increment($key);
             if ($wrong >= self::MAX_WRONG_GUESSES) {
                 $token->update(['used_at' => now()]);
             }
