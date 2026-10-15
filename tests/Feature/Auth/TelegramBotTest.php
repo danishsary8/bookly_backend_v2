@@ -5,11 +5,13 @@ namespace Tests\Feature\Auth;
 use App\Exceptions\TelegramBotProblem;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use App\Models\Customer;
+use App\Notifications\AccountSecurityNotice;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -89,11 +91,13 @@ class TelegramBotTest extends TestCase
         $this->telegram(['text' => "/start {$code}"])->assertOk()
             ->assertJsonPath('method', 'sendMessage')
             ->assertJsonPath('chat_id', self::CHAT)
-            ->assertJsonPath('reply_markup.keyboard.0.0.text', TelegramWebhookController::SHARE_BUTTON)
-            ->assertJsonPath('reply_markup.keyboard.0.0.request_contact', true);
+            ->assertJsonPath('text', fn (string $text) => str_starts_with($text, 'Sign in to Bookly?') && str_contains($text, 'If someone sent you this link'))
+            ->assertJsonPath('reply_markup.keyboard.0.0.text', TelegramWebhookController::YES_SIGN_IN_BUTTON)
+            ->assertJsonPath('reply_markup.keyboard.0.0.request_contact', true)
+            ->assertJsonPath('reply_markup.keyboard.1.0.text', TelegramWebhookController::NOT_ME_BUTTON);
         $this->share()->assertOk()
-            ->assertJsonPath('text', "✅ You're signed in. Go back to Bookly.")
-            ->assertJsonPath('reply_markup.remove_keyboard', true);
+            ->assertJsonPath('text', fn (string $text) => str_starts_with($text, "✅ You're signed in. Go back to Bookly.") && str_contains($text, 'Not you?'))
+            ->assertJsonPath('reply_markup.keyboard.0.0.text', TelegramWebhookController::SIGN_OUT_BUTTON);
 
         $token = $this->linkStatus($key)->assertOk()
             ->assertJsonPath('status', 'done')
@@ -102,6 +106,44 @@ class TelegramBotTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.id', $customer->id);
         // The sign-in is handed out once.
         $this->linkStatus($key)->assertNotFound();
+    }
+
+    // Security review 2026-10-15: a sign-in link sent by someone else can be refused, and undone afterwards.
+
+    public function test_not_me_cancels_the_link_so_the_website_gets_nothing(): void
+    {
+        $this->customer();
+        [$code, $key] = $this->startSignIn();
+        $this->telegram(['text' => "/start {$code}"]);
+
+        $this->telegram(['text' => TelegramWebhookController::NOT_ME_BUTTON])->assertOk()
+            ->assertJsonPath('text', fn (string $text) => str_starts_with($text, 'OK, nothing happened'))
+            ->assertJsonPath('reply_markup.remove_keyboard', true);
+        $this->linkStatus($key)->assertJsonPath('status', 'failed')->assertJsonMissingPath('token');
+        // Sharing afterwards does nothing either.
+        $this->share()->assertJsonPath('text', TelegramWebhookController::EXPIRED);
+    }
+
+    public function test_sign_me_out_everywhere_ends_every_session_and_an_uncollected_sign_in(): void
+    {
+        Notification::fake();
+        $customer = $this->customer(['email' => 'dara@example.com']);
+        $other = $customer->createToken('laptop', ['customer'])->plainTextToken;
+        [$code, $key] = $this->startSignIn();
+        $this->telegram(['text' => "/start {$code}"]);
+        $this->share()->assertOk();
+        Notification::assertSentTo($customer, AccountSecurityNotice::class, fn ($notice) => $notice->subject === 'New sign-in to Bookly with Telegram');
+
+        $this->telegram(['text' => TelegramWebhookController::SIGN_OUT_BUTTON])->assertOk()
+            ->assertJsonPath('text', fn (string $text) => str_starts_with($text, '✅ Done: every device was signed out'));
+
+        $this->linkStatus($key)->assertJsonPath('status', 'failed')->assertJsonMissingPath('token');
+        $this->assertSame(0, $customer->tokens()->count());
+        $this->app['auth']->forgetGuards();
+        $this->withToken($other)->getJson('/api/v1/me')->assertUnauthorized();
+        // Only once, and only for a recent sign-in from this chat.
+        $this->telegram(['text' => TelegramWebhookController::SIGN_OUT_BUTTON])
+            ->assertJsonPath('text', fn (string $text) => str_starts_with($text, 'There is no recent Bookly sign-in'));
     }
 
     public function test_telegram_numbers_come_with_or_without_a_plus(): void
