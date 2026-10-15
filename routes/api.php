@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\Customer\CheckoutController;
 use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\EmailController;
+use App\Http\Controllers\Api\V1\Customer\NewsletterCustomerController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\V1\Customer\StoreCreditController;
 use App\Http\Controllers\Api\V1\Customer\TelegramAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Newsletter\NewsletterController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
 use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
@@ -49,6 +51,7 @@ use App\Http\Controllers\Api\V1\Staff\Orders\OrderDocumentController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
+use App\Http\Controllers\Api\V1\Staff\StaffNewsletterController;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -71,6 +74,16 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/publishers', [PublisherController::class, 'index']);
 Route::get('/series', [SeriesController::class, 'index']);
 Route::get('/series/{series}', [SeriesController::class, 'show'])->whereNumber('series');
+
+/*
+| Public newsletter (double opt-in, unsubscribe, RFC 8058 one-click)
+*/
+Route::prefix('newsletter')->group(function () {
+    Route::post('/subscribe', [NewsletterController::class, 'subscribe'])->middleware('throttle:newsletter-subscribe');
+    Route::post('/confirm', [NewsletterController::class, 'confirm']);
+    Route::post('/unsubscribe', [NewsletterController::class, 'unsubscribe']);
+    Route::post('/unsubscribe/one-click', [NewsletterController::class, 'oneClickUnsubscribe']);
+});
 
 /*
 | Customer authentication
@@ -111,6 +124,8 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::get('/stock-alerts', [StockAlertController::class, 'index']);
     Route::post('/stock-alerts', [StockAlertController::class, 'store']);
     Route::delete('/stock-alerts/{stockAlert}', [StockAlertController::class, 'destroy'])->whereNumber('stockAlert');
+    Route::get('/newsletter', [NewsletterCustomerController::class, 'show']);
+    Route::put('/newsletter', [NewsletterCustomerController::class, 'update']);
 });
 
 /*
@@ -273,5 +288,14 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         // Owner 2026-10-15 (security review): a coupon gives money away, so only admins make or change them.
         Route::post('/coupons', [StaffCouponController::class, 'store']);
         Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
+
+        Route::get('/newsletter/summary', [StaffNewsletterController::class, 'summary']);
+        Route::get('/newsletter/campaigns', [StaffNewsletterController::class, 'indexCampaigns']);
+        Route::post('/newsletter/campaigns', [StaffNewsletterController::class, 'storeCampaign']);
+        Route::get('/newsletter/campaigns/{campaign}', [StaffNewsletterController::class, 'showCampaign'])->whereNumber('campaign');
+        Route::put('/newsletter/campaigns/{campaign}', [StaffNewsletterController::class, 'updateCampaign'])->whereNumber('campaign');
+        Route::delete('/newsletter/campaigns/{campaign}', [StaffNewsletterController::class, 'destroyCampaign'])->whereNumber('campaign');
+        Route::post('/newsletter/campaigns/{campaign}/test', [StaffNewsletterController::class, 'testSend'])->whereNumber('campaign');
+        Route::post('/newsletter/campaigns/{campaign}/send', [StaffNewsletterController::class, 'send'])->whereNumber('campaign');
     });
 });

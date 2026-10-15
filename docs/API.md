@@ -283,3 +283,22 @@ Cached for 5 minutes per report and range. All endpoints take `from` and `to` (Y
 | GET | /staff/reports/funnel | `from`, `to`, `format` (json\|csv) | 4 measurable steps from database: Carts with items -> Orders placed -> Orders delivered -> Orders returned. "Carts with items" = carts that still hold items added in the range + orders placed in the range (a cart is emptied at checkout), so it is an estimate; there is no visit tracking. Each step includes count, conversion rate from first step (`%`), conversion rate from previous step (`%`), and drop-off rate (`%`). |
 | GET | /staff/reports/coupons | `from`, `to`, `format` (json\|csv) | Coupon performance (code, type, value, times used in range, total discounts given, total order revenue) and refunds breakdown (total count, amount in USD & KHR, and breakdown by refund reason). |
 
+### Newsletter
+| Method | Path | Auth | Body / notes |
+| --- | --- | --- | --- |
+| POST | /newsletter/subscribe | public | `email`, `locale`? (en\|km), `turnstile_token`? — 202 "Check your inbox to confirm." (always same message, no enumeration). Double opt-in confirmation email throttled to at most once per 10 minutes per email. Rate limit 5/hour per IP. |
+| POST | /newsletter/confirm | public | `token` — confirms subscription (sets confirmed_at, clears confirm_token_hash). |
+| POST | /newsletter/unsubscribe | public | `token` — unsubscribes from newsletter via web form. |
+| POST | /newsletter/unsubscribe/one-click | public | query `token` (RFC 8058 one-click unsubscribe for mail user agents). Every newsletter email includes `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers. |
+| GET | /me/newsletter | customer | `{subscribed, status, locale}` |
+| PUT | /me/newsletter | customer, verified | `subscribed` (bool), `locale`? (en\|km) — verified customer can subscribe or unsubscribe without confirmation email. 403 if unverified. |
+| GET | /staff/newsletter/summary | admin | `{confirmed, pending, unsubscribed, total}` counts |
+| GET | /staff/newsletter/campaigns | admin | paginated list of campaigns (`status`: draft\|sending\|sent) |
+| POST | /staff/newsletter/campaigns | admin | `subject_en`, `subject_km`?, `body_en`, `body_km`?, `book_ids`? (up to 12). Creates draft campaign; audit-logged. |
+| GET | /staff/newsletter/campaigns/{id} | admin | campaign details with chosen book previews |
+| PUT | /staff/newsletter/campaigns/{id} | admin | update draft campaign (422 if not draft); audit-logged. |
+| DELETE | /staff/newsletter/campaigns/{id} | admin | delete draft campaign (422 if not draft); audit-logged. |
+| POST | /staff/newsletter/campaigns/{id}/test | admin | sends test newsletter email to authenticated admin's own email address directly; audit-logged. |
+| POST | /staff/newsletter/campaigns/{id}/send | admin | queues campaign rows to `marketing_outbox` for all confirmed subscribers in their locale (fallback to English if Khmer empty); transitions status to `sending` -> `sent`. Returns estimated days to complete at `MARKETING_DAILY_LIMIT` (60/day). Cannot be sent twice. Audit-logged. |
+
+

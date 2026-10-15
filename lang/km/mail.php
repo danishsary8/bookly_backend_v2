@@ -72,4 +72,13 @@ return [
     'back_in_stock_intro' => 'សៀវភៅដែលអ្នកបានចុះឈ្មោះតាមដានមានស្តុកឡើងវិញហើយ៖ :title (:format)។',
     'back_in_stock_action' => 'មើលសៀវភៅ',
     'back_in_stock_outro' => 'ចំនួនស្តុកមានកំណត់ សូមបញ្ជាទិញឱ្យបានមុនពេលអស់ស្តុកម្តងទៀត។',
+
+    // Newsletter
+    'newsletter_confirm_subject' => 'បញ្ជាក់ការចុះឈ្មោះព្រឹត្តិបត្រព័ត៌មាន Bookly របស់អ្នក',
+    'newsletter_confirm_greeting' => 'សួស្តី!',
+    'newsletter_confirm_intro' => 'សូមអរគុណសម្រាប់ការចុះឈ្មោះទទួលព្រឹត្តិបត្រព័ត៌មាន Bookly។ សូមបញ្ជាក់អាសយដ្ឋានអ៊ីមែលរបស់អ្នកដើម្បីចាប់ផ្តើមទទួលព័ត៌មានថ្មីៗ។',
+    'newsletter_confirm_action' => 'បញ្ជាក់ការចុះឈ្មោះ',
+    'newsletter_confirm_outro' => 'ប្រសិនបើអ្នកមិនបានចុះឈ្មោះសម្រាប់ព្រឹត្តិបត្រព័ត៌មាននេះទេ អ្នកអាចមិនអើពើនឹងអ៊ីមែលនេះដោយសុវត្ថិភាព។',
+    'newsletter_unsubscribe_notice' => 'អ្នកទទួលបានអ៊ីមែលនេះដោយសារអ្នកបានចុះឈ្មោះទទួលព្រឹត្តិបត្រព័ត៌មាន Bookly។',
+    'newsletter_unsubscribe_action' => 'ឈប់ទទួលព្រឹត្តិបត្រព័ត៌មាន',
 ];

@@ -95,5 +95,8 @@ class AppServiceProvider extends ServiceProvider
 
         // CSV book import preview and confirm rate limit (10 per hour per admin).
         RateLimiter::for('book-import', fn (Request $request) => Limit::perHour(10)->by('book-import|'.($request->user()?->id ?? $request->ip())));
+
+        // Newsletter sign-up: 5 per hour per IP to prevent inbox flooding.
+        RateLimiter::for('newsletter-subscribe', fn (Request $request) => Limit::perHour(5)->by('newsletter-sub|'.$request->ip()));
     }
 }

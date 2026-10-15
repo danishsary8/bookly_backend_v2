@@ -4,6 +4,7 @@ namespace App\Services\Marketing;
 
 use App\Models\MarketingOutbox;
 use App\Notifications\BackInStockNotification;
+use App\Notifications\NewsletterCampaignNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
@@ -51,6 +52,9 @@ class MarketingOutboxService
                     if ($row->kind === 'back_in_stock') {
                         Notification::route('mail', $row->email)
                             ->notify((new BackInStockNotification($row->payload))->locale($row->locale));
+                    } elseif ($row->kind === 'newsletter') {
+                        Notification::route('mail', $row->email)
+                            ->notify((new NewsletterCampaignNotification($row->payload))->locale($row->locale));
                     }
 
                     $row->update([

@@ -1220,3 +1220,168 @@ paths:
         - { $ref: '#/components/parameters/To' }
         - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
       responses: { '200': { description: Coupons and refunds report data or CSV stream } }
+  /newsletter/subscribe:
+    post:
+      tags: [Newsletter]
+      summary: Subscribe to newsletter (sends double opt-in confirmation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                locale: { type: string, enum: [en, km] }
+                turnstile_token: { type: string }
+      responses:
+        '202': { description: Confirmation email sent }
+  /newsletter/confirm:
+    post:
+      tags: [Newsletter]
+      summary: Confirm newsletter subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { description: Confirmed }
+        '422': { description: Invalid token }
+  /newsletter/unsubscribe:
+    post:
+      tags: [Newsletter]
+      summary: Unsubscribe from newsletter via web token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { description: Unsubscribed }
+        '422': { description: Invalid token }
+  /newsletter/unsubscribe/one-click:
+    post:
+      tags: [Newsletter]
+      summary: RFC 8058 one-click unsubscribe
+      parameters:
+        - { name: token, in: query, required: false, schema: { type: string } }
+      responses:
+        '200': { description: Unsubscribed }
+        '422': { description: Invalid token }
+  /me/newsletter:
+    get:
+      tags: [Customer]
+      summary: View customer newsletter subscription status
+      responses:
+        '200': { description: Subscription status }
+    put:
+      tags: [Customer]
+      summary: Toggle newsletter subscription for verified customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscribed]
+              properties:
+                subscribed: { type: boolean }
+                locale: { type: string, enum: [en, km] }
+      responses:
+        '200': { description: Subscription updated }
+        '403': { description: Unverified customer }
+  /staff/newsletter/summary:
+    get:
+      tags: [Admin]
+      summary: (admin) Summary counts of newsletter subscribers by status
+      responses:
+        '200': { description: Subscriber counts }
+  /staff/newsletter/campaigns:
+    get:
+      tags: [Admin]
+      summary: (admin) List newsletter campaigns
+      responses:
+        '200': { description: Campaigns list }
+    post:
+      tags: [Admin]
+      summary: (admin) Create draft newsletter campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_en, body_en]
+              properties:
+                subject_en: { type: string }
+                subject_km: { type: string }
+                body_en: { type: string }
+                body_km: { type: string }
+                book_ids: { type: array, items: { type: integer } }
+      responses:
+        '201': { description: Campaign created }
+  /staff/newsletter/campaigns/{id}:
+    get:
+      tags: [Admin]
+      summary: (admin) Show newsletter campaign
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Campaign details }
+    put:
+      tags: [Admin]
+      summary: (admin) Update draft newsletter campaign
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_en, body_en]
+              properties:
+                subject_en: { type: string }
+                subject_km: { type: string }
+                body_en: { type: string }
+                body_km: { type: string }
+                book_ids: { type: array, items: { type: integer } }
+      responses:
+        '200': { description: Campaign updated }
+        '422': { description: Not draft or validation failed }
+    delete:
+      tags: [Admin]
+      summary: (admin) Delete draft newsletter campaign
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Campaign deleted }
+        '422': { description: Not draft }
+  /staff/newsletter/campaigns/{id}/test:
+    post:
+      tags: [Admin]
+      summary: (admin) Send test newsletter to admin email
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Test email sent }
+  /staff/newsletter/campaigns/{id}/send:
+    post:
+      tags: [Admin]
+      summary: (admin) Send newsletter campaign to confirmed subscribers
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Queued to outbox with estimated days }
+        '422': { description: Not draft or already sent }
+

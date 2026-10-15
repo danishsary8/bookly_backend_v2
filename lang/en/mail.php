@@ -72,4 +72,13 @@ return [
     'back_in_stock_intro' => 'A book on your alert list is back in stock: :title (:format).',
     'back_in_stock_action' => 'View book',
     'back_in_stock_outro' => 'Stock is limited, so grab your copy before it sells out again.',
+
+    // Newsletter
+    'newsletter_confirm_subject' => 'Confirm your Bookly newsletter subscription',
+    'newsletter_confirm_greeting' => 'Hello!',
+    'newsletter_confirm_intro' => 'Thank you for signing up for the Bookly newsletter. Please confirm your email address to start receiving our updates.',
+    'newsletter_confirm_action' => 'Confirm Subscription',
+    'newsletter_confirm_outro' => 'If you did not sign up for this newsletter, you can safely ignore this email.',
+    'newsletter_unsubscribe_notice' => 'You are receiving this email because you subscribed to the Bookly newsletter.',
+    'newsletter_unsubscribe_action' => 'Unsubscribe from newsletter',
 ];
