@@ -8,6 +8,7 @@ use App\Models\Book;
 use App\Models\BookVariant;
 use App\Models\Category;
 use App\Models\Publisher;
+use App\Services\Auth\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsStaff;
 use Tests\TestCase;
@@ -85,7 +86,12 @@ class StaffBookManagementTest extends TestCase
         $admin = $this->staffToken(admin: true);
 
         $this->asToken($staff)->deleteJson("/api/v1/staff/books/{$book->id}")->assertForbidden();
-        $this->asToken($admin)->deleteJson("/api/v1/staff/books/{$book->id}")->assertNoContent();
+        $code = app(TotpService::class)->codeAt('JBSWY3DPEHPK3PXP', now()->timestamp);
+        $this->asToken($admin)->deleteJson("/api/v1/staff/books/{$book->id}", [
+            'confirm' => $book->title,
+            'password' => 'Password123!',
+            'code' => $code,
+        ])->assertOk();
         $this->assertSoftDeleted($book);
         $this->getJson("/api/v1/books/{$book->id}")->assertNotFound();
 

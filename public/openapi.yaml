@@ -870,11 +870,35 @@ paths:
   /staff/books/{id}:
     get: { tags: [Staff catalog], summary: 'Book with all variants', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Book } } }
     patch: { tags: [Staff catalog], summary: 'Update a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
-    delete: { tags: [Staff catalog], summary: '(admin) Soft delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+    delete:
+      tags: [Staff catalog]
+      summary: (admin) Strict soft delete into trash (requires confirm matching title, password, and fresh 2FA code)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm, password, code]
+              properties:
+                confirm: { type: string, description: Exact title of the book }
+                password: { type: string, description: Admin current password }
+                code: { type: string, description: 6-digit 2FA TOTP code }
+      responses:
+        '200': { description: Trashed book resource }
+        '422': { description: Confirmation mismatch or invalid password/code }
+        '429': { description: Too many failed 2FA attempts }
   /staff/variants/bulk:
     post: { tags: [Staff catalog], summary: 'Bulk update variants (ids, stock_quantity, low_stock_threshold, is_active, price_usd)', responses: { '200': { description: Updated } } }
   /staff/books/{id}/restore:
-    post: { tags: [Staff catalog], summary: '(admin) Restore a deleted book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Restored } } }
+    post:
+      tags: [Staff catalog]
+      summary: (admin) Restore a trashed book within 30-day window
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Restored book resource }
+        '422': { description: Book has been in trash for more than 30 days }
   /staff/books/{id}/variants:
     post: { tags: [Staff catalog], summary: 'Add a format (format, sku, price_usd, stock_quantity logged as restock, ...)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '201': { description: Created } } }
   /staff/variants/{id}:

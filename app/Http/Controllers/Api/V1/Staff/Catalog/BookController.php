@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffBookResource;
 use App\Models\Book;
 use App\Services\Admin\AuditLogger;
+use App\Services\Admin\StrictDeleteService;
+use App\Services\Telegram\OpsAlerts;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +21,11 @@ class BookController extends Controller
 {
     private const RELATIONS = ['authors', 'categories', 'variants'];
 
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly StrictDeleteService $strictDelete,
+        private readonly OpsAlerts $opsAlerts,
+    ) {}
 
     /** All books, including ones with no active variant yet. `trashed=1` lists deleted books. */
     public function index(Request $request): AnonymousResourceCollection
@@ -145,19 +151,49 @@ class BookController extends Controller
     }
 
     /** Soft delete: the book disappears from the catalog but stays linked to past orders. */
-    public function destroy(Request $request, Book $book): JsonResponse
+    public function destroy(Request $request, Book $book): JsonResponse|StaffBookResource
     {
-        $book->delete();
-        $this->audit->deleted($request->user(), $book);
+        $data = $request->validate([
+            'confirm' => ['required', 'string'],
+            'password' => ['required', 'string'],
+            'code' => ['required', 'string'],
+        ]);
 
-        return response()->json(null, 204);
+        $user = $request->user();
+        if ($failed = $this->strictDelete->verify($user, $data['confirm'], $book->title, $data['password'], $data['code'])) {
+            return $failed;
+        }
+
+        $before = $this->snapshot($book);
+        $book->delete();
+        $after = $this->snapshot($book->fresh());
+
+        $this->audit->custom($user, 'deleted', $book, $before, $after);
+
+        $this->opsAlerts->bookDeletedByAdmin(
+            $user->name,
+            $book->title,
+            now()->addDays(30)->toDateString(),
+        );
+
+        return new StaffBookResource($book->fresh()->load(self::RELATIONS));
     }
 
-    public function restore(Request $request, int $book): StaffBookResource
+    public function restore(Request $request, int $book): StaffBookResource|JsonResponse
     {
         $model = Book::onlyTrashed()->findOrFail($book);
+
+        if ($model->deleted_at !== null && $model->deleted_at->lt(now()->subDays(30))) {
+            return response()->json([
+                'message' => 'This book has been in the trash for more than 30 days and cannot be restored.',
+            ], 422);
+        }
+
+        $before = $this->snapshot($model);
         $model->restore();
-        $this->audit->custom($request->user(), 'restored', $model);
+        $after = $this->snapshot($model->fresh());
+
+        $this->audit->custom($request->user(), 'restored', $model, $before, $after);
 
         return new StaffBookResource($model->load(self::RELATIONS));
     }
@@ -190,6 +226,7 @@ class BookController extends Controller
             ...collect($book->only(['title', 'description', 'status', 'publisher_id', 'series_id', 'series_order', 'language', 'page_count']))->all(),
             'publish_at' => $book->publish_at?->toISOString(),
             'publish_date' => $book->publish_date?->toDateString(),
+            'deleted_at' => $book->deleted_at?->toISOString(),
             'author_ids' => $book->authors()->orderBy('authors.id')->pluck('authors.id')->all(),
             'category_ids' => $book->categories()->orderBy('categories.id')->pluck('categories.id')->all(),
         ];

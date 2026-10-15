@@ -94,8 +94,8 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | GET | /staff/books/export-template | admin only; sample CSV import template |
 | POST | /staff/books/import/preview | admin only (throttle: 10/hour); multipart `file` (.csv <= 2MB, <= 2000 rows); returns `preview_token`, totals (new/update/error), and per-row preview |
 | POST | /staff/books/import/confirm | admin only (throttle: 10/hour); `preview_token`; applies non-error rows in one transaction |
-| DELETE | /staff/books/{id} | admin; soft delete (hidden from catalog) |
-| POST | /staff/books/{id}/restore | admin |
+| DELETE | /staff/books/{id} | admin; strict soft delete into trash (requires confirm matching title, current password, and 6-digit 2FA code; triggers telegram alert to owner and audit log) |
+| POST | /staff/books/{id}/restore | admin; restore from trash within 30 days (422 if > 30 days) |
 | POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
 | PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment. Staff (not admin): a new price of $0 or below half the current one is 422 (same message); admins can |
 | POST | /staff/variants/{id}/restock | quantity (1-10000), supplier?, unit_cost_usd? (admin sees this, max 2 decimals), note? — physical formats only (ebook/audiobook 422). Inside a row lock: increases stock, logs movement and audit log |

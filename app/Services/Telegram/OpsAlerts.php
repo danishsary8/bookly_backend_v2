@@ -79,6 +79,12 @@ class OpsAlerts
         $this->send("Customer account closed by {$adminName}: {$customerName}, can be reopened until {$date}");
     }
 
+    public function bookDeletedByAdmin(string $adminName, string $bookTitle, CarbonInterface|string $restoreUntil): void
+    {
+        $date = $restoreUntil instanceof CarbonInterface ? $restoreUntil->toFormattedDayDateString() : $restoreUntil;
+        $this->send("🗑️ Book moved to Trash by {$adminName}: \"{$bookTitle}\", can be restored until {$date}");
+    }
+
     public function returnRefunded(OrderReturn $return): void
     {
         $return->loadMissing(['order', 'customer']);
