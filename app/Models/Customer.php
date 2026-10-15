@@ -148,4 +148,14 @@ class Customer extends Authenticatable
     {
         return $this->hasMany(OrderReturn::class);
     }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(CustomerNote::class)->latest('created_at');
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomerTag::class, 'customer_customer_tag')->orderBy('name');
+    }
 }

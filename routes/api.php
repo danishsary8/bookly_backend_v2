@@ -37,6 +37,8 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublis
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\StockController;
 use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
+use App\Http\Controllers\Api\V1\Staff\CustomerNoteController;
+use App\Http\Controllers\Api\V1\Staff\CustomerTagController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderBulkStatusController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
@@ -187,6 +189,12 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
 
     Route::get('/customers', [StaffCustomerController::class, 'index']);
     Route::get('/customers/{customer}', [StaffCustomerController::class, 'show'])->withTrashed();
+    Route::get('/customers/{customer}/notes', [CustomerNoteController::class, 'index'])->whereNumber('customer');
+    Route::post('/customers/{customer}/notes', [CustomerNoteController::class, 'store'])->whereNumber('customer');
+    Route::delete('/customer-notes/{note}', [CustomerNoteController::class, 'destroy'])->whereNumber('note');
+    Route::put('/customers/{customer}/tags', [CustomerTagController::class, 'update'])->whereNumber('customer');
+    Route::get('/customer-tags', [CustomerTagController::class, 'suggestions']);
+    Route::post('/customers/{customer}/resend-verification', [StaffCustomerController::class, 'resendVerification'])->whereNumber('customer');
 
     Route::get('/reviews', [StaffReviewController::class, 'index']);
     Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review');

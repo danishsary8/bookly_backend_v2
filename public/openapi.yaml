@@ -955,8 +955,63 @@ paths:
                 confirm: { type: string }
       responses:
         '200': { description: 'Closed customer' }
-        '403': { description: Forbidden }
-        '422': { description: 'Validation error, invalid password/code, wrong confirm, or open orders/returns' }
+  /staff/customers/{id}/notes:
+    get:
+      tags: [Staff operations]
+      summary: 'List customer notes'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: Notes } }
+    post:
+      tags: [Staff operations]
+      summary: 'Add note to customer'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+      responses: { '201': { description: Created } }
+  /staff/customer-notes/{id}:
+    delete:
+      tags: [Staff operations]
+      summary: 'Delete customer note (author or admin only)'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '204': { description: Deleted }, '403': { description: Forbidden } }
+  /staff/customers/{id}/tags:
+    put:
+      tags: [Staff operations]
+      summary: 'Update customer tags (replaces set)'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags: { type: array, items: { type: string, maxLength: 40 }, maxItems: 10 }
+      responses: { '200': { description: 'Updated tags' } }
+  /staff/customer-tags:
+    get:
+      tags: [Staff operations]
+      summary: 'Customer tag suggestions with customer count'
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+      responses: { '200': { description: Tags } }
+  /staff/customers/{id}/resend-verification:
+    post:
+      tags: [Staff operations]
+      summary: 'Resend verification email to unverified customer'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: 'Sent' }, '422': { description: 'No email or already verified' }, '429': { description: 'Rate limit (3/hour)' } }
   /staff/notifications:
     get: { tags: [Staff operations], summary: 'In-app alerts (low stock); unread=1', responses: { '200': { description: Notifications } } }
   /staff/notifications/read-all:

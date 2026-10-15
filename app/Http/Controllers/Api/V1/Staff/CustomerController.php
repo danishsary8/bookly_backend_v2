@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api\V1\Staff;
 
 use App\Enums\OrderStatus;
 use App\Enums\ReturnStatus;
+use App\Enums\VerificationPurpose;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffCustomerResource;
 use App\Models\Customer;
 use App\Models\StaffUser;
 use App\Notifications\AccountReopenedNotification;
 use App\Services\Admin\AuditLogger;
+use App\Services\Auth\OtpService;
 use App\Services\Auth\TotpService;
 use App\Services\Customers\ClosedCustomers;
 use App\Services\Customers\UnverifiedCustomers;
@@ -30,18 +32,21 @@ class CustomerController extends Controller
         private readonly ClosedCustomers $closed,
         private readonly TotpService $totp,
         private readonly OpsAlerts $opsAlerts,
+        private readonly OtpService $otp,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:190'],
+            'tag' => ['nullable', 'string', 'max:40'],
             'active' => ['nullable', 'boolean'],
             'verified' => ['nullable', 'boolean'],
             'closed' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $term = isset($data['q']) ? '%'.addcslashes($data['q'], '%_').'%' : null;
+        $tag = isset($data['tag']) && trim($data['tag']) !== '' ? trim($data['tag']) : null;
         $this->unverified->pruneIfDue();
         $this->closed->eraseIfDue();
 
@@ -50,16 +55,19 @@ class CustomerController extends Controller
 
         // Search and active filters, without the verified filter: the tabs show every count.
         $base = $search(Customer::query())
-            ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')));
+            ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')))
+            ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->where('name', 'ilike', $tag)));
         // Closed by the customer, still inside the 30 days before their details are erased (newest first).
-        $closed = $search($this->closed->reopenable());
+        $closed = $search($this->closed->reopenable())
+            ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->where('name', 'ilike', $tag)));
 
         $list = $request->boolean('closed')
             ? (clone $closed)->latest('deleted_at')
             : (clone $base)->when($request->has('verified'), fn ($q) => $request->boolean('verified') ? $q->verified() : $q->unverified())->latest();
 
         return StaffCustomerResource::collection(
-            $list->withCount('orders')
+            $list->with('tags')
+                ->withCount('orders')
                 ->orderByDesc('id')
                 ->paginate($data['per_page'] ?? 20)
                 ->withQueryString()
@@ -75,7 +83,7 @@ class CustomerController extends Controller
         $paid = $customer->orders()->whereIn('status', [OrderStatus::Delivered, OrderStatus::Returned])->sum('total_amount');
         $refunded = $customer->returns()->where('status', ReturnStatus::Refunded)->sum('refund_amount');
 
-        $customer->loadCount('orders');
+        $customer->load(['tags'])->loadCount('orders');
         $customer->stats = [
             'orders_by_status' => $customer->orders()->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n),
             'returns_count' => $customer->returns()->count(),
@@ -230,5 +238,36 @@ class CustomerController extends Controller
         }
 
         return new StaffCustomerResource($customer->loadCount('orders'));
+    }
+
+    public function resendVerification(Request $request, Customer $customer): JsonResponse
+    {
+        if ($customer->email === null) {
+            return response()->json(['message' => 'This customer has no email address.'], 422);
+        }
+        if ($customer->email_verified_at !== null) {
+            return response()->json(['message' => 'This customer\'s email is already verified.'], 422);
+        }
+
+        $key = "resend-verification:customer:{$customer->id}";
+        if (RateLimiter::tooManyAttempts($key, 3)) {
+            return response()->json([
+                'message' => 'Too many verification emails sent for this customer. Please try again later.',
+            ], 429)->header('Retry-After', (string) RateLimiter::availableIn($key));
+        }
+
+        RateLimiter::hit($key, 3600);
+
+        $this->otp->issue($customer, VerificationPurpose::EmailVerify);
+
+        $this->audit->custom(
+            $request->user(),
+            'resend_verification',
+            $customer,
+            [],
+            ['email' => $customer->email]
+        );
+
+        return response()->json(['message' => 'Verification email sent.']);
     }
 }

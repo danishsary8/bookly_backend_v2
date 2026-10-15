@@ -218,8 +218,14 @@ Rules (422 on `staff`): you cannot change your own role, deactivate or reset you
 ### Customers
 | Method | Path | Auth | Body / notes |
 | --- | --- | --- | --- |
-| GET | /staff/customers | staff | `q` (name/email/phone), `active`, `verified`, `closed`, `per_page` — includes `orders_count`, `login_methods`, `removal_at` (unfinished sign-ups: when they're deleted), `closed_at` / `erase_at` (closed accounts); `closed=1` lists accounts closed in the last 30 days, newest first; `meta.counts {verified, unverified, closed}` for the tabs |
-| GET | /staff/customers/{id} | staff | adds `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd, last_order_at}` and `recent_orders` (5) |
+| GET | /staff/customers | staff | `q` (name/email/phone), `tag` (tag name filter), `active`, `verified`, `closed`, `per_page` — includes `tags`, `orders_count`, `login_methods`, `removal_at` (unfinished sign-ups: when they're deleted), `closed_at` / `erase_at` (closed accounts); `closed=1` lists accounts closed in the last 30 days, newest first; `meta.counts {verified, unverified, closed}` for the tabs |
+| GET | /staff/customers/{id} | staff | adds `tags`, `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd (admin only), last_order_at}` and `recent_orders` (5, with `total_usd` visible to admins only) |
+| GET | /staff/customers/{id}/notes | staff | lists staff notes on customer (author name + timestamp) |
+| POST | /staff/customers/{id}/notes | staff | adds staff note on customer (`body` 1–2000 chars); audit-logged |
+| DELETE | /staff/customer-notes/{id} | staff | deletes note (author or admin only); audit-logged |
+| PUT | /staff/customers/{id}/tags | staff | `{tags: string[]}` (max 10 tags, 1–40 chars, inner spaces collapsed, case-insensitive match reuses existing tag spelling); audit-logged |
+| GET | /staff/customer-tags | staff | `q` suggestions (name + customer count, only tags in use, top 20) |
+| POST | /staff/customers/{id}/resend-verification | staff | resends verification email to unverified customer; limit 3 per hour per customer; audit-logged |
 | POST | /staff/customers/{id}/reopen | admin | Reopens an account the customer closed, within its 30 days (422 if open or past 30 days). Audit `customer.reopened`; emails the customer; reviews, wishlist and cart removed at closing aren't restored. The detail endpoint also returns closed accounts. |
 | POST | /staff/customers/{id}/close | admin | Closes a customer account: `{password, code, confirm}`. Admin password, current 2FA TOTP code, and customer's email (or phone) typed exactly. Revokes tokens, removes reviews/wishlist/cart, soft-deletes customer (30-day restore window). 422 if open orders/returns, invalid password/code, wrong confirmation. The confirmation and open orders/returns are checked before the password and code, so a typo doesn't use up the one-time code. Audit `customer.closed`; OpsAlert to owner chat only. Throttle 5/min. |
 | POST | /staff/customers/{id}/deactivate | admin | signs them out, blocks login |

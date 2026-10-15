@@ -35,12 +35,16 @@ class CustomerManagementTest extends TestCase
         $this->asToken($staff)->getJson('/api/v1/staff/customers?verified=0')->assertJsonCount(1, 'data');
 
         $this->asToken($staff)->getJson("/api/v1/staff/customers/{$dara->id}")->assertOk()
-            ->assertJsonPath('data.stats.lifetime_spent_usd', '25.00') // 40.00 delivered - 15.00 refunded
+            ->assertJsonMissingPath('data.stats.lifetime_spent_usd')
             ->assertJsonPath('data.stats.orders_by_status.delivered', 1)
             ->assertJsonPath('data.stats.orders_by_status.pending', 1)
             ->assertJsonPath('data.stats.returns_count', 1)
             ->assertJsonCount(2, 'data.recent_orders')
             ->assertJsonMissingPath('data.password_hash');
+
+        $admin = $this->staffToken(admin: true);
+        $this->asToken($admin)->getJson("/api/v1/staff/customers/{$dara->id}")->assertOk()
+            ->assertJsonPath('data.stats.lifetime_spent_usd', '25.00'); // 40.00 delivered - 15.00 refunded
     }
 
     public function test_only_admin_deactivates_and_it_logs_the_customer_out(): void

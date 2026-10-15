@@ -91,7 +91,13 @@ The API enforces a global base limiter on all routes defined via `$middleware->t
 | `POST` | `/api/v1/staff/returns/{id}/reject` | Staff (2FA) | `api` (120/min) [`routes/api.php:173`](../routes/api.php#L173) | State transition spam | 30/min per staff | Audit logged. |
 | `POST` | `/api/v1/staff/returns/{id}/refund` | Staff (2FA) | `api` (120/min) [`routes/api.php:174`](../routes/api.php#L174) | Financial state transition, inventory restocking, audit logging | 20/min per staff | High-impact action (money & stock). |
 | `GET` | `/api/v1/staff/customers` | Staff (2FA) | `api` (120/min) [`routes/api.php:176`](../routes/api.php#L176) | PII customer scraping | 60/min per staff | Reads customer records and counts. |
-| `GET` | `/api/v1/staff/customers/{id}` | Staff (2FA) | `api` (120/min) [`routes/api.php:177`](../routes/api.php#L177) | PII detail and order stats aggregation | 60/min per staff | Computes lifetime spend and order breakdown. |
+| `GET` | `/api/v1/staff/customers/{id}` | Staff (2FA) | `api` (120/min) [`routes/api.php:177`](../routes/api.php#L177) | PII detail and order stats aggregation | 60/min per staff | Computes lifetime spend (admin only) and order breakdown. |
+| `GET` | `/api/v1/staff/customers/{id}/notes` | Staff (2FA) | `api` (120/min) | Staff customer notes list | 60/min per staff | Audit & customer service history. |
+| `POST` | `/api/v1/staff/customers/{id}/notes` | Staff (2FA) | `api` (120/min) | Customer note spam | 30/min per staff | Audit logged. |
+| `DELETE` | `/api/v1/staff/customer-notes/{id}` | Staff (2FA) | `api` (120/min) | Note deletion churn | 30/min per staff | Restricted to note author or admin; audit logged. |
+| `PUT` | `/api/v1/staff/customers/{id}/tags` | Staff (2FA) | `api` (120/min) | Customer tag churn | 30/min per staff | Max 10 tags per customer; audit logged. |
+| `GET` | `/api/v1/staff/customer-tags` | Staff (2FA) | `api` (120/min) | Tag suggestion query flood | 60/min per staff | Top 20 tags with counts. |
+| `POST` | `/api/v1/staff/customers/{id}/resend-verification` | Staff (2FA) | Controller rate limited: 3/hour per customer | Email spamming to unverified customer | 3 per hour per customer | Limit 3 per hour enforced via RateLimiter; audit logged. |
 | `GET` | `/api/v1/staff/reviews` | Staff (2FA) | `api` (120/min) [`routes/api.php:179`](../routes/api.php#L179) | Moderation listing | 60/min | Standard. |
 | `POST` | `/api/v1/staff/reviews/{id}/hide` | Staff (2FA) | `api` (120/min) [`routes/api.php:180`](../routes/api.php#L180) | Visibility moderation | 30/min | Audit logged. |
 | `POST` | `/api/v1/staff/reviews/{id}/show` | Staff (2FA) | `api` (120/min) [`routes/api.php:181`](../routes/api.php#L181) | Visibility moderation | 30/min | Audit logged. |
