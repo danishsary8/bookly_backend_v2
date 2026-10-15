@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBook
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\StockController;
 use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderBulkStatusController;
@@ -195,6 +196,9 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/books/{book}', [StaffBookController::class, 'update']);
     Route::post('/books/{book}/variants', [StaffBookVariantController::class, 'store']);
     Route::patch('/variants/{variant}', [StaffBookVariantController::class, 'update']);
+    Route::post('/variants/{variant}/restock', [StockController::class, 'restock'])->whereNumber('variant');
+    Route::get('/variants/{variant}/stock-history', [StockController::class, 'history'])->whereNumber('variant');
+    Route::get('/stock', [StockController::class, 'index']);
     Route::post('/authors', [StaffAuthorController::class, 'store']);
     Route::patch('/authors/{author}', [StaffAuthorController::class, 'update']);
     Route::post('/categories', [StaffCategoryController::class, 'store']);

@@ -24,8 +24,12 @@ class InventoryService
                 return;
             }
 
+            $before = $locked->stock_quantity;
             $locked->update(['stock_quantity' => $newQuantity]);
             $this->log($locked, $delta, $reason, $staff);
+            if ($before <= 0 && $newQuantity > 0) {
+                $this->onStockRestored($locked);
+            }
             $variant->setRawAttributes($locked->getAttributes(), true);
         });
     }
@@ -44,20 +48,71 @@ class InventoryService
         return $before > $variant->low_stock_threshold && $variant->stock_quantity <= $variant->low_stock_threshold;
     }
 
+    /** Restocks a variant with supplier, unit cost, and note. */
+    public function restock(
+        BookVariant $variant,
+        int $quantity,
+        ?StaffUser $staff = null,
+        ?string $supplier = null,
+        int|float|string|null $unitCostUsd = null,
+        ?string $note = null,
+    ): InventoryMovement {
+        return DB::transaction(function () use ($variant, $quantity, $staff, $supplier, $unitCostUsd, $note) {
+            $locked = BookVariant::whereKey($variant->getKey())->lockForUpdate()->firstOrFail();
+            $before = $locked->stock_quantity;
+            $newQuantity = $before + $quantity;
+            $locked->update(['stock_quantity' => $newQuantity]);
+
+            $movement = InventoryMovement::create([
+                'book_variant_id' => $locked->id,
+                'change_qty' => $quantity,
+                'reason' => InventoryReason::Restock,
+                'reference_type' => null,
+                'reference_id' => null,
+                'created_by_staff_id' => $staff?->id,
+                'supplier' => $supplier,
+                'unit_cost_usd' => $unitCostUsd,
+                'note' => $note,
+            ]);
+
+            if ($before <= 0 && $newQuantity > 0) {
+                $this->onStockRestored($locked);
+            }
+
+            $variant->setRawAttributes($locked->getAttributes(), true);
+
+            return $movement;
+        });
+    }
+
     /** Puts the copies of a cancelled order back into stock. */
     public function restoreForCancellation(int $variantId, int $quantity, Order $order, ?StaffUser $staff = null): void
     {
         $variant = BookVariant::whereKey($variantId)->lockForUpdate()->firstOrFail();
-        $variant->update(['stock_quantity' => $variant->stock_quantity + $quantity]);
+        $before = $variant->stock_quantity;
+        $variant->update(['stock_quantity' => $before + $quantity]);
         $this->log($variant, $quantity, InventoryReason::Adjustment, $staff, 'order', $order->id);
+        if ($before <= 0 && $variant->stock_quantity > 0) {
+            $this->onStockRestored($variant);
+        }
     }
 
     /** Puts returned copies back into stock when a return is refunded. */
     public function restockFromReturn(int $variantId, int $quantity, OrderReturn $return, StaffUser $staff): void
     {
         $variant = BookVariant::whereKey($variantId)->lockForUpdate()->firstOrFail();
-        $variant->update(['stock_quantity' => $variant->stock_quantity + $quantity]);
+        $before = $variant->stock_quantity;
+        $variant->update(['stock_quantity' => $before + $quantity]);
         $this->log($variant, $quantity, InventoryReason::ReturnIn, $staff, 'return', $return->id);
+        if ($before <= 0 && $variant->stock_quantity > 0) {
+            $this->onStockRestored($variant);
+        }
+    }
+
+    /** Hook fired whenever a variant goes from 0 (or below) to above 0. Task 6 hooks back-in-stock notifications here. */
+    protected function onStockRestored(BookVariant $variant): void
+    {
+        // Hook point for Task 6 back-in-stock alerts.
     }
 
     private function log(BookVariant $variant, int $delta, InventoryReason $reason, ?StaffUser $staff, ?string $refType = null, ?int $refId = null): void

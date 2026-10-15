@@ -87,6 +87,9 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | POST | /staff/books/{id}/restore | admin |
 | POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
 | PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment. Staff (not admin): a new price of $0 or below half the current one is 422 (same message); admins can |
+| POST | /staff/variants/{id}/restock | quantity (1-10000), supplier?, unit_cost_usd? (admin sees this, max 2 decimals), note? — physical formats only (ebook/audiobook 422). Inside a row lock: increases stock, logs movement and audit log |
+| GET | /staff/variants/{id}/stock-history | newest first, paginated (20); id, created_at, change_qty, reason, reference (order/return), staff {id,name}, note, supplier, stock_after (running balance), unit_cost_usd (admin only) |
+| GET | /staff/stock | physical variants overview with book title, format, sku, stock, threshold, status (`in_stock`\|`low`\|`out`); `status=low\|out`, `q` (title/SKU/ISBN), sorted by stock ascending by default, paginated |
 | DELETE | /staff/variants/{id} | admin; 409 if ever ordered (set `is_active=false` instead) |
 | POST / PATCH | /staff/authors, /staff/authors/{id} | name, bio?, photo_url? (http/https only) |
 | POST / PATCH | /staff/categories, /staff/categories/{id} | name, slug? (auto from name) |

@@ -749,6 +749,52 @@ paths:
   /staff/variants/{id}:
     patch: { tags: [Staff catalog], summary: 'Update a format; stock change logged as adjustment; is_active hides it', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Staff catalog], summary: '(admin) Delete if never ordered, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '409': { description: Ordered before } } }
+  /staff/variants/{id}/restock:
+    post:
+      tags: [Staff catalog]
+      summary: Restock physical variant (quantity, supplier, unit_cost_usd, note)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1, maximum: 10000 }
+                supplier: { type: string, maxLength: 150 }
+                unit_cost_usd: { type: number, minimum: 0, maximum: 99999.99 }
+                note: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Restocked }
+        '422': { description: 'Validation error or digital format' }
+  /staff/variants/{id}/stock-history:
+    get:
+      tags: [Staff catalog]
+      summary: Movement history with running balance and admin-only unit cost
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Movement history }
+  /staff/stock:
+    get:
+      tags: [Staff catalog]
+      summary: Physical variants stock overview (status=low|out, q search, sorted by stock ascending)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [low, out] }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, default: 20 }
+      responses:
+        '200': { description: Stock list }
   /staff/authors:
     post: { tags: [Staff catalog], summary: 'Create author', responses: { '201': { description: Created } } }
   /staff/authors/{id}:
