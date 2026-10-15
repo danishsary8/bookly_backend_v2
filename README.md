@@ -5,7 +5,7 @@ It is a full rebuild of an earlier hand-rolled PHP backend, redesigned around a 
 
 Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 
-![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-200%20passing-2ea44f)
@@ -54,7 +54,7 @@ Frontend: [bookly_frontend](https://github.com/danishsary8/bookly_frontend)
 
 | Area | Choice |
 | --- | --- |
-| Framework | Laravel 13 (PHP 8.3+; the Docker image runs 8.4) |
+| Framework | Laravel 13 (PHP 8.4+; the Docker image runs 8.4) |
 | Database | PostgreSQL (tested on 16 and 18) |
 | Auth | Laravel Sanctum tokens, email OTP, RFC 6238 TOTP for staff, Laravel Socialite |
 | Search | PostgreSQL full-text search (generated `tsvector` column + GIN index) |
@@ -167,7 +167,7 @@ Accept: application/json
 
 ## Getting started
 
-Requirements: PHP 8.3+, Composer, PostgreSQL 14+.
+Requirements: PHP 8.4+, Composer, PostgreSQL 14+.
 
 ```bash
 git clone https://github.com/danishsary8/bookly_backend_v2.git

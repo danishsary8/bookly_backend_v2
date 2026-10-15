@@ -32,7 +32,7 @@ All 10 planned steps are done (owner merges `feature/deployment` to finish Step 
 | 9 | Production readiness: logs + request IDs, Sentry, rate limit, health, OpenAPI `/docs`, CSV export, demo seeder, security review | done |
 | 10 | Deployment: Docker image (FrankenPHP), Railway infrastructure as code, CI smoke test, deployment guide | done |
 
-200 tests pass; CI runs tests on PHP 8.3/8.4/8.5 (PostgreSQL 16), code style, a Railway file type-check and a
+200 tests pass; CI runs tests on PHP 8.4/8.5 (PostgreSQL 16), code style, a Railway file type-check and a
 Docker build + smoke test (PostgreSQL 18).
 
 ## Explicitly deferred: payments (blocked on owner)
