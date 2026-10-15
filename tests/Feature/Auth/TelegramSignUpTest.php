@@ -82,13 +82,74 @@ class TelegramSignUpTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/me')->assertJsonPath('data.sign_in_methods', ['telegram']);
     }
 
-    public function test_an_email_given_with_telegram_is_kept_but_gets_no_code(): void
+    public function test_an_email_given_with_telegram_is_added_only_after_its_code_comes_back(): void
     {
-        $this->register(['email' => 'Dara@Example.com'])->assertCreated()
+        // Security review 2026-10-15: an email nobody proved must not sit on a Telegram account.
+        $token = $this->register(['email' => 'Dara@Example.com'])->assertCreated()
+            ->assertJsonPath('customer.email', null)
+            ->assertJsonPath('pending_email', 'dara@example.com')
+            ->json('token');
+        $code = null;
+        Notification::assertSentOnDemand(OtpCodeNotification::class, function ($notification, $channels, $notifiable) use (&$code) {
+            $code = $notification->code;
+
+            return $notifiable->routes['mail'] === 'dara@example.com';
+        });
+        $this->withToken($token)->getJson('/api/v1/me')->assertJsonPath('data.pending_email', 'dara@example.com');
+
+        $this->withToken($token)->postJson('/api/v1/me/email/verify', ['code' => $code])->assertOk()
             ->assertJsonPath('customer.email', 'dara@example.com')
-            ->assertJsonPath('customer.email_verified', false);
-        $this->register(['email' => ''])->assertCreated()->assertJsonPath('customer.email', null);
-        Notification::assertNothingSent();
+            ->assertJsonPath('customer.email_verified', true);
+
+        $this->register(['email' => ''])->assertCreated()->assertJsonPath('customer.email', null)->assertJsonPath('pending_email', null);
+    }
+
+    /** An older Telegram account holding an email it never proved (made before the rule above). */
+    private function phoneAccountHolding(string $email): Customer
+    {
+        return Customer::factory()->create([
+            'email' => $email, 'email_verified_at' => null, 'password_hash' => 'secret123',
+            'phone_e164' => '+85512345678', 'phone_verified_at' => now(),
+        ]);
+    }
+
+    public function test_an_unproven_email_on_a_phone_account_does_not_block_its_owner(): void
+    {
+        $squatter = $this->phoneAccountHolding('dara@example.com');
+
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Real Dara', 'email' => 'dara@example.com', 'password' => 'mine12345', 'password_confirmation' => 'mine12345',
+        ])->assertCreated()->assertJsonPath('customer.email', 'dara@example.com');
+
+        $this->assertNull($squatter->fresh()->email, 'the unproven copy is taken off the phone account');
+        $this->assertNotSame($squatter->id, Customer::where('email', 'dara@example.com')->value('id'));
+        $this->assertTrue($squatter->fresh()->hasVerifiedPhone(), 'the phone account itself keeps working');
+    }
+
+    public function test_a_password_reset_never_hands_over_a_phone_account_by_an_unproven_email(): void
+    {
+        $squatter = $this->phoneAccountHolding('dara@example.com');
+
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'dara@example.com'])->assertOk();
+        Notification::assertNotSentTo($squatter, OtpCodeNotification::class);
+        $this->assertSame(0, VerificationToken::where('user_id', $squatter->id)->count());
+    }
+
+    public function test_proving_an_email_takes_it_off_a_phone_account_that_never_proved_it(): void
+    {
+        $squatter = $this->phoneAccountHolding('dara@example.com');
+        $owner = Customer::factory()->create(['email' => 'other@example.com']);
+        $token = $owner->createToken('t', ['customer'])->plainTextToken;
+
+        $this->withToken($token)->postJson('/api/v1/me/email', ['email' => 'dara@example.com', 'password' => 'Password123!'])->assertOk();
+        $code = null;
+        Notification::assertSentOnDemand(OtpCodeNotification::class, function ($notification) use (&$code) {
+            $code = $notification->code;
+
+            return true;
+        });
+        $this->withToken($token)->postJson('/api/v1/me/email/verify', ['code' => $code])->assertOk()->assertJsonPath('customer.email', 'dara@example.com');
+        $this->assertNull($squatter->fresh()->email);
     }
 
     public function test_a_typed_number_is_not_saved_with_telegram(): void

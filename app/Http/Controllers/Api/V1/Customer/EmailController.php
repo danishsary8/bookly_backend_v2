@@ -8,6 +8,7 @@ use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Notifications\AccountSecurityNotice;
 use App\Rules\Turnstile;
+use App\Services\Auth\EmailClaims;
 use App\Services\Auth\OtpService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +34,7 @@ class EmailController extends Controller
     /** Codes per account per hour, whatever address they go to: the form can't be used to spam inboxes. */
     public const CODES_PER_HOUR = 5;
 
-    public function __construct(private readonly OtpService $otp) {}
+    public function __construct(private readonly OtpService $otp, private readonly EmailClaims $claims) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -87,6 +88,10 @@ class EmailController extends Controller
         $old = $customer->hasVerifiedEmail() ? $customer->email : null;
         try {
             DB::transaction(function () use ($customer, $email) {
+                // The code proved this inbox: another account holding the address without proof lets it go.
+                if ($holder = $this->claims->holder($email, $customer)) {
+                    $this->claims->release($holder);
+                }
                 $customer->forceFill(['email' => $email, 'email_verified_at' => now()])->save();
                 // Codes sent to the old address must not work any more, and other devices sign in again.
                 $this->otp->cancel($customer, VerificationPurpose::EmailVerify);
@@ -110,10 +115,12 @@ class EmailController extends Controller
         ]);
     }
 
-    /** Any other account holding the address, closed ones too (their email stays reserved until erased). */
+    /** Another account that keeps the address: proven, or closed/deactivated (reserved until erased). */
     private function taken(string $email, Customer $customer): bool
     {
-        return Customer::withTrashed()->where('email', $email)->whereKeyNot($customer->getKey())->exists();
+        $holder = $this->claims->holder($email, $customer);
+
+        return $holder !== null && $this->claims->keeps($holder);
     }
 
     /** "s***@example.com": enough for the owner to recognise, not a gift to whoever reads the old inbox. */

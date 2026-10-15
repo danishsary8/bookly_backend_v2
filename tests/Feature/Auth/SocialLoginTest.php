@@ -129,6 +129,21 @@ class SocialLoginTest extends TestCase
         }
     }
 
+    public function test_google_claims_an_email_a_phone_account_holds_without_proof(): void
+    {
+        // Security review 2026-10-15: Google proved the address, so a Telegram account that only typed it lets it go.
+        $squatter = Customer::factory()->create([
+            'email' => 'sok@gmail.com', 'email_verified_at' => null, 'phone_e164' => '+85512345678', 'phone_verified_at' => now(),
+        ]);
+        $this->fakeProvider('google', $this->profile('g-9', 'sok@gmail.com'));
+
+        $id = $this->postJson('/api/v1/auth/social/google', ['access_token' => 'provider-token'])->assertCreated()
+            ->assertJsonPath('customer.email', 'sok@gmail.com')->json('customer.id');
+
+        $this->assertNotSame($squatter->id, $id);
+        $this->assertNull($squatter->fresh()->email);
+    }
+
     public function test_a_returning_social_customer_signs_in_by_their_provider_id(): void
     {
         $customer = Customer::factory()->create(['email' => 'sok@gmail.com', 'google_id' => 'g-1', 'password_hash' => null]);
