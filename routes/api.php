@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
 use App\Http\Controllers\Api\V1\Staff\Admin\OrderExportController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ReportsController;
+use App\Http\Controllers\Api\V1\Staff\Admin\StaffHealthController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
@@ -297,5 +298,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::delete('/newsletter/campaigns/{campaign}', [StaffNewsletterController::class, 'destroyCampaign'])->whereNumber('campaign');
         Route::post('/newsletter/campaigns/{campaign}/test', [StaffNewsletterController::class, 'testSend'])->whereNumber('campaign');
         Route::post('/newsletter/campaigns/{campaign}/send', [StaffNewsletterController::class, 'send'])->whereNumber('campaign');
+
+        Route::get('/health', [StaffHealthController::class, 'show']);
     });
 });

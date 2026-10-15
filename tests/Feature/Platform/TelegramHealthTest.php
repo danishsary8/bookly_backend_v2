@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Models\StaffUser;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,11 @@ class TelegramHealthTest extends TestCase
         $this->freezeTime();
     }
 
+    private function adminToken(): string
+    {
+        return StaffUser::factory()->admin()->withTwoFactor()->create()->createToken('t', ['staff', 'admin'])->plainTextToken;
+    }
+
     private function webhookInfo(array $info = []): void
     {
         Http::fake([self::URL => Http::response([
@@ -46,7 +52,11 @@ class TelegramHealthTest extends TestCase
         config(['services.telegram_bot.token' => null]);
         Http::fake();
 
-        $this->getJson('/api/v1/health')->assertOk()
+        // Public health is ok with no checks
+        $this->getJson('/api/v1/health')->assertOk()->assertExactJson(['status' => 'ok']);
+
+        // Admin health shows off
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.telegram_bot', ['status' => 'off']);
         Http::assertNothingSent();
@@ -56,7 +66,9 @@ class TelegramHealthTest extends TestCase
     {
         $this->webhookInfo();
 
-        $response = $this->getJson('/api/v1/health')->assertOk()
+        $this->getJson('/api/v1/health')->assertOk()->assertExactJson(['status' => 'ok']);
+
+        $response = $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
         $this->assertStringNotContainsString(self::TOKEN, $response->getContent());
@@ -69,7 +81,7 @@ class TelegramHealthTest extends TestCase
         // Behind Render's proxy the app sees an internal host name, not the public one.
         $this->webhookInfo();
 
-        $this->getJson('http://10.0.0.5:10000/api/v1/health')->assertOk()
+        $this->withToken($this->adminToken())->getJson('http://10.0.0.5:10000/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
         Http::assertSentCount(1);
@@ -79,7 +91,9 @@ class TelegramHealthTest extends TestCase
     {
         $this->webhookInfo(['url' => '']);
 
-        $this->getJson('/api/v1/health')->assertOk()
+        $this->getJson('/api/v1/health')->assertOk()->assertExactJson(['status' => 'ok']);
+
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.telegram_bot.status', 'degraded')
             ->assertJsonPath('checks.telegram_bot.error', 'webhook not set');
@@ -89,7 +103,7 @@ class TelegramHealthTest extends TestCase
     {
         $this->webhookInfo(['url' => 'https://wrong.example.com/'.self::TOKEN]);
 
-        $response = $this->getJson('/api/v1/health')->assertOk()
+        $response = $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.telegram_bot.error', 'webhook not set');
         $this->assertStringNotContainsString(self::TOKEN, $response->getContent());
@@ -99,7 +113,7 @@ class TelegramHealthTest extends TestCase
     {
         $this->webhookInfo(['last_error_date' => now()->subMinutes(29)->timestamp, 'last_error_message' => 'Wrong response: 404 Not Found']);
 
-        $this->getJson('/api/v1/health')->assertOk()
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.telegram_bot', ['status' => 'degraded', 'error' => 'Wrong response: 404 Not Found']);
     }
@@ -107,11 +121,11 @@ class TelegramHealthTest extends TestCase
     public function test_delivery_errors_older_than_thirty_minutes_are_ignored_even_while_cached(): void
     {
         $this->webhookInfo(['last_error_date' => now()->subMinutes(29)->timestamp, 'last_error_message' => 'Timeout']);
-        $this->getJson('/api/v1/health')->assertJsonPath('status', 'degraded');
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertJsonPath('status', 'degraded');
 
         $this->travel(2)->minutes();
 
-        $this->getJson('/api/v1/health')->assertOk()
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
         Http::assertSentCount(1);
@@ -121,7 +135,7 @@ class TelegramHealthTest extends TestCase
     {
         $this->webhookInfo(['last_error_message' => 'Old timeout']);
 
-        $this->getJson('/api/v1/health')->assertOk()->assertJsonPath('checks.telegram_bot.status', 'ok');
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()->assertJsonPath('checks.telegram_bot.status', 'ok');
     }
 
     public function test_unreachable_telegram_degrades_health_and_caches_the_failure(): void
@@ -130,7 +144,7 @@ class TelegramHealthTest extends TestCase
 
         foreach ([0, 5] as $minutes) {
             $this->travel($minutes)->minutes();
-            $response = $this->getJson('/api/v1/health')->assertOk()
+            $response = $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
                 ->assertJsonPath('status', 'degraded')
                 ->assertJsonPath('checks.telegram_bot', ['status' => 'degraded', 'error' => 'Telegram unreachable']);
             $this->assertStringNotContainsString(self::TOKEN, $response->getContent());
@@ -142,7 +156,7 @@ class TelegramHealthTest extends TestCase
     {
         Http::fake([self::URL => Http::response(['ok' => false, 'description' => 'Unauthorized '.self::TOKEN], 401)]);
 
-        $response = $this->getJson('/api/v1/health')->assertOk()
+        $response = $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.telegram_bot.error', 'Telegram unreachable');
         $this->assertStringNotContainsString(self::TOKEN, $response->getContent());
@@ -152,7 +166,7 @@ class TelegramHealthTest extends TestCase
     {
         $this->webhookInfo(['last_error_date' => now()->timestamp, 'last_error_message' => 'Failed for '.self::TOKEN]);
 
-        $response = $this->getJson('/api/v1/health')->assertOk()
+        $response = $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('checks.telegram_bot.error', 'Failed for ***');
         $this->assertStringNotContainsString(self::TOKEN, $response->getContent());
     }
@@ -163,13 +177,13 @@ class TelegramHealthTest extends TestCase
             ->push(['ok' => true, 'result' => ['url' => self::OWN]])
             ->push(['ok' => true, 'result' => ['url' => '']])]);
 
-        $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.status', 'ok');
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertJsonPath('checks.telegram_bot.status', 'ok');
         $this->travel(5)->minutes();
-        $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.status', 'ok');
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertJsonPath('checks.telegram_bot.status', 'ok');
         Http::assertSentCount(1);
 
         $this->travel(5)->minutes();
-        $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.error', 'webhook not set');
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertJsonPath('checks.telegram_bot.error', 'webhook not set');
         Http::assertSentCount(2);
     }
 
@@ -184,12 +198,13 @@ class TelegramHealthTest extends TestCase
             'api.telegram.org/bot'.self::TOKEN.'/setWebhook' => Http::response(['ok' => true, 'result' => true]),
         ]);
 
+        // Public check triggers the repair on uptime monitor ping
         $this->getJson('http://10.0.0.5:10000/api/v1/health')->assertOk()
-            ->assertJsonPath('checks.telegram_bot', ['status' => 'degraded', 'error' => 'webhook not set', 'repaired' => true]);
+            ->assertExactJson(['status' => 'ok']);
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook') && $request['url'] === self::OWN
             && $request['secret_token'] === app(TelegramBot::class)->webhookSecret());
 
-        $this->getJson('http://10.0.0.5:10000/api/v1/health')->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
+        $this->withToken($this->adminToken())->getJson('http://10.0.0.5:10000/api/v1/staff/health')->assertJsonPath('checks.telegram_bot', ['status' => 'ok']);
     }
 
     public function test_a_faked_forwarded_host_cannot_point_the_bot_elsewhere(): void
@@ -200,7 +215,8 @@ class TelegramHealthTest extends TestCase
         ]);
 
         $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.5'])
-            ->getJson('https://bookly-api.example.com/api/v1/health', ['X-Forwarded-Host' => 'evil.example.com', 'X-Forwarded-Port' => '8443'])
+            ->withToken($this->adminToken())
+            ->getJson('https://bookly-api.example.com/api/v1/staff/health', ['X-Forwarded-Host' => 'evil.example.com', 'X-Forwarded-Port' => '8443'])
             ->assertJsonPath('checks.telegram_bot.repaired', true);
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setWebhook') && $request['url'] === self::OWN);
         Http::assertNotSent(fn ($request) => str_contains(json_encode($request->data()), 'evil.example.com'));
@@ -215,9 +231,9 @@ class TelegramHealthTest extends TestCase
             'api.telegram.org/bot'.self::TOKEN.'/setWebhook' => Http::response(['ok' => false, 'description' => 'Too Many Requests'], 429),
         ]);
 
-        $this->getJson('/api/v1/health')->assertJsonPath('checks.telegram_bot.repaired', false);
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertJsonPath('checks.telegram_bot.repaired', false);
         $this->travel(5)->seconds();
-        $this->getJson('/api/v1/health')->assertJsonMissingPath('checks.telegram_bot.repaired');
+        $this->withToken($this->adminToken())->getJson('/api/v1/staff/health')->assertJsonMissingPath('checks.telegram_bot.repaired');
 
         Http::assertSentCount(3); // getWebhookInfo (health), getWebhookInfo + setWebhook (one repair)
         Exceptions::assertReportedCount(1);
@@ -228,8 +244,9 @@ class TelegramHealthTest extends TestCase
         Http::fake();
         DB::partialMock()->shouldReceive('select')->with('select 1')->once()->andThrow(new RuntimeException('Database down'));
 
+        // Public health returns 503 fail
         $this->getJson('/api/v1/health')->assertStatus(503)
-            ->assertExactJson(['status' => 'down', 'checks' => ['database' => ['status' => 'down']]]);
+            ->assertExactJson(['status' => 'fail']);
         Http::assertNothingSent();
     }
 }

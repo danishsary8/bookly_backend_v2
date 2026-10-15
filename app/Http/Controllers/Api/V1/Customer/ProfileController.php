@@ -71,19 +71,41 @@ class ProfileController extends Controller
     public function destroy(Request $request, ClosedCustomers $closed, SocialTokenVerifier $verifier): JsonResponse
     {
         $customer = $request->user();
-        $data = $request->validate([
-            'confirm' => ['required', Rule::in(['DELETE'])],
-            'password' => [$customer->password_hash !== null ? 'required' : 'nullable', 'string'],
-            'provider' => [$customer->password_hash === null ? 'required' : 'nullable', Rule::in(['google', 'facebook'])],
-            'access_token' => [$customer->password_hash === null ? 'required' : 'nullable', 'string', 'max:4096'],
-        ], ['confirm.in' => 'Type DELETE to confirm.', 'confirm.required' => 'Type DELETE to confirm.']);
+        $hasPassword = $customer->password_hash !== null;
+        $needsSocial = ! $hasPassword && $customer->hasVerifiedEmail();
 
-        if ($customer->password_hash !== null) {
+        $rules = [
+            'confirm' => ['required', Rule::in(['DELETE'])],
+        ];
+
+        if ($hasPassword) {
+            $rules['password'] = ['required', 'string'];
+        } elseif ($needsSocial) {
+            $rules['provider'] = ['required', Rule::in(['google', 'facebook'])];
+            $rules['access_token'] = ['required', 'string', 'max:4096'];
+        } else {
+            $rules['password'] = ['nullable', 'string'];
+            $rules['provider'] = ['nullable', 'string'];
+            $rules['access_token'] = ['nullable', 'string'];
+        }
+
+        $data = $request->validate($rules, [
+            'confirm.in' => 'Type DELETE to confirm.',
+            'confirm.required' => 'Type DELETE to confirm.',
+        ]);
+
+        if ($hasPassword) {
             if (! Hash::check($data['password'], $customer->password_hash)) {
                 return response()->json(['message' => 'That password is incorrect.', 'errors' => ['password' => ['That password is incorrect.']]], 422);
             }
-        } elseif (! $this->sameSocialAccount($customer, $data['provider'], $data['access_token'], $verifier)) {
-            return response()->json(['message' => 'Sign in with the '.ucfirst($data['provider']).' account linked to Bookly to confirm.'], 422);
+        } elseif ($needsSocial) {
+            if (! $this->sameSocialAccount($customer, $data['provider'], $data['access_token'], $verifier)) {
+                return response()->json(['message' => 'Sign in with the '.ucfirst($data['provider']).' account linked to Bookly to confirm.'], 422);
+            }
+        } else {
+            if ($problem = $this->identityProblem($customer, null)) {
+                return $problem;
+            }
         }
 
         if ($blocker = $closed->blocker($customer)) {

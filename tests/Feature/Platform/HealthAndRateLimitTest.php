@@ -3,6 +3,7 @@
 namespace Tests\Feature\Platform;
 
 use App\Models\Customer;
+use App\Models\StaffUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -14,8 +15,14 @@ class HealthAndRateLimitTest extends TestCase
     public function test_health_is_ok_with_a_working_database_and_queue(): void
     {
         config(['queue.default' => 'database', 'services.telegram_bot.token' => null]);
+        $adminToken = StaffUser::factory()->admin()->withTwoFactor()->create()->createToken('t', ['staff', 'admin'])->plainTextToken;
 
+        // Public health returns only status ok without checks
         $this->getJson('/api/v1/health')->assertOk()
+            ->assertExactJson(['status' => 'ok']);
+
+        // Admin health returns full checks
+        $this->withToken($adminToken)->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.database.status', 'ok')
             ->assertJsonPath('checks.queue.pending', 0)
@@ -26,8 +33,14 @@ class HealthAndRateLimitTest extends TestCase
     {
         config(['queue.default' => 'database', 'services.telegram_bot.token' => null]);
         DB::table('jobs')->insert(['queue' => 'default', 'payload' => '{}', 'attempts' => 0, 'available_at' => now()->getTimestamp(), 'created_at' => now()->subMinutes(20)->getTimestamp()]);
+        $adminToken = StaffUser::factory()->admin()->withTwoFactor()->create()->createToken('t', ['staff', 'admin'])->plainTextToken;
 
+        // Public health stays 200 ok
         $this->getJson('/api/v1/health')->assertOk()
+            ->assertExactJson(['status' => 'ok']);
+
+        // Admin health shows degraded
+        $this->withToken($adminToken)->getJson('/api/v1/staff/health')->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.queue.status', 'degraded')
             ->assertJsonPath('checks.queue.pending', 1);
