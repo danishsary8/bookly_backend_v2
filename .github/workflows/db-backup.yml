@@ -84,20 +84,35 @@ jobs:
           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/backup:ro" "$PG_IMAGE" pg_restore --list /backup/bookly.dump > /dev/null
           echo "pg_restore --list succeeded"
 
+      # Owner 2026-10-15 (security review): the repository is public, so anyone signed in to GitHub can download the
+      # artifact. Backups are encrypted to the owner's public key (age); only the private key, kept offline, opens them,
+      # so no secret that can open a backup is stored here. The passphrase is only a fallback until the key is set.
       - name: Encrypt and remove plain dump
         if: steps.check.outputs.skip != 'true'
         env:
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          if [ -z "$BACKUP_PASSPHRASE" ]; then
-            echo "::error::BACKUP_PASSPHRASE is not set. Add it in Settings → Secrets and variables → Actions."
+          if [ -n "$AGE_RECIPIENT" ]; then
+            if ! [[ "$AGE_RECIPIENT" =~ ^age1[02-9ac-hj-np-z]{58}$ ]]; then
+              echo "::error::BACKUP_AGE_RECIPIENT is not an age public key (age1 followed by 58 characters)."
+              exit 1
+            fi
+            sudo apt-get install -y -qq age > /dev/null
+            age --recipient "$AGE_RECIPIENT" -o bookly.dump.age bookly.dump
+            rm -f bookly.dump
+            echo "Encrypted to the owner's public key: $(stat --format=%s bookly.dump.age) bytes"
+          elif [ -n "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning::Encrypted with the passphrase. Set the BACKUP_AGE_RECIPIENT variable (DEPLOYMENT.md) so no secret here can open a backup."
+            gpg --batch --yes --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 --s2k-count 65011712 --pinentry-mode loopback \
+              --passphrase-fd 3 3<<< "$BACKUP_PASSPHRASE" \
+              -o bookly.dump.gpg bookly.dump
+            rm -f bookly.dump
+            echo "Encrypted backup: $(stat --format=%s bookly.dump.gpg) bytes"
+          else
+            echo "::error::Set the BACKUP_AGE_RECIPIENT variable (or the BACKUP_PASSPHRASE secret) in Settings → Secrets and variables → Actions."
             exit 1
           fi
-          gpg --batch --yes --symmetric --cipher-algo AES256 --pinentry-mode loopback \
-            --passphrase-fd 3 3<<< "$BACKUP_PASSPHRASE" \
-            -o bookly.dump.gpg bookly.dump
-          rm -f bookly.dump
-          echo "Encrypted backup: $(stat --format=%s bookly.dump.gpg) bytes"
 
       - name: Set artifact date
         if: steps.check.outputs.skip != 'true'
@@ -109,7 +124,8 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bookly-db-${{ steps.date.outputs.date }}
-          path: bookly.dump.gpg
+          path: bookly.dump.*
+          if-no-files-found: error
           retention-days: 30
 
       # Missed-backup check: an outside check-in service (e.g. Healthchecks.io, period 1 day, grace 3 hours) alerts the

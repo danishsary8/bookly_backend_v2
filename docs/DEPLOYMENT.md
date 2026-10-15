@@ -312,9 +312,14 @@ Use `pg_dump`/`pg_restore` version 18 or newer (same as the server).
 ## Nightly database backup
 
 A GitHub Actions workflow (`.github/workflows/db-backup.yml`) runs every night at 02:00 Cambodia time (19:00 UTC).
-It dumps the production database with `pg_dump`, encrypts the dump with AES-256 (`gpg --symmetric`), and uploads the
-`.gpg` file as a GitHub Actions artifact kept for 30 days. Only the encrypted file is stored; the plain dump is deleted
-immediately after encryption.
+It dumps the production database with `pg_dump`, encrypts the dump **to your public key** with
+[age](https://age-encryption.org) and uploads the `bookly.dump.age` file as a GitHub Actions artifact kept for 30 days.
+Only the encrypted file is stored; the plain dump is deleted immediately after encryption.
+
+Why a public key (security review 2026-10-15): the repository is public, so **anyone signed in to GitHub can download
+the artifacts**. With a public key, nothing stored on GitHub can open a backup; only your private key file, kept offline,
+can. Until the `BACKUP_AGE_RECIPIENT` variable is set, the workflow falls back to the old `BACKUP_PASSPHRASE`
+(`bookly.dump.gpg`, with a warning in the run).
 
 ### 1. Add the two repository secrets
 
@@ -323,7 +328,21 @@ GitHub → your repository → **Settings → Secrets and variables → Actions 
 | Secret name | Value |
 | --- | --- |
 | `BACKUP_DATABASE_URL` | The Neon **direct** connection string (not the pooler). In Neon: **Connect** → turn **Connection pooling off** → copy the `postgresql://…` string. |
-| `BACKUP_PASSPHRASE` | A long random passphrase (e.g. `openssl rand -base64 48`). Save a copy in your password manager — you need it to decrypt backups. |
+| `BACKUP_PASSPHRASE` | Old fallback only (see 1b). Delete it 30 days after the first `.age` backup, when the last `.gpg` backup has expired. |
+
+### 1b. Make your backup key (once, on your computer)
+
+1. Install age: Windows `winget install FiloSottile.age`, macOS `brew install age`, Ubuntu `sudo apt install age`.
+2. Make the key pair:
+   ```bash
+   age-keygen -o bookly-backup-key.txt
+   ```
+   It prints `Public key: age1…`. The file `bookly-backup-key.txt` is the **private key**: keep it in **two offline
+   places** (e.g. a USB stick and your password manager). Never commit it, paste it in chat or upload it to GitHub.
+   Without it no backup can be opened.
+3. GitHub → your repository → **Settings → Secrets and variables → Actions → Variables** tab → **New repository
+   variable**: name `BACKUP_AGE_RECIPIENT`, value the `age1…` public key (a public key is not a secret).
+4. Run the workflow once by hand (step 2) and check that the artifact holds `bookly.dump.age`.
 
 ### 2. Run once by hand
 
@@ -335,14 +354,14 @@ Watch the run; the last step uploads `bookly-db-YYYY-MM-DD`. After that the sche
 > **Always restore into a new Neon branch first — never straight over production.**
 > Never paste connection strings or the passphrase in chat or screenshots.
 
-1. GitHub → **Actions** → pick the backup run → download the `bookly-db-YYYY-MM-DD` artifact (a zip containing `bookly.dump.gpg`).
-2. Decrypt:
-   On Windows, install [Gpg4win](https://www.gpg4win.org/) or use `gpg` from Git for Windows (`C:\Program Files\Git\usr\bin\gpg.exe`).
-   Use `-o` instead of PowerShell `>` redirection (PowerShell `>` corrupts binary output):
+1. GitHub → **Actions** → pick the backup run → download the `bookly-db-YYYY-MM-DD` artifact (a zip containing
+   `bookly.dump.age`, or `bookly.dump.gpg` for backups made before the key was set).
+2. Decrypt (use `-o`, not PowerShell `>` redirection, which corrupts binary output):
    ```bash
-   gpg -o bookly.dump -d bookly.dump.gpg
+   age -d -i bookly-backup-key.txt -o bookly.dump bookly.dump.age
    ```
-   Enter the `BACKUP_PASSPHRASE` when prompted.
+   An older `.gpg` backup: `gpg -o bookly.dump -d bookly.dump.gpg` and enter the `BACKUP_PASSPHRASE` (on Windows,
+   [Gpg4win](https://www.gpg4win.org/) or `gpg` from Git for Windows).
 3. In Neon: **Branches → New Branch** from the current production branch (this gives you a safe copy to test on).
 4. Restore into the new branch:
    A new Neon branch already contains production tables, so `--clean` and `--if-exists` are needed:
