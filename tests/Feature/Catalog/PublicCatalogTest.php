@@ -100,6 +100,33 @@ class PublicCatalogTest extends TestCase
         }
     }
 
+    public function test_half_typed_words_match_descriptions(): void
+    {
+        $book = $this->book(['title' => 'Daily Routine', 'description' => 'A complete guide to running every morning']);
+        $this->book(['title' => 'Cooking Basics', 'description' => 'Recipes']);
+
+        $this->assertSame([$book->id], $this->searchIds('runni'));
+    }
+
+    public function test_half_typed_words_match_series_name(): void
+    {
+        $series = Series::factory()->create(['name' => 'Running Tales']);
+        $book = $this->book(['title' => 'The First Race', 'description' => 'Story', 'series_id' => $series->id]);
+        $this->book(['title' => 'Cooking Basics', 'description' => 'Recipes']);
+
+        $this->assertSame([$book->id], $this->searchIds('runni'));
+    }
+
+    public function test_half_typed_words_match_category_name(): void
+    {
+        $category = Category::factory()->create(['name' => 'Gardening', 'slug' => 'gardening']);
+        $book = $this->book(['title' => 'Green Thumbs', 'description' => 'Plants']);
+        $book->categories()->attach($category);
+        $this->book(['title' => 'Cooking Basics', 'description' => 'Recipes']);
+
+        $this->assertSame([$book->id], $this->searchIds('gardeni'));
+    }
+
     public function test_stop_words_never_block_a_longer_search(): void
     {
         $hobbit = $this->book(['title' => 'Hobbit', 'description' => 'Dwarves and a dragon']);
