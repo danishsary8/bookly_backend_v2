@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
+use App\Http\Controllers\Api\V1\Customer\StockAlertController;
 use App\Http\Controllers\Api\V1\Customer\StoreCreditController;
 use App\Http\Controllers\Api\V1\Customer\TelegramAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
@@ -62,6 +63,7 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 */
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
+Route::get('/books/{book}/also-bought', [BookController::class, 'alsoBought'])->whereNumber('book');
 Route::get('/books/{book}/reviews', [BookReviewController::class, 'index'])->whereNumber('book');
 Route::get('/authors', [AuthorController::class, 'index']);
 Route::get('/authors/{author}', [AuthorController::class, 'show'])->whereNumber('author');
@@ -106,6 +108,9 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
     Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
     Route::get('/store-credits', [StoreCreditController::class, 'index']);
+    Route::get('/stock-alerts', [StockAlertController::class, 'index']);
+    Route::post('/stock-alerts', [StockAlertController::class, 'store']);
+    Route::delete('/stock-alerts/{stockAlert}', [StockAlertController::class, 'destroy'])->whereNumber('stockAlert');
 });
 
 /*

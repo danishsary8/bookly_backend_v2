@@ -5,9 +5,11 @@ namespace App\Services\Inventory;
 use App\Enums\InventoryReason;
 use App\Models\BookVariant;
 use App\Models\InventoryMovement;
+use App\Models\MarketingOutbox;
 use App\Models\Order;
 use App\Models\OrderReturn;
 use App\Models\StaffUser;
+use App\Models\StockAlert;
 use Illuminate\Support\Facades\DB;
 
 /** The only place stock changes, so every change has a matching inventory_movements row. */
@@ -112,7 +114,40 @@ class InventoryService
     /** Hook fired whenever a variant goes from 0 (or below) to above 0. Task 6 hooks back-in-stock notifications here. */
     protected function onStockRestored(BookVariant $variant): void
     {
-        // Hook point for Task 6 back-in-stock alerts.
+        $alerts = StockAlert::where('book_variant_id', $variant->id)
+            ->whereNull('notified_at')
+            ->with('customer')
+            ->get();
+
+        if ($alerts->isEmpty()) {
+            return;
+        }
+
+        $book = $variant->relationLoaded('book') ? $variant->book : $variant->book()->first();
+        $now = now();
+
+        foreach ($alerts as $alert) {
+            $customer = $alert->customer;
+            if ($customer && ! blank($customer->email)) {
+                MarketingOutbox::create([
+                    'kind' => 'back_in_stock',
+                    'customer_id' => $customer->id,
+                    'email' => $customer->email,
+                    'locale' => $customer->locale ?? 'en',
+                    'payload' => [
+                        'book_id' => $book?->id ?? $variant->book_id,
+                        'book_title' => $book?->title ?? 'Book',
+                        'book_slug' => $book?->slug ?? '',
+                        'variant_id' => $variant->id,
+                        'format' => $variant->format instanceof \BackedEnum ? $variant->format->value : (string) $variant->format,
+                        'customer_name' => $customer->name,
+                    ],
+                    'status' => 'pending',
+                ]);
+            }
+
+            $alert->update(['notified_at' => $now]);
+        }
     }
 
     private function log(BookVariant $variant, int $delta, InventoryReason $reason, ?StaffUser $staff, ?string $refType = null, ?int $refId = null): void

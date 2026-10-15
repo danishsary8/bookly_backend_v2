@@ -434,6 +434,31 @@ components:
           properties:
             book: { type: object, properties: { id: { type: integer }, title: { type: string } } }
             is_visible: { type: boolean, description: false when staff have hidden the review }
+
+    StockAlert:
+      type: object
+      properties:
+        id: { type: integer }
+        book_variant_id: { type: integer }
+        created_at: { type: string, format: date-time }
+        notified_at: { type: string, format: date-time, nullable: true }
+        book:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            title: { type: string }
+            cover_image_url: { type: string, nullable: true }
+        variant:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            format: { type: string }
+            price_usd: { type: string }
+            stock_quantity: { type: integer }
+            is_active: { type: boolean }
+
 security:
   - bearer: []
 
@@ -474,6 +499,7 @@ paths:
         - { name: max_price, in: query, schema: { type: number } }
         - { name: in_stock, in: query, schema: { type: boolean } }
         - { name: sort, in: query, schema: { type: string, enum: [relevance, newest, price_asc, price_desc, title, rating] } }
+        - { name: ids, in: query, description: 'Comma-separated IDs or array (max 12); keeps order and drops missing/hidden books', schema: { type: string } }
         - $ref: '#/components/parameters/PerPage'
       responses:
         '200':
@@ -495,6 +521,22 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       responses:
         '200': { description: Book, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/BookDetail' } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /books/{id}/also-bought:
+    get:
+      tags: [Public]
+      summary: Up to 6 recommended books bought together with this book, fallback to category best sellers
+      security: []
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Recommended book cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
         '404': { $ref: '#/components/responses/NotFound' }
   /books/{id}/reviews:
     get:
@@ -680,6 +722,52 @@ paths:
                         starts_at: { type: string, format: date-time, nullable: true }
                         expires_at: { type: string, format: date-time, nullable: true }
                         created_at: { type: string, format: date-time }
+  /me/stock-alerts:
+    get:
+      tags: [Customer]
+      summary: Active and past stock alerts for the signed-in customer
+      responses:
+        '200':
+          description: Stock alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockAlert'
+    post:
+      tags: [Customer]
+      summary: Subscribe to back-in-stock alert for a physical variant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [book_variant_id]
+              properties:
+                book_variant_id: { type: integer, example: 1 }
+      responses:
+        '201':
+          description: Alert created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/StockAlert' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /me/stock-alerts/{id}:
+    delete:
+      tags: [Customer]
+      summary: Delete a stock alert
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /addresses:
     get: { tags: [Customer], summary: 'Saved addresses (default first)', responses: { '200': { description: Addresses, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Address' } } } } } } } } }

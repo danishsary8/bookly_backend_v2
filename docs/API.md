@@ -42,6 +42,9 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | POST | /me/connections/{google\|facebook} | access_token, password (when the account has one) | auth. Connects the provider: the token must be issued to our app (profile read from the provider); 409 if that provider account is linked to another Bookly account or another one is already connected; 422 if the token can't be verified (not 401: the customer stays signed in). A verified email gets a "was connected" notice.. **New way in** (security review 2026-10-15): accounts with a password type it; accounts without one must have signed in within the last 10 minutes, else 403 `reason: sign_in_again` "For your safety, sign in again first, then try this within 10 minutes." |
 | DELETE | /me/connections/{google\|facebook} | — | auth. Disconnects it; 422 `reason: last_way_in` "Add a password first, so you can still sign in." when it's the only way left (`sign_in_methods` on the customer: `password` (with an email), `google`, `facebook`, `telegram` (a verified number, while the Telegram bot is on)). |
 | GET | /me/store-credits | — | auth (customer). Active, unused store credit coupons bound to this customer account. |
+| GET | /me/stock-alerts | — | auth (customer). All stock alerts for the customer with book and variant details |
+| POST | /me/stock-alerts | book_variant_id | auth (customer). 201. Physical, active format of public book currently out of stock. Max 50 active alerts per customer. |
+| DELETE | /me/stock-alerts/{id} | — | auth (customer). 204. Removes an alert |
 
 Token response shape: `{ "customer": {...}, "token": "...", "token_type": "Bearer", "expires_at": "ISO-8601" }`.
 Customer `verified` = email **or** phone proven. Unverified customers can log in but shopping routes return 403 "Please verify your account first: enter the code we sent you." `email` is null for Facebook accounts that signed up without one. Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).
@@ -66,8 +69,9 @@ Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP
 ## Public catalog (no login)
 | Method | Path | Query / notes |
 | --- | --- | --- |
-| GET | /books | `q` (search as you type: every word must match the title or description, an author, the series or a category name, and each word also matches as a prefix, so "conan doy" finds Doyle's books and "austen emma" finds Emma; half-typed words match unstemmed ('simple') across titles, descriptions, series, and categories; stop words like "the" never block a longer search; title matches rank first, then author, series, category; one code-like word is also matched exactly against an active format's SKU (any case) or ISBN (hyphens and spaces ignored)), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
+| GET | /books | `q` (search as you type...), `ids` (comma-separated IDs or array, max 12; preserves order; drops missing/hidden), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
 | GET | /books/{id} | detail: description, page_count, categories, publisher, series {id,name,order}, active variants |
+| GET | /books/{id}/also-bought | up to 6 recommended book cards that appeared in >= 2 orders together with this book (excluding pending/cancelled), fallback to category best sellers. Cached 1 hour. |
 | GET | /authors | `q`, `per_page` — each with `books_count` |
 | GET | /authors/{id} | author profile; books via `/books?author_id={id}` |
 | GET | /categories | all categories (not paginated), with `books_count` |

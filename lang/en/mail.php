@@ -65,4 +65,11 @@ return [
     'account_reopened_line1' => 'We reopened the Bookly account you closed. Sign in the same way as before.',
     'account_reopened_line2' => 'Your orders are all there. Reviews, wishlist and cart removed when you closed it are not restored.',
     'account_reopened_line3' => 'If you did not ask us to reopen it, reply to this email or contact us and we will close it again.',
+
+    // Back in Stock
+    'back_in_stock_subject' => ':title is back in stock!',
+    'back_in_stock_greeting' => 'Good news, :name!',
+    'back_in_stock_intro' => 'A book on your alert list is back in stock: :title (:format).',
+    'back_in_stock_action' => 'View book',
+    'back_in_stock_outro' => 'Stock is limited, so grab your copy before it sells out again.',
 ];

@@ -62,7 +62,7 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `CORS_ALLOWED_ORIGIN_PATTERNS` | optional comma-separated regexes without delimiters for previews, e.g. `^https://bookly-frontend-[a-z0-9-]+-danishsary8s-projects\.vercel\.app$`; leave empty to allow only the exact origin list |
 | `LOG_REQUESTS` | `true` |
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | see "Email on Render" below |
-| optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_BOT_TOKEN` (the free Bookly Telegram bot: phone sign-in and phone confirmation; see "Telegram bot" below) |
+| optional | `SENTRY_LARAVEL_DSN`, `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `TURNSTILE_SECRET_KEY` (bot check on sign-up, sign-in and code emails; set it together with the frontend's `VITE_TURNSTILE_SITE_KEY`), `TELEGRAM_BOT_TOKEN` (the free Bookly Telegram bot: phone sign-in and phone confirmation; see "Telegram bot" below), `MARKETING_DAILY_LIMIT` (default 60; Resend free allows 100/day total shared with sign-in codes, so 60 leaves 40 for urgent sign-in codes and order confirmations. Sign-in codes and order emails never go through this marketing outbox) |
 
 Sentry's release tag comes automatically from Render's `RENDER_GIT_COMMIT`; `SENTRY_RELEASE` overrides it.
 
