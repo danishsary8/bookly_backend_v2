@@ -179,4 +179,19 @@ class StaffAuthTest extends TestCase
         $this->assertTrue(Hash::check('newpass123', $staff->fresh()->password_hash));
         $this->assertTrue($staff->fresh()->two_factor_enabled);
     }
+
+    public function test_staff_login_is_rate_limited_per_email_across_different_ips(): void
+    {
+        StaffUser::factory()->create(['email' => 'staff_target@shop.test', 'password_hash' => 'correct-pass123']);
+
+        for ($i = 1; $i <= 20; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => "198.51.100.{$i}"])
+                ->postJson('/api/v1/staff/auth/login', ['email' => 'staff_target@shop.test', 'password' => 'wrong-pass1'])
+                ->assertUnauthorized();
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.21'])
+            ->postJson('/api/v1/staff/auth/login', ['email' => 'staff_target@shop.test', 'password' => 'correct-pass123'])
+            ->assertTooManyRequests();
+    }
 }
