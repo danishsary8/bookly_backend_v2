@@ -89,8 +89,8 @@ class Book extends Model
     /**
      * Every word must match somewhere: the title or description, an author, the series or a category name.
      * So "austen emma" finds Emma by Jane Austen, and "sherlock" finds the books of the Sherlock Holmes series.
-     * The title is also matched unstemmed ('simple'), because English stemming breaks half-typed words
-     * ("runni" is not a prefix of the stem "run"). A stop word ("the", "of") never blocks a longer search.
+     * Titles, descriptions, series, and categories are also matched unstemmed ('simple') so half-typed words
+     * ("runni" is not a prefix of the English stem "run") match while typing. A stop word ("the", "of") never blocks a longer search.
      */
     public function scopeSearch(Builder $query, string $term): Builder
     {
@@ -107,9 +107,14 @@ class Book extends Model
                         $text->where(fn (Builder $q) => $q
                             ->whereRaw("books.search_vector @@ to_tsquery('english', ?)", [$prefix])
                             ->orWhereRaw("to_tsvector('simple', books.title) @@ to_tsquery('simple', ?)", [$prefix])
+                            ->orWhereRaw("to_tsvector('simple', coalesce(books.description, '')) @@ to_tsquery('simple', ?)", [$prefix])
                             ->orWhereHas('authors', fn (Builder $a) => $a->whereRaw("to_tsvector('simple', authors.name) @@ to_tsquery('simple', ?)", [$prefix]))
-                            ->orWhereHas('series', fn (Builder $s) => $s->whereRaw("to_tsvector('english', series.name) @@ to_tsquery('english', ?)", [$prefix]))
-                            ->orWhereHas('categories', fn (Builder $c) => $c->whereRaw("to_tsvector('english', categories.name) @@ to_tsquery('english', ?)", [$prefix]))
+                            ->orWhereHas('series', fn (Builder $s) => $s
+                                ->whereRaw("to_tsvector('english', series.name) @@ to_tsquery('english', ?)", [$prefix])
+                                ->orWhereRaw("to_tsvector('simple', series.name) @@ to_tsquery('simple', ?)", [$prefix]))
+                            ->orWhereHas('categories', fn (Builder $c) => $c
+                                ->whereRaw("to_tsvector('english', categories.name) @@ to_tsquery('english', ?)", [$prefix])
+                                ->orWhereRaw("to_tsvector('simple', categories.name) @@ to_tsquery('simple', ?)", [$prefix]))
                             ->when(count($prefixes) > 1, fn (Builder $q) => $q->orWhereRaw("numnode(to_tsquery('english', ?)) = 0", [$prefix])));
                     }
                 });
