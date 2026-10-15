@@ -242,3 +242,24 @@ Revenue is cash basis: an order counts on the day it was delivered (cash on deli
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | /staff/orders/export | `from`, `to` (YYYY-MM-DD, required, max 366 days, `SHOP_TIMEZONE` days, by `placed_at`). Downloads `orders-<from>-to-<to>.csv` (UTF-8 with BOM for Excel). Columns: order_number, placed_at, status, customer_name, customer_email, items, subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, coupon_code, payment_method, payment_status, shipping_city, shipping_country. Text starting with `= + - @` is prefixed with `'` so spreadsheets do not run it as a formula. 10 per minute. |
+
+### Reports (admin only, throttle `admin-analytics` 30/min)
+Cached for 5 minutes per report and range. All endpoints take `from` and `to` (YYYY-MM-DD, required, max 366 days, in `SHOP_TIMEZONE`, default Asia/Phnom_Penh) and optional `format=json|csv` (CSV streamed with UTF-8 BOM `\xEF\xBB\xBF` and formula injection prevention).
+
+**Revenue & Accounting Definitions (consistent with Dashboard):**
+- **Cash basis:** Gross revenue = orders delivered in the period (by `order_status_history.status = delivered` timestamp).
+- **Refunds:** Returns marked refunded in the period (by `returns.resolved_at`). Shipping fees are kept and never refunded.
+- **Net revenue:** Gross revenue minus refunds.
+- **Cancelled orders:** Excluded from revenue, best sellers, top categories, and coupons. Counted in orders breakdown and cancellation rate.
+- **USD -> KHR:** Converted with the current exchange rate, like the dashboard (invoices and receipts use the rate at the order date instead). `null` when no rate is set.
+- **Previous period comparison:** Period of equal length immediately preceding `[$start - days, $start)`. Change percent is 2 decimals; when previous value is 0, it is 100.0 if current > 0, else 0.0.
+
+| Method | Path | Query params | Returns / Notes |
+| --- | --- | --- | --- |
+| GET | /staff/reports/sales | `from`, `to`, `group` (day\|week\|month, default day), `format` (json\|csv) | Totals in USD & KHR (gross revenue, refunds, net revenue, delivered orders count, orders placed, average order value, items sold, discounts, shipping fees), previous period comparison with `%` change, and series per day/week/month (empty intervals filled with 0s). |
+| GET | /staff/reports/orders | `from`, `to`, `format` (json\|csv) | Total orders placed in range, breakdown by order status, cancellation rate (`%`), average delivery time from order placed to delivered (hours), breakdown by payment method (`cod`, `card`, `khqr`), and delivery area (`phnom_penh` vs `provinces`, the checkout rule `DeliveryArea`), plus previous period comparison. |
+| GET | /staff/reports/products | `from`, `to`, `limit` (default 10), `format` (json\|csv) | Best sellers by units sold and by revenue (book ID, variant ID, title, format, units, revenue in USD & KHR), worst sellers with stock > 0, low-stock list (`stock_quantity <= low_stock_threshold`), and revenue by category. |
+| GET | /staff/reports/customers | `from`, `to`, `format` (json\|csv) | Total new verified customers in range, daily new verified customers series, returning customer rate (`customers with >= 2 orders in range / customers with an order in range * 100`), and top 10 customers by total spend in range (name, email, orders count, total spent in USD & KHR). |
+| GET | /staff/reports/funnel | `from`, `to`, `format` (json\|csv) | 4 measurable steps from database: Carts with items -> Orders placed -> Orders delivered -> Orders returned. "Carts with items" = carts that still hold items added in the range + orders placed in the range (a cart is emptied at checkout), so it is an estimate; there is no visit tracking. Each step includes count, conversion rate from first step (`%`), conversion rate from previous step (`%`), and drop-off rate (`%`). |
+| GET | /staff/reports/coupons | `from`, `to`, `format` (json\|csv) | Coupon performance (code, type, value, times used in range, total discounts given, total order revenue) and refunds breakdown (total count, amount in USD & KHR, and breakdown by refund reason). |
+

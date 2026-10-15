@@ -21,7 +21,13 @@ class DeliveryArea
             return self::PROVINCES;
         }
 
-        foreach ([$address->city, $address->state] as $part) {
+        return self::forPlace($address->city, $address->state);
+    }
+
+    /** The same rule for a city and province given separately (e.g. an order's saved shipping address). */
+    public static function forPlace(?string $city, ?string $state): string
+    {
+        foreach ([$city, $state] as $part) {
             $flat = mb_strtolower(preg_replace('/[\s\-_.]+/u', '', (string) $part));
             if (str_contains($flat, 'phnompenh') || str_contains($flat, 'ភ្នំពេញ')) {
                 return self::PHNOM_PENH;
