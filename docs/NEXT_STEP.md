@@ -1,7 +1,10 @@
 # Next step
 
-## Now (2026-10-14)
-Waiting for the owner's merge: `fix/close-account-check-order` (backend, first), then the frontend `fix/e2e-loading-wait` and `feature/khmer-pages`, then the two `docs/khmer-pages-batch` branches. The ordered to-do list lives in the frontend repo's docs/ROADMAP.md and docs/NEXT_STEP.md.
+## Now (2026-10-15)
+Merged 2026-10-15: `fix/close-account-check-order`, the Khmer storefront, and the Reports API (`feature/reports-api`, with its
+frontend page). Waiting for the owner's merge: `docs/reports-batch` (this repo first, then the frontend one).
+Next, chosen by the owner: a **security review of both repos** (read-only audit first, then fixes the owner picks, one
+branch each). The ordered to-do list lives in the frontend repo: docs/ROADMAP.md and docs/NEXT_STEP.md.
 
 ## Earlier (2026-10-12)
 Owner action after merging `feature/scheduler-on-ping`: in Render add `RUN_MAINTENANCE_ON_REQUEST` = `true` (the housekeeping jobs then run from web traffic; the 5-minute uptime ping is enough).
