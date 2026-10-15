@@ -9,11 +9,11 @@ class PreviewCorsTest extends TestCase
 {
     public function test_configured_patterns_allow_only_matching_preview_origins(): void
     {
-        $this->loadCorsConfig(' , ^https://bookly-frontend-[a-z0-9-]+-danishsary8s-projects\.vercel\.app$ , , ^https://preview\.example$ , ');
+        $this->loadCorsConfig(' , https://bookly-frontend-[a-z0-9-]+-danishsary8s-projects\.vercel\.app , , https://preview\.example , ');
 
         $this->assertSame([
-            '~^https://bookly-frontend-[a-z0-9-]+-danishsary8s-projects\.vercel\.app$~',
-            '~^https://preview\.example$~',
+            '~^(?:https://bookly-frontend-[a-z0-9-]+-danishsary8s-projects\.vercel\.app)$~',
+            '~^(?:https://preview\.example)$~',
         ], config('cors.allowed_origins_patterns'));
 
         foreach (['https://bookly-frontend-abc123-danishsary8s-projects.vercel.app', 'https://preview.example'] as $origin) {
@@ -44,6 +44,19 @@ class PreviewCorsTest extends TestCase
                 ->assertOk()
                 ->assertHeaderMissing('Access-Control-Allow-Origin');
         }
+    }
+
+    public function test_cors_pattern_anchors_prevent_subdomain_spoofing(): void
+    {
+        $this->loadCorsConfig('https://.*\.vercel\.app');
+
+        $this->getJson('/api/v1/ping', ['Origin' => 'https://preview-123.vercel.app'])
+            ->assertOk()
+            ->assertHeader('Access-Control-Allow-Origin', 'https://preview-123.vercel.app');
+
+        $this->getJson('/api/v1/ping', ['Origin' => 'https://preview-123.vercel.app.evil.com'])
+            ->assertOk()
+            ->assertHeaderMissing('Access-Control-Allow-Origin');
     }
 
     private function loadCorsConfig(string $patterns): void
