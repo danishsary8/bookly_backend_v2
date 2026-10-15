@@ -10,6 +10,7 @@ use App\Services\Auth\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -113,6 +114,29 @@ class StaffAuthTest extends TestCase
 
         $this->travel(16)->minutes();
         $attempt(51, $this->code())->assertOk()->assertJsonStructure(['token']);
+    }
+
+    public function test_2fa_attempt_is_counted_before_code_verification(): void
+    {
+        $staff = StaffUser::factory()->withTwoFactor(self::SECRET)->create(['email' => 's@shop.test', 'password_hash' => 'secret123']);
+        $challenge = $this->postJson('/api/v1/staff/auth/login', ['email' => 's@shop.test', 'password' => 'secret123'])->json('challenge_token');
+
+        $limiter = "staff-2fa-wrong:{$staff->id}";
+        $attemptsDuringVerification = null;
+
+        $totpMock = $this->partialMock(TotpService::class);
+        $totpMock->shouldReceive('verify')->andReturnUsing(function () use ($limiter, &$attemptsDuringVerification) {
+            $attemptsDuringVerification = RateLimiter::attempts($limiter);
+
+            return false;
+        });
+
+        $this->postJson('/api/v1/staff/auth/two-factor/challenge', [
+            'challenge_token' => $challenge,
+            'code' => '123456',
+        ])->assertUnprocessable();
+
+        $this->assertSame(1, $attemptsDuringVerification, 'Attempt count must be incremented before verifying the code to prevent race conditions.');
     }
 
     public function test_staff_tokens_expire_after_12_hours(): void
