@@ -88,8 +88,10 @@ class AuthController extends Controller
         }
 
         // Wrong codes are counted per account, not per IP, so the 6-digit code cannot be guessed from many machines.
+        // Count the attempt first so parallel requests cannot race past the limit.
         $limiter = "staff-2fa-wrong:{$staff->id}";
-        if (RateLimiter::tooManyAttempts($limiter, self::MAX_WRONG_CODES)) {
+        $attempts = RateLimiter::hit($limiter, self::WRONG_CODE_DECAY_SECONDS);
+        if ($attempts > self::MAX_WRONG_CODES) {
             Cache::forget($this->challengeKey($data['challenge_token']));
 
             return response()->json(['message' => 'Too many invalid codes. Please try again later.'], 429)
@@ -97,8 +99,6 @@ class AuthController extends Controller
         }
 
         if (! $this->verifyFreshCode($staff, $data['code'])) {
-            RateLimiter::hit($limiter, self::WRONG_CODE_DECAY_SECONDS);
-
             return response()->json(['message' => 'Invalid authentication code.'], 422);
         }
 
