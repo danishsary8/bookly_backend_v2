@@ -197,7 +197,7 @@ class AuthController extends Controller
             $staff,
             new AccountSecurityNotice(
                 'Your Bookly staff password was reset',
-                'Your Bookly staff password was reset.',
+                'The password of your Bookly staff account was just reset with a code sent to this email, and every device was signed out. If this wasn\'t you, tell the shop owner right away.',
             )
         );
 
