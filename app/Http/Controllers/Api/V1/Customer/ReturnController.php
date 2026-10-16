@@ -15,7 +15,7 @@ class ReturnController extends Controller
 
     public static function relations(): array
     {
-        return ['order', 'items.orderItem.variant.book' => fn ($q) => $q->withTrashed()];
+        return ['order', 'storeCreditCoupon', 'items.orderItem.variant.book' => fn ($q) => $q->withTrashed()];
     }
 
     /** What can still be returned from an order, and until when. */

@@ -10,11 +10,25 @@ class InventoryMovement extends Model
 {
     const UPDATED_AT = null;
 
-    protected $fillable = ['book_variant_id', 'change_qty', 'reason', 'reference_type', 'reference_id', 'created_by_staff_id'];
+    protected $fillable = [
+        'book_variant_id',
+        'change_qty',
+        'reason',
+        'reference_type',
+        'reference_id',
+        'created_by_staff_id',
+        'note',
+        'supplier',
+        'unit_cost_usd',
+    ];
 
     protected function casts(): array
     {
-        return ['reason' => InventoryReason::class, 'change_qty' => 'integer'];
+        return [
+            'reason' => InventoryReason::class,
+            'change_qty' => 'integer',
+            'unit_cost_usd' => 'decimal:2',
+        ];
     }
 
     public function variant(): BelongsTo

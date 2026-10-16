@@ -27,7 +27,12 @@ class CouponService
     {
         $fail = fn (string $message) => throw ValidationException::withMessages(['code' => $message]);
 
-        $coupon = Coupon::where('code', self::normalize($code))->first() ?? $fail(self::NOT_FOUND);
+        $coupon = Coupon::where('code', self::normalize($code))->first();
+
+        // Someone else's store credit answers exactly like a code that doesn't exist (no hint that it does).
+        if ($coupon === null || ($coupon->customer_id !== null && $coupon->customer_id !== $customer->id)) {
+            $fail(self::NOT_FOUND);
+        }
 
         if ($reason = $coupon->unusableReason(number_format($subtotalCents / 100, 2, '.', ''))) {
             $fail($reason);

@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers\Api\V1\Staff\Catalog;
 
+use App\Enums\StaffRole;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffBookResource;
 use App\Models\Book;
 use App\Services\Admin\AuditLogger;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class BookController extends Controller
 {
@@ -22,6 +26,7 @@ class BookController extends Controller
     {
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:200'],
+            'status' => ['nullable', 'string', Rule::in(['draft', 'scheduled', 'live'])],
             'trashed' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -30,6 +35,7 @@ class BookController extends Controller
             Book::query()
                 ->with(self::RELATIONS)
                 ->when($request->boolean('trashed'), fn ($q) => $q->onlyTrashed())
+                ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
                 ->when($data['q'] ?? null, fn ($q, $term) => $q->where('title', 'ilike', '%'.addcslashes($term, '%_').'%'))
                 ->latest()
                 ->orderByDesc('id')
@@ -48,6 +54,32 @@ class BookController extends Controller
         $data = $this->validated($request);
         $data['language'] ??= 'English';
 
+        $user = $request->user();
+        $isAdmin = $user->role === StaffRole::Admin;
+
+        if (! $isAdmin) {
+            if ($request->has('status') && in_array($request->input('status'), ['live', 'scheduled'], true)) {
+                abort(403, 'Only an admin can publish books.');
+            }
+            if ($request->filled('publish_at')) {
+                abort(403, 'Only an admin can publish books.');
+            }
+            $data['status'] = 'draft';
+            $data['publish_at'] = null;
+        } else {
+            $data['status'] = $data['status'] ?? 'live';
+            if ($data['status'] === 'scheduled') {
+                if (empty($data['publish_at'])) {
+                    throw ValidationException::withMessages(['publish_at' => 'A publish date is required for scheduled books.']);
+                }
+                if (Carbon::parse($data['publish_at'])->isPast()) {
+                    throw ValidationException::withMessages(['publish_at' => 'Publish date must be in the future.']);
+                }
+            } else {
+                $data['publish_at'] = null;
+            }
+        }
+
         $book = DB::transaction(function () use ($data, $request) {
             $book = Book::create($data);
             $book->authors()->sync($data['author_ids'] ?? []);
@@ -64,6 +96,36 @@ class BookController extends Controller
     {
         $data = $this->validated($request, partial: true);
         $before = $this->snapshot($book);
+
+        $user = $request->user();
+        $isAdmin = $user->role === StaffRole::Admin;
+
+        $samePublishAt = fn ($value) => $value === null || $value === ''
+            ? $book->publish_at === null
+            : $book->publish_at !== null && Carbon::parse($value)->equalTo($book->publish_at);
+
+        if (! $isAdmin) {
+            // Staff may send the form back unchanged; changing the status or the time is for admins.
+            if (($request->has('status') && $request->input('status') !== $book->status)
+                || ($request->has('publish_at') && ! $samePublishAt($request->input('publish_at')))) {
+                abort(403, 'Only an admin can publish books.');
+            }
+            unset($data['status'], $data['publish_at']);
+        } elseif (isset($data['status'])) {
+            if ($data['status'] === 'scheduled') {
+                $publishAt = array_key_exists('publish_at', $data) ? $data['publish_at'] : $book->publish_at;
+                if (empty($publishAt)) {
+                    throw ValidationException::withMessages(['publish_at' => 'A publish date is required for scheduled books.']);
+                }
+                // A time that has already passed is fine when nothing about the schedule changes (an edit of the text).
+                $unchanged = $book->status === 'scheduled' && $samePublishAt($publishAt);
+                if (! $unchanged && Carbon::parse($publishAt)->isPast()) {
+                    throw ValidationException::withMessages(['publish_at' => 'Publish date must be in the future.']);
+                }
+            } else {
+                $data['publish_at'] = null;
+            }
+        }
 
         DB::transaction(function () use ($book, $data, $request, $before) {
             $book->update($data);
@@ -110,6 +172,8 @@ class BookController extends Controller
         return $request->validate([
             'title' => [$required, 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:20000'],
+            'status' => ['sometimes', 'string', Rule::in(['draft', 'scheduled', 'live'])],
+            'publish_at' => ['nullable', 'date'],
             'publisher_id' => ['nullable', 'integer', 'exists:publishers,id'],
             'series_id' => ['nullable', 'integer', 'exists:series,id'],
             'series_order' => ['nullable', 'integer', 'min:1', 'max:32767'],
@@ -126,7 +190,8 @@ class BookController extends Controller
     private function snapshot(Book $book): array
     {
         return [
-            ...collect($book->only(['title', 'description', 'publisher_id', 'series_id', 'series_order', 'language', 'page_count']))->all(),
+            ...collect($book->only(['title', 'description', 'status', 'publisher_id', 'series_id', 'series_order', 'language', 'page_count']))->all(),
+            'publish_at' => $book->publish_at?->toISOString(),
             'publish_date' => $book->publish_date?->toDateString(),
             'author_ids' => $book->authors()->orderBy('authors.id')->pluck('authors.id')->all(),
             'category_ids' => $book->categories()->orderBy('categories.id')->pluck('categories.id')->all(),

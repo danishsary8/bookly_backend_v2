@@ -62,14 +62,18 @@ class ReturnController extends Controller
 
     public function refund(Request $request, int $return): StaffReturnResource
     {
-        $data = $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
-        $this->returns->refund($this->find($return), $request->user(), $data['note'] ?? null);
+        $data = $request->validate([
+            'method' => ['required', 'string', 'in:cash,bank_transfer,store_credit'],
+            'reference' => ['nullable', 'string', 'max:100', 'prohibited_unless:method,bank_transfer'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $this->returns->refund($this->find($return), $request->user(), $data['method'], $data['reference'] ?? null, $data['note'] ?? null);
 
         return new StaffReturnResource($this->find($return));
     }
 
     private function find(int $return): OrderReturn
     {
-        return OrderReturn::with([...CustomerReturnController::relations(), 'customer', 'handledBy'])->findOrFail($return);
+        return OrderReturn::with([...CustomerReturnController::relations(), 'customer', 'handledBy', 'refundedBy', 'storeCreditCoupon'])->findOrFail($return);
     }
 }

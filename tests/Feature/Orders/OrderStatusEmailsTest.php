@@ -102,7 +102,7 @@ class OrderStatusEmailsTest extends TestCase
         $id = $this->asToken($token)->postJson("/api/v1/orders/{$order->id}/returns", ['reason' => 'Damaged', 'items' => [['order_item_id' => $itemId, 'quantity' => 1]]])
             ->assertCreated()->json('data.id');
         foreach (['approve', 'refund'] as $step) {
-            $this->asToken($this->staff)->postJson("/api/v1/staff/returns/{$id}/{$step}", ['note' => 'ok'])->assertOk();
+            $this->asToken($this->staff)->postJson("/api/v1/staff/returns/{$id}/{$step}", ['note' => 'ok', 'method' => 'cash'])->assertOk();
         }
 
         $second = $this->deliveredOrder($this->customer, [[$this->physical(), 1]]);

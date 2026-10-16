@@ -24,6 +24,8 @@ class MaintenanceTasks
             // Failed jobs are kept a week for debugging, finished and stuck job batches a few days.
             ['name' => 'failed-jobs', 'command' => 'queue:prune-failed', 'parameters' => ['--hours' => 168], 'cron' => '0 0 * * *'],
             ['name' => 'job-batches', 'command' => 'queue:prune-batches', 'parameters' => ['--hours' => 48, '--unfinished' => 72], 'cron' => '0 0 * * *'],
+            // Marketing outbox (runs every minute, capped daily).
+            ['name' => 'marketing-outbox', 'command' => 'marketing:send', 'parameters' => [], 'cron' => '* * * * *'],
         ];
     }
 }

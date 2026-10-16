@@ -57,7 +57,7 @@ class StaffReturnsTest extends TestCase
         $this->staffPost($id, 'approve', ['note' => 'Courier pickup booked'])->assertOk()->assertJsonPath('data.status', 'approved');
         $this->assertSame(5, $book->fresh()->stock_quantity, 'approving does not add stock');
 
-        $this->staffPost($id, 'refund', ['note' => 'Paid back by ABA transfer'])->assertOk()
+        $this->staffPost($id, 'refund', ['note' => 'Paid back by ABA transfer', 'method' => 'bank_transfer'])->assertOk()
             ->assertJsonPath('data.status', 'refunded')
             ->assertJsonPath('data.refund_amount_usd', '24.00')
             ->assertJsonPath('data.is_refund_final', true)
@@ -85,7 +85,7 @@ class StaffReturnsTest extends TestCase
         foreach ([1, 1, 1] as $i => $qty) {
             $id = $this->requestReturn($order->fresh('items'), [[$book, $qty]]);
             $this->staffPost($id, 'approve');
-            $refunds[] = $this->staffPost($id, 'refund')->assertOk()->json('data.refund_amount_usd');
+            $refunds[] = $this->staffPost($id, 'refund', ['method' => 'cash'])->assertOk()->json('data.refund_amount_usd');
 
             $expected = $i < 2 ? OrderStatus::Delivered : OrderStatus::Returned;
             $this->assertSame($expected, $order->fresh()->status);

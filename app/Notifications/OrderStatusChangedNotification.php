@@ -36,29 +36,33 @@ class OrderStatusChangedNotification extends Notification implements ShouldQueue
         $number = $this->order->order_number;
 
         [$subject, $intro] = match ($this->status) {
-            OrderStatus::Processing => ["We are packing your order {$number}", 'Good news: your order is confirmed and we are preparing it for shipping.'],
-            OrderStatus::Shipped => ["Your order {$number} is on its way", 'Your order has been shipped.'],
-            OrderStatus::Delivered => ["Your order {$number} was delivered", 'Your order has been delivered. Thank you for shopping with us!'],
-            default => ["Your order {$number} was cancelled", 'Your order has been cancelled.'],
+            OrderStatus::Processing => [__('mail.order_processing_subject', ['number' => $number]), __('mail.order_processing_intro')],
+            OrderStatus::Shipped => [__('mail.order_shipped_subject', ['number' => $number]), __('mail.order_shipped_intro')],
+            OrderStatus::Delivered => [__('mail.order_delivered_subject', ['number' => $number]), __('mail.order_delivered_intro')],
+            default => [__('mail.order_cancelled_subject', ['number' => $number]), __('mail.order_cancelled_intro')],
         };
 
         $mail = (new MailMessage)
             ->subject($subject)
-            ->greeting("Hello {$notifiable->name},")
+            ->greeting(__('mail.hello_greeting', ['name' => $notifiable->name]))
             ->line($intro)
-            ->line("Order number: {$number}");
+            ->line(__('mail.order_number', ['number' => $number]));
 
         if (filled($this->note)) {
-            $mail->line("Note from the shop: {$this->note}");
+            $mail->line(__('mail.shop_note', ['note' => $this->note]));
         }
 
         if ($this->status === OrderStatus::Delivered) {
-            $mail->line("Receipt: {$this->order->total_amount} USD (subtotal {$this->order->subtotal}, shipping {$this->order->shipping_fee}, discount {$this->order->discount_amount}). Paid on delivery.")
-                ->line('If something is wrong with your books you can request a return from your account within the return period.');
+            $mail->line(__('mail.receipt_delivered', [
+                'total' => $this->order->total_amount,
+                'subtotal' => $this->order->subtotal,
+                'shipping' => $this->order->shipping_fee,
+                'discount' => $this->order->discount_amount,
+            ]))->line(__('mail.return_prompt'));
         }
 
         if ($this->status === OrderStatus::Cancelled) {
-            $mail->line('Any stock or coupon use was released. If you did not ask for this, please contact support.');
+            $mail->line(__('mail.order_cancelled_footer'));
         }
 
         return $mail;

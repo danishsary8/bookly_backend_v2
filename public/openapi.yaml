@@ -214,6 +214,7 @@ components:
         email_verified: { type: boolean }
         verified: { type: boolean, description: 'Email or phone proven; only verified customers can shop' }
         has_password: { type: boolean }
+        locale: { type: string, enum: [en, km], example: en }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
         sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, telegram] }, description: 'Ways this account can sign in today (password counts only with an email; telegram means a verified number, while the Telegram bot is on). The last one cannot be removed.' }
         pending_email: { type: string, nullable: true, description: 'Only on the customer''s own account: an address that was sent a code (Telegram sign-up, change email) and is added once POST /me/email/verify gets that code.' }
@@ -407,10 +408,23 @@ components:
           items: { type: object, properties: { id: { type: integer }, order_item_id: { type: integer }, title: { type: string }, format: { type: string }, quantity: { type: integer }, unit_price_usd: { $ref: '#/components/schemas/Money' }, reason: { type: string, nullable: true } } }
         refund_amount_usd: { $ref: '#/components/schemas/Money' }
         is_refund_final: { type: boolean, description: false while the amount is an estimate }
+        refund_method: { type: string, nullable: true, enum: [cash, bank_transfer, store_credit], description: null before the refund and for refunds made before methods were recorded }
+        refund_reference: { type: string, nullable: true, description: bank transfer reference }
+        refunded_at: { type: string, format: date-time, nullable: true }
+        store_credit: { type: object, nullable: true, properties: { code: { type: string }, amount_usd: { $ref: '#/components/schemas/Money' }, expires_at: { type: string, format: date-time } } }
         staff_note: { type: string, nullable: true }
         requested_at: { type: string, format: date-time }
         resolved_at: { type: string, format: date-time, nullable: true }
         can_withdraw: { type: boolean }
+    BookImportRow:
+      type: object
+      properties:
+        row_number: { type: integer, description: 'Data rows start at 2 (row 1 is the header)' }
+        action: { type: string, enum: [new, update, error] }
+        title: { type: string }
+        format: { type: string }
+        sku: { type: string }
+        messages: { type: array, items: { type: string } }
     Review:
       type: object
       properties:
@@ -430,6 +444,31 @@ components:
           properties:
             book: { type: object, properties: { id: { type: integer }, title: { type: string } } }
             is_visible: { type: boolean, description: false when staff have hidden the review }
+
+    StockAlert:
+      type: object
+      properties:
+        id: { type: integer }
+        book_variant_id: { type: integer }
+        created_at: { type: string, format: date-time }
+        notified_at: { type: string, format: date-time, nullable: true }
+        book:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            title: { type: string }
+            cover_image_url: { type: string, nullable: true }
+        variant:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            format: { type: string }
+            price_usd: { type: string }
+            stock_quantity: { type: integer }
+            is_active: { type: boolean }
+
 security:
   - bearer: []
 
@@ -439,12 +478,12 @@ paths:
   /health:
     get:
       tags: [Public]
-      summary: Database, queue and Telegram bot health for uptime monitors
+      summary: Liveness and database health for uptime monitors
       security: []
-      description: 'Includes checks.telegram_bot: off without a bot token; otherwise getWebhookInfo is cached for 10 minutes, including failures. Status is ok when the webhook URL matches this request''s API address (HTTPS in production) and no delivery error is dated within the last 30 minutes. Otherwise degraded with error: Telegram delivery message (token redacted), webhook not set, or Telegram unreachable. A degraded queue or bot makes overall status degraded; HTTP stays 200. Database down keeps the existing 503 response.'
+      description: 'Returns only status: "ok" (200) or status: "fail" (503). Database down returns 503. Detailed checks are restricted to admins on /staff/health.'
       responses:
-        '200': { description: 'status ok or degraded (queue jobs waiting > 10 min or Telegram bot degraded); checks include database, queue and telegram_bot' }
-        '503': { description: Database unreachable }
+        '200': { description: 'status ok' }
+        '503': { description: 'status fail (database unreachable)' }
   /telegram/webhook:
     post:
       tags: [Public]
@@ -470,6 +509,7 @@ paths:
         - { name: max_price, in: query, schema: { type: number } }
         - { name: in_stock, in: query, schema: { type: boolean } }
         - { name: sort, in: query, schema: { type: string, enum: [relevance, newest, price_asc, price_desc, title, rating] } }
+        - { name: ids, in: query, description: 'Comma-separated IDs or array (max 12); keeps order and drops missing/hidden books', schema: { type: string } }
         - $ref: '#/components/parameters/PerPage'
       responses:
         '200':
@@ -491,6 +531,22 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       responses:
         '200': { description: Book, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/BookDetail' } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /books/{id}/also-bought:
+    get:
+      tags: [Public]
+      summary: Up to 6 recommended books bought together with this book, fallback to category best sellers
+      security: []
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Recommended book cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
         '404': { $ref: '#/components/responses/NotFound' }
   /books/{id}/reviews:
     get:
@@ -612,7 +668,7 @@ paths:
     post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
   /me:
     get: { tags: [Customer], summary: 'Your profile', responses: { '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '200': { description: Customer, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } } } }
-    patch: { tags: [Customer], summary: 'Update name or phone', responses: { '200': { description: Updated } } }
+    patch: { tags: [Customer], summary: 'Update name, phone, or locale (en|km)', responses: { '200': { description: Updated } } }
     delete:
       tags: [Customer]
       summary: Close your own account
@@ -649,6 +705,77 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Provider' } ]
       description: 'Refused with reason=last_way_in when it is the only way left to sign in ("Add a password first, so you can still sign in."). A verified email gets a notice.'
       responses: { '200': { description: 'Disconnected (customer in the body)' }, '422': { description: 'It is the last way in' } }
+  /me/store-credits:
+    get:
+      tags: [Customer]
+      summary: Store credits of the signed-in customer (refunds paid as a coupon)
+      description: 'Newest first, including used and expired ones.'
+      responses:
+        '200':
+          description: Store credits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        code: { type: string, example: CREDIT-K7M2Q9XA }
+                        amount_usd: { $ref: '#/components/schemas/Money' }
+                        expires_at: { type: string, format: date-time, nullable: true }
+                        used: { type: boolean }
+                        expired: { type: boolean }
+                        created_at: { type: string, format: date-time }
+  /me/stock-alerts:
+    get:
+      tags: [Customer]
+      summary: Active and past stock alerts for the signed-in customer
+      responses:
+        '200':
+          description: Stock alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockAlert'
+    post:
+      tags: [Customer]
+      summary: Subscribe to back-in-stock alert for a physical variant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [book_variant_id]
+              properties:
+                book_variant_id: { type: integer, example: 1 }
+      responses:
+        '201':
+          description: Alert created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/StockAlert' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /me/stock-alerts/{id}:
+    delete:
+      tags: [Customer]
+      summary: Delete a stock alert
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /addresses:
     get: { tags: [Customer], summary: 'Saved addresses (default first)', responses: { '200': { description: Addresses, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Address' } } } } } } } } }
@@ -736,12 +863,61 @@ paths:
     post: { tags: [Staff auth], summary: 'Set password with an emailed code (also used by newly invited staff)', security: [], responses: { '200': { description: Reset } } }
 
   /staff/books:
-    get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, trashed)', responses: { '200': { description: Books } } }
-    post: { tags: [Staff catalog], summary: 'Create a book (title, publisher_id, series_id, author_ids, category_ids, ...)', responses: { '201': { description: Created } } }
+    get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, status, trashed)', responses: { '200': { description: Books } } }
+    post: { tags: [Staff catalog], summary: 'Create a book (title, status, publish_at, publisher_id, series_id, author_ids, category_ids, ...)', responses: { '201': { description: Created } } }
+  /staff/books/bulk:
+    post: { tags: [Staff catalog], summary: 'Bulk update books (ids, add/remove categories, status, publish_at)', responses: { '200': { description: Updated } } }
+  /staff/books/export:
+    get: { tags: [Staff catalog], summary: '(admin) Export books and variants as UTF-8 CSV with BOM', responses: { '200': { description: CSV } } }
+  /staff/books/export-template:
+    get: { tags: [Staff catalog], summary: '(admin) Download CSV import template', responses: { '200': { description: CSV } } }
+  /staff/books/import/preview:
+    post:
+      tags: [Staff catalog]
+      summary: '(admin) Preview CSV book import: nothing is written'
+      description: 'Same columns as the export (book_id ignored), one row per format; only `sku` is a required column. A row updates the format with the same SKU (any case), else the same ISBN (digits/X compared); otherwise it creates a new book + format (needs title, format, sku, price_usd; new books are drafts unless `status` says otherwise; rows with the same title and authors become one book). On an update a blank cell keeps the current value. Categories must exist; authors, publisher and series are created. `publish_at` is read in shop time. Max 2 MB and 2000 rows; quoted cells may span lines.'
+      requestBody: { content: { multipart/form-data: { schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } } } } }
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      preview_token: { type: string }
+                      totals: { type: object, properties: { total: { type: integer }, new: { type: integer }, update: { type: integer }, error: { type: integer } } }
+                      rows: { type: array, items: { $ref: '#/components/schemas/BookImportRow' } }
+  /staff/books/import/confirm:
+    post:
+      tags: [Staff catalog]
+      summary: '(admin) Apply a previewed import'
+      description: 'Checks every row again against the catalog as it is now, then applies the valid rows in one transaction (stock changes are logged as adjustments). The token works once, for 30 minutes, for the admin who made it.'
+      requestBody: { content: { application/json: { schema: { type: object, required: [preview_token], properties: { preview_token: { type: string } } } } } }
+      responses:
+        '200':
+          description: Imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      created: { type: integer }
+                      updated: { type: integer }
+                      skipped: { type: integer }
+                      errors: { type: array, items: { $ref: '#/components/schemas/BookImportRow' } }
   /staff/books/{id}:
     get: { tags: [Staff catalog], summary: 'Book with all variants', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Book } } }
     patch: { tags: [Staff catalog], summary: 'Update a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Staff catalog], summary: '(admin) Soft delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/variants/bulk:
+    post: { tags: [Staff catalog], summary: 'Bulk update variants (ids, stock_quantity, low_stock_threshold, is_active, price_usd)', responses: { '200': { description: Updated } } }
   /staff/books/{id}/restore:
     post: { tags: [Staff catalog], summary: '(admin) Restore a deleted book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Restored } } }
   /staff/books/{id}/variants:
@@ -749,6 +925,52 @@ paths:
   /staff/variants/{id}:
     patch: { tags: [Staff catalog], summary: 'Update a format; stock change logged as adjustment; is_active hides it', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Staff catalog], summary: '(admin) Delete if never ordered, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '409': { description: Ordered before } } }
+  /staff/variants/{id}/restock:
+    post:
+      tags: [Staff catalog]
+      summary: Restock physical variant (quantity, supplier, unit_cost_usd, note)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1, maximum: 10000 }
+                supplier: { type: string, maxLength: 150 }
+                unit_cost_usd: { type: number, minimum: 0, maximum: 99999.99 }
+                note: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Restocked }
+        '422': { description: 'Validation error or digital format' }
+  /staff/variants/{id}/stock-history:
+    get:
+      tags: [Staff catalog]
+      summary: Movement history with running balance and admin-only unit cost
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Movement history }
+  /staff/stock:
+    get:
+      tags: [Staff catalog]
+      summary: Physical variants stock overview (status=low|out, q search, sorted by stock ascending)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [low, out] }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, default: 20 }
+      responses:
+        '200': { description: Stock list }
   /staff/authors:
     post: { tags: [Staff catalog], summary: 'Create author', responses: { '201': { description: Created } } }
   /staff/authors/{id}:
@@ -833,7 +1055,22 @@ paths:
   /staff/returns/{id}/reject:
     post: { tags: [Staff operations], summary: 'Reject (note required)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Rejected } } }
   /staff/returns/{id}/refund:
-    post: { tags: [Staff operations], summary: 'Mark refunded: books back in stock, amount saved', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Refunded } } }
+    post:
+      tags: [Staff operations]
+      summary: 'Mark refunded: books back in stock and the refund record saved (how, who, when)'
+      description: 'store_credit makes a one-use fixed coupon CREDIT-XXXXXXXX for the refund amount, usable only by this customer, valid until 23:59:59 shop time on the same day 12 months later (for anyone else it answers like an unknown code).'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { type: string, enum: [cash, bank_transfer, store_credit] }
+                reference: { type: string, maxLength: 100, description: 'Optional; only allowed for bank_transfer' }
+                note: { type: string, maxLength: 1000 }
+      responses: { '200': { description: Refunded } }
   /staff/reviews:
     get: { tags: [Staff operations], summary: 'Reviews (visible, book_id, max_rating, q)', responses: { '200': { description: Reviews } } }
   /staff/reviews/{id}/hide:
@@ -866,8 +1103,63 @@ paths:
                 confirm: { type: string }
       responses:
         '200': { description: 'Closed customer' }
-        '403': { description: Forbidden }
-        '422': { description: 'Validation error, invalid password/code, wrong confirm, or open orders/returns' }
+  /staff/customers/{id}/notes:
+    get:
+      tags: [Staff operations]
+      summary: 'List customer notes'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: Notes } }
+    post:
+      tags: [Staff operations]
+      summary: 'Add note to customer'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+      responses: { '201': { description: Created } }
+  /staff/customer-notes/{id}:
+    delete:
+      tags: [Staff operations]
+      summary: 'Delete customer note (author or admin only)'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '204': { description: Deleted }, '403': { description: Forbidden } }
+  /staff/customers/{id}/tags:
+    put:
+      tags: [Staff operations]
+      summary: 'Update customer tags (replaces set)'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags: { type: array, items: { type: string, maxLength: 40 }, maxItems: 10 }
+      responses: { '200': { description: 'Updated tags' } }
+  /staff/customer-tags:
+    get:
+      tags: [Staff operations]
+      summary: 'Customer tag suggestions with customer count'
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+      responses: { '200': { description: Tags } }
+  /staff/customers/{id}/resend-verification:
+    post:
+      tags: [Staff operations]
+      summary: 'Resend verification email to unverified customer'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: 'Sent' }, '422': { description: 'No email or already verified' }, '429': { description: 'Rate limit (3/hour)' } }
   /staff/notifications:
     get: { tags: [Staff operations], summary: 'In-app alerts (low stock); unread=1', responses: { '200': { description: Notifications } } }
   /staff/notifications/read-all:
@@ -975,3 +1267,176 @@ paths:
         - { $ref: '#/components/parameters/To' }
         - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
       responses: { '200': { description: Coupons and refunds report data or CSV stream } }
+  /newsletter/subscribe:
+    post:
+      tags: [Newsletter]
+      summary: Subscribe to newsletter (sends double opt-in confirmation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                locale: { type: string, enum: [en, km] }
+                turnstile_token: { type: string }
+      responses:
+        '202': { description: Confirmation email sent }
+  /newsletter/confirm:
+    post:
+      tags: [Newsletter]
+      summary: Confirm newsletter subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { description: Confirmed }
+        '422': { description: Invalid token }
+  /newsletter/unsubscribe:
+    post:
+      tags: [Newsletter]
+      summary: Unsubscribe from newsletter via web token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { description: Unsubscribed }
+        '422': { description: Invalid token }
+  /newsletter/unsubscribe/one-click:
+    post:
+      tags: [Newsletter]
+      summary: RFC 8058 one-click unsubscribe
+      parameters:
+        - { name: token, in: query, required: false, schema: { type: string } }
+      responses:
+        '200': { description: Unsubscribed }
+        '422': { description: Invalid token }
+  /me/newsletter:
+    get:
+      tags: [Customer]
+      summary: View customer newsletter subscription status
+      responses:
+        '200': { description: Subscription status }
+    put:
+      tags: [Customer]
+      summary: Toggle newsletter subscription for verified customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscribed]
+              properties:
+                subscribed: { type: boolean }
+                locale: { type: string, enum: [en, km] }
+      responses:
+        '200': { description: Subscription updated }
+        '403': { description: Unverified customer }
+  /staff/newsletter/summary:
+    get:
+      tags: [Admin]
+      summary: (admin) Summary counts of newsletter subscribers by status
+      responses:
+        '200': { description: Subscriber counts }
+  /staff/newsletter/campaigns:
+    get:
+      tags: [Admin]
+      summary: (admin) List newsletter campaigns
+      description: 'Paginated, newest first. Each campaign has `status` (draft|sending|sent), `recipients_total` and `sent_count` (emails that have really gone out; the outbox sends at most MARKETING_DAILY_LIMIT a day). A campaign becomes `sent` when its last email has gone out.'
+      responses:
+        '200': { description: Campaigns list }
+    post:
+      tags: [Admin]
+      summary: (admin) Create draft newsletter campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_en, body_en]
+              properties:
+                subject_en: { type: string }
+                subject_km: { type: string }
+                body_en: { type: string }
+                body_km: { type: string }
+                book_ids: { type: array, items: { type: integer } }
+      responses:
+        '201': { description: Campaign created }
+  /staff/newsletter/campaigns/{id}:
+    get:
+      tags: [Admin]
+      summary: (admin) Show newsletter campaign
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Campaign details }
+    put:
+      tags: [Admin]
+      summary: (admin) Update draft newsletter campaign
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_en, body_en]
+              properties:
+                subject_en: { type: string }
+                subject_km: { type: string }
+                body_en: { type: string }
+                body_km: { type: string }
+                book_ids: { type: array, items: { type: integer } }
+      responses:
+        '200': { description: Campaign updated }
+        '422': { description: Not draft or validation failed }
+    delete:
+      tags: [Admin]
+      summary: (admin) Delete draft newsletter campaign
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Campaign deleted }
+        '422': { description: Not draft }
+  /staff/newsletter/campaigns/{id}/test:
+    post:
+      tags: [Admin]
+      summary: (admin) Send test newsletter to admin email
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Test email sent }
+  /staff/newsletter/campaigns/{id}/send:
+    post:
+      tags: [Admin]
+      summary: (admin) Send newsletter campaign to confirmed subscribers
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Queued to outbox with estimated days }
+        '422': { description: Not draft or already sent }
+  /staff/health:
+    get:
+      tags: [Admin]
+      summary: (admin) Detailed system health (database, queue, telegram bot)
+      responses:
+        '200': { description: 'status ok or degraded; checks include database, queue and telegram_bot' }
+        '503': { description: 'status down (database unreachable)' }
+

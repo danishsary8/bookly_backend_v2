@@ -65,7 +65,7 @@ class ConnectionController extends Controller
         } catch (UniqueConstraintViolationException) {
             return response()->json(['message' => "This {$name} account is already used by another Bookly account."], 409);
         }
-        $this->notice($customer, "{$name} was connected to your Bookly account", "You can now sign in to Bookly with {$name}.");
+        $this->notice($customer, "{$name} was connected to your Bookly account", "You can now sign in to Bookly with {$name}.", 'connected', $name);
 
         return response()->json(['message' => "{$name} connected. You can now sign in with it.", 'customer' => new CustomerResource($customer)]);
     }
@@ -85,15 +85,15 @@ class ConnectionController extends Controller
         }
 
         $customer->forceFill([$column => null])->save();
-        $this->notice($customer, "{$name} was disconnected from your Bookly account", "{$name} can no longer be used to sign in to Bookly.");
+        $this->notice($customer, "{$name} was disconnected from your Bookly account", "{$name} can no longer be used to sign in to Bookly.", 'disconnected', $name);
 
         return response()->json(['message' => "{$name} disconnected.", 'customer' => new CustomerResource($customer)]);
     }
 
-    private function notice(Customer $customer, string $subject, string $what): void
+    private function notice(Customer $customer, string $subject, string $what, string $key, string $name): void
     {
         if ($customer->email !== null && $customer->hasVerifiedEmail()) {
-            $customer->notify(new AccountSecurityNotice($subject, $what));
+            $customer->notify(new AccountSecurityNotice($subject, $what, $key, ['name' => $name]));
         }
     }
 }

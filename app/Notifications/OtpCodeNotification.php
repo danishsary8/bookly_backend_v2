@@ -26,15 +26,15 @@ class OtpCodeNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $subject = match ($this->purpose) {
-            VerificationPurpose::EmailVerify => 'Verify your email address',
-            VerificationPurpose::EmailChange => 'Confirm your new email address',
-            default => 'Reset your password',
+            VerificationPurpose::EmailVerify => __('mail.otp_subject_verify_email'),
+            VerificationPurpose::EmailChange => __('mail.otp_subject_change_email'),
+            default => __('mail.otp_subject_reset_password'),
         };
 
         return (new MailMessage)
             ->subject($subject)
-            ->line("Your verification code is: {$this->code}")
-            ->line("This code expires in {$this->ttlMinutes} minutes.")
-            ->line('If you did not request this, you can ignore this email.');
+            ->line(__('mail.otp_code', ['code' => $this->code]))
+            ->line(__('mail.otp_expires', ['minutes' => $this->ttlMinutes]))
+            ->line(__('mail.otp_ignore'));
     }
 }

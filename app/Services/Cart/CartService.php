@@ -92,14 +92,14 @@ class CartService
         $variant = $item->variant;
         $issues = [];
 
-        if (! $variant->is_active || $variant->book === null || $variant->book->trashed()) {
-            $issues[] = ['code' => 'unavailable', 'message' => 'This item is no longer available.'];
+        if (! $variant->is_active || $variant->book === null || $variant->book->trashed() || ! $variant->book->isPublic()) {
+            $issues[] = ['code' => 'unavailable', 'message' => __('messages.item_unavailable')];
         } elseif (! $variant->format->isDigital() && $variant->stock_quantity === 0) {
-            $issues[] = ['code' => 'out_of_stock', 'message' => 'This item is out of stock.'];
+            $issues[] = ['code' => 'out_of_stock', 'message' => __('messages.out_of_stock')];
         } elseif (! $variant->format->isDigital() && $item->quantity > $variant->stock_quantity) {
             $issues[] = [
                 'code' => 'insufficient_stock',
-                'message' => "Only {$variant->stock_quantity} left in stock. Please lower the quantity.",
+                'message' => __('messages.insufficient_stock', ['count' => $variant->stock_quantity]),
                 'available_quantity' => $variant->stock_quantity,
             ];
         }
@@ -107,7 +107,7 @@ class CartService
         if ($item->unit_price_at_add !== null && Money::toCents($item->unit_price_at_add) !== Money::toCents($variant->price_usd)) {
             $issues[] = [
                 'code' => 'price_changed',
-                'message' => "The price changed from {$item->unit_price_at_add} to {$variant->price_usd} USD since you added it.",
+                'message' => __('messages.price_changed', ['previous' => $item->unit_price_at_add, 'current' => $variant->price_usd]),
                 'previous_price_usd' => $item->unit_price_at_add,
             ];
         }
@@ -126,30 +126,30 @@ class CartService
     {
         $fail = fn (string $message) => throw ValidationException::withMessages(['quantity' => $message]);
 
-        if (! $variant->is_active || $variant->book === null || $variant->book->trashed()) {
-            throw ValidationException::withMessages(['book_variant_id' => 'This item is not available.']);
+        if (! $variant->is_active || $variant->book === null || $variant->book->trashed() || ! $variant->book->isPublic()) {
+            throw ValidationException::withMessages(['book_variant_id' => __('messages.item_unavailable')]);
         }
 
         if ($variant->format->isDigital()) {
             if ($quantity > 1) {
                 $fail($alreadyInCart
-                    ? 'This ebook/audiobook is already in your cart.'
-                    : 'Ebooks and audiobooks can only be bought once per order.');
+                    ? __('messages.digital_already_in_cart')
+                    : __('messages.digital_single'));
             }
 
             return;
         }
 
         if ($quantity > self::MAX_PER_LINE) {
-            $fail('You can buy up to '.self::MAX_PER_LINE.' copies of the same item per order.');
+            $fail(__('messages.max_per_line', ['max' => self::MAX_PER_LINE]));
         }
 
         if ($variant->stock_quantity === 0) {
-            $fail('This item is out of stock.');
+            $fail(__('messages.out_of_stock'));
         }
 
         if ($quantity > $variant->stock_quantity) {
-            $fail("Only {$variant->stock_quantity} left in stock.");
+            $fail(__('messages.insufficient_stock_simple', ['count' => $variant->stock_quantity]));
         }
     }
 

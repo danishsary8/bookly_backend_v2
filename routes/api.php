@@ -13,28 +13,38 @@ use App\Http\Controllers\Api\V1\Customer\CheckoutController;
 use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\EmailController;
+use App\Http\Controllers\Api\V1\Customer\NewsletterCustomerController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
+use App\Http\Controllers\Api\V1\Customer\StockAlertController;
+use App\Http\Controllers\Api\V1\Customer\StoreCreditController;
 use App\Http\Controllers\Api\V1\Customer\TelegramAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Newsletter\NewsletterController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
 use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
 use App\Http\Controllers\Api\V1\Staff\Admin\OrderExportController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ReportsController;
+use App\Http\Controllers\Api\V1\Staff\Admin\StaffHealthController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookBulkController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookCsvController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\StockController;
 use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
+use App\Http\Controllers\Api\V1\Staff\CustomerNoteController;
+use App\Http\Controllers\Api\V1\Staff\CustomerTagController;
 use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificationController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderBulkStatusController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
@@ -42,6 +52,7 @@ use App\Http\Controllers\Api\V1\Staff\Orders\OrderDocumentController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
+use App\Http\Controllers\Api\V1\Staff\StaffNewsletterController;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -56,6 +67,7 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 */
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
+Route::get('/books/{book}/also-bought', [BookController::class, 'alsoBought'])->whereNumber('book');
 Route::get('/books/{book}/reviews', [BookReviewController::class, 'index'])->whereNumber('book');
 Route::get('/authors', [AuthorController::class, 'index']);
 Route::get('/authors/{author}', [AuthorController::class, 'show'])->whereNumber('author');
@@ -63,6 +75,16 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/publishers', [PublisherController::class, 'index']);
 Route::get('/series', [SeriesController::class, 'index']);
 Route::get('/series/{series}', [SeriesController::class, 'show'])->whereNumber('series');
+
+/*
+| Public newsletter (double opt-in, unsubscribe, RFC 8058 one-click)
+*/
+Route::prefix('newsletter')->group(function () {
+    Route::post('/subscribe', [NewsletterController::class, 'subscribe'])->middleware('throttle:newsletter-subscribe');
+    Route::post('/confirm', [NewsletterController::class, 'confirm']);
+    Route::post('/unsubscribe', [NewsletterController::class, 'unsubscribe']);
+    Route::post('/unsubscribe/one-click', [NewsletterController::class, 'oneClickUnsubscribe']);
+});
 
 /*
 | Customer authentication
@@ -99,6 +121,12 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::post('/email/verify', [EmailController::class, 'verify'])->middleware('throttle:auth');
     Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
     Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
+    Route::get('/store-credits', [StoreCreditController::class, 'index']);
+    Route::get('/stock-alerts', [StockAlertController::class, 'index']);
+    Route::post('/stock-alerts', [StockAlertController::class, 'store']);
+    Route::delete('/stock-alerts/{stockAlert}', [StockAlertController::class, 'destroy'])->whereNumber('stockAlert');
+    Route::get('/newsletter', [NewsletterCustomerController::class, 'show']);
+    Route::put('/newsletter', [NewsletterCustomerController::class, 'update']);
 });
 
 /*
@@ -184,6 +212,12 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
 
     Route::get('/customers', [StaffCustomerController::class, 'index']);
     Route::get('/customers/{customer}', [StaffCustomerController::class, 'show'])->withTrashed();
+    Route::get('/customers/{customer}/notes', [CustomerNoteController::class, 'index'])->whereNumber('customer');
+    Route::post('/customers/{customer}/notes', [CustomerNoteController::class, 'store'])->whereNumber('customer');
+    Route::delete('/customer-notes/{note}', [CustomerNoteController::class, 'destroy'])->whereNumber('note');
+    Route::put('/customers/{customer}/tags', [CustomerTagController::class, 'update'])->whereNumber('customer');
+    Route::get('/customer-tags', [CustomerTagController::class, 'suggestions']);
+    Route::post('/customers/{customer}/resend-verification', [StaffCustomerController::class, 'resendVerification'])->whereNumber('customer');
 
     Route::get('/reviews', [StaffReviewController::class, 'index']);
     Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review');
@@ -195,6 +229,11 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/books/{book}', [StaffBookController::class, 'update']);
     Route::post('/books/{book}/variants', [StaffBookVariantController::class, 'store']);
     Route::patch('/variants/{variant}', [StaffBookVariantController::class, 'update']);
+    Route::post('/variants/{variant}/restock', [StockController::class, 'restock'])->whereNumber('variant');
+    Route::get('/variants/{variant}/stock-history', [StockController::class, 'history'])->whereNumber('variant');
+    Route::get('/stock', [StockController::class, 'index']);
+    Route::post('/books/bulk', [BookBulkController::class, 'bulkBooks']);
+    Route::post('/variants/bulk', [BookBulkController::class, 'bulkVariants']);
     Route::post('/authors', [StaffAuthorController::class, 'store']);
     Route::patch('/authors/{author}', [StaffAuthorController::class, 'update']);
     Route::post('/categories', [StaffCategoryController::class, 'store']);
@@ -207,6 +246,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show']);
 
     Route::middleware('abilities:admin')->group(function () {
+        Route::get('/books/export', [BookCsvController::class, 'export']);
+        Route::get('/books/export-template', [BookCsvController::class, 'template']);
+        Route::post('/books/import/preview', [BookCsvController::class, 'preview'])->middleware('throttle:book-import');
+        Route::post('/books/import/confirm', [BookCsvController::class, 'confirm'])->middleware('throttle:book-import');
         Route::get('/members', [StaffMemberController::class, 'index']);
         Route::post('/members', [StaffMemberController::class, 'store']);
         Route::patch('/members/{member}', [StaffMemberController::class, 'update']);
@@ -246,5 +289,16 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         // Owner 2026-10-15 (security review): a coupon gives money away, so only admins make or change them.
         Route::post('/coupons', [StaffCouponController::class, 'store']);
         Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
+
+        Route::get('/newsletter/summary', [StaffNewsletterController::class, 'summary']);
+        Route::get('/newsletter/campaigns', [StaffNewsletterController::class, 'indexCampaigns']);
+        Route::post('/newsletter/campaigns', [StaffNewsletterController::class, 'storeCampaign']);
+        Route::get('/newsletter/campaigns/{campaign}', [StaffNewsletterController::class, 'showCampaign'])->whereNumber('campaign');
+        Route::put('/newsletter/campaigns/{campaign}', [StaffNewsletterController::class, 'updateCampaign'])->whereNumber('campaign');
+        Route::delete('/newsletter/campaigns/{campaign}', [StaffNewsletterController::class, 'destroyCampaign'])->whereNumber('campaign');
+        Route::post('/newsletter/campaigns/{campaign}/test', [StaffNewsletterController::class, 'testSend'])->whereNumber('campaign');
+        Route::post('/newsletter/campaigns/{campaign}/send', [StaffNewsletterController::class, 'send'])->whereNumber('campaign');
+
+        Route::get('/health', [StaffHealthController::class, 'show']);
     });
 });

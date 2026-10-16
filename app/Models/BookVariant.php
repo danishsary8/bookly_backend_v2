@@ -13,7 +13,7 @@ class BookVariant extends Model
     use HasFactory;
 
     protected $fillable = [
-        'format', 'isbn', 'sku', 'price_usd', 'stock_quantity', 'low_stock_threshold', 'cover_image_url', 'is_active',
+        'book_id', 'format', 'isbn', 'sku', 'price_usd', 'stock_quantity', 'low_stock_threshold', 'cover_image_url', 'is_active',
     ];
 
     protected function casts(): array

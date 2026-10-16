@@ -6,6 +6,7 @@ use App\Notifications\WelcomeNotification;
 use App\Services\Telegram\TelegramBot;
 use App\Support\PhoneNumber;
 use App\Support\SafeNotifier;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -17,11 +18,11 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 
-class Customer extends Authenticatable
+class Customer extends Authenticatable implements HasLocalePreference
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
-    protected $fillable = ['name', 'email', 'password_hash', 'phone', 'phone_e164', 'google_id', 'facebook_id', 'email_verified_at', 'phone_verified_at', 'is_active'];
+    protected $fillable = ['name', 'email', 'locale', 'password_hash', 'phone', 'phone_e164', 'google_id', 'facebook_id', 'email_verified_at', 'phone_verified_at', 'is_active'];
 
     protected $hidden = ['password_hash', 'google_id', 'facebook_id'];
 
@@ -59,6 +60,11 @@ class Customer extends Authenticatable
                 DB::afterCommit(fn () => SafeNotifier::toCustomer($customer, new WelcomeNotification));
             }
         });
+    }
+
+    public function preferredLocale(): string
+    {
+        return in_array($this->locale, ['en', 'km'], true) ? $this->locale : 'en';
     }
 
     public function getAuthPasswordName(): string
@@ -147,5 +153,15 @@ class Customer extends Authenticatable
     public function returns(): HasMany
     {
         return $this->hasMany(OrderReturn::class);
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(CustomerNote::class)->latest('created_at');
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomerTag::class, 'customer_customer_tag')->orderBy('name');
     }
 }

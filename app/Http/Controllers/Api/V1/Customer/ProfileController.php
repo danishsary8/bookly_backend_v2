@@ -31,6 +31,7 @@ class ProfileController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'locale' => ['sometimes', 'required', 'string', Rule::in(['en', 'km'])],
         ]);
 
         $request->user()->update($data);
@@ -57,7 +58,7 @@ class ProfileController extends Controller
         $customer->update(['password_hash' => $data['password']]);
         $customer->tokens()->where('id', '!=', $customer->currentAccessToken()->id)->delete();
         // So the owner of the account notices a change they didn't make. Never blocks the change.
-        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was changed', 'The password of your Bookly account was just changed, and other devices were signed out.'));
+        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was changed', 'The password of your Bookly account was just changed, and other devices were signed out.', 'password_changed'));
 
         return response()->json(['message' => 'Password changed. Other sessions were signed out.']);
     }
@@ -70,19 +71,41 @@ class ProfileController extends Controller
     public function destroy(Request $request, ClosedCustomers $closed, SocialTokenVerifier $verifier): JsonResponse
     {
         $customer = $request->user();
-        $data = $request->validate([
-            'confirm' => ['required', Rule::in(['DELETE'])],
-            'password' => [$customer->password_hash !== null ? 'required' : 'nullable', 'string'],
-            'provider' => [$customer->password_hash === null ? 'required' : 'nullable', Rule::in(['google', 'facebook'])],
-            'access_token' => [$customer->password_hash === null ? 'required' : 'nullable', 'string', 'max:4096'],
-        ], ['confirm.in' => 'Type DELETE to confirm.', 'confirm.required' => 'Type DELETE to confirm.']);
+        $hasPassword = $customer->password_hash !== null;
+        $needsSocial = ! $hasPassword && $customer->hasVerifiedEmail();
 
-        if ($customer->password_hash !== null) {
+        $rules = [
+            'confirm' => ['required', Rule::in(['DELETE'])],
+        ];
+
+        if ($hasPassword) {
+            $rules['password'] = ['required', 'string'];
+        } elseif ($needsSocial) {
+            $rules['provider'] = ['required', Rule::in(['google', 'facebook'])];
+            $rules['access_token'] = ['required', 'string', 'max:4096'];
+        } else {
+            $rules['password'] = ['nullable', 'string'];
+            $rules['provider'] = ['nullable', 'string'];
+            $rules['access_token'] = ['nullable', 'string'];
+        }
+
+        $data = $request->validate($rules, [
+            'confirm.in' => 'Type DELETE to confirm.',
+            'confirm.required' => 'Type DELETE to confirm.',
+        ]);
+
+        if ($hasPassword) {
             if (! Hash::check($data['password'], $customer->password_hash)) {
                 return response()->json(['message' => 'That password is incorrect.', 'errors' => ['password' => ['That password is incorrect.']]], 422);
             }
-        } elseif (! $this->sameSocialAccount($customer, $data['provider'], $data['access_token'], $verifier)) {
-            return response()->json(['message' => 'Sign in with the '.ucfirst($data['provider']).' account linked to Bookly to confirm.'], 422);
+        } elseif ($needsSocial) {
+            if (! $this->sameSocialAccount($customer, $data['provider'], $data['access_token'], $verifier)) {
+                return response()->json(['message' => 'Sign in with the '.ucfirst($data['provider']).' account linked to Bookly to confirm.'], 422);
+            }
+        } else {
+            if ($problem = $this->identityProblem($customer, null)) {
+                return $problem;
+            }
         }
 
         if ($blocker = $closed->blocker($customer)) {

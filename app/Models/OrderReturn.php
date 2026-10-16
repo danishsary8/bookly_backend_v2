@@ -12,7 +12,10 @@ class OrderReturn extends Model
 {
     protected $table = 'returns';
 
-    protected $fillable = ['order_id', 'customer_id', 'reason', 'status', 'refund_amount', 'staff_note', 'handled_by_staff_id', 'requested_at', 'resolved_at'];
+    protected $fillable = [
+        'order_id', 'customer_id', 'reason', 'status', 'refund_amount', 'staff_note', 'handled_by_staff_id',
+        'requested_at', 'resolved_at', 'refund_method', 'refund_reference', 'refunded_by_staff_id', 'refunded_at', 'store_credit_coupon_id',
+    ];
 
     protected function casts(): array
     {
@@ -21,6 +24,7 @@ class OrderReturn extends Model
             'refund_amount' => 'decimal:2',
             'requested_at' => 'datetime',
             'resolved_at' => 'datetime',
+            'refunded_at' => 'datetime',
         ];
     }
 
@@ -37,6 +41,16 @@ class OrderReturn extends Model
     public function handledBy(): BelongsTo
     {
         return $this->belongsTo(StaffUser::class, 'handled_by_staff_id');
+    }
+
+    public function refundedBy(): BelongsTo
+    {
+        return $this->belongsTo(StaffUser::class, 'refunded_by_staff_id');
+    }
+
+    public function storeCreditCoupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class, 'store_credit_coupon_id');
     }
 
     public function items(): HasMany

@@ -54,6 +54,7 @@ class AuthController extends Controller
             // A contact number for email sign-ups; with Telegram the proven number comes from the bot afterwards.
             'phone' => ['nullable', 'string', 'max:30'],
             'verify_by' => ['nullable', Rule::in(['email', 'telegram'])],
+            'locale' => ['nullable', 'string', Rule::in(['en', 'km'])],
             'turnstile_token' => [new Turnstile($request->ip())],
         ]);
         if ($byTelegram && ! TelegramBot::enabled()) {
@@ -79,6 +80,7 @@ class AuthController extends Controller
                     'name' => $data['name'],
                     'password_hash' => $data['password'],
                     'phone' => $byTelegram ? null : ($data['phone'] ?? null),
+                    'locale' => $data['locale'] ?? 'en',
                 ]);
                 if ($existing !== null) {
                     $customer->created_at = now(); // the 48 hours to verify start again
@@ -234,7 +236,7 @@ class AuthController extends Controller
             'email_verified_at' => $customer->email_verified_at ?? now(),
         ])->save();
         $customer->tokens()->delete();
-        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was reset', 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.'));
+        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was reset', 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.', 'password_reset'));
 
         return response()->json(['message' => 'Password reset. Please log in again.']);
     }

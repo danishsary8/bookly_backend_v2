@@ -50,7 +50,7 @@ class OrderResource extends JsonResource
             'delivery_note' => $this->delivery_note,
             'status_history' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($h) => [
                 'status' => $h->status->value,
-                'note' => $h->note,
+                'note' => $h->note === 'Order placed.' ? __('messages.order_placed_note') : $h->note,
                 'created_at' => $h->created_at,
             ])->values()),
         ];

@@ -28,7 +28,7 @@ class CouponCheckController extends Controller
         $wrongKey = 'coupon-wrong:'.$request->user()->getKey();
 
         if ((int) Cache::get($wrongKey, 0) >= self::MAX_WRONG) {
-            return response()->json(['message' => 'Too many wrong coupon codes. Please try again in '.self::LOCK_MINUTES.' minutes.'], 429)
+            return response()->json(['message' => __('messages.coupon_locked', ['minutes' => self::LOCK_MINUTES])], 429)
                 ->header('Retry-After', (string) (self::LOCK_MINUTES * 60));
         }
 

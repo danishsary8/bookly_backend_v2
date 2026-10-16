@@ -180,6 +180,8 @@ class TelegramWebhookController extends Controller
         SafeNotifier::toCustomer($customer, new AccountSecurityNotice(
             'New sign-in to Bookly with Telegram',
             "Your Bookly account was signed in with Telegram on {$at} (Phnom Penh time). If this wasn't you, open the Bookly bot and tap “".self::SIGN_OUT_BUTTON.'”, or contact us.',
+            'telegram_sign_in',
+            ['at' => $at, 'button' => self::SIGN_OUT_BUTTON],
         ));
 
         return $this->reply($chatId, "✅ {$message}\n\nSigned in on {$at}. Not you? Tap “".self::SIGN_OUT_BUTTON.'” within 24 hours.', [
@@ -227,6 +229,8 @@ class TelegramWebhookController extends Controller
             SafeNotifier::toCustomer($customer, new AccountSecurityNotice(
                 'A phone number was added to your Bookly account',
                 PhoneNumber::display($phone).' can now sign in to your Bookly account with Telegram. If this wasn\'t you, reset your password and contact us.',
+                'phone_added',
+                ['phone' => PhoneNumber::display($phone)],
             ));
         }
 

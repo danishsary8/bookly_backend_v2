@@ -26,23 +26,28 @@ class OrderPlacedNotification extends Notification implements ShouldQueue
     {
         $order = $this->order->loadMissing(['items.variant.book' => fn ($q) => $q->withTrashed()]);
         $mail = (new MailMessage)
-            ->subject("Order confirmed: {$order->order_number}")
-            ->greeting("Thank you for your order, {$notifiable->name}!")
-            ->line("Order number: {$order->order_number}");
+            ->subject(__('mail.order_placed_subject', ['number' => $order->order_number]))
+            ->greeting(__('mail.order_placed_greeting', ['name' => $notifiable->name]))
+            ->line(__('mail.order_number', ['number' => $order->order_number]));
 
         foreach ($order->items as $item) {
             $mail->line("{$item->quantity} x {$item->bookTitle()} ({$item->bookFormat()?->value}) — {$item->subtotal} USD");
         }
 
-        $mail->line("Subtotal: {$order->subtotal} USD");
+        $mail->line(__('mail.subtotal', ['amount' => $order->subtotal]));
         if ((float) $order->discount_amount > 0) {
-            $mail->line("Discount: -{$order->discount_amount} USD");
+            $mail->line(__('mail.discount', ['amount' => $order->discount_amount]));
         }
 
         return $mail
-            ->line("Shipping: {$order->shipping_fee} USD")
-            ->line("Total: {$order->total_amount} USD")
-            ->line('Payment: cash on delivery.')
-            ->line("Delivery to: {$order->shipping_recipient_name}, {$order->shipping_address_line1}, {$order->shipping_city}, {$order->shipping_country}");
+            ->line(__('mail.shipping', ['amount' => $order->shipping_fee]))
+            ->line(__('mail.total', ['amount' => $order->total_amount]))
+            ->line(__('mail.payment_cod'))
+            ->line(__('mail.delivery_to', [
+                'recipient' => $order->shipping_recipient_name,
+                'address' => $order->shipping_address_line1,
+                'city' => $order->shipping_city,
+                'country' => $order->shipping_country,
+            ]));
     }
 }

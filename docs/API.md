@@ -13,13 +13,13 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | /ping | `{"status":"ok","version":"v1"}` |
-| GET | /health | `{status: ok\|degraded\|down, checks: {database, queue {pending, failed, oldest_pending_seconds}, telegram_bot {status: off\|ok\|degraded, error?}}}`. Database down keeps the existing 503 response. Otherwise HTTP 200; overall `degraded` when a queued job has waited over 10 minutes or the bot is degraded. Bot `off` without a token; `getWebhookInfo` cached 10 minutes (including failures). Bot `ok` when its URL matches this request's webhook address (HTTPS in production, as with `ensureWebhook()`) and no delivery error is dated within the last 30 minutes; otherwise `error` is the delivery message (token redacted), `webhook not set`, or `Telegram unreachable`. For uptime monitors. |
+| GET | /health | `{"status":"ok"}` (HTTP 200) or `{"status":"fail"}` (HTTP 503). Public health check for uptime monitors without exposing internal infrastructure details. Side-effects (such as Telegram webhook auto-repair) run automatically. Detailed diagnostic health metrics are restricted to admins via `GET /staff/health`. |
 
 ## Customer auth
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
 | GET | /auth/options | — | `{ telegram }`: true once `TELEGRAM_BOT_TOKEN` is set (sign-up, sign-in and Facebook then offer Telegram) |
-| POST | /auth/register | name, email (optional with `verify_by=telegram`), password, password_confirmation, phone?, verify_by? (`email`/`telegram`), turnstile_token* | 201 + token + `verify_by`. `email`: sends a 6-digit code (phone? is just a contact number). `telegram` (422 on `verify_by` while the bot is off): no code and no typed number; the website continues with `POST /auth/telegram/phone`, and the number shared in the bot verifies the account (it then signs in with Continue with Telegram). With `telegram` a typed email is not saved yet: it gets an email-change code and `pending_email` is in the answer (and on `GET /me`); `POST /me/email/verify` adds it. An email sign-up takes over an email whose sign-up was never verified (new name/password, old sessions and codes cancelled) and takes an unproven copy off a phone account (security review 2026-10-15); a proven email or a deactivated or deleted account keeps it (422 "An account with this email already exists…"). Forgot/reset password never works through an unproven email on a phone account. |
+| POST | /auth/register | name, email (optional with `verify_by=telegram`), password, password_confirmation, phone?, verify_by? (`email`/`telegram`), locale? (`en`/`km`), turnstile_token* | 201 + token + `verify_by`. `email`: sends a 6-digit code (phone? is just a contact number). `telegram` (422 on `verify_by` while the bot is off): no code and no typed number; the website continues with `POST /auth/telegram/phone`, and the number shared in the bot verifies the account (it then signs in with Continue with Telegram). With `telegram` a typed email is not saved yet: it gets an email-change code and `pending_email` is in the answer (and on `GET /me`); `POST /me/email/verify` adds it. An email sign-up takes over an email whose sign-up was never verified (new name/password, old sessions and codes cancelled) and takes an unproven copy off a phone account (security review 2026-10-15); a proven email or a deactivated or deleted account keeps it (422 "An account with this email already exists…"). Forgot/reset password never works through an unproven email on a phone account. |
 | POST | /auth/login | email, password, turnstile_token* | token (7 days) |
 | POST | /auth/logout | — | auth |
 | POST | /auth/verify-email | code | auth. The first verification of an account (email code, Telegram phone, verified social email) sends one welcome email. A code is thrown away after 5 wrong guesses (ask for a new one) |
@@ -34,13 +34,17 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 
 \* `turnstile_token`: the Cloudflare Turnstile token from the form. Required (422 `turnstile_token` "We couldn't check that you're a person…") once `TURNSTILE_SECRET_KEY` is set; ignored while it's empty. Checked with Cloudflare's siteverify and the visitor's IP; if Cloudflare can't be reached the request is refused.
 | GET | /me | — | auth |
-| PATCH | /me | name?, phone? | auth |
+| PATCH | /me | name?, phone?, locale? (`en`/`km`) | auth |
 | PUT | /me/password | current_password (not needed if social-only), password, password_confirmation | auth, signs out other sessions, emails a security notice ("Your Bookly password was changed"). A **first** password (account without one): **New way in** (security review 2026-10-15): accounts with a password type it; accounts without one must have signed in within the last 10 minutes, else 403 `reason: sign_in_again` "For your safety, sign in again first, then try this within 10 minutes." |
-| DELETE | /me | confirm=`DELETE`, password (or provider + access_token for accounts without a password) | auth. Closes the account: refused (422) while an order is on its way or a return is open; signs out everywhere, removes reviews, wishlist and cart, hides the account. `customers:erase-closed` (daily, and at most hourly from the staff customer list) erases name, email, phone, sign-in ids and addresses after `CLOSED_ACCOUNT_DAYS` (30); orders and returns are kept. |
+| DELETE | /me | confirm=`DELETE`, password (or provider + access_token for social accounts; fresh sign-in within 10 min for passwordless accounts without verified email) | auth. Closes the account: refused (422) while an order is on its way or a return is open; signs out everywhere, removes reviews, wishlist and cart, hides the account. Accounts without a password or verified email (e.g. Telegram-only) require a fresh token (< 10 min old, else 403 `reason: sign_in_again`). `customers:erase-closed` (daily, and at most hourly from the staff customer list) erases name, email, phone, sign-in ids and addresses after `CLOSED_ACCOUNT_DAYS` (30); orders and returns are kept. |
 | POST | /me/email | email, password (when the account has one), turnstile_token* | auth. Add or change the email: emails a 6-digit code to the **new** address (kept aside until confirmed). 422 when the password is wrong, the address is already yours, or another account (also a closed one) uses it. At most 5 codes an hour per account.. **New way in** (security review 2026-10-15): accounts with a password type it; accounts without one must have signed in within the last 10 minutes, else 403 `reason: sign_in_again` "For your safety, sign in again first, then try this within 10 minutes." |
 | POST | /me/email/verify | code | auth. Saves the new address as verified, cancels codes sent to the old one, signs out other devices, and emails the old (proven) address "Your Bookly email was changed to n***@…". |
 | POST | /me/connections/{google\|facebook} | access_token, password (when the account has one) | auth. Connects the provider: the token must be issued to our app (profile read from the provider); 409 if that provider account is linked to another Bookly account or another one is already connected; 422 if the token can't be verified (not 401: the customer stays signed in). A verified email gets a "was connected" notice.. **New way in** (security review 2026-10-15): accounts with a password type it; accounts without one must have signed in within the last 10 minutes, else 403 `reason: sign_in_again` "For your safety, sign in again first, then try this within 10 minutes." |
 | DELETE | /me/connections/{google\|facebook} | — | auth. Disconnects it; 422 `reason: last_way_in` "Add a password first, so you can still sign in." when it's the only way left (`sign_in_methods` on the customer: `password` (with an email), `google`, `facebook`, `telegram` (a verified number, while the Telegram bot is on)). |
+| GET | /me/store-credits | — | auth (customer). Store credits (refunds paid as a coupon), newest first, used and expired included: `{id, code, amount_usd, expires_at, used, expired, created_at}`. |
+| GET | /me/stock-alerts | — | auth (customer). All stock alerts for the customer with book and variant details |
+| POST | /me/stock-alerts | book_variant_id | auth (customer). 201. Physical, active format of public book currently out of stock. Max 50 active alerts per customer. |
+| DELETE | /me/stock-alerts/{id} | — | auth (customer). 204. Removes an alert |
 
 Token response shape: `{ "customer": {...}, "token": "...", "token_type": "Bearer", "expires_at": "ISO-8601" }`.
 Customer `verified` = email **or** phone proven. Unverified customers can log in but shopping routes return 403 "Please verify your account first: enter the code we sent you." `email` is null for Facebook accounts that signed up without one. Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).
@@ -65,8 +69,9 @@ Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP
 ## Public catalog (no login)
 | Method | Path | Query / notes |
 | --- | --- | --- |
-| GET | /books | `q` (search as you type: every word must match the title or description, an author, the series or a category name, and each word also matches as a prefix, so "conan doy" finds Doyle's books and "austen emma" finds Emma; half-typed words match unstemmed ('simple') across titles, descriptions, series, and categories; stop words like "the" never block a longer search; title matches rank first, then author, series, category; one code-like word is also matched exactly against an active format's SKU (any case) or ISBN (hyphens and spaces ignored)), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
+| GET | /books | `q` (search as you type...), `ids` (comma-separated IDs or array, max 12; preserves order; drops missing/hidden), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
 | GET | /books/{id} | detail: description, page_count, categories, publisher, series {id,name,order}, active variants |
+| GET | /books/{id}/also-bought | up to 6 recommended book cards that appeared in >= 2 orders together with this book (excluding pending/cancelled), fallback to category best sellers. Cached 1 hour. |
 | GET | /authors | `q`, `per_page` — each with `books_count` |
 | GET | /authors/{id} | author profile; books via `/books?author_id={id}` |
 | GET | /categories | all categories (not paginated), with `books_count` |
@@ -79,14 +84,23 @@ Only books with at least one active variant are public. Book card fields: `id, t
 ## Staff catalog (staff token + 2FA; DELETE and restore are admin-only)
 | Method | Path | Body |
 | --- | --- | --- |
-| GET | /staff/books | `q`, `trashed=1`, `per_page` — all books incl. not yet visible; `is_visible` flag |
-| GET | /staff/books/{id} | also works for deleted books |
-| POST | /staff/books | title, description?, publisher_id?, series_id?, series_order?, language? (default English), page_count?, publish_date?, author_ids[]?, category_ids[]? |
-| PATCH | /staff/books/{id} | any of the above; `author_ids`/`category_ids` replace the current list |
+| GET | /staff/books | `q`, `status=draft\|scheduled\|live`, `trashed=1`, `per_page` — all books incl. not yet visible; `is_visible` flag |
+| GET | /staff/books/{id} | also works for deleted books; includes `status` and `publish_at` |
+| POST | /staff/books | title, description?, status? (admin only; staff always draft), publish_at? (admin only, required if scheduled), publisher_id?, series_id?, series_order?, language? (default English), page_count?, publish_date?, author_ids[]?, category_ids[]? |
+| PATCH | /staff/books/{id} | any of the above; `status` and `publish_at` can only be changed by admin; editing live book as staff keeps it live |
+| POST | /staff/books/bulk | ids (1-100), add_category_ids?, remove_category_ids?, status? (admin only), publish_at? (admin only) |
+| POST | /staff/variants/bulk | ids (1-100), stock_quantity? (sets via adjustment), low_stock_threshold?, is_active?, price_usd? (admin only) |
+| GET | /staff/books/export | admin only; UTF-8 CSV with BOM of all books and variants; formula injection protected |
+| GET | /staff/books/export-template | admin only; sample CSV import template |
+| POST | /staff/books/import/preview | admin only (throttle: 10/hour); multipart `file` (.csv ≤ 2 MB, ≤ 2000 rows, quoted cells may span lines); nothing is written. `data {preview_token, totals {total, new, update, error}, rows[{row_number, action, title, format, sku, messages[]}]}`. A row updates the format with the same SKU (any case), else ISBN; else creates a draft book + format (rows with the same title + authors share one book). **On an update a blank cell keeps the current value.** Categories must exist; authors/publisher/series are created; `publish_at` is shop time |
+| POST | /staff/books/import/confirm | admin only (throttle: 10/hour); `preview_token` (single use, 30 min, same admin); checks every row again, then applies the valid ones in one transaction → `data {created, updated, skipped, errors[]}` |
 | DELETE | /staff/books/{id} | admin; soft delete (hidden from catalog) |
 | POST | /staff/books/{id}/restore | admin |
 | POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
 | PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment. Staff (not admin): a new price of $0 or below half the current one is 422 (same message); admins can |
+| POST | /staff/variants/{id}/restock | quantity (1-10000), supplier?, unit_cost_usd? (admin sees this, max 2 decimals), note? — physical formats only (ebook/audiobook 422). Inside a row lock: increases stock, logs movement and audit log |
+| GET | /staff/variants/{id}/stock-history | newest first, paginated (20); id, created_at, change_qty, reason, reference (order/return), staff {id,name}, note, supplier, stock_after (running balance), unit_cost_usd (admin only) |
+| GET | /staff/stock | physical variants overview with book title, format, sku, stock, threshold, status (`in_stock`\|`low`\|`out`); `status=low\|out`, `q` (title/SKU/ISBN), sorted by stock ascending by default, paginated |
 | DELETE | /staff/variants/{id} | admin; 409 if ever ordered (set `is_active=false` instead) |
 | POST / PATCH | /staff/authors, /staff/authors/{id} | name, bio?, photo_url? (http/https only) |
 | POST / PATCH | /staff/categories, /staff/categories/{id} | name, slug? (auto from name) |
@@ -168,7 +182,7 @@ Low-stock alert (`type: low_stock`) is sent to every staff member once, when a s
 | DELETE | /returns/{id} | withdraw; only while `requested` |
 
 Rules: order must be `delivered`; within `RETURN_WINDOW_DAYS` (default 3) of delivery; physical formats only (ebooks/audiobooks are not returnable); some or all copies, never more than bought minus copies already in requested/approved/refunded returns; one requested/approved return per order at a time. Errors (422): `order` (not delivered, window closed, request in progress, nothing left), `items`.
-Return shape: `{id, order_id, order_number, status (requested|approved|rejected|refunded), reason, items[{id, order_item_id, title, format, quantity, unit_price_usd, reason}], refund_amount_usd, is_refund_final, staff_note, requested_at, resolved_at, can_withdraw}`. Before the refund `refund_amount_usd` is an estimate: the items minus their share of the order's coupon discount (shipping is not refunded).
+Return shape: `{id, order_id, order_number, status (requested|approved|rejected|refunded), reason, items[{id, order_item_id, title, format, quantity, unit_price_usd, reason}], refund_amount_usd, is_refund_final, staff_note, requested_at, resolved_at, can_withdraw}`. Before the refund `refund_amount_usd` is an estimate: the items minus their share of the order's coupon discount (shipping is not refunded). Refund record: `refund_method` (cash\|bank_transfer\|store_credit, null for older refunds), `refund_reference`, `refunded_at`, `store_credit {code, amount_usd, expires_at}`; staff also get `refunded_by {id, name}`.
 
 ## Staff returns (staff token + 2FA)
 | Method | Path | Body / notes |
@@ -177,7 +191,7 @@ Return shape: `{id, order_id, order_number, status (requested|approved|rejected|
 | GET | /staff/returns/{id} | |
 | POST | /staff/returns/{id}/approve | note? — requested -> approved (no stock change yet) |
 | POST | /staff/returns/{id}/reject | note (required) — requested or approved -> rejected |
-| POST | /staff/returns/{id}/refund | note? — approved -> refunded: books back in stock, refund amount saved. Pay the customer back outside the system (cash / bank transfer) |
+| POST | /staff/returns/{id}/refund | `method` (required: `cash`\|`bank_transfer`\|`store_credit`), `reference?` (≤ 100, only for bank_transfer), `note?` — approved -> refunded: books back in stock, refund record saved (amount, method, reference, who, when). `store_credit` makes a one-use fixed coupon `CREDIT-XXXXXXXX` for the refund amount, locked to this customer (anyone else gets the unknown-code answer), valid until 23:59:59 shop time on the same day 12 months later; the customer email says how they were refunded |
 
 When every physical copy of an order has been refunded, the order becomes `returned` and its payment `refunded`.
 
@@ -214,8 +228,14 @@ Rules (422 on `staff`): you cannot change your own role, deactivate or reset you
 ### Customers
 | Method | Path | Auth | Body / notes |
 | --- | --- | --- | --- |
-| GET | /staff/customers | staff | `q` (name/email/phone), `active`, `verified`, `closed`, `per_page` — includes `orders_count`, `login_methods`, `removal_at` (unfinished sign-ups: when they're deleted), `closed_at` / `erase_at` (closed accounts); `closed=1` lists accounts closed in the last 30 days, newest first; `meta.counts {verified, unverified, closed}` for the tabs |
-| GET | /staff/customers/{id} | staff | adds `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd, last_order_at}` and `recent_orders` (5) |
+| GET | /staff/customers | staff | `q` (name/email/phone), `tag` (tag name filter), `active`, `verified`, `closed`, `per_page` — includes `tags`, `orders_count`, `login_methods`, `removal_at` (unfinished sign-ups: when they're deleted), `closed_at` / `erase_at` (closed accounts); `closed=1` lists accounts closed in the last 30 days, newest first; `meta.counts {verified, unverified, closed}` for the tabs |
+| GET | /staff/customers/{id} | staff | adds `tags`, `stats {orders_by_status, returns_count, reviews_count, lifetime_spent_usd (admin only), last_order_at}` and `recent_orders` (5, with `total_usd` visible to admins only) |
+| GET | /staff/customers/{id}/notes | staff | lists staff notes on customer (author name + timestamp) |
+| POST | /staff/customers/{id}/notes | staff | adds staff note on customer (`body` 1–2000 chars); audit-logged |
+| DELETE | /staff/customer-notes/{id} | staff | deletes note (author or admin only); audit-logged |
+| PUT | /staff/customers/{id}/tags | staff | `{tags: string[]}` (max 10 tags, 1–40 chars, inner spaces collapsed, case-insensitive match reuses existing tag spelling); audit-logged |
+| GET | /staff/customer-tags | staff | `q` suggestions (name + customer count, only tags in use, top 20) |
+| POST | /staff/customers/{id}/resend-verification | staff | resends verification email to unverified customer; limit 3 per hour per customer; audit-logged |
 | POST | /staff/customers/{id}/reopen | admin | Reopens an account the customer closed, within its 30 days (422 if open or past 30 days). Audit `customer.reopened`; emails the customer; reviews, wishlist and cart removed at closing aren't restored. The detail endpoint also returns closed accounts. |
 | POST | /staff/customers/{id}/close | admin | Closes a customer account: `{password, code, confirm}`. Admin password, current 2FA TOTP code, and customer's email (or phone) typed exactly. Revokes tokens, removes reviews/wishlist/cart, soft-deletes customer (30-day restore window). 422 if open orders/returns, invalid password/code, wrong confirmation. The confirmation and open orders/returns are checked before the password and code, so a typo doesn't use up the one-time code. Audit `customer.closed`; OpsAlert to owner chat only. Throttle 5/min. |
 | POST | /staff/customers/{id}/deactivate | admin | signs them out, blocks login |
@@ -243,6 +263,11 @@ Revenue is cash basis: an order counts on the day it was delivered (cash on deli
 | --- | --- | --- |
 | GET | /staff/orders/export | `from`, `to` (YYYY-MM-DD, required, max 366 days, `SHOP_TIMEZONE` days, by `placed_at`). Downloads `orders-<from>-to-<to>.csv` (UTF-8 with BOM for Excel). Columns: order_number, placed_at, status, customer_name, customer_email, items, subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, coupon_code, payment_method, payment_status, shipping_city, shipping_country. Text starting with `= + - @` is prefixed with `'` so spreadsheets do not run it as a formula. 10 per minute. |
 
+### System health (admin only)
+| Method | Path | Returns |
+| --- | --- | --- |
+| GET | /staff/health | `{status: ok\|degraded\|down, checks: {database, queue {pending, failed, oldest_pending_seconds}, telegram_bot {status: off\|ok\|degraded, error?}}}`. Database down returns HTTP 503; otherwise 200. Overall `degraded` when a queued job has waited over 10 minutes or the Telegram bot is degraded. Bot `off` without a token; `getWebhookInfo` cached 10 minutes. Bot `ok` when its URL matches this request's webhook address and no delivery error is dated within the last 30 minutes. Auto-repairs webhook if needed. Accessible by admin staff only. |
+
 ### Reports (admin only, throttle `admin-analytics` 30/min)
 Cached for 5 minutes per report and range. All endpoints take `from` and `to` (YYYY-MM-DD, required, max 366 days, in `SHOP_TIMEZONE`, default Asia/Phnom_Penh) and optional `format=json|csv` (CSV streamed with UTF-8 BOM `\xEF\xBB\xBF` and formula injection prevention).
 
@@ -262,4 +287,23 @@ Cached for 5 minutes per report and range. All endpoints take `from` and `to` (Y
 | GET | /staff/reports/customers | `from`, `to`, `format` (json\|csv) | Total new verified customers in range, daily new verified customers series, returning customer rate (`customers with >= 2 orders in range / customers with an order in range * 100`), and top 10 customers by total spend in range (name, email, orders count, total spent in USD & KHR). |
 | GET | /staff/reports/funnel | `from`, `to`, `format` (json\|csv) | 4 measurable steps from database: Carts with items -> Orders placed -> Orders delivered -> Orders returned. "Carts with items" = carts that still hold items added in the range + orders placed in the range (a cart is emptied at checkout), so it is an estimate; there is no visit tracking. Each step includes count, conversion rate from first step (`%`), conversion rate from previous step (`%`), and drop-off rate (`%`). |
 | GET | /staff/reports/coupons | `from`, `to`, `format` (json\|csv) | Coupon performance (code, type, value, times used in range, total discounts given, total order revenue) and refunds breakdown (total count, amount in USD & KHR, and breakdown by refund reason). |
+
+### Newsletter
+| Method | Path | Auth | Body / notes |
+| --- | --- | --- | --- |
+| POST | /newsletter/subscribe | public | `email`, `locale`? (en\|km), `turnstile_token`? — 202 "Check your inbox to confirm." (always same message, no enumeration). Double opt-in confirmation email throttled to at most once per 10 minutes per email. Rate limit 5/hour per IP. |
+| POST | /newsletter/confirm | public | `token` — confirms subscription (sets confirmed_at, clears confirm_token_hash). A confirm link works for 7 days. |
+| POST | /newsletter/unsubscribe | public | `token` — unsubscribes from newsletter via web form. |
+| POST | /newsletter/unsubscribe/one-click | public | query `token` (RFC 8058 one-click unsubscribe for mail user agents). Every newsletter email includes `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers. |
+| GET | /me/newsletter | customer | `{subscribed, status, locale}` |
+| PUT | /me/newsletter | customer, verified | `subscribed` (bool), `locale`? (en\|km) — verified customer can subscribe or unsubscribe without confirmation email. 403 if unverified. |
+| GET | /staff/newsletter/summary | admin | `{confirmed, pending, unsubscribed, total, daily_limit}` (daily_limit = MARKETING_DAILY_LIMIT) |
+| GET | /staff/newsletter/campaigns | admin | paginated list of campaigns: `status` (draft\|sending\|sent: `sent` once its last email went out), `recipients_total`, `sent_count` |
+| POST | /staff/newsletter/campaigns | admin | `subject_en`, `subject_km`?, `body_en`, `body_km`?, `book_ids`? (up to 12). Creates draft campaign; audit-logged. |
+| GET | /staff/newsletter/campaigns/{id} | admin | campaign details with chosen book previews |
+| PUT | /staff/newsletter/campaigns/{id} | admin | update draft campaign (422 if not draft); audit-logged. |
+| DELETE | /staff/newsletter/campaigns/{id} | admin | delete draft campaign (422 if not draft); audit-logged. |
+| POST | /staff/newsletter/campaigns/{id}/test | admin | sends test newsletter email to authenticated admin's own email address directly; audit-logged. |
+| POST | /staff/newsletter/campaigns/{id}/send | admin | queues campaign rows to `marketing_outbox` for all confirmed subscribers in their locale (fallback to English if Khmer empty); transitions status to `sending` -> `sent`. Returns estimated days to complete at `MARKETING_DAILY_LIMIT` (60/day). Cannot be sent twice. Audit-logged. |
+
 

@@ -6,6 +6,7 @@ use App\Enums\CouponType;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Coupon extends Model
@@ -14,6 +15,7 @@ class Coupon extends Model
 
     protected $fillable = [
         'code', 'type', 'value', 'min_order_amount', 'max_uses', 'used_count', 'starts_at', 'expires_at', 'is_active',
+        'customer_id',
     ];
 
     protected function casts(): array
@@ -33,6 +35,18 @@ class Coupon extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /** The customer a store credit belongs to; null for a public coupon. */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class)->withTrashed();
+    }
+
+    /** Store credit = a coupon locked to one customer (made by a store-credit refund). */
+    public function isStoreCredit(): bool
+    {
+        return $this->customer_id !== null;
     }
 
     /** Returns null when usable, otherwise the reason it cannot be applied. */
