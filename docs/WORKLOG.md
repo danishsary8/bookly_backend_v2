@@ -279,3 +279,15 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - In `DashboardService.php`, wrapped heavy aggregation queries `summary()` and `dailySales()` in `Cache::remember()` with 5-minute TTL (`dashboard:summary:...`, `dashboard:sales:...`).
   - Added test `test_dashboard_summary_and_sales_are_cached_for_subsequent_requests()` in `tests/Feature/Admin/DashboardTest.php`.
   - All 12/12 dashboard tests passing; `vendor/bin/pint --test` clean.
+
+- [x] Full-Stack Code Review & Quality Audit (2026-10-17, branch `feature/shop-completeness-and-seo`):
+  - HTML Entity Escaping in Customer Telegram Notifications:
+    - In `CustomerOrderUpdates.php`, sanitized all dynamic variables (`$order->order_number`, `$title`, `$format`, `$orderUrl`, `$note`, `$order->total_amount`) via `esc()` helper utilizing `htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`.
+    - Prevents Telegram API rejection (`400 Bad Request: can't parse entities`) when titles or notes contain reserved characters (`&`, `<`, `>`).
+    - Added test `test_special_html_characters_are_escaped_for_telegram_message()` in `tests/Feature/Customer/TelegramOrderUpdatesTest.php`.
+  - XML Entity Escaping in Sitemap:
+    - In `SitemapController.php`, wrapped all static and dynamic `<loc>` URLs with `htmlspecialchars($loc, ENT_XML1, 'UTF-8')` for strict XML 1.0 sitemap standard compliance.
+  - Quality Verification:
+    - Full test suite: 567 tests, 3,652 assertions passing (100% green).
+    - Code style: `vendor/bin/pint --test` clean.
+
