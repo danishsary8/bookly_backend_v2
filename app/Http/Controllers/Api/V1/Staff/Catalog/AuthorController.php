@@ -6,12 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AuthorResource;
 use App\Models\Author;
 use App\Services\Admin\AuditLogger;
+use App\Services\Admin\StrictDeleteService;
+use App\Services\Telegram\OpsAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AuthorController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly StrictDeleteService $strictDelete,
+        private readonly OpsAlerts $opsAlerts,
+    ) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -37,8 +43,22 @@ class AuthorController extends Controller
             return response()->json(['message' => "This author is linked to {$inUse} book(s). Remove them from those books first."], 409);
         }
 
+        $data = $request->validate([
+            'confirm' => ['required', 'string'],
+            'password' => ['required', 'string'],
+            'code' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        if ($failed = $this->strictDelete->verify($user, $data['confirm'], $author->name, $data['password'], $data['code'])) {
+            return $failed;
+        }
+
+        $before = $author->getAttributes();
         $author->delete();
-        $this->audit->deleted($request->user(), $author);
+        $this->audit->custom($user, 'deleted', $author, $before, $author->fresh()?->getAttributes() ?? []);
+
+        $this->opsAlerts->itemDeletedByAdmin($user->name, 'Author', $author->name);
 
         return response()->json(null, 204);
     }

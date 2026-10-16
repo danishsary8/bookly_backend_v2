@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategor
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\StockController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\TrashController;
 use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
 use App\Http\Controllers\Api\V1\Staff\CustomerNoteController;
 use App\Http\Controllers\Api\V1\Staff\CustomerTagController;
@@ -277,6 +278,9 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
             Route::get('/funnel', [ReportsController::class, 'funnel']);
             Route::get('/coupons', [ReportsController::class, 'coupons']);
         });
+
+        Route::get('/trash', [TrashController::class, 'index']);
+        Route::post('/trash/{type}/{id}/restore', [TrashController::class, 'restore'])->whereNumber('id');
 
         Route::delete('/books/{book}', [StaffBookController::class, 'destroy']);
         Route::post('/books/{book}/restore', [StaffBookController::class, 'restore'])->whereNumber('book');

@@ -6,13 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\PublisherResource;
 use App\Models\Publisher;
 use App\Services\Admin\AuditLogger;
+use App\Services\Admin\StrictDeleteService;
+use App\Services\Telegram\OpsAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class PublisherController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly StrictDeleteService $strictDelete,
+        private readonly OpsAlerts $opsAlerts,
+    ) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -44,8 +50,22 @@ class PublisherController extends Controller
             return response()->json(['message' => "This publisher has {$inUse} book(s). Reassign them first."], 409);
         }
 
+        $data = $request->validate([
+            'confirm' => ['required', 'string'],
+            'password' => ['required', 'string'],
+            'code' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        if ($failed = $this->strictDelete->verify($user, $data['confirm'], $publisher->name, $data['password'], $data['code'])) {
+            return $failed;
+        }
+
+        $before = $publisher->getAttributes();
         $publisher->delete();
-        $this->audit->deleted($request->user(), $publisher);
+        $this->audit->custom($user, 'deleted', $publisher, $before, $publisher->fresh()?->getAttributes() ?? []);
+
+        $this->opsAlerts->itemDeletedByAdmin($user->name, 'Publisher', $publisher->name);
 
         return response()->json(null, 204);
     }

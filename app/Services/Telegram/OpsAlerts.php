@@ -78,6 +78,17 @@ class OpsAlerts
         $this->send("Customer account closed by {$adminName}: {$customerName}, can be reopened until {$date}");
     }
 
+    public function itemDeletedByAdmin(string $adminName, string $entityType, string $itemName): void
+    {
+        $this->send("🗑️ {$entityType} \"{$itemName}\" moved to trash by {$adminName} (30-day restore window)");
+    }
+
+    public function bookDeletedByAdmin(string $adminName, string $bookTitle, CarbonInterface|string $restoreUntil): void
+    {
+        $date = $restoreUntil instanceof CarbonInterface ? $restoreUntil->toFormattedDayDateString() : $restoreUntil;
+        $this->send("Book moved to trash by {$adminName}: {$bookTitle}, can be restored until {$date}");
+    }
+
     /** The chats a message goes to: the owner's, plus the staff group for staff messages; the same chat only once. */
     private static function chats(bool $staff): array
     {
