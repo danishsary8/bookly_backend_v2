@@ -9,6 +9,7 @@ use App\Models\StaffUser;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Inventory\InventoryService;
+use App\Services\Telegram\CustomerOrderUpdates;
 use App\Support\SafeNotifier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -89,6 +90,7 @@ class OrderStatusService
         // After the commit, so a mail outage can never undo or block the status change.
         if (OrderStatusChangedNotification::covers($to)) {
             SafeNotifier::toCustomer($updated->customer, new OrderStatusChangedNotification($updated, $to, $note));
+            app(CustomerOrderUpdates::class)->orderStatusChanged($updated, $to, $note);
         }
 
         return $updated;

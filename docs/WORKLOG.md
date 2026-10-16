@@ -255,6 +255,22 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - New public endpoint `GET /api/v1/delivery/options`: returns free delivery threshold, base fees, and all 25 provinces with fees, delivery days, and localized labels.
   - Checkout & Orders: `POST /checkout/preview` returns `is_free_shipping`, `free_shipping_threshold`, `amount_needed_for_free_shipping`, `province_code`, `province_name`, and `estimated_delivery`. `OrderResource` includes `is_free_shipping` and `estimated_delivery`.
   - Documented in `public/openapi.yaml` and `docs/API.md`; `ApiContractTest` passed 3/3; `DeliveryProvinceAndFreeShippingTest` (5 tests, 75 assertions); full suite: 551 tests, 3565 assertions passed; `vendor/bin/pint --test` clean.
-
-
-
+- [x] Shop completeness, SEO, image upload processing, customer Telegram updates, and policy alignment (2026-10-16, branch `feature/shop-completeness-and-seo`):
+  - SEO & Crawler Endpoints:
+    - Added dynamic `/sitemap.xml` and `/robots.txt` via `SitemapController` and `RobotsController` respecting crawler access and search engine discovery rules.
+    - Added `SitemapService` generating dynamic XML sitemap with all active published books, authors, series, publishers, and categories with proper `lastmod`, `changefreq`, and `priority`.
+    - Rate limited via `robots` limiter (30 requests/min).
+  - Media Upload Processing & Validation:
+    - Implemented `MediaUploadController` (`POST /api/v1/staff/media/upload`) with strict validation: 5MB maximum file size, image MIME types (JPEG, PNG, WebP), dimension constraints (min 100x100px, max 4000x4000px) verified via `getimagesize()`.
+    - Secure storage on `public` disk partitioned under `covers/YYYY/MM/<uuid>.<ext>`.
+    - Protected by `abilities:catalog:manage,admin` and rate limited via `uploads` limiter (30/min).
+  - Customer Real-Time Order Updates via Telegram Bot:
+    - Added migration `2026_10_16_100016_add_telegram_order_updates_to_customers_table` adding `telegram_chat_id` and boolean `telegram_order_updates`.
+    - Dispatches real-time Telegram notifications via `CustomerOrderUpdates` on `orderPlaced` and `orderStatusChanged` (processing, shipped with staff tracking note, delivered receipt, cancelled) in customer's preferred language (EN/KM).
+    - Added `POST /api/v1/auth/telegram/order-updates` to generate connection links, and webhook handler to link chat and phone number.
+    - Endpoints for customer preference management: `DELETE /api/v1/me/telegram` and `PATCH /api/v1/me {telegram_order_updates}`.
+  - Return Window Config Alignment:
+    - Updated `config/shop.php` default `return_window_days` from 3 to 7 days, aligning backend return policy with storefront terms.
+  - Verification:
+    - Added feature test suites `tests/Feature/Seo/SitemapAndRobotsTest.php`, `tests/Feature/Catalog/MediaUploadTest.php`, and `tests/Feature/Customer/TelegramOrderUpdatesTest.php`.
+    - Full test suite: 565 tests, 3634 assertions passing (100% green); `vendor/bin/pint --test` clean.

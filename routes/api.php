@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookControl
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookCsvController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\MediaUploadController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\StockController;
@@ -110,6 +111,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/verify-email', [CustomerAuthController::class, 'verifyEmail'])->middleware('throttle:auth');
         Route::post('/resend-verification', [CustomerAuthController::class, 'resendVerification'])->middleware('throttle:otp-send');
         Route::post('/telegram/phone', [TelegramAuthController::class, 'phone'])->middleware('throttle:telegram-link');
+        Route::post('/telegram/order-updates', [TelegramAuthController::class, 'orderUpdates'])->middleware('throttle:telegram-link');
     });
 });
 
@@ -119,6 +121,7 @@ Route::prefix('auth')->group(function () {
 Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
     Route::patch('/', [ProfileController::class, 'update']);
+    Route::delete('/telegram', [ProfileController::class, 'disconnectTelegram']);
     Route::put('/password', [ProfileController::class, 'changePassword'])->middleware('throttle:auth');
     Route::delete('/', [ProfileController::class, 'destroy'])->middleware('throttle:auth');
     Route::post('/email', [EmailController::class, 'store'])->middleware('throttle:otp-send');
@@ -254,6 +257,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/series/{series}', [StaffSeriesController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::get('/coupons', [StaffCouponController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show'])->middleware('ability:catalog:view,admin');
+    Route::post('/media/upload', [MediaUploadController::class, 'upload'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
 
     Route::middleware('abilities:admin')->group(function () {
         Route::get('/books/export', [BookCsvController::class, 'export']);

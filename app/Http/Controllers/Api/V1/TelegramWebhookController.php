@@ -94,6 +94,21 @@ class TelegramWebhookController extends Controller
         }
         $this->links->rememberChat($chatId, $code);
 
+        if ($link['purpose'] === 'order_updates') {
+            $customer = Customer::find($link['customer_id']);
+            if ($customer === null || ! $customer->is_active) {
+                return $this->reply($chatId, self::SESSION_ENDED, remove: true);
+            }
+
+            $customer->update([
+                'telegram_chat_id' => $chatId,
+                'telegram_order_updates' => true,
+            ]);
+            $this->links->finish($code, ['status' => 'done', 'customer_id' => $customer->id]);
+
+            return $this->reply($chatId, "✅ You are now connected to Bookly order updates!\n\nYou'll receive automatic notifications here whenever your orders are placed, dispatched, or delivered.\n\nYou can manage this anytime in your Bookly account settings.", remove: true);
+        }
+
         if ($link['purpose'] === 'login') {
             $text = "Sign in to Bookly?\n\nA Bookly page asked to sign in with your Telegram number.\n\n"
                 .'Only tap “'.self::YES_SIGN_IN_BUTTON.'” if YOU just pressed “Continue with Telegram” on the Bookly website, on your own phone or computer. '
@@ -159,8 +174,8 @@ class TelegramWebhookController extends Controller
         $phone = PhoneNumber::normalize('+'.ltrim((string) ($contact['phone_number'] ?? ''), '+'));
         [$status, $message, $customer] = match (true) {
             $phone === null => ['failed', self::NOT_CAMBODIAN, null],
-            $link['purpose'] === 'login' => $this->signIn($code, $phone),
-            default => $this->savePhone($code, (int) $link['customer_id'], $phone),
+            $link['purpose'] === 'login' => $this->signIn($code, $phone, $chatId),
+            default => $this->savePhone($code, (int) $link['customer_id'], $phone, $chatId),
         };
         if ($status === 'failed') {
             $this->links->finish($code, ['status' => 'failed', 'message' => $message]);
@@ -192,7 +207,7 @@ class TelegramWebhookController extends Controller
     }
 
     /** @return array{string, string, ?Customer} status, message, the account */
-    private function signIn(string $code, string $phone): array
+    private function signIn(string $code, string $phone, int $chatId): array
     {
         // Closed accounts are soft-deleted, so never found.
         $customer = Customer::where('phone_e164', $phone)->whereNotNull('phone_verified_at')->first();
@@ -202,13 +217,14 @@ class TelegramWebhookController extends Controller
         if (! $customer->is_active) {
             return ['failed', self::DEACTIVATED, null];
         }
+        $customer->update(['telegram_chat_id' => $chatId]);
         $this->links->finish($code, ['status' => 'done', 'customer_id' => $customer->id]);
 
         return ['done', "You're signed in. Go back to Bookly.", $customer];
     }
 
     /** @return array{string, string, ?Customer} status, message, the account */
-    private function savePhone(string $code, int $customerId, string $phone): array
+    private function savePhone(string $code, int $customerId, string $phone, int $chatId): array
     {
         $customer = Customer::find($customerId);
         if ($customer === null || ! $customer->is_active) {
@@ -220,6 +236,7 @@ class TelegramWebhookController extends Controller
         $wasVerified = $customer->isVerified();
         try {
             $customer->markPhoneVerified($phone);
+            $customer->update(['telegram_chat_id' => $chatId]);
         } catch (UniqueConstraintViolationException) {
             return ['failed', AuthController::PHONE_TAKEN.' Sign in with Telegram instead.', null];
         }

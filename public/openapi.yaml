@@ -116,6 +116,17 @@ components:
         from: { type: integer, nullable: true }
         to: { type: integer, nullable: true }
         path: { type: string }
+    UploadedMedia:
+      type: object
+      required: [url, path, filename, width, height, size_bytes, mime]
+      properties:
+        url: { type: string, format: uri }
+        path: { type: string }
+        filename: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        size_bytes: { type: integer }
+        mime: { type: string }
     PageLinks:
       type: object
       properties:
@@ -263,6 +274,9 @@ components:
         verified: { type: boolean, description: 'Email or phone proven; only verified customers can shop' }
         has_password: { type: boolean }
         locale: { type: string, enum: [en, km], example: en }
+        telegram_chat_id: { type: integer, nullable: true, description: 'Telegram chat ID linked to this customer account' }
+        telegram_connected: { type: boolean, description: 'True if a Telegram chat ID has been linked' }
+        telegram_order_updates: { type: boolean, description: 'True if customer has enabled real-time order notifications on Telegram' }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
         sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, telegram] }, description: 'Ways this account can sign in today (password counts only with an email; telegram means a verified number, while the Telegram bot is on). The last one cannot be removed.' }
         pending_email: { type: string, nullable: true, description: 'Only on the customer''s own account: an address that was sent a code (Telegram sign-up, change email) and is added once POST /me/email/verify gets that code.' }
@@ -721,6 +735,12 @@ paths:
       description: 'Same as POST /auth/telegram, for the signed-in customer: the number shared in the bot becomes the account''s verified number (and contact number), which also verifies a new account. Refused in the bot and in the status when another account (also a closed one) has the number.'
       requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { password: { type: string, description: 'Verified accounts with a password: required (a new number is a new way in)' } } } } } }
       responses: { '201': { description: 'url, key, expires_at' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { description: 'reason=sign_in_again: a verified account without a password signed in more than 10 minutes ago' }, '422': { $ref: '#/components/responses/Validation' }, '503': { description: 'The bot is off' } }
+  /auth/telegram/order-updates:
+    post:
+      tags: [Customer auth]
+      summary: Connect Telegram for real-time order updates
+      description: 'Generates a one-time link (10 minutes). Open `url` (t.me/<bot>?start=<code>) and tap Start. The bot links your Telegram chat to receive instant order placed, packing, shipping, and delivery notifications.'
+      responses: { '201': { description: 'url, key, expires_at' }, '401': { $ref: '#/components/responses/Unauthorized' }, '503': { description: 'The bot is off' } }
   /auth/telegram/status:
     post:
       tags: [Customer auth]
@@ -739,6 +759,11 @@ paths:
       description: 'Confirm with the password, or (accounts without one) a fresh Google/Facebook access token for the linked account, plus confirm=DELETE. Refused while an order is on its way or a return is open. Signs out everywhere, removes reviews, wishlist and cart, and hides the account; personal details are erased after CLOSED_ACCOUNT_DAYS (30) by customers:erase-closed. Orders and returns are kept.'
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [confirm], properties: { confirm: { type: string, enum: [DELETE] }, password: { type: string }, provider: { type: string, enum: [google, facebook] }, access_token: { type: string } } } } } }
       responses: { '200': { description: 'Closed; erase_at says when the details are erased' }, '422': { $ref: '#/components/responses/Validation' } }
+  /me/telegram:
+    delete:
+      tags: [Customer]
+      summary: Disconnect Telegram and disable order updates
+      responses: { '200': { description: Customer, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } }, '401': { $ref: '#/components/responses/Unauthorized' } }
   /me/password:
     put: { tags: [Customer], summary: 'Change password (signs out other devices)', description: 'A first password (account without one) needs a sign-in in the last 10 minutes.', responses: { '200': { description: Changed }, '403': { description: 'reason=sign_in_again' }, '422': { $ref: '#/components/responses/Validation' } } }
   /me/email:
@@ -1131,6 +1156,28 @@ paths:
     get: { tags: [Staff operations], summary: 'One coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Coupon } } }
     patch: { tags: [Staff operations], summary: '(admin) Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' } } }
     delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/media/upload:
+    post:
+      tags: [Staff catalog]
+      summary: Upload and securely validate a media image (book cover, author photo)
+      description: Validates file format (JPEG, PNG, WebP), magic bytes, dimensions (100x100 to 4000x4000), and file size (max 5 MB). Returns public URL and dimensions.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary, description: Image file (max 5 MB) }
+      responses:
+        '201':
+          description: Uploaded media
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadedMedia'
+        '422': { $ref: '#/components/responses/Validation' }
   /staff/orders:
     get: { tags: [Staff operations], summary: 'Orders (status, q = order number/customer, from, to)', responses: { '200': { description: Orders } } }
   /staff/orders/bulk-status:
