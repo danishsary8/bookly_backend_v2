@@ -12,6 +12,7 @@ use App\Models\OrderReturn;
 use App\Services\CurrencyService;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -53,52 +54,56 @@ class DashboardService
      */
     public function summary(CarbonImmutable $start, CarbonImmutable $end, bool $compare = true): array
     {
-        [$from, $to] = $this->utc($start, $end);
-        $now = $this->totals($start, $end);
-        $placed = Order::whereBetween('placed_at', [$from, $to->subSecond()]);
+        $cacheKey = "dashboard:summary:{$start->toDateString()}:{$end->toDateString()}:".($compare ? '1' : '0');
 
-        $summary = [
-            'period' => ['from' => $start->toDateString(), 'to' => $end->subDay()->toDateString(), 'timezone' => $start->timezoneName],
-            'revenue' => $this->revenue($now),
-            'delivered_orders' => $now['delivered_orders'],
-            'average_order_value_usd' => Money::format($now['average_order_value']),
-            'average_order_value_khr' => $this->khr($now['average_order_value']),
-            'orders_placed' => $now['orders_placed'],
-            'orders_by_status' => collect(OrderStatus::cases())->mapWithKeys(fn ($s) => [$s->value => 0])
-                ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n)),
-            'new_customers' => $now['new_customers'],
-            'best_sellers' => $this->bestSellers($from, $to),
-            'top_categories' => $this->topCategories($from, $to),
-            'open_returns' => OrderReturn::whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->count(),
-            'low_stock' => $this->lowStock(),
-        ];
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($start, $end, $compare) {
+            [$from, $to] = $this->utc($start, $end);
+            $now = $this->totals($start, $end);
+            $placed = Order::whereBetween('placed_at', [$from, $to->subSecond()]);
 
-        if ($compare) {
-            $days = (int) $start->diffInDays($end);
-            [$prevStart, $prevEnd] = [$start->subDays($days), $start];
-            $before = $this->totals($prevStart, $prevEnd);
-
-            $summary['comparison'] = [
-                'period' => ['from' => $prevStart->toDateString(), 'to' => $prevEnd->subDay()->toDateString(), 'timezone' => $start->timezoneName],
-                'revenue' => $this->revenue($before),
-                'delivered_orders' => $before['delivered_orders'],
-                'average_order_value_usd' => Money::format($before['average_order_value']),
-                'average_order_value_khr' => $this->khr($before['average_order_value']),
-                'orders_placed' => $before['orders_placed'],
-                'new_customers' => $before['new_customers'],
-                'change_percent' => [
-                    'gross_revenue' => $this->change($now['gross'], $before['gross']),
-                    'refunds' => $this->change($now['refunds'], $before['refunds']),
-                    'net_revenue' => $this->change($now['gross'] - $now['refunds'], $before['gross'] - $before['refunds']),
-                    'delivered_orders' => $this->change($now['delivered_orders'], $before['delivered_orders']),
-                    'average_order_value' => $this->change($now['average_order_value'], $before['average_order_value']),
-                    'orders_placed' => $this->change($now['orders_placed'], $before['orders_placed']),
-                    'new_customers' => $this->change($now['new_customers'], $before['new_customers']),
-                ],
+            $summary = [
+                'period' => ['from' => $start->toDateString(), 'to' => $end->subDay()->toDateString(), 'timezone' => $start->timezoneName],
+                'revenue' => $this->revenue($now),
+                'delivered_orders' => $now['delivered_orders'],
+                'average_order_value_usd' => Money::format($now['average_order_value']),
+                'average_order_value_khr' => $this->khr($now['average_order_value']),
+                'orders_placed' => $now['orders_placed'],
+                'orders_by_status' => collect(OrderStatus::cases())->mapWithKeys(fn ($s) => [$s->value => 0])
+                    ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n)),
+                'new_customers' => $now['new_customers'],
+                'best_sellers' => $this->bestSellers($from, $to),
+                'top_categories' => $this->topCategories($from, $to),
+                'open_returns' => OrderReturn::whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->count(),
+                'low_stock' => $this->lowStock(),
             ];
-        }
 
-        return $summary;
+            if ($compare) {
+                $days = (int) $start->diffInDays($end);
+                [$prevStart, $prevEnd] = [$start->subDays($days), $start];
+                $before = $this->totals($prevStart, $prevEnd);
+
+                $summary['comparison'] = [
+                    'period' => ['from' => $prevStart->toDateString(), 'to' => $prevEnd->subDay()->toDateString(), 'timezone' => $start->timezoneName],
+                    'revenue' => $this->revenue($before),
+                    'delivered_orders' => $before['delivered_orders'],
+                    'average_order_value_usd' => Money::format($before['average_order_value']),
+                    'average_order_value_khr' => $this->khr($before['average_order_value']),
+                    'orders_placed' => $before['orders_placed'],
+                    'new_customers' => $before['new_customers'],
+                    'change_percent' => [
+                        'gross_revenue' => $this->change($now['gross'], $before['gross']),
+                        'refunds' => $this->change($now['refunds'], $before['refunds']),
+                        'net_revenue' => $this->change($now['gross'] - $now['refunds'], $before['gross'] - $before['refunds']),
+                        'delivered_orders' => $this->change($now['delivered_orders'], $before['delivered_orders']),
+                        'average_order_value' => $this->change($now['average_order_value'], $before['average_order_value']),
+                        'orders_placed' => $this->change($now['orders_placed'], $before['orders_placed']),
+                        'new_customers' => $this->change($now['new_customers'], $before['new_customers']),
+                    ],
+                ];
+            }
+
+            return $summary;
+        });
     }
 
     /**
@@ -168,39 +173,43 @@ class DashboardService
     /** One row per day of the period, including days without sales. */
     public function dailySales(CarbonImmutable $start, CarbonImmutable $end): array
     {
-        [$from, $to] = $this->utc($start, $end);
-        $tz = $start->timezoneName;
-        $localDay = fn (string $column) => "DATE(({$column} AT TIME ZONE 'UTC') AT TIME ZONE ?)";
+        $cacheKey = "dashboard:sales:{$start->toDateString()}:{$end->toDateString()}";
 
-        $placed = DB::table('orders')->whereNull('deleted_at')->where('status', '!=', OrderStatus::Cancelled->value)
-            ->whereBetween('placed_at', [$from, $to->subSecond()])
-            ->selectRaw($localDay('placed_at').' AS day, COUNT(*) AS n', [$tz])->groupBy('day')->pluck('n', 'day');
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($start, $end) {
+            [$from, $to] = $this->utc($start, $end);
+            $tz = $start->timezoneName;
+            $localDay = fn (string $column) => "DATE(({$column} AT TIME ZONE 'UTC') AT TIME ZONE ?)";
 
-        $gross = DB::table('orders')
-            ->join('order_status_history as h', fn ($j) => $j->on('h.order_id', '=', 'orders.id')->where('h.status', OrderStatus::Delivered->value))
-            ->whereNull('orders.deleted_at')->whereBetween('h.created_at', [$from, $to->subSecond()])
-            ->selectRaw($localDay('h.created_at').' AS day, SUM(orders.total_amount) AS total', [$tz])->groupBy('day')->pluck('total', 'day');
+            $placed = DB::table('orders')->whereNull('deleted_at')->where('status', '!=', OrderStatus::Cancelled->value)
+                ->whereBetween('placed_at', [$from, $to->subSecond()])
+                ->selectRaw($localDay('placed_at').' AS day, COUNT(*) AS n', [$tz])->groupBy('day')->pluck('n', 'day');
 
-        $refunds = DB::table('returns')->where('status', ReturnStatus::Refunded->value)
-            ->whereBetween('resolved_at', [$from, $to->subSecond()])
-            ->selectRaw($localDay('resolved_at').' AS day, SUM(refund_amount) AS total', [$tz])->groupBy('day')->pluck('total', 'day');
+            $gross = DB::table('orders')
+                ->join('order_status_history as h', fn ($j) => $j->on('h.order_id', '=', 'orders.id')->where('h.status', OrderStatus::Delivered->value))
+                ->whereNull('orders.deleted_at')->whereBetween('h.created_at', [$from, $to->subSecond()])
+                ->selectRaw($localDay('h.created_at').' AS day, SUM(orders.total_amount) AS total', [$tz])->groupBy('day')->pluck('total', 'day');
 
-        $rows = [];
-        for ($day = $start; $day->lt($end); $day = $day->addDay()) {
-            $key = $day->toDateString();
-            $g = Money::toCents($gross[$key] ?? 0);
-            $r = Money::toCents($refunds[$key] ?? 0);
-            $rows[] = [
-                'date' => $key,
-                'orders_placed' => (int) ($placed[$key] ?? 0),
-                'gross_revenue_usd' => Money::format($g),
-                'refunds_usd' => Money::format($r),
-                'net_revenue_usd' => Money::format($g - $r),
-                'net_revenue_khr' => $this->khr($g - $r),
-            ];
-        }
+            $refunds = DB::table('returns')->where('status', ReturnStatus::Refunded->value)
+                ->whereBetween('resolved_at', [$from, $to->subSecond()])
+                ->selectRaw($localDay('resolved_at').' AS day, SUM(refund_amount) AS total', [$tz])->groupBy('day')->pluck('total', 'day');
 
-        return $rows;
+            $rows = [];
+            for ($day = $start; $day->lt($end); $day = $day->addDay()) {
+                $key = $day->toDateString();
+                $g = Money::toCents($gross[$key] ?? 0);
+                $r = Money::toCents($refunds[$key] ?? 0);
+                $rows[] = [
+                    'date' => $key,
+                    'orders_placed' => (int) ($placed[$key] ?? 0),
+                    'gross_revenue_usd' => Money::format($g),
+                    'refunds_usd' => Money::format($r),
+                    'net_revenue_usd' => Money::format($g - $r),
+                    'net_revenue_khr' => $this->khr($g - $r),
+                ];
+            }
+
+            return $rows;
+        });
     }
 
     /** Top 10 books by copies in orders placed in the period (cancelled orders excluded). */
