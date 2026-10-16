@@ -54,6 +54,7 @@ use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCoupon
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Staff\StaffNewsletterController;
+use App\Http\Controllers\Api\V1\Staff\StaffSessionController;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -192,59 +193,65 @@ Route::prefix('staff/auth')->group(function () {
 | Staff features: staff + admin can create/edit, deletes are admin-only.
 */
 Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::get('/sessions', [StaffSessionController::class, 'index']);
+    Route::delete('/sessions/{id}', [StaffSessionController::class, 'destroy'])->whereNumber('id');
+    Route::post('/sessions/revoke-others', [StaffSessionController::class, 'revokeOthers']);
+    Route::post('/sessions/revoke-all', [StaffSessionController::class, 'revokeAll']);
+    Route::get('/login-history', [StaffSessionController::class, 'loginHistory']);
+
     Route::get('/notifications', [StaffNotificationController::class, 'index']);
     Route::post('/notifications/read-all', [StaffNotificationController::class, 'markAllRead']);
     Route::post('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead'])->whereUuid('notification');
 
-    Route::get('/orders', [StaffOrderController::class, 'index']);
+    Route::get('/orders', [StaffOrderController::class, 'index'])->middleware('ability:orders:view,admin');
     // Invoices and packing slips: ?ids[]=1&ids[]=2 (up to 50 orders per print).
-    Route::get('/orders/documents', OrderDocumentController::class)->middleware('throttle:30,1');
-    Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order');
-    Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order');
-    Route::patch('/orders/{order}/staff-note', [StaffOrderController::class, 'updateStaffNote'])->whereNumber('order')->middleware('throttle:30,1');
+    Route::get('/orders/documents', OrderDocumentController::class)->middleware(['throttle:30,1', 'ability:orders:view,admin']);
+    Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order')->middleware('ability:orders:view,admin');
+    Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order')->middleware('ability:orders:manage,admin');
+    Route::patch('/orders/{order}/staff-note', [StaffOrderController::class, 'updateStaffNote'])->whereNumber('order')->middleware(['throttle:30,1', 'ability:orders:manage,admin']);
     // One status for up to 50 orders (not cancel); each order changes on its own and failures are listed.
-    Route::post('/orders/bulk-status', OrderBulkStatusController::class)->middleware('throttle:20,1');
+    Route::post('/orders/bulk-status', OrderBulkStatusController::class)->middleware(['throttle:20,1', 'ability:orders:manage,admin']);
 
-    Route::get('/returns', [StaffReturnController::class, 'index']);
-    Route::get('/returns/{return}', [StaffReturnController::class, 'show'])->whereNumber('return');
-    Route::post('/returns/{return}/approve', [StaffReturnController::class, 'approve'])->whereNumber('return');
-    Route::post('/returns/{return}/reject', [StaffReturnController::class, 'reject'])->whereNumber('return');
-    Route::post('/returns/{return}/refund', [StaffReturnController::class, 'refund'])->whereNumber('return');
+    Route::get('/returns', [StaffReturnController::class, 'index'])->middleware('ability:orders:view,admin');
+    Route::get('/returns/{return}', [StaffReturnController::class, 'show'])->whereNumber('return')->middleware('ability:orders:view,admin');
+    Route::post('/returns/{return}/approve', [StaffReturnController::class, 'approve'])->whereNumber('return')->middleware('ability:orders:manage,admin');
+    Route::post('/returns/{return}/reject', [StaffReturnController::class, 'reject'])->whereNumber('return')->middleware('ability:orders:manage,admin');
+    Route::post('/returns/{return}/refund', [StaffReturnController::class, 'refund'])->whereNumber('return')->middleware('ability:orders:manage,admin');
 
-    Route::get('/customers', [StaffCustomerController::class, 'index']);
-    Route::get('/customers/{customer}', [StaffCustomerController::class, 'show'])->withTrashed();
-    Route::get('/customers/{customer}/notes', [CustomerNoteController::class, 'index'])->whereNumber('customer');
-    Route::post('/customers/{customer}/notes', [CustomerNoteController::class, 'store'])->whereNumber('customer');
-    Route::delete('/customer-notes/{note}', [CustomerNoteController::class, 'destroy'])->whereNumber('note');
-    Route::put('/customers/{customer}/tags', [CustomerTagController::class, 'update'])->whereNumber('customer');
-    Route::get('/customer-tags', [CustomerTagController::class, 'suggestions']);
-    Route::post('/customers/{customer}/resend-verification', [StaffCustomerController::class, 'resendVerification'])->whereNumber('customer');
+    Route::get('/customers', [StaffCustomerController::class, 'index'])->middleware('ability:customers:view,admin');
+    Route::get('/customers/{customer}', [StaffCustomerController::class, 'show'])->withTrashed()->middleware('ability:customers:view,admin');
+    Route::get('/customers/{customer}/notes', [CustomerNoteController::class, 'index'])->whereNumber('customer')->middleware('ability:customers:view,admin');
+    Route::post('/customers/{customer}/notes', [CustomerNoteController::class, 'store'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
+    Route::delete('/customer-notes/{note}', [CustomerNoteController::class, 'destroy'])->whereNumber('note')->middleware('ability:customers:manage,admin');
+    Route::put('/customers/{customer}/tags', [CustomerTagController::class, 'update'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
+    Route::get('/customer-tags', [CustomerTagController::class, 'suggestions'])->middleware('ability:customers:view,admin');
+    Route::post('/customers/{customer}/resend-verification', [StaffCustomerController::class, 'resendVerification'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
 
     Route::get('/reviews', [StaffReviewController::class, 'index']);
-    Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review');
-    Route::post('/reviews/{review}/show', [StaffReviewController::class, 'show'])->whereNumber('review');
+    Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review')->middleware('ability:reviews:manage,admin');
+    Route::post('/reviews/{review}/show', [StaffReviewController::class, 'show'])->whereNumber('review')->middleware('ability:reviews:manage,admin');
 
-    Route::get('/books', [StaffBookController::class, 'index']);
-    Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book');
-    Route::post('/books', [StaffBookController::class, 'store']);
-    Route::patch('/books/{book}', [StaffBookController::class, 'update']);
-    Route::post('/books/{book}/variants', [StaffBookVariantController::class, 'store']);
-    Route::patch('/variants/{variant}', [StaffBookVariantController::class, 'update']);
-    Route::post('/variants/{variant}/restock', [StockController::class, 'restock'])->whereNumber('variant');
-    Route::get('/variants/{variant}/stock-history', [StockController::class, 'history'])->whereNumber('variant');
-    Route::get('/stock', [StockController::class, 'index']);
-    Route::post('/books/bulk', [BookBulkController::class, 'bulkBooks']);
-    Route::post('/variants/bulk', [BookBulkController::class, 'bulkVariants']);
-    Route::post('/authors', [StaffAuthorController::class, 'store']);
-    Route::patch('/authors/{author}', [StaffAuthorController::class, 'update']);
-    Route::post('/categories', [StaffCategoryController::class, 'store']);
-    Route::patch('/categories/{category}', [StaffCategoryController::class, 'update']);
-    Route::post('/publishers', [StaffPublisherController::class, 'store']);
-    Route::patch('/publishers/{publisher}', [StaffPublisherController::class, 'update']);
-    Route::post('/series', [StaffSeriesController::class, 'store']);
-    Route::patch('/series/{series}', [StaffSeriesController::class, 'update']);
-    Route::get('/coupons', [StaffCouponController::class, 'index']);
-    Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show']);
+    Route::get('/books', [StaffBookController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book')->middleware('ability:catalog:view,admin');
+    Route::post('/books', [StaffBookController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/books/{book}', [StaffBookController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::post('/books/{book}/variants', [StaffBookVariantController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/variants/{variant}', [StaffBookVariantController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::post('/variants/{variant}/restock', [StockController::class, 'restock'])->whereNumber('variant')->middleware('ability:catalog:manage,admin');
+    Route::get('/variants/{variant}/stock-history', [StockController::class, 'history'])->whereNumber('variant')->middleware('ability:catalog:view,admin');
+    Route::get('/stock', [StockController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::post('/books/bulk', [BookBulkController::class, 'bulkBooks'])->middleware('ability:catalog:manage,admin');
+    Route::post('/variants/bulk', [BookBulkController::class, 'bulkVariants'])->middleware('ability:catalog:manage,admin');
+    Route::post('/authors', [StaffAuthorController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/authors/{author}', [StaffAuthorController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::post('/categories', [StaffCategoryController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/categories/{category}', [StaffCategoryController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::post('/publishers', [StaffPublisherController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/publishers/{publisher}', [StaffPublisherController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::post('/series', [StaffSeriesController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/series/{series}', [StaffSeriesController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::get('/coupons', [StaffCouponController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show'])->middleware('ability:catalog:view,admin');
 
     Route::middleware('abilities:admin')->group(function () {
         Route::get('/books/export', [BookCsvController::class, 'export']);
@@ -254,6 +261,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/members', [StaffMemberController::class, 'index']);
         Route::post('/members', [StaffMemberController::class, 'store']);
         Route::patch('/members/{member}', [StaffMemberController::class, 'update']);
+        Route::get('/members/{member}/login-history', [StaffMemberController::class, 'loginHistory'])->whereNumber('member');
         Route::post('/members/{member}/deactivate', [StaffMemberController::class, 'deactivate']);
         Route::post('/members/{member}/activate', [StaffMemberController::class, 'activate']);
         Route::post('/members/{member}/reset-two-factor', [StaffMemberController::class, 'resetTwoFactor']);

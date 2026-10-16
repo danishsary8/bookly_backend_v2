@@ -861,6 +861,45 @@ paths:
     post: { tags: [Staff auth], summary: 'Email a reset code', security: [], responses: { '200': { description: OK } } }
   /staff/auth/reset-password:
     post: { tags: [Staff auth], summary: 'Set password with an emailed code (also used by newly invited staff)', security: [], responses: { '200': { description: Reset } } }
+  /staff/sessions:
+    get:
+      tags: [Staff auth]
+      summary: List active sessions for current staff
+      responses:
+        '200':
+          description: Sessions list
+  /staff/sessions/{id}:
+    delete:
+      tags: [Staff auth]
+      summary: Revoke a specific session
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+      responses:
+        '200':
+          description: Session revoked
+  /staff/sessions/revoke-others:
+    post:
+      tags: [Staff auth]
+      summary: Revoke all other active sessions
+      responses:
+        '200':
+          description: Other sessions revoked
+  /staff/sessions/revoke-all:
+    post:
+      tags: [Staff auth]
+      summary: Revoke all active sessions (sign out everywhere)
+      responses:
+        '200':
+          description: All sessions revoked
+  /staff/login-history:
+    get:
+      tags: [Staff auth]
+      summary: View login history for current staff
+      parameters:
+        - { $ref: '#/components/parameters/PerPage' }
+      responses:
+        '200':
+          description: Login history list
 
   /staff/books:
     get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, status, trashed)', responses: { '200': { description: Books } } }
@@ -1201,7 +1240,17 @@ paths:
     get: { tags: [Admin], summary: '(admin) Staff accounts', responses: { '200': { description: Members } } }
     post: { tags: [Admin], summary: '(admin) Invite staff (name, email, role) — they set their own password from the emailed code', responses: { '201': { description: Invited } } }
   /staff/members/{id}:
-    patch: { tags: [Admin], summary: '(admin) Change name or role (role change signs them out)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '422': { description: Self change or last admin } } }
+    patch: { tags: [Admin], summary: '(admin) Change name, role or permissions (role/permission change signs them out)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '422': { description: Self change or last admin } } }
+  /staff/members/{id}/login-history:
+    get:
+      tags: [Admin]
+      summary: (admin) View member login history
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses:
+        '200':
+          description: Login history list
   /staff/members/{id}/deactivate:
     post: { tags: [Admin], summary: '(admin) Deactivate', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Deactivated } } }
   /staff/members/{id}/activate:

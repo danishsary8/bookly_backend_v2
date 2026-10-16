@@ -18,7 +18,7 @@ class DatabaseSchemaTest extends TestCase
         'inventory_movements', 'carts', 'cart_items', 'wishlists', 'coupons',
         'orders', 'order_items', 'order_status_history', 'payments', 'payment_webhook_logs',
         'returns', 'return_items', 'reviews', 'exchange_rates', 'admin_audit_logs',
-        'notifications', 'personal_access_tokens', 'jobs', 'failed_jobs',
+        'notifications', 'personal_access_tokens', 'jobs', 'failed_jobs', 'staff_login_histories',
     ];
 
     public function test_all_expected_tables_exist(): void

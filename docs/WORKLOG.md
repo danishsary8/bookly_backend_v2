@@ -239,3 +239,12 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - Automated daily housekeeping: `php artisan trash:purge` command permanently purges (`forceDelete`) soft-deleted records older than 30 days; registered in `App\Support\MaintenanceTasks::all()` and scheduled in `routes/console.php`.
   - Documented in `public/openapi.yaml` and `docs/API.md`; `OpenApiSpecTest` passes clean; tests: `StrictDeleteTest` (5 tests passing); full test suite: 540 tests, 3450 assertions pass; `vendor/bin/pint --test` clean.
 
+- [x] Staff granular permissions, active sessions and login history (2026-10-16, branch `feature/staff-permissions-sessions`):
+  - Migration `2026_10_16_100015_add_permissions_and_create_staff_login_histories_table`: added `permissions` (jsonb) to `staff_users`, `ip_address` to `personal_access_tokens`, and created `staff_login_histories` (`staff_user_id`, `ip_address`, `user_agent`, `device`, `status`, `created_at`).
+  - `StaffUser`: granular permissions support (`DEFAULT_PERMISSIONS` and `ADMIN_PERMISSIONS`); token abilities carry granted permissions plus `admin` role ability; tokens are automatically revoked upon permission or role update in `StaffManagementService::update()`.
+  - Route authorization: enforced granular abilities on staff routes via Sanctum's `ability:permission,admin` (`orders:manage`, `orders:view`, `customers:manage`, `customers:view`, `catalog:manage`, `catalog:view`, `reviews:manage`).
+  - Sessions management (`StaffSessionController`): `GET /staff/sessions` (list active tokens with device name, IP, last used, current flag), `DELETE /staff/sessions/{id}` (revoke specific session), `POST /staff/sessions/revoke-others` (revoke other sessions), `POST /staff/sessions/revoke-all` (sign out everywhere).
+  - Login history tracking (`StaffSessionController` & `AuthController`): tracks login events (`success`, `failed_password`, `failed_2fa`, `deactivated`) with IP and OS/browser detection (`DeviceDetector`); endpoints `GET /staff/login-history` (self) and `GET /staff/members/{id}/login-history` (admin-only).
+  - Documented in `public/openapi.yaml` and `docs/API.md`; `OpenApiSpecTest` passed 4/4; `DatabaseSchemaTest` passed; `StaffPermissionsAndSessionsTest` passed (6 tests, 33 assertions); full suite: 546 tests, 3490 assertions passed; `vendor/bin/pint --test` clean.
+
+

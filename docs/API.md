@@ -60,6 +60,11 @@ Customer `verified` = email **or** phone proven. Unverified customers can log in
 | POST | /staff/auth/logout | — | auth |
 | POST | /staff/auth/forgot-password | email | always 200 |
 | POST | /staff/auth/reset-password | email, code, password, password_confirmation | 2FA stays on |
+| GET | /staff/sessions | — | auth; lists active sessions with device, IP, last_used_at, is_current |
+| DELETE | /staff/sessions/{id} | — | auth; revokes specific session |
+| POST | /staff/sessions/revoke-others | — | auth; revokes all other sessions except current |
+| POST | /staff/sessions/revoke-all | — | auth; signs out everywhere (revokes all sessions) |
+| GET | /staff/login-history | per_page? | auth; paginated login history (success, failed_password, failed_2fa, deactivated) |
 
 Every staff feature route returns 403 `{two_factor_setup_required: true}` until 2FA is confirmed. Admin-only routes need an admin account.
 
@@ -217,9 +222,10 @@ Deactivated staff and customers get 403 "This account has been deactivated. Plea
 ### Staff members
 | Method | Path | Body / notes |
 | --- | --- | --- |
-| GET | /staff/members | `q` (name/email), `role` (admin\|staff), `active`, `per_page` — `{id, name, email, role, two_factor_enabled, is_active, created_at, updated_at}` |
-| POST | /staff/members | name, email, role — emails a 6-digit setup code valid 72 h; the new member calls `POST /staff/auth/reset-password {email, code, password, password_confirmation}`, then logs in and sets up 2FA |
-| PATCH | /staff/members/{id} | name?, role? — a role change signs the member out everywhere |
+| GET | /staff/members | `q` (name/email), `role` (admin\|staff), `active`, `per_page` — `{id, name, email, role, permissions, two_factor_enabled, is_active, created_at, updated_at}` |
+| POST | /staff/members | name, email, role, permissions? — emails a 6-digit setup code valid 72 h; the new member calls `POST /staff/auth/reset-password {email, code, password, password_confirmation}`, then logs in and sets up 2FA |
+| PATCH | /staff/members/{id} | name?, role?, permissions? — a role or permission change signs the member out everywhere |
+| GET | /staff/members/{id}/login-history | `per_page` — admin only; paginated login history for member |
 | POST | /staff/members/{id}/deactivate | signs them out, blocks login |
 | POST | /staff/members/{id}/activate | |
 | POST | /staff/members/{id}/reset-two-factor | lost phone: 2FA off, signed out; they set it up again at next login |
