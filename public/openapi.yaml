@@ -173,6 +173,48 @@ components:
           type: object
           description: 'Number of reviews per star, keys "5" to "1"'
           additionalProperties: { type: integer }
+    EstimatedDelivery:
+      type: object
+      properties:
+        days_min: { type: integer, example: 1 }
+        days_max: { type: integer, example: 2 }
+        delivery_time_en: { type: string, example: '1 working day' }
+        delivery_time_km: { type: string, example: '១ ថ្ងៃធ្វើការ' }
+        earliest_date: { type: string, format: date, example: '2026-10-17' }
+        latest_date: { type: string, format: date, example: '2026-10-19' }
+        formatted: { type: string, example: '1 working day (Sat, 17 Oct)' }
+    DeliveryProvince:
+      type: object
+      properties:
+        code: { type: string, example: phnom_penh }
+        name_en: { type: string, example: Phnom Penh }
+        name_km: { type: string, example: ភ្នំពេញ }
+        area: { type: string, enum: [phnom_penh, provinces] }
+        fee_usd: { $ref: '#/components/schemas/Money' }
+        fee_khr: { $ref: '#/components/schemas/Riel' }
+        days_min: { type: integer, example: 1 }
+        days_max: { type: integer, example: 2 }
+        delivery_time_en: { type: string, example: '1 working day' }
+        delivery_time_km: { type: string, example: '១ ថ្ងៃធ្វើការ' }
+    DeliveryOptionsData:
+      type: object
+      properties:
+        free_shipping:
+          type: object
+          properties:
+            threshold_usd: { $ref: '#/components/schemas/Money', nullable: true }
+            threshold_khr: { $ref: '#/components/schemas/Riel', nullable: true }
+            is_active: { type: boolean }
+        shipping_fees:
+          type: object
+          properties:
+            phnom_penh_usd: { $ref: '#/components/schemas/Money' }
+            phnom_penh_khr: { $ref: '#/components/schemas/Riel' }
+            provinces_usd: { $ref: '#/components/schemas/Money' }
+            provinces_khr: { $ref: '#/components/schemas/Riel' }
+        provinces:
+          type: array
+          items: { $ref: '#/components/schemas/DeliveryProvince' }
     CheckoutPreview:
       type: object
       properties:
@@ -185,6 +227,12 @@ components:
         requires_shipping: { type: boolean, description: false when the cart only has ebooks/audiobooks }
         delivery_area: { type: string, enum: [phnom_penh, provinces], nullable: true, description: 'Area the shipping fee was priced for; null when the customer has no address yet (the provinces fee is quoted)' }
         can_checkout: { type: boolean }
+        is_free_shipping: { type: boolean }
+        free_shipping_threshold: { $ref: '#/components/schemas/Amount', nullable: true }
+        amount_needed_for_free_shipping: { $ref: '#/components/schemas/Amount', nullable: true }
+        province_code: { type: string, nullable: true }
+        province_name: { type: string, nullable: true }
+        estimated_delivery: { $ref: '#/components/schemas/EstimatedDelivery', nullable: true }
     CouponCheck:
       type: object
       properties:
@@ -347,6 +395,8 @@ components:
         shipping_address: { $ref: '#/components/schemas/AddressInput' }
         can_cancel: { type: boolean }
         delivery_note: { type: string, maxLength: 300, nullable: true }
+        is_free_shipping: { type: boolean }
+        estimated_delivery: { $ref: '#/components/schemas/EstimatedDelivery', nullable: true }
         status_history:
           type: array
           items: { type: object, properties: { status: { type: string }, note: { type: string, nullable: true }, created_at: { type: string, format: date-time } } }
@@ -580,6 +630,20 @@ paths:
     get: { tags: [Public], summary: 'List series', security: [], responses: { '200': { description: Series, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Series' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /series/{id}:
     get: { tags: [Public], summary: 'Series with its books in reading order', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Series, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/SeriesDetail' } } } } } } } }
+  /delivery/options:
+    get:
+      tags: [Public]
+      summary: Delivery policy, free delivery threshold and Cambodia provinces rates
+      security: []
+      responses:
+        '200':
+          description: Delivery options
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DeliveryOptionsData' }
 
   /auth/register:
     post:

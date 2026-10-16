@@ -9,7 +9,16 @@ return [
     'shipping_fees' => [
         'phnom_penh' => env('SHIPPING_FEE_PHNOM_PENH', '1.50'),
         'provinces' => env('SHIPPING_FEE_PROVINCES', '3.00'),
+        'province_rates' => [
+            'kandal' => env('SHIPPING_FEE_KANDAL', '2.00'),
+            'mondulkiri' => env('SHIPPING_FEE_MONDULKIRI', '3.50'),
+            'ratanakiri' => env('SHIPPING_FEE_RATANAKIRI', '3.50'),
+        ],
     ],
+
+    // Free delivery threshold in USD. Orders with net physical subtotal meeting or exceeding this threshold
+    // ship free (0.00 USD). Set to null or '0.00' to disable.
+    'free_shipping_threshold' => env('FREE_SHIPPING_THRESHOLD', '50.00'),
 
     // Customers can request a return for physical formats up to this many days after delivery.
     'return_window_days' => (int) env('RETURN_WINDOW_DAYS', 3),

@@ -185,16 +185,45 @@ class CheckoutService
 
         $requiresShipping = $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
         $area = DeliveryArea::for($address);
-        $shipping = $requiresShipping ? Money::toCents(DeliveryArea::fee($area)) : 0;
+        $province = $address ? DeliveryArea::detectProvince($address->city, $address->state) : null;
+        $provinceCode = $province['code'] ?? null;
+        $standardShipping = $requiresShipping ? Money::toCents(DeliveryArea::fee($area, $provinceCode)) : 0;
+
+        $freeThreshold = DeliveryArea::freeShippingThreshold();
+        $freeThresholdCents = $freeThreshold !== null ? Money::toCents($freeThreshold) : null;
+
+        $netSubtotalCents = max(0, $subtotal - $discount);
+        $isFreeShipping = false;
+        if ($requiresShipping && $freeThresholdCents !== null && $netSubtotalCents >= $freeThresholdCents) {
+            $isFreeShipping = true;
+            $shipping = 0;
+        } else {
+            $shipping = $standardShipping;
+        }
+
+        $amountNeededForFreeShippingCents = ($requiresShipping && $freeThresholdCents !== null)
+            ? max(0, $freeThresholdCents - $netSubtotalCents)
+            : null;
+
+        $estimatedDelivery = $requiresShipping
+            ? DeliveryArea::estimate(now(), $address?->city, $address?->state)
+            : null;
 
         return [
             'subtotal_cents' => $subtotal,
             'discount_cents' => $discount,
             'shipping_cents' => $shipping,
+            'standard_shipping_cents' => $standardShipping,
+            'is_free_shipping' => $isFreeShipping,
+            'free_shipping_threshold_cents' => $freeThresholdCents,
+            'amount_needed_for_free_shipping_cents' => $amountNeededForFreeShippingCents,
             'tax_cents' => 0,
             'total_cents' => $subtotal - $discount + $shipping,
             'requires_shipping' => $requiresShipping,
             'delivery_area' => $address ? $area : null,
+            'province_code' => $provinceCode,
+            'province_name' => $province['name_en'] ?? null,
+            'estimated_delivery' => $estimatedDelivery,
             'coupon' => $coupon,
             'can_checkout' => $summary['can_checkout'],
         ];

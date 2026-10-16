@@ -42,6 +42,16 @@ class CheckoutController extends Controller
             'requires_shipping' => $totals['requires_shipping'],
             'delivery_area' => $totals['delivery_area'],
             'can_checkout' => $totals['can_checkout'],
+            'is_free_shipping' => $totals['is_free_shipping'],
+            'free_shipping_threshold' => $totals['free_shipping_threshold_cents'] !== null
+                ? $money($totals['free_shipping_threshold_cents'])
+                : null,
+            'amount_needed_for_free_shipping' => $totals['amount_needed_for_free_shipping_cents'] !== null
+                ? $money($totals['amount_needed_for_free_shipping_cents'])
+                : null,
+            'province_code' => $totals['province_code'],
+            'province_name' => $totals['province_name'],
+            'estimated_delivery' => $totals['estimated_delivery'],
         ]]);
     }
 

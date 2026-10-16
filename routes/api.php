@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\Customer\StockAlertController;
 use App\Http\Controllers\Api\V1\Customer\StoreCreditController;
 use App\Http\Controllers\Api\V1\Customer\TelegramAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
+use App\Http\Controllers\Api\V1\DeliveryController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Newsletter\NewsletterController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
@@ -77,6 +78,7 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/publishers', [PublisherController::class, 'index']);
 Route::get('/series', [SeriesController::class, 'index']);
 Route::get('/series/{series}', [SeriesController::class, 'show'])->whereNumber('series');
+Route::get('/delivery/options', [DeliveryController::class, 'options']);
 
 /*
 | Public newsletter (double opt-in, unsubscribe, RFC 8058 one-click)

@@ -83,6 +83,7 @@ Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP
 | GET | /publishers | `q`, `per_page` |
 | GET | /series | `per_page` |
 | GET | /series/{id} | series with its books in reading order |
+| GET | /delivery/options | Public delivery policy: free delivery threshold, area base fees, and all 25 Cambodia provinces with fees, delivery days, and English/Khmer labels |
 
 Only books with at least one active variant are public. Book card fields: `id, title, language, publish_date, authors[{id,name}], cover_image_url, price_from_usd, price_from_khr, formats[], in_stock, rating_avg, review_count`. Variant fields: `id, format, isbn, price_usd, price_khr, in_stock, cover_image_url` (exact stock is not public). `price_khr` is whole riel from the latest USD->KHR rate, `null` if no rate exists. Lists are paginated: `{data, links, meta}`.
 
@@ -151,16 +152,16 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 ## Checkout and orders (customer token + verified email)
 | Method | Path | Body / notes |
 | --- | --- | --- |
-| POST | /checkout/preview | coupon_code?, address_id?, delivery_note? — totals for the current cart: `{subtotal, discount, shipping_fee, tax, total}` each `{usd, khr}`, plus `coupon_code`, `requires_shipping`, `can_checkout`. Nothing is saved |
+| POST | /checkout/preview | coupon_code?, address_id?, delivery_note? — totals for the current cart: `{subtotal, discount, shipping_fee, tax, total}` each `{usd, khr}`, plus `coupon_code`, `requires_shipping`, `delivery_area`, `can_checkout`, `is_free_shipping`, `free_shipping_threshold`, `amount_needed_for_free_shipping`, `province_code`, `province_name`, `estimated_delivery`. Nothing is saved |
 | POST | /checkout | Header `Idempotency-Key: <8-100 chars, A-Z a-z 0-9 - _>` (required, new value per order). Body: address_id, payment_method (`cod` only for now), coupon_code?, delivery_note? (max 300) — 201 + order. Same key again: 200 + the same order and header `Idempotent-Replayed: true` |
 | GET | /orders | `status`, `per_page` — newest first |
 | GET | /orders/{id} | includes `status_history`. Line `title`/`format` (and the documents' `sku`, `isbn`, `authors`) are what the book was when ordered, not today's book |
 | POST | /orders/{id}/cancel | reason? — only while `pending` |
 | GET | /orders/{id}/invoice | print data for the customer's own invoice (same shape as `/staff/orders/documents`); 422 for a cancelled order; 30/min |
 
-Checkout rules: always today's price; shipping fee by the address's area when any hardcover/paperback is in the order (Phnom Penh `SHIPPING_FEE_PHNOM_PENH`, default 1.50 USD, matched on city or province; everywhere else `SHIPPING_FEE_PROVINCES`, default 3.00 USD), 0 if all digital; `POST /checkout/preview` takes an optional `address_id` (else the default address) and returns `delivery_area`; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `delivery_note`, `idempotency_key`.
+Checkout rules: always today's price; shipping fee by the address's province and area when any hardcover/paperback is in the order (Phnom Penh `SHIPPING_FEE_PHNOM_PENH`, default 1.50 USD; provinces `SHIPPING_FEE_PROVINCES`, default 3.00 USD, with per-province rate overrides in `shop.shipping_fees.province_rates`), 0 if all digital. When physical subtotal (after coupon discount) reaches `FREE_SHIPPING_THRESHOLD` (default 50.00 USD), shipping is free ($0.00). `POST /checkout/preview` takes an optional `address_id` (else the default address) and returns `delivery_area`, `province_code`, `province_name`, `is_free_shipping`, `free_shipping_threshold`, `amount_needed_for_free_shipping`, and `estimated_delivery`; tax 0; stock is deducted when the order is placed and put back on cancel; the cart is emptied and a confirmation email is queued. Errors (422): `cart` (empty, or items unavailable / not enough stock — reload `GET /cart` to see which), `address_id`, `payment_method`, `coupon_code`, `delivery_note`, `idempotency_key`.
 
-Order shape: `{id, order_number (ORD-YYYYMMDD-XXXXX), status, payment_method, payment_status, placed_at, item_count, items[{id, book_variant_id, book_id, title, format, quantity, unit_price_usd, subtotal_usd}], subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, total_khr, coupon_code, shipping_address{...}, can_cancel, delivery_note, status_history[{status, note, created_at}]}`.
+Order shape: `{id, order_number (ORD-YYYYMMDD-XXXXX), status, payment_method, payment_status, placed_at, item_count, items[{id, book_variant_id, book_id, title, format, quantity, unit_price_usd, subtotal_usd}], subtotal_usd, discount_usd, shipping_fee_usd, tax_usd, total_usd, total_khr, coupon_code, shipping_address{...}, can_cancel, delivery_note, is_free_shipping, estimated_delivery, status_history[{status, note, created_at}]}`.
 
 Status flow: `pending -> processing -> shipped -> delivered`; `cancelled` only from pending (customer or staff) or processing (staff). Cash on delivery: payment `pending` at checkout, `succeeded` when delivered, `failed` when cancelled.
 
