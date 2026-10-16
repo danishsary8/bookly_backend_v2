@@ -274,3 +274,8 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - Verification:
     - Added feature test suites `tests/Feature/Seo/SitemapAndRobotsTest.php`, `tests/Feature/Catalog/MediaUploadTest.php`, and `tests/Feature/Customer/TelegramOrderUpdatesTest.php`.
     - Full test suite: 565 tests, 3634 assertions passing (100% green); `vendor/bin/pint --test` clean.
+
+- [x] Dashboard KPI query caching (2026-10-16, branch `feature/shop-completeness-and-seo`):
+  - In `DashboardService.php`, wrapped heavy aggregation queries `summary()` and `dailySales()` in `Cache::remember()` with 5-minute TTL (`dashboard:summary:...`, `dashboard:sales:...`).
+  - Added test `test_dashboard_summary_and_sales_are_cached_for_subsequent_requests()` in `tests/Feature/Admin/DashboardTest.php`.
+  - All 12/12 dashboard tests passing; `vendor/bin/pint --test` clean.

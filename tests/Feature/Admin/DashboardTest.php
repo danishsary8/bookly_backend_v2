@@ -11,6 +11,7 @@ use App\Models\ExchangeRate;
 use App\Models\OrderReturn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Tests\Concerns\ActsAsStaff;
 use Tests\Concerns\BuildsOrders;
 use Tests\TestCase;
@@ -191,5 +192,30 @@ class DashboardTest extends TestCase
         $this->assertSame(4, $rows[0]['copies_sold']);
         $this->assertSame('35.00', $rows[0]['sales_usd']);
         $this->assertSame(3, $rows[1]['copies_sold']);
+    }
+
+    public function test_dashboard_summary_and_sales_are_cached_for_subsequent_requests(): void
+    {
+        Cache::flush();
+
+        // First call populates cache
+        $first = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data');
+
+        // Verify cache key exists
+        $cacheKey = 'dashboard:summary:2026-10-10:2026-10-11:1';
+        $this->assertTrue(Cache::has($cacheKey));
+
+        // Create new delivered order after cache was populated
+        $customer = Customer::factory()->create();
+        $this->deliveredOrder($customer, [[$this->physical('50.00'), 1]], deliveredAt: Carbon::parse('2026-10-10 03:00:00', 'UTC'));
+
+        // Second call within 5-min TTL returns identical cached data
+        $second = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data');
+        $this->assertSame($first['revenue']['gross_usd'], $second['revenue']['gross_usd']);
+
+        // Flushing cache forces re-computation with new order
+        Cache::flush();
+        $third = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data');
+        $this->assertSame('90.00', $third['revenue']['gross_usd']);
     }
 }
