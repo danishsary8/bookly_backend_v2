@@ -99,26 +99,17 @@ class Book extends Model
     }
 
     /**
-     * Splits query into at most 8 cleaned words, stripping zero-width spaces (U+200B).
+     * Splits the query into at most 8 lower-case words, exactly as before for Latin text. A zero-width space (U+200B,
+     * which Khmer keyboards put between words) is a separator too, so a Khmer phrase becomes several Khmer words that
+     * must all match.
      *
      * @return list<string>
      */
     public static function searchWords(string $term): array
     {
-        $rawWords = preg_split('/[^\p{L}\p{N}\p{M}\x{200B}]+/u', mb_strtolower($term), -1, PREG_SPLIT_NO_EMPTY);
-        if ($rawWords === false) {
-            return [];
-        }
+        $words = preg_split('/[^\p{L}\p{N}\p{M}]+/u', mb_strtolower($term), -1, PREG_SPLIT_NO_EMPTY);
 
-        $cleanWords = [];
-        foreach (array_slice($rawWords, 0, 8) as $rawWord) {
-            $cleaned = str_replace(["\u{200B}", "\xE2\x80\x8B"], '', $rawWord);
-            if ($cleaned !== '') {
-                $cleanWords[] = $cleaned;
-            }
-        }
-
-        return $cleanWords;
+        return array_slice($words === false ? [] : $words, 0, 8);
     }
 
     /**

@@ -3,12 +3,14 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Symfony\Component\Mime\Email;
 
-class NewsletterCampaignNotification extends Notification implements ShouldQueue
+/**
+ * One newsletter email. Sent by the marketing outbox (never queued itself), which adds the subscriber's unsubscribe token.
+ */
+class NewsletterCampaignNotification extends Notification
 {
     use Queueable;
 
@@ -36,14 +38,12 @@ class NewsletterCampaignNotification extends Notification implements ShouldQueue
             ->subject($subject)
             ->greeting(config('app.name', 'Bookly'));
 
-        // Split body into paragraphs, escape HTML tags, allow simple line breaks
-        $paragraphs = preg_split('/\r?\n\r?\n/', trim($rawBody));
-        foreach ($paragraphs as $paragraph) {
-            $cleaned = trim($paragraph);
-            if ($cleaned === '') {
-                continue;
+        // Paragraphs on blank lines, single line breaks kept; HTML is escaped by the mail template.
+        foreach (preg_split('/\r?\n\s*\r?\n/', trim($rawBody)) as $paragraph) {
+            $cleaned = self::onlyShopLinks(trim($paragraph));
+            if ($cleaned !== '') {
+                $mail->line(preg_replace('/\r?\n/', "  \n", $cleaned));
             }
-            $mail->line($cleaned);
         }
 
         // Chosen books cards
@@ -51,10 +51,13 @@ class NewsletterCampaignNotification extends Notification implements ShouldQueue
         if (! empty($books)) {
             $mail->line('---');
             foreach ($books as $book) {
-                $title = $book['title'] ?? 'Book';
+                $title = str_replace(['[', ']', '*'], ['\\[', '\\]', '\\*'], $book['title'] ?? 'Book');
                 $price = ! empty($book['price']) ? ' — '.$book['price'] : '';
                 $url = $book['url'] ?? '';
 
+                if (! empty($book['cover_url'])) {
+                    $mail->line('![]('.$book['cover_url'].')');
+                }
                 $mail->line('**'.$title.'**'.$price);
                 if ($url) {
                     $actionText = __('mail.back_in_stock_action') ?: 'View book';
@@ -81,5 +84,22 @@ class NewsletterCampaignNotification extends Notification implements ShouldQueue
         }
 
         return $mail;
+    }
+
+    /**
+     * Admins write plain text. Markdown images are dropped, and a [text](url) link survives only when it points to the
+     * shop; any other becomes its text, so a newsletter can't carry tracking pixels or links to other sites.
+     */
+    public static function onlyShopLinks(string $text): string
+    {
+        $shop = rtrim((string) config('shop.url'), '/');
+        $text = preg_replace('/!\[[^\]]*\]\([^)]*\)/', '', $text);
+
+        return preg_replace_callback('/\[([^\]]*)\]\(([^)\s]*)\)/', function ($m) use ($shop) {
+            $url = $m[2];
+            $isShop = $shop !== '' && ($url === $shop || str_starts_with($url, $shop.'/') || str_starts_with($url, $shop.'?'));
+
+            return $isShop ? $m[0] : $m[1];
+        }, $text);
     }
 }

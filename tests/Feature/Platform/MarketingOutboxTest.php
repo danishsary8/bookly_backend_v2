@@ -4,6 +4,7 @@ namespace Tests\Feature\Platform;
 
 use App\Models\Customer;
 use App\Models\MarketingOutbox;
+use App\Notifications\BackInStockNotification;
 use App\Services\Marketing\MarketingOutboxService;
 use App\Support\MaintenanceTasks;
 use Illuminate\Contracts\Notifications\Dispatcher;
@@ -125,7 +126,7 @@ class MarketingOutboxTest extends TestCase
 
         // Mock notification dispatcher to throw an exception
         $dispatcher = \Mockery::mock(Dispatcher::class);
-        $dispatcher->shouldReceive('send')
+        $dispatcher->shouldReceive('sendNow')
             ->andThrow(new \RuntimeException('SMTP connection refused'));
         $this->app->instance(Dispatcher::class, $dispatcher);
 
@@ -149,5 +150,14 @@ class MarketingOutboxTest extends TestCase
         $row->refresh();
         $this->assertSame(3, $row->attempts);
         $this->assertSame('failed', $row->status);
+    }
+
+    public function test_back_in_stock_email_links_to_the_book_page_by_id(): void
+    {
+        config(['shop.url' => 'https://shop.example']);
+        $mail = (new BackInStockNotification(['book_id' => 42, 'book_title' => 'Dune', 'format' => 'paperback', 'customer_name' => 'Dara']))
+            ->toMail(new \stdClass);
+
+        $this->assertSame('https://shop.example/books/42', $mail->actionUrl);
     }
 }

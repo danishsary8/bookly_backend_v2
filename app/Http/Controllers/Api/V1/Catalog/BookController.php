@@ -105,7 +105,7 @@ class BookController extends Controller
     {
         $targetBook = Book::query()->visible()->findOrFail($book);
 
-        $results = Cache::remember("books:{$targetBook->id}:also-bought", 3600, function () use ($targetBook) {
+        $results = Cache::remember("books:{$targetBook->id}:also-bought-ids", 3600, function () use ($targetBook) {
             $coBookIds = DB::table('order_items as oi2')
                 ->join('book_variants as bv2', 'bv2.id', '=', 'oi2.book_variant_id')
                 ->whereIn('oi2.order_id', function ($query) use ($targetBook) {
@@ -121,7 +121,7 @@ class BookController extends Controller
                 ->groupBy('bv2.book_id')
                 ->havingRaw('COUNT(DISTINCT oi2.order_id) >= 2')
                 ->orderByRaw('COUNT(DISTINCT oi2.order_id) DESC')
-                ->limit(6)
+                ->limit(50) // most are filtered below (hidden or out of stock), the first 6 that remain are kept
                 ->pluck('bv2.book_id')
                 ->all();
 
@@ -138,6 +138,7 @@ class BookController extends Controller
                 $alsoBought = collect($coBookIds)
                     ->map(fn ($id) => $books->firstWhere('id', $id))
                     ->filter()
+                    ->take(6)
                     ->values();
             }
 
@@ -168,7 +169,7 @@ class BookController extends Controller
                         ->withMin('activeVariants as min_price', 'price_usd')
                         ->withAvg('approvedReviews as rating_avg', 'rating')
                         ->withCount('approvedReviews as review_count')
-                        ->orderByDesc('cat_sales.units_sold')
+                        ->orderByRaw('cat_sales.units_sold DESC NULLS LAST') // best sellers first, unsold books last
                         ->orderByDesc('books.id')
                         ->limit($needed)
                         ->get();
@@ -177,10 +178,13 @@ class BookController extends Controller
                 }
             }
 
-            return $alsoBought;
+            return $alsoBought->pluck('id')->all();
         });
 
-        return BookResource::collection($results);
+        // Only the ids are cached: a book that was hidden or sold out since then drops out straight away.
+        $books = $this->catalogQuery()->whereIn('books.id', $results)->get();
+
+        return BookResource::collection(collect($results)->map(fn ($id) => $books->firstWhere('id', $id))->filter()->values());
     }
 
     /** Visible books with everything the book cards need, loaded in a fixed number of queries. */

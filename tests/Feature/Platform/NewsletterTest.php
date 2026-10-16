@@ -11,6 +11,7 @@ use App\Models\NewsletterSubscriber;
 use App\Models\StaffUser;
 use App\Notifications\NewsletterCampaignNotification;
 use App\Notifications\NewsletterConfirmNotification;
+use App\Services\Marketing\MarketingOutboxService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
@@ -90,6 +91,7 @@ class NewsletterTest extends TestCase
             'status' => 'pending',
             'confirm_token_hash' => NewsletterSubscriber::hashToken($rawToken),
             'unsubscribe_token_hash' => NewsletterSubscriber::hashToken('dummy-unsub'),
+            'unsubscribe_token' => 'dummy-unsub',
         ]);
 
         // Invalid token
@@ -113,7 +115,7 @@ class NewsletterTest extends TestCase
     public function test_unsubscribe_with_valid_token_and_one_click_rfc8058(): void
     {
         $email = 'unsub_test@example.com';
-        $rawUnsubToken = hash_hmac('sha256', 'newsletter:unsub:'.$email, config('app.key'));
+        $rawUnsubToken = NewsletterSubscriber::generateRawToken();
 
         $subscriber = NewsletterSubscriber::create([
             'email' => $email,
@@ -121,6 +123,7 @@ class NewsletterTest extends TestCase
             'status' => 'confirmed',
             'confirmed_at' => now(),
             'unsubscribe_token_hash' => NewsletterSubscriber::hashToken($rawUnsubToken),
+            'unsubscribe_token' => $rawUnsubToken,
         ]);
 
         // RFC 8058 one-click unsubscribe
@@ -128,19 +131,20 @@ class NewsletterTest extends TestCase
             'List-Unsubscribe' => 'One-Click',
         ])
             ->assertStatus(200)
-            ->assertJson(['message' => 'Unsubscribed successfully.']);
+            ->assertJson(['message' => 'You have been unsubscribed from the newsletter.']);
 
         $this->assertSame('unsubscribed', $subscriber->fresh()->status);
         $this->assertNotNull($subscriber->fresh()->unsubscribed_at);
 
         // Standard web form unsubscribe
-        $rawUnsubToken2 = hash_hmac('sha256', 'newsletter:unsub:user2@example.com', config('app.key'));
+        $rawUnsubToken2 = NewsletterSubscriber::generateRawToken();
         $subscriber2 = NewsletterSubscriber::create([
             'email' => 'user2@example.com',
             'locale' => 'en',
             'status' => 'confirmed',
             'confirmed_at' => now(),
             'unsubscribe_token_hash' => NewsletterSubscriber::hashToken($rawUnsubToken2),
+            'unsubscribe_token' => $rawUnsubToken2,
         ]);
 
         $this->postJson('/api/v1/newsletter/unsubscribe', ['token' => $rawUnsubToken2])
@@ -354,6 +358,7 @@ class NewsletterTest extends TestCase
             'status' => 'confirmed',
             'confirmed_at' => now(),
             'unsubscribe_token_hash' => NewsletterSubscriber::hashToken('token1'),
+            'unsubscribe_token' => 'token1',
         ]);
 
         NewsletterSubscriber::create([
@@ -362,6 +367,7 @@ class NewsletterTest extends TestCase
             'status' => 'confirmed',
             'confirmed_at' => now(),
             'unsubscribe_token_hash' => NewsletterSubscriber::hashToken('token2'),
+            'unsubscribe_token' => 'token2',
         ]);
 
         NewsletterSubscriber::create([
@@ -369,6 +375,7 @@ class NewsletterTest extends TestCase
             'locale' => 'en',
             'status' => 'pending',
             'unsubscribe_token_hash' => NewsletterSubscriber::hashToken('token3'),
+            'unsubscribe_token' => 'token3',
         ]);
 
         NewsletterSubscriber::create([
@@ -376,6 +383,7 @@ class NewsletterTest extends TestCase
             'locale' => 'en',
             'status' => 'unsubscribed',
             'unsubscribe_token_hash' => NewsletterSubscriber::hashToken('token4'),
+            'unsubscribe_token' => 'token4',
         ]);
 
         // Campaign with both en and km
@@ -397,7 +405,7 @@ class NewsletterTest extends TestCase
                 'daily_limit' => 60,
                 'estimated_days' => 1,
             ])
-            ->assertJsonPath('campaign.status', 'sent');
+            ->assertJsonPath('campaign.status', 'sending');
 
         // Marketing outbox rows: exactly 2 rows created
         $this->assertSame(2, MarketingOutbox::where('kind', 'newsletter')->count());
@@ -420,6 +428,16 @@ class NewsletterTest extends TestCase
             ->assertStatus(422)
             ->assertJson(['message' => 'This campaign has already been sent or is currently sending.']);
 
+        // The outbox sends both; the second subscriber left in between and is skipped. Then the campaign is `sent`.
+        Notification::fake();
+        NewsletterSubscriber::where('email', 'km_user@example.com')->update(['status' => 'unsubscribed']);
+        app(MarketingOutboxService::class)->sendPending();
+        $this->assertSame(['sent', 'cancelled'], MarketingOutbox::orderBy('email')->pluck('status')->all());
+        $this->assertSame('sent', $campaign->fresh()->status);
+        Notification::assertSentOnDemand(NewsletterCampaignNotification::class,
+            fn ($n) => $n->payload['unsubscribe_token'] === NewsletterSubscriber::where('email', 'en_user@example.com')->value('unsubscribe_token')
+                && ! array_key_exists('unsubscribe_token', MarketingOutbox::where('email', 'en_user@example.com')->first()->payload));
+
         // Cannot edit or delete sent campaign
         $this->actingAsAdmin($admin)
             ->putJson('/api/v1/staff/newsletter/campaigns/'.$campaign->id, [
@@ -431,5 +449,14 @@ class NewsletterTest extends TestCase
         $this->actingAsAdmin($admin)
             ->deleteJson('/api/v1/staff/newsletter/campaigns/'.$campaign->id)
             ->assertStatus(422);
+    }
+
+    public function test_campaign_body_keeps_only_links_to_the_shop(): void
+    {
+        config(['shop.url' => 'https://shop.example']);
+        $body = 'Hi [our sale](https://shop.example/books?sort=newest) and [evil](https://evil.example) ![](https://track.example/p.gif)';
+
+        $this->assertSame('Hi [our sale](https://shop.example/books?sort=newest) and evil ',
+            NewsletterCampaignNotification::onlyShopLinks($body));
     }
 }

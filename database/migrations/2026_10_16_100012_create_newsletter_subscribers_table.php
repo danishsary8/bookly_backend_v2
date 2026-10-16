@@ -16,12 +16,15 @@ return new class extends Migration
             $table->string('locale', 5)->default('en');
             $table->string('status', 20)->default('pending'); // pending, confirmed, unsubscribed
             $table->string('confirm_token_hash', 64)->nullable();
-            $table->string('unsubscribe_token_hash', 64);
+            // Looked up by hash; the token itself is kept encrypted (APP_KEY) only to put it into each newsletter email.
+            $table->string('unsubscribe_token_hash', 64)->unique();
+            $table->text('unsubscribe_token');
             $table->timestamp('confirmed_at')->nullable();
             $table->timestamp('unsubscribed_at')->nullable();
             $table->timestamps();
 
             $table->index('status');
+            $table->index('confirm_token_hash');
         });
 
         DB::statement('CREATE UNIQUE INDEX newsletter_subscribers_lower_email_unique ON newsletter_subscribers (LOWER(email))');

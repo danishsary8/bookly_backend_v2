@@ -111,7 +111,7 @@ class InventoryService
         }
     }
 
-    /** Hook fired whenever a variant goes from 0 (or below) to above 0. Task 6 hooks back-in-stock notifications here. */
+    /** Runs whenever a format goes from 0 (or below) to above 0: queues one back-in-stock email per open alert. */
     protected function onStockRestored(BookVariant $variant): void
     {
         $alerts = StockAlert::where('book_variant_id', $variant->id)
@@ -137,7 +137,6 @@ class InventoryService
                     'payload' => [
                         'book_id' => $book?->id ?? $variant->book_id,
                         'book_title' => $book?->title ?? 'Book',
-                        'book_slug' => $book?->slug ?? '',
                         'variant_id' => $variant->id,
                         'format' => $variant->format instanceof \BackedEnum ? $variant->format->value : (string) $variant->format,
                         'customer_name' => $customer->name,

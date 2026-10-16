@@ -35,14 +35,11 @@ class NewsletterController extends Controller
         $subscriber = NewsletterSubscriber::whereRaw('LOWER(email) = ?', [$email])->first();
 
         if ($subscriber && $subscriber->status === 'confirmed') {
-            return response()->json(['message' => 'Check your inbox to confirm.'], 202);
+            return response()->json(['message' => __('messages.newsletter_check_inbox')], 202);
         }
 
-        $throttleKey = 'newsletter:confirm:throttle:'.hash('sha256', $email);
-        $alreadySentRecently = Cache::has($throttleKey);
-
-        if (! $alreadySentRecently) {
-            Cache::put($throttleKey, true, now()->addMinutes(10));
+        // At most one confirm email per address every 10 minutes (Cache::add is atomic).
+        if (Cache::add('newsletter:confirm:throttle:'.hash('sha256', $email), true, now()->addMinutes(10))) {
             $rawConfirmToken = NewsletterSubscriber::generateRawToken();
 
             if ($subscriber) {
@@ -52,13 +49,12 @@ class NewsletterController extends Controller
                     'confirm_token_hash' => NewsletterSubscriber::hashToken($rawConfirmToken),
                 ]);
             } else {
-                $rawUnsubToken = hash_hmac('sha256', 'newsletter:unsub:'.$email, config('app.key'));
                 $subscriber = NewsletterSubscriber::create([
                     'email' => $email,
                     'locale' => $locale,
                     'status' => 'pending',
                     'confirm_token_hash' => NewsletterSubscriber::hashToken($rawConfirmToken),
-                    'unsubscribe_token_hash' => NewsletterSubscriber::hashToken($rawUnsubToken),
+                    ...NewsletterSubscriber::unsubscribeFields(),
                 ]);
             }
 
@@ -70,7 +66,7 @@ class NewsletterController extends Controller
             }
         }
 
-        return response()->json(['message' => 'Check your inbox to confirm.'], 202);
+        return response()->json(['message' => __('messages.newsletter_check_inbox')], 202);
     }
 
     /**
@@ -83,10 +79,12 @@ class NewsletterController extends Controller
         ]);
 
         $tokenHash = NewsletterSubscriber::hashToken(trim($data['token']));
-        $subscriber = NewsletterSubscriber::where('confirm_token_hash', $tokenHash)->first();
+        $subscriber = NewsletterSubscriber::where('confirm_token_hash', $tokenHash)
+            ->where('updated_at', '>', now()->subDays(NewsletterSubscriber::CONFIRM_DAYS))
+            ->first();
 
         if (! $subscriber) {
-            return response()->json(['message' => 'Invalid or expired confirmation link.'], 422);
+            return response()->json(['message' => __('messages.newsletter_confirm_invalid')], 422);
         }
 
         $subscriber->update([
@@ -95,7 +93,7 @@ class NewsletterController extends Controller
             'confirm_token_hash' => null,
         ]);
 
-        return response()->json(['message' => 'Your subscription has been confirmed. Thank you!']);
+        return response()->json(['message' => __('messages.newsletter_confirmed')]);
     }
 
     /**
@@ -107,11 +105,10 @@ class NewsletterController extends Controller
             'token' => ['required', 'string'],
         ]);
 
-        $tokenHash = NewsletterSubscriber::hashToken(trim($data['token']));
-        $subscriber = NewsletterSubscriber::where('unsubscribe_token_hash', $tokenHash)->first();
+        $subscriber = NewsletterSubscriber::findByUnsubscribeToken($data['token']);
 
         if (! $subscriber) {
-            return response()->json(['message' => 'Invalid unsubscribe link.'], 422);
+            return response()->json(['message' => __('messages.newsletter_unsubscribe_invalid')], 422);
         }
 
         $subscriber->update([
@@ -119,7 +116,7 @@ class NewsletterController extends Controller
             'unsubscribed_at' => now(),
         ]);
 
-        return response()->json(['message' => 'You have been unsubscribed from the newsletter.']);
+        return response()->json(['message' => __('messages.newsletter_unsubscribed')]);
     }
 
     /**
@@ -130,14 +127,13 @@ class NewsletterController extends Controller
         $token = (string) ($request->query('token') ?: $request->input('token'));
 
         if ($token === '') {
-            return response()->json(['message' => 'Missing unsubscribe token.'], 400);
+            return response()->json(['message' => __('messages.newsletter_token_missing')], 400);
         }
 
-        $tokenHash = NewsletterSubscriber::hashToken(trim($token));
-        $subscriber = NewsletterSubscriber::where('unsubscribe_token_hash', $tokenHash)->first();
+        $subscriber = NewsletterSubscriber::findByUnsubscribeToken($token);
 
         if (! $subscriber) {
-            return response()->json(['message' => 'Invalid unsubscribe token.'], 422);
+            return response()->json(['message' => __('messages.newsletter_unsubscribe_invalid')], 422);
         }
 
         $subscriber->update([
@@ -145,6 +141,6 @@ class NewsletterController extends Controller
             'unsubscribed_at' => now(),
         ]);
 
-        return response()->json(['message' => 'Unsubscribed successfully.']);
+        return response()->json(['message' => __('messages.newsletter_unsubscribed')]);
     }
 }

@@ -49,7 +49,7 @@ class NewsletterCustomerController extends Controller
 
         if (blank($customer->email) || $customer->email_verified_at === null) {
             return response()->json([
-                'message' => 'Please verify your email address before managing newsletter preferences.',
+                'message' => __('messages.newsletter_verify_email_first'),
             ], 403);
         }
 
@@ -64,33 +64,33 @@ class NewsletterCustomerController extends Controller
             $locale = 'en';
         }
 
-        $subscriber = NewsletterSubscriber::where('customer_id', $customer->id)
-            ->orWhereRaw('LOWER(email) = ?', [$email])
-            ->first();
+        // The row for the customer's CURRENT (verified) email; an older row of theirs moves to this email.
+        $subscriber = NewsletterSubscriber::whereRaw('LOWER(email) = ?', [$email])->first()
+            ?? NewsletterSubscriber::where('customer_id', $customer->id)->first();
 
         if ($data['subscribed']) {
             if ($subscriber) {
                 $subscriber->update([
                     'customer_id' => $customer->id,
+                    'email' => $email,
                     'status' => 'confirmed',
                     'confirmed_at' => $subscriber->confirmed_at ?? now(),
                     'unsubscribed_at' => null,
                     'locale' => $locale,
                 ]);
             } else {
-                $rawUnsubToken = hash_hmac('sha256', 'newsletter:unsub:'.$email, config('app.key'));
                 $subscriber = NewsletterSubscriber::create([
                     'customer_id' => $customer->id,
                     'email' => $email,
                     'locale' => $locale,
                     'status' => 'confirmed',
                     'confirmed_at' => now(),
-                    'unsubscribe_token_hash' => NewsletterSubscriber::hashToken($rawUnsubToken),
+                    ...NewsletterSubscriber::unsubscribeFields(),
                 ]);
             }
 
             return response()->json([
-                'message' => 'You are subscribed to the newsletter.',
+                'message' => __('messages.newsletter_subscribed'),
                 'subscribed' => true,
                 'status' => 'confirmed',
                 'locale' => $subscriber->locale,
@@ -106,7 +106,7 @@ class NewsletterCustomerController extends Controller
         }
 
         return response()->json([
-            'message' => 'You have unsubscribed from the newsletter.',
+            'message' => __('messages.newsletter_unsubscribed'),
             'subscribed' => false,
             'status' => 'unsubscribed',
             'locale' => $subscriber?->locale ?? $locale,

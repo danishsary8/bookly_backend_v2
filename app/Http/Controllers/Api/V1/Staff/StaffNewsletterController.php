@@ -49,7 +49,7 @@ class StaffNewsletterController extends Controller
     {
         $campaigns = NewsletterCampaign::with('createdByStaff:id,name,email')
             ->orderBy('id', 'desc')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min(100, max(1, $request->integer('per_page', 20))));
 
         return response()->json($campaigns);
     }
@@ -167,7 +167,6 @@ class StaffNewsletterController extends Controller
             'subject' => '[TEST] '.$campaign->subject_en,
             'body' => $campaign->body_en,
             'books' => $booksData,
-            'unsubscribe_token' => 'test-preview-token',
         ];
 
         try {
@@ -187,65 +186,65 @@ class StaffNewsletterController extends Controller
     }
 
     /**
-     * Send campaign to all confirmed subscribers via marketing outbox.
+     * Queues the campaign for every confirmed subscriber (one outbox row each, in their language, English when the
+     * Khmer text is empty). The draft → sending switch is one conditional update, so a double click or two admins
+     * can never queue it twice. The outbox marks it `sent` when its last row has gone out.
      */
     public function send(Request $request, NewsletterCampaign $campaign): JsonResponse
     {
-        if ($campaign->status !== 'draft') {
+        if (blank($campaign->subject_en) || blank($campaign->body_en)) {
+            return response()->json(['message' => 'Campaign requires an English subject and body before sending.'], 422);
+        }
+
+        $recipientsTotal = DB::transaction(function () use ($campaign) {
+            $claimed = NewsletterCampaign::whereKey($campaign->id)->where('status', 'draft')->update(['status' => 'sending']);
+            if ($claimed === 0) {
+                return null;
+            }
+
+            $books = $this->formatBooksPayload($campaign->book_ids ?? []);
+            $total = 0;
+            NewsletterSubscriber::where('status', 'confirmed')->orderBy('id')->chunkById(500, function ($subscribers) use ($campaign, $books, &$total) {
+                $rows = [];
+                foreach ($subscribers as $subscriber) {
+                    $khmer = $subscriber->locale === 'km' && filled($campaign->subject_km) && filled($campaign->body_km);
+                    $rows[] = [
+                        'kind' => 'newsletter',
+                        'customer_id' => $subscriber->customer_id,
+                        'email' => $subscriber->email,
+                        'locale' => $khmer ? 'km' : 'en',
+                        'payload' => json_encode([
+                            'campaign_id' => $campaign->id,
+                            'subscriber_id' => $subscriber->id,
+                            'subject' => $khmer ? $campaign->subject_km : $campaign->subject_en,
+                            'body' => $khmer ? $campaign->body_km : $campaign->body_en,
+                            'books' => $books,
+                        ]),
+                        'status' => 'pending',
+                        'attempts' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+                MarketingOutbox::insert($rows);
+                $total += count($rows);
+            });
+            NewsletterCampaign::whereKey($campaign->id)->update(['recipients_total' => $total, 'sent_at' => $total === 0 ? now() : null, 'status' => $total === 0 ? 'sent' : 'sending']);
+
+            return $total;
+        });
+
+        if ($recipientsTotal === null) {
             return response()->json(['message' => 'This campaign has already been sent or is currently sending.'], 422);
         }
-
-        if (blank($campaign->body_en)) {
-            return response()->json(['message' => 'Campaign requires an English body before sending.'], 422);
-        }
-
-        $subscribers = NewsletterSubscriber::where('status', 'confirmed')->get();
-        $recipientsTotal = $subscribers->count();
-
-        $campaign->update([
-            'status' => 'sending',
-            'recipients_total' => $recipientsTotal,
-        ]);
-
-        $booksData = $this->formatBooksPayload($campaign->book_ids ?? []);
-
-        foreach ($subscribers as $subscriber) {
-            $isKhmer = $subscriber->locale === 'km' && ! empty($campaign->subject_km) && ! empty($campaign->body_km);
-            $locale = $isKhmer ? 'km' : 'en';
-            $subject = $isKhmer ? $campaign->subject_km : $campaign->subject_en;
-            $body = $isKhmer ? $campaign->body_km : $campaign->body_en;
-
-            $rawUnsubToken = hash_hmac('sha256', 'newsletter:unsub:'.$subscriber->email, config('app.key'));
-
-            MarketingOutbox::create([
-                'kind' => 'newsletter',
-                'customer_id' => $subscriber->customer_id,
-                'email' => $subscriber->email,
-                'locale' => $locale,
-                'payload' => [
-                    'campaign_id' => $campaign->id,
-                    'subject' => $subject,
-                    'body' => $body,
-                    'books' => $booksData,
-                    'unsubscribe_token' => $rawUnsubToken,
-                ],
-                'status' => 'pending',
-            ]);
-        }
-
-        $campaign->update([
-            'status' => 'sent',
-            'sent_at' => now(),
-        ]);
 
         $this->auditLogger->custom($request->user(), 'send', $campaign);
 
         $dailyLimit = (int) config('shop.marketing_daily_limit', 60);
         $days = (int) ceil($recipientsTotal / max(1, $dailyLimit));
-        $dayEstimate = 'About '.$days.' '.($days === 1 ? 'day' : 'days').' to reach everyone at the '.$dailyLimit.'/day limit';
 
         return response()->json([
-            'message' => $dayEstimate,
+            'message' => 'About '.$days.' '.($days === 1 ? 'day' : 'days').' to reach everyone at the '.$dailyLimit.'/day limit',
             'estimated_days' => $days,
             'daily_limit' => $dailyLimit,
             'recipients_total' => $recipientsTotal,
@@ -263,19 +262,22 @@ class StaffNewsletterController extends Controller
             return [];
         }
 
-        $shopUrl = config('shop.url') ?: 'http://localhost:5173';
-        $books = Book::with('variants')->whereIn('id', $bookIds)->get();
+        $shopUrl = rtrim(config('shop.url') ?: 'http://localhost:5173', '/');
+        $books = Book::visible()
+            ->with(['variants' => fn ($q) => $q->where('is_active', true)])
+            ->whereIn('id', $bookIds)
+            ->get()
+            ->sortBy(fn (Book $book) => array_search($book->id, $bookIds, true));
 
         return $books->map(function (Book $book) use ($shopUrl) {
-            $minPrice = $book->variants->min('price');
-            $priceStr = $minPrice !== null ? '$'.number_format((float) $minPrice, 2) : '';
-            $url = rtrim($shopUrl, '/').'/books/'.$book->id;
+            $from = $book->variants->min(fn ($v) => (float) $v->price_usd);
 
             return [
                 'id' => $book->id,
                 'title' => $book->title,
-                'price' => $priceStr,
-                'url' => $url,
+                'price' => $from !== null ? '$'.number_format($from, 2) : '',
+                'cover_url' => $book->variants->pluck('cover_image_url')->filter()->first(),
+                'url' => $shopUrl.'/books/'.$book->id,
             ];
         })->values()->all();
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\StockAlertResource;
 use App\Models\BookVariant;
 use App\Models\StockAlert;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -34,31 +35,31 @@ class StockAlertController extends Controller
 
         if (! $variant) {
             throw ValidationException::withMessages([
-                'book_variant_id' => ['The selected book format does not exist.'],
+                'book_variant_id' => [__('messages.stock_alert_no_format')],
             ]);
         }
 
         if ($variant->format->isDigital()) {
             throw ValidationException::withMessages([
-                'book_variant_id' => ['Stock alerts are only available for physical book formats.'],
+                'book_variant_id' => [__('messages.stock_alert_digital')],
             ]);
         }
 
         if (! $variant->is_active) {
             throw ValidationException::withMessages([
-                'book_variant_id' => ['This book format is not active.'],
+                'book_variant_id' => [__('messages.stock_alert_inactive')],
             ]);
         }
 
         if (! $variant->book || ! $variant->book->isPublic()) {
             throw ValidationException::withMessages([
-                'book_variant_id' => ['This book is not currently available.'],
+                'book_variant_id' => [__('messages.stock_alert_unavailable')],
             ]);
         }
 
         if ($variant->stock_quantity > 0) {
             throw ValidationException::withMessages([
-                'book_variant_id' => ['This book format is already in stock.'],
+                'book_variant_id' => [__('messages.stock_alert_in_stock')],
             ]);
         }
 
@@ -70,7 +71,7 @@ class StockAlertController extends Controller
 
         if ($openCount >= 50) {
             throw ValidationException::withMessages([
-                'book_variant_id' => ['You can have at most 50 active stock alerts.'],
+                'book_variant_id' => [__('messages.stock_alert_max')],
             ]);
         }
 
@@ -81,16 +82,20 @@ class StockAlertController extends Controller
 
         if ($existing) {
             throw ValidationException::withMessages([
-                'book_variant_id' => ['You already have an active stock alert for this format.'],
+                'book_variant_id' => [__('messages.stock_alert_exists')],
             ]);
         }
 
-        $alert = StockAlert::create([
-            'customer_id' => $customer->id,
-            'book_variant_id' => $variant->id,
-            'created_at' => now(),
-            'notified_at' => null,
-        ]);
+        try {
+            $alert = StockAlert::create([
+                'customer_id' => $customer->id,
+                'book_variant_id' => $variant->id,
+                'created_at' => now(),
+                'notified_at' => null,
+            ]);
+        } catch (UniqueConstraintViolationException) { // a double tap: the other request made it first
+            throw ValidationException::withMessages(['book_variant_id' => [__('messages.stock_alert_exists')]]);
+        }
 
         $alert->load(['bookVariant.book']);
 

@@ -3,11 +3,11 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class BackInStockNotification extends Notification implements ShouldQueue
+/** Sent by the marketing outbox (never queued itself). */
+class BackInStockNotification extends Notification
 {
     use Queueable;
 
@@ -33,12 +33,10 @@ class BackInStockNotification extends Notification implements ShouldQueue
         $bookTitle = $this->payload['book_title'] ?? 'Book';
         $format = ucfirst($this->payload['format'] ?? 'book');
         $customerName = $this->payload['customer_name'] ?? 'Reader';
-        $slug = $this->payload['book_slug'] ?? ($this->payload['book_id'] ?? '');
-
+        // The storefront's book page is /books/{id}.
         $shopUrl = config('shop.url');
-        $url = $shopUrl
-            ? rtrim($shopUrl, '/').'/books/'.$slug
-            : url('/books/'.$slug);
+        $path = '/books/'.(int) ($this->payload['book_id'] ?? 0);
+        $url = $shopUrl ? rtrim($shopUrl, '/').$path : url($path);
 
         return (new MailMessage)
             ->subject(__('mail.back_in_stock_subject', ['title' => $bookTitle]))
