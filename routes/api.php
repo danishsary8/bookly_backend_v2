@@ -53,6 +53,7 @@ use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCoupon
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Staff\StaffNewsletterController;
+use App\Http\Controllers\Api\V1\Staff\StaffSessionController;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -191,6 +192,12 @@ Route::prefix('staff/auth')->group(function () {
 | Staff features: staff + admin can create/edit, deletes are admin-only.
 */
 Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::get('/sessions', [StaffSessionController::class, 'index']);
+    Route::delete('/sessions/{id}', [StaffSessionController::class, 'destroy'])->whereNumber('id');
+    Route::post('/sessions/revoke-others', [StaffSessionController::class, 'revokeOthers']);
+    Route::post('/sessions/revoke-all', [StaffSessionController::class, 'revokeAll']);
+    Route::get('/login-history', [StaffSessionController::class, 'loginHistory']);
+
     Route::get('/notifications', [StaffNotificationController::class, 'index']);
     Route::post('/notifications/read-all', [StaffNotificationController::class, 'markAllRead']);
     Route::post('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead'])->whereUuid('notification');
@@ -199,10 +206,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     // Invoices and packing slips: ?ids[]=1&ids[]=2 (up to 50 orders per print).
     Route::get('/orders/documents', OrderDocumentController::class)->middleware('throttle:30,1');
     Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order');
-    Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order');
+    Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order')->middleware('ability:orders:manage,admin');
     Route::patch('/orders/{order}/staff-note', [StaffOrderController::class, 'updateStaffNote'])->whereNumber('order')->middleware('throttle:30,1');
     // One status for up to 50 orders (not cancel); each order changes on its own and failures are listed.
-    Route::post('/orders/bulk-status', OrderBulkStatusController::class)->middleware('throttle:20,1');
+    Route::post('/orders/bulk-status', OrderBulkStatusController::class)->middleware(['throttle:20,1', 'ability:orders:manage,admin']);
 
     Route::get('/returns', [StaffReturnController::class, 'index']);
     Route::get('/returns/{return}', [StaffReturnController::class, 'show'])->whereNumber('return');
@@ -253,6 +260,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/members', [StaffMemberController::class, 'index']);
         Route::post('/members', [StaffMemberController::class, 'store']);
         Route::patch('/members/{member}', [StaffMemberController::class, 'update']);
+        Route::get('/members/{member}/login-history', [StaffMemberController::class, 'loginHistory'])->whereNumber('member');
         Route::post('/members/{member}/deactivate', [StaffMemberController::class, 'deactivate']);
         Route::post('/members/{member}/activate', [StaffMemberController::class, 'activate']);
         Route::post('/members/{member}/reset-two-factor', [StaffMemberController::class, 'resetTwoFactor']);

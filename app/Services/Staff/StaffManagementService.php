@@ -75,8 +75,8 @@ class StaffManagementService
 
             $locked->update($data);
 
-            if ($locked->wasChanged('role')) {
-                // Token abilities are fixed when a token is created, so old tokens would keep the old role.
+            if ($locked->wasChanged('role') || $locked->wasChanged('permissions')) {
+                // Token abilities are fixed when a token is created, so old tokens would keep the old role or permissions.
                 $locked->tokens()->delete();
             }
             $this->audit->updated($admin, $locked, $before);

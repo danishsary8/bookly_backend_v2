@@ -49,19 +49,24 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 Token response shape: `{ "customer": {...}, "token": "...", "token_type": "Bearer", "expires_at": "ISO-8601" }`.
 Customer `verified` = email **or** phone proven. Unverified customers can log in but shopping routes return 403 "Please verify your account first: enter the code we sent you." `email` is null for Facebook accounts that signed up without one. Sign-ups still unverified after `UNVERIFIED_CUSTOMER_HOURS` (48) are deleted by `customers:prune-unverified` (hourly where a scheduler runs; also at most hourly from sign-up and the staff customer list).
 
-## Staff auth
+## Staff auth, sessions and login history
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
 | POST | /staff/auth/login | email, password | 2FA on: `{two_factor_required: true, challenge_token}`. 2FA off: token + `two_factor_setup_required: true` |
 | POST | /staff/auth/two-factor/challenge | challenge_token, code | returns token (valid 12 hours, `STAFF_TOKEN_HOURS`). Challenge valid 5 min, single use. 5 wrong codes on the account (from any IP) = 429 for 15 min |
 | POST | /staff/auth/two-factor/setup | — | auth; returns `secret` + `otpauth_uri` (render as QR) |
 | POST | /staff/auth/two-factor/confirm | code | auth; enables 2FA |
-| GET | /staff/auth/me | — | auth |
+| GET | /staff/auth/me | — | auth; returns profile including `permissions` |
 | POST | /staff/auth/logout | — | auth |
 | POST | /staff/auth/forgot-password | email | always 200 |
 | POST | /staff/auth/reset-password | email, code, password, password_confirmation | 2FA stays on |
+| GET | /staff/sessions | — | auth + 2FA; lists active sessions (device, ip_address, last_used_at, created_at, is_current) |
+| DELETE | /staff/sessions/{id} | — | auth + 2FA; revokes specific session |
+| POST | /staff/sessions/revoke-others | — | auth + 2FA; revokes all other active sessions |
+| POST | /staff/sessions/revoke-all | — | auth + 2FA; signs out everywhere |
+| GET | /staff/login-history | `per_page` | auth + 2FA; paginated login attempts for the current user |
 
-Every staff feature route returns 403 `{two_factor_setup_required: true}` until 2FA is confirmed. Admin-only routes need an admin account.
+Every staff feature route returns 403 `{two_factor_setup_required: true}` until 2FA is confirmed. Admin-only routes need an admin account. Granular permissions: `orders:view`, `orders:manage`, `catalog:view`, `catalog:manage`, `customers:view`, `customers:manage`, `reviews:manage`, plus admin-only `reports:view`, `members:manage`, `settings:manage`, `newsletter:manage`.
 
 ## Rate limits
 Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP (`X-RateLimit-*` headers; 429 + `Retry-After`); Telegram's own webhook calls with the right `X-Telegram-Bot-Api-Secret-Token` are not limited. On top of that (owner, 2026-10-13): login/OTP/reset 5 per minute per email+IP and 30 per minute per IP; sending codes 3 per 10 minutes; **checkout** 5 per 5 minutes and 20 per hour per customer; checkout preview 30 per minute; **coupon check** 10 per minute per customer, and 5 codes that don't exist in a row lock it for 15 minutes (429, `Retry-After: 900`; a real but unusable code doesn't count, a right code resets the count); **`GET /books`** with `q` 60 per minute per IP, without `q` 120; **`POST /auth/telegram/status`** 60 per minute per IP and link (the website asks every 2 s); **dashboard** summary/sales 30 per minute per staff member; orders export 10 per minute; posting reviews 10 per minute. Email codes die after 5 wrong guesses; staff 2FA allows 5 wrong codes per account per 15 minutes.
@@ -215,15 +220,16 @@ Deactivated staff and customers get 403 "This account has been deactivated. Plea
 ### Staff members
 | Method | Path | Body / notes |
 | --- | --- | --- |
-| GET | /staff/members | `q` (name/email), `role` (admin\|staff), `active`, `per_page` — `{id, name, email, role, two_factor_enabled, is_active, created_at, updated_at}` |
-| POST | /staff/members | name, email, role — emails a 6-digit setup code valid 72 h; the new member calls `POST /staff/auth/reset-password {email, code, password, password_confirmation}`, then logs in and sets up 2FA |
-| PATCH | /staff/members/{id} | name?, role? — a role change signs the member out everywhere |
+| GET | /staff/members | `q` (name/email), `role` (admin\|staff), `active`, `per_page` — `{id, name, email, role, two_factor_enabled, permissions, is_active, created_at, updated_at}` |
+| POST | /staff/members | name, email, role, permissions? — emails a 6-digit setup code valid 72 h; the new member calls `POST /staff/auth/reset-password {email, code, password, password_confirmation}`, then logs in and sets up 2FA |
+| PATCH | /staff/members/{id} | name?, role?, permissions? — a role or permission change signs the member out everywhere |
+| GET | /staff/members/{id}/login-history | `per_page` — paginated login history for this staff member |
 | POST | /staff/members/{id}/deactivate | signs them out, blocks login |
 | POST | /staff/members/{id}/activate | |
 | POST | /staff/members/{id}/reset-two-factor | lost phone: 2FA off, signed out; they set it up again at next login |
 | POST | /staff/members/{id}/resend-invitation | new 72 h setup code (3 per 10 min) |
 
-Rules (422 on `staff`): you cannot change your own role, deactivate or reset yourself; the last active admin can never be demoted or deactivated.
+Rules (422 on `staff`): you cannot change your own role, deactivate or reset yourself; the last active admin can never be demoted or deactivated. Custom permissions can be assigned to non-admin staff from the available set: `orders:view`, `orders:manage`, `catalog:view`, `catalog:manage`, `customers:view`, `customers:manage`, `reviews:manage`. Admins automatically possess all permissions.
 
 ### Customers
 | Method | Path | Auth | Body / notes |
