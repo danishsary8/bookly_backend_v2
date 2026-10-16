@@ -94,8 +94,10 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | GET | /staff/books/export-template | admin only; sample CSV import template |
 | POST | /staff/books/import/preview | admin only (throttle: 10/hour); multipart `file` (.csv ≤ 2 MB, ≤ 2000 rows, quoted cells may span lines); nothing is written. `data {preview_token, totals {total, new, update, error}, rows[{row_number, action, title, format, sku, messages[]}]}`. A row updates the format with the same SKU (any case), else ISBN; else creates a draft book + format (rows with the same title + authors share one book). **On an update a blank cell keeps the current value.** Categories must exist; authors/publisher/series are created; `publish_at` is shop time |
 | POST | /staff/books/import/confirm | admin only (throttle: 10/hour); `preview_token` (single use, 30 min, same admin); checks every row again, then applies the valid ones in one transaction → `data {created, updated, skipped, errors[]}` |
-| DELETE | /staff/books/{id} | admin; soft delete (hidden from catalog) |
+| DELETE | /staff/books/{id} | admin; strict delete: `confirm` (title), `password`, `code` (2FA); soft delete into Trash with 30-day restore; Telegram alert |
 | POST | /staff/books/{id}/restore | admin |
+| GET | /staff/trash | admin; `type=books\|authors\|categories\|publishers\|series`, `page`, `per_page` — soft-deleted items with `deleted_at` and `days_until_purge` countdown |
+| POST | /staff/trash/{type}/{id}/restore | admin; restores soft-deleted catalog entity and logs audit entry |
 | POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
 | PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment. Staff (not admin): a new price of $0 or below half the current one is 422 (same message); admins can |
 | POST | /staff/variants/{id}/restock | quantity (1-10000), supplier?, unit_cost_usd? (admin sees this, max 2 decimals), note? — physical formats only (ebook/audiobook 422). Inside a row lock: increases stock, logs movement and audit log |
@@ -106,7 +108,7 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | POST / PATCH | /staff/categories, /staff/categories/{id} | name, slug? (auto from name) |
 | POST / PATCH | /staff/publishers, /staff/publishers/{id} | name (unique) |
 | POST / PATCH | /staff/series, /staff/series/{id} | name, description? |
-| DELETE | /staff/{authors\|categories\|publishers\|series}/{id} | admin; 409 while any book (incl. deleted) uses it |
+| DELETE | /staff/{authors\|categories\|publishers\|series}/{id} | admin; 409 while any book (incl. deleted) uses it; strict delete: `confirm` (name), `password`, `code` (2FA); soft delete into Trash |
 
 Every staff create/update/delete is recorded in `admin_audit_logs` (who, action like `book_variant.updated`, changed fields before/after).
 

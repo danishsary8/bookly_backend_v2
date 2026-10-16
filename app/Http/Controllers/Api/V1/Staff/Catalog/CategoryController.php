@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use App\Services\Admin\AuditLogger;
+use App\Services\Admin\StrictDeleteService;
+use App\Services\Telegram\OpsAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,7 +15,11 @@ use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly StrictDeleteService $strictDelete,
+        private readonly OpsAlerts $opsAlerts,
+    ) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -50,8 +56,22 @@ class CategoryController extends Controller
             return response()->json(['message' => "This category is used by {$inUse} book(s). Remove it from those books first."], 409);
         }
 
+        $data = $request->validate([
+            'confirm' => ['required', 'string'],
+            'password' => ['required', 'string'],
+            'code' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        if ($failed = $this->strictDelete->verify($user, $data['confirm'], $category->name, $data['password'], $data['code'])) {
+            return $failed;
+        }
+
+        $before = $category->getAttributes();
         $category->delete();
-        $this->audit->deleted($request->user(), $category);
+        $this->audit->custom($user, 'deleted', $category, $before, $category->fresh()?->getAttributes() ?? []);
+
+        $this->opsAlerts->itemDeletedByAdmin($user->name, 'Category', $category->name);
 
         return response()->json(null, 204);
     }

@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Publisher;
 use App\Models\Series;
+use App\Services\Auth\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsStaff;
 use Tests\TestCase;
@@ -63,10 +64,20 @@ class StaffLookupManagementTest extends TestCase
         Book::factory()->create()->authors()->attach($used);
 
         $this->asToken($staff)->deleteJson("/api/v1/staff/authors/{$unused->id}")->assertForbidden();
-        $this->asToken($admin)->deleteJson("/api/v1/staff/authors/{$used->id}")->assertStatus(409);
-        $this->asToken($admin)->deleteJson("/api/v1/staff/authors/{$unused->id}")->assertNoContent();
+        $this->asToken($admin)->deleteJson("/api/v1/staff/authors/{$used->id}", [
+            'confirm' => $used->name,
+            'password' => 'Password123!',
+            'code' => app(TotpService::class)->codeAt('JBSWY3DPEHPK3PXP', time()),
+        ])->assertStatus(409);
 
-        $this->assertModelMissing($unused);
+        $code = app(TotpService::class)->codeAt('JBSWY3DPEHPK3PXP', time());
+        $this->asToken($admin)->deleteJson("/api/v1/staff/authors/{$unused->id}", [
+            'confirm' => $unused->name,
+            'password' => 'Password123!',
+            'code' => $code,
+        ])->assertNoContent();
+
+        $this->assertSoftDeleted($unused);
         $this->assertDatabaseHas('admin_audit_logs', ['action' => 'author.deleted', 'entity_id' => $unused->id]);
     }
 

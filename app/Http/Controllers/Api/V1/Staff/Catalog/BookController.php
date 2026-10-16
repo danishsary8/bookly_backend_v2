@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffBookResource;
 use App\Models\Book;
 use App\Services\Admin\AuditLogger;
+use App\Services\Admin\StrictDeleteService;
+use App\Services\Telegram\OpsAlerts;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +21,11 @@ class BookController extends Controller
 {
     private const RELATIONS = ['authors', 'categories', 'variants'];
 
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly StrictDeleteService $strictDelete,
+        private readonly OpsAlerts $opsAlerts,
+    ) {}
 
     /** All books, including ones with no active variant yet. `trashed=1` lists deleted books. */
     public function index(Request $request): AnonymousResourceCollection
@@ -148,10 +154,28 @@ class BookController extends Controller
     }
 
     /** Soft delete: the book disappears from the catalog but stays linked to past orders. */
-    public function destroy(Request $request, Book $book): JsonResponse
+    public function destroy(Request $request, Book $book): JsonResponse|StaffBookResource
     {
+        $data = $request->validate([
+            'confirm' => ['required', 'string'],
+            'password' => ['required', 'string'],
+            'code' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        if ($failed = $this->strictDelete->verify($user, $data['confirm'], $book->title, $data['password'], $data['code'])) {
+            return $failed;
+        }
+
+        $before = $book->getAttributes();
         $book->delete();
-        $this->audit->deleted($request->user(), $book);
+        $this->audit->custom($user, 'deleted', $book, $before, $book->fresh()?->getAttributes() ?? []);
+
+        $this->opsAlerts->itemDeletedByAdmin(
+            $user->name,
+            'Book',
+            $book->title,
+        );
 
         return response()->json(null, 204);
     }

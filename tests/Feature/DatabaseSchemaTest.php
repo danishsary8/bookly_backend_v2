@@ -28,13 +28,13 @@ class DatabaseSchemaTest extends TestCase
         }
     }
 
-    public function test_soft_deletes_exist_only_on_customers_orders_and_books(): void
+    public function test_soft_deletes_exist_on_catalog_and_audited_tables(): void
     {
-        foreach (['customers', 'orders', 'books'] as $table) {
+        foreach (['customers', 'orders', 'books', 'authors', 'categories', 'publishers', 'series'] as $table) {
             $this->assertTrue(Schema::hasColumn($table, 'deleted_at'), "{$table} should soft delete");
         }
 
-        foreach (['authors', 'book_variants', 'coupons', 'payments', 'staff_users'] as $table) {
+        foreach (['book_variants', 'coupons', 'payments', 'staff_users'] as $table) {
             $this->assertFalse(Schema::hasColumn($table, 'deleted_at'), "{$table} should not soft delete");
         }
     }

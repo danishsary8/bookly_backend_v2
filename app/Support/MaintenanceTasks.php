@@ -26,6 +26,8 @@ class MaintenanceTasks
             ['name' => 'job-batches', 'command' => 'queue:prune-batches', 'parameters' => ['--hours' => 48, '--unfinished' => 72], 'cron' => '0 0 * * *'],
             // Marketing outbox (runs every minute, capped daily).
             ['name' => 'marketing-outbox', 'command' => 'marketing:send', 'parameters' => [], 'cron' => '* * * * *'],
+            // Permanently purge soft-deleted catalog items trashed for more than 30 days.
+            ['name' => 'purge-trash', 'command' => 'trash:purge', 'parameters' => [], 'cron' => '0 0 * * *'],
         ];
     }
 }
