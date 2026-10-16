@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Staff\Admin;
 use App\Enums\StaffRole;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffMemberResource;
+use App\Models\StaffLoginHistory;
 use App\Models\StaffUser;
 use App\Services\Staff\StaffManagementService;
 use Illuminate\Http\JsonResponse;
@@ -43,6 +44,8 @@ class StaffMemberController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:190', Rule::unique('staff_users', 'email')],
             'role' => ['required', Rule::enum(StaffRole::class)],
+            'permissions' => ['sometimes', 'nullable', 'array'],
+            'permissions.*' => ['string'],
         ]);
 
         return (new StaffMemberResource($this->staff->create($request->user(), $data)->refresh()))
@@ -54,9 +57,21 @@ class StaffMemberController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'role' => ['sometimes', 'required', Rule::enum(StaffRole::class)],
+            'permissions' => ['sometimes', 'nullable', 'array'],
+            'permissions.*' => ['string'],
         ]);
 
         return new StaffMemberResource($this->staff->update($request->user(), $member, $data));
+    }
+
+    public function loginHistory(Request $request, StaffUser $member): JsonResponse
+    {
+        $perPage = min(max((int) $request->input('per_page', 20), 1), 100);
+        $history = StaffLoginHistory::where('staff_user_id', $member->id)
+            ->latest('id')
+            ->paginate($perPage);
+
+        return response()->json($history);
     }
 
     public function deactivate(Request $request, StaffUser $member): StaffMemberResource

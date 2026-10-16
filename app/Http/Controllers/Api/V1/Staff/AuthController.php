@@ -6,10 +6,12 @@ use App\Enums\VerificationPurpose;
 use App\Http\Controllers\Api\V1\Concerns\IssuesTokens;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffUserResource;
+use App\Models\StaffLoginHistory;
 use App\Models\StaffUser;
 use App\Notifications\AccountSecurityNotice;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\TotpService;
+use App\Services\Staff\DeviceDetector;
 use App\Support\SafeNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,10 +47,16 @@ class AuthController extends Controller
         $staff = StaffUser::where('email', strtolower($data['email']))->first();
 
         if ($staff === null || ! Hash::check($data['password'], $staff->password_hash)) {
+            if ($staff !== null) {
+                $this->recordLoginHistory($staff, $request, 'failed_password');
+            }
+
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 
         if (! $staff->is_active) {
+            $this->recordLoginHistory($staff, $request, 'deactivated');
+
             return response()->json(['message' => 'This account has been deactivated. Please contact support.'], 403);
         }
 
@@ -62,6 +70,8 @@ class AuthController extends Controller
                 'expires_in' => self::CHALLENGE_TTL_MINUTES * 60,
             ]);
         }
+
+        $this->recordLoginHistory($staff, $request, 'success');
 
         // No 2FA yet: the token only works for 2FA setup until 2FA is confirmed (see staff.2fa middleware).
         return response()->json([
@@ -93,21 +103,38 @@ class AuthController extends Controller
         $attempts = RateLimiter::hit($limiter, self::WRONG_CODE_DECAY_SECONDS);
         if ($attempts > self::MAX_WRONG_CODES) {
             Cache::forget($this->challengeKey($data['challenge_token']));
+            $this->recordLoginHistory($staff, $request, 'failed_2fa');
 
             return response()->json(['message' => 'Too many invalid codes. Please try again later.'], 429)
                 ->header('Retry-After', (string) RateLimiter::availableIn($limiter));
         }
 
         if (! $this->verifyFreshCode($staff, $data['code'])) {
+            $this->recordLoginHistory($staff, $request, 'failed_2fa');
+
             return response()->json(['message' => 'Invalid authentication code.'], 422);
         }
 
         RateLimiter::clear($limiter);
         Cache::forget($this->challengeKey($data['challenge_token']));
 
+        $this->recordLoginHistory($staff, $request, 'success');
+
         return response()->json([
             'staff' => new StaffUserResource($staff),
             ...$this->issueToken($staff, $staff->tokenAbilities()),
+        ]);
+    }
+
+    private function recordLoginHistory(StaffUser $staff, Request $request, string $status): void
+    {
+        StaffLoginHistory::create([
+            'staff_user_id' => $staff->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'device' => DeviceDetector::detect($request->userAgent()),
+            'status' => $status,
+            'created_at' => now(),
         ]);
     }
 

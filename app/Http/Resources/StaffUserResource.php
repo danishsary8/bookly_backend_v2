@@ -15,6 +15,7 @@ class StaffUserResource extends JsonResource
             'email' => $this->email,
             'role' => $this->role->value,
             'two_factor_enabled' => $this->two_factor_enabled,
+            'permissions' => $this->allPermissions(),
             'created_at' => $this->created_at,
         ];
     }
