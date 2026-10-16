@@ -247,4 +247,14 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - Login history tracking (`StaffSessionController` & `AuthController`): tracks login events (`success`, `failed_password`, `failed_2fa`, `deactivated`) with IP and OS/browser detection (`DeviceDetector`); endpoints `GET /staff/login-history` (self) and `GET /staff/members/{id}/login-history` (admin-only).
   - Documented in `public/openapi.yaml` and `docs/API.md`; `OpenApiSpecTest` passed 4/4; `DatabaseSchemaTest` passed; `StaffPermissionsAndSessionsTest` passed (6 tests, 33 assertions); full suite: 546 tests, 3490 assertions passed; `vendor/bin/pint --test` clean.
 
+- [x] Delivery fees per province, estimated delivery date, and free-delivery threshold (2026-10-16, branch `feature/delivery-province-fees`):
+  - `App\Services\Orders\DeliveryArea`: full metadata for all 25 provinces/capital of Cambodia in English and Khmer with aliases, area assignment, delivery days, and delivery time descriptions.
+  - Per-province rates and overrides: support `config('shop.shipping_fees.province_rates.<slug>')` (e.g. Kandal $2.00, Mondulkiri/Ratanakiri $3.50, fallback to standard area fee $3.00 for provinces and $1.50 for Phnom Penh).
+  - Free delivery threshold: configurable `config('shop.free_shipping_threshold')` (default $50.00). When net physical subtotal meets or exceeds threshold, shipping fee is $0.00 USD (`is_free_shipping = true`).
+  - Estimated delivery timeframe & date calculation: `DeliveryArea::estimate()` computes business day range (skipping Sundays and courier cutoff after 16:00).
+  - New public endpoint `GET /api/v1/delivery/options`: returns free delivery threshold, base fees, and all 25 provinces with fees, delivery days, and localized labels.
+  - Checkout & Orders: `POST /checkout/preview` returns `is_free_shipping`, `free_shipping_threshold`, `amount_needed_for_free_shipping`, `province_code`, `province_name`, and `estimated_delivery`. `OrderResource` includes `is_free_shipping` and `estimated_delivery`.
+  - Documented in `public/openapi.yaml` and `docs/API.md`; `ApiContractTest` passed 3/3; `DeliveryProvinceAndFreeShippingTest` (5 tests, 75 assertions); full suite: 551 tests, 3565 assertions passed; `vendor/bin/pint --test` clean.
+
+
 

@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\OrderStatus;
 use App\Services\CurrencyService;
+use App\Services\Orders\DeliveryArea;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -48,6 +49,8 @@ class OrderResource extends JsonResource
             ],
             'can_cancel' => $this->status === OrderStatus::Pending,
             'delivery_note' => $this->delivery_note,
+            'is_free_shipping' => (float) $this->shipping_fee === 0.0 && (float) $this->subtotal > 0,
+            'estimated_delivery' => DeliveryArea::estimate($this->placed_at, $this->shipping_city, $this->shipping_state),
             'status_history' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($h) => [
                 'status' => $h->status->value,
                 'note' => $h->note === 'Order placed.' ? __('messages.order_placed_note') : $h->note,
