@@ -15,9 +15,15 @@ class AccountSecurityNotice extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * $subject and $what are the English text. With a $key, the mail is built from `mail.security_{key}_subject` /
+     * `_body` in the recipient's language (the English lines say exactly the same as $subject and $what).
+     */
     public function __construct(
         public readonly string $subject,
         public readonly string $what,
+        public readonly ?string $key = null,
+        public readonly array $params = [],
     ) {}
 
     public function via(object $notifiable): array
@@ -27,17 +33,8 @@ class AccountSecurityNotice extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $subject = match ($this->subject) {
-            'Your Bookly password was reset' => __('mail.security_password_reset_subject'),
-            'Your Bookly password was changed' => __('mail.security_password_changed_subject'),
-            default => $this->subject,
-        };
-
-        $what = match ($this->what) {
-            'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.' => __('mail.security_password_reset_body'),
-            'The password of your Bookly account was just changed, and other devices were signed out.' => __('mail.security_password_changed_body'),
-            default => $this->what,
-        };
+        $subject = $this->key ? __("mail.security_{$this->key}_subject", $this->params) : $this->subject;
+        $what = $this->key ? __("mail.security_{$this->key}_body", $this->params) : $this->what;
 
         return (new MailMessage)
             ->subject($subject)

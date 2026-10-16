@@ -59,7 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (TransportExceptionInterface $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
-                    'message' => "We couldn't send the email just now. Please try again in a few minutes.",
+                    'message' => __('messages.email_send_failed'),
                 ], 503);
             }
         });

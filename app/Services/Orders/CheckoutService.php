@@ -41,7 +41,7 @@ class CheckoutService
     {
         $addresses = CustomerAddress::where('customer_id', $customer->id);
         $address = $addressId !== null
-            ? ((clone $addresses)->find($addressId) ?? throw ValidationException::withMessages(['address_id' => 'Choose one of your saved addresses.']))
+            ? ((clone $addresses)->find($addressId) ?? throw ValidationException::withMessages(['address_id' => __('messages.checkout_choose_address')]))
             : (clone $addresses)->where('is_default', true)->first();
 
         return $this->totals($customer, $this->carts->summary($customer), $couponCode, $address);
@@ -68,7 +68,7 @@ class CheckoutService
             }
 
             $address = CustomerAddress::where('customer_id', $customer->id)->find($addressId)
-                ?? throw ValidationException::withMessages(['address_id' => 'Choose one of your saved addresses.']);
+                ?? throw ValidationException::withMessages(['address_id' => __('messages.checkout_choose_address')]);
 
             // 3. Lock every format in the cart, always in id order so two checkouts cannot deadlock.
             $variantIds = $cart->items()->orderBy('book_variant_id')->pluck('book_variant_id');
@@ -78,10 +78,10 @@ class CheckoutService
             // 4. Re-check the cart with today's prices and stock now that nothing can change underneath us.
             $summary = $this->carts->summary($customer);
             if ($summary['lines']->isEmpty()) {
-                throw ValidationException::withMessages(['cart' => 'Your cart is empty.']);
+                throw ValidationException::withMessages(['cart' => __('messages.checkout_cart_empty')]);
             }
             if (! $summary['can_checkout']) {
-                throw ValidationException::withMessages(['cart' => 'Some items in your cart are unavailable or do not have enough stock. Please review your cart.']);
+                throw ValidationException::withMessages(['cart' => __('messages.checkout_cart_problems')]);
             }
 
             if ($couponCode !== null && $couponCode !== '') {

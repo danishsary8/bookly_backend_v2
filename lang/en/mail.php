@@ -11,6 +11,7 @@ return [
 
     // Welcome
     'welcome_subject' => 'Welcome to Bookly',
+    'hello_greeting' => 'Hello :name,',
     'welcome_greeting' => 'Welcome, :name!',
     'welcome_line1' => 'Your Bookly account is ready. You can now add books to your cart and order with cash on delivery.',
     'welcome_line2' => 'We email you at every step of your order: confirmed, shipped (with the tracking note), delivered, and for any return.',
@@ -83,4 +84,14 @@ return [
     'refund_bank_transfer' => 'You were refunded by bank transfer.',
     'refund_bank_transfer_reference' => 'You were refunded by bank transfer (reference: :reference).',
     'refund_store_credit' => 'You were refunded as store credit: use code :code at checkout for :amount USD off, valid until :date (one use).',
+    'security_telegram_sign_in_subject' => 'New sign-in to Bookly with Telegram',
+    'security_telegram_sign_in_body' => 'Your Bookly account was signed in with Telegram on :at (Phnom Penh time). If this wasn\'t you, open the Bookly bot and tap “:button”, or contact us.',
+    'security_phone_added_subject' => 'A phone number was added to your Bookly account',
+    'security_phone_added_body' => ':phone can now sign in to your Bookly account with Telegram. If this wasn\'t you, reset your password and contact us.',
+    'security_email_changed_subject' => 'Your Bookly email was changed',
+    'security_email_changed_body' => 'The email on your Bookly account was changed to :email. Sign-in and order emails now go there.',
+    'security_connected_subject' => ':name was connected to your Bookly account',
+    'security_connected_body' => 'You can now sign in to Bookly with :name.',
+    'security_disconnected_subject' => ':name was disconnected from your Bookly account',
+    'security_disconnected_body' => ':name can no longer be used to sign in to Bookly.',
 ];

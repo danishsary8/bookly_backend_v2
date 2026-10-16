@@ -236,7 +236,7 @@ class AuthController extends Controller
             'email_verified_at' => $customer->email_verified_at ?? now(),
         ])->save();
         $customer->tokens()->delete();
-        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was reset', 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.'));
+        SafeNotifier::toCustomer($customer, new AccountSecurityNotice('Your Bookly password was reset', 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.', 'password_reset'));
 
         return response()->json(['message' => 'Password reset. Please log in again.']);
     }

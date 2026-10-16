@@ -30,4 +30,9 @@ return [
     'stock_alert_in_stock' => 'This book format is already in stock.',
     'stock_alert_max' => 'You can have at most 50 active stock alerts.',
     'stock_alert_exists' => 'You already have an active stock alert for this format.',
+    'checkout_choose_address' => 'Choose one of your saved addresses.',
+    'checkout_cart_empty' => 'Your cart is empty.',
+    'checkout_cart_problems' => 'Some items in your cart are unavailable or do not have enough stock. Please review your cart.',
+    'coupon_locked' => 'Too many wrong coupon codes. Please try again in :minutes minutes.',
+    'email_send_failed' => 'We couldn\'t send the email just now. Please try again in a few minutes.',
 ];

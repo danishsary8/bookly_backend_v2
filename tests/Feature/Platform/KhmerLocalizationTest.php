@@ -17,6 +17,7 @@ use App\Notifications\ReturnUpdatedNotification;
 use App\Notifications\WelcomeNotification;
 use App\Services\Returns\ReturnService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\ActsAsStaff;
 use Tests\TestCase;
 
@@ -100,7 +101,7 @@ class KhmerLocalizationTest extends TestCase
             $this->assertStringContainsString('SC-TEST-999', implode(' ', $returnMail->introLines));
 
             // 6. Security & Reopen Notifications
-            $security = new AccountSecurityNotice('Your Bookly password was reset', 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.');
+            $security = new AccountSecurityNotice('Your Bookly password was reset', 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.', 'password_reset');
             $secMail = $security->toMail($customer);
             $this->assertSame('ពាក្យសម្ងាត់ Bookly របស់អ្នកត្រូវបានកំណត់ឡើងវិញ', $secMail->subject);
 
@@ -231,5 +232,41 @@ class KhmerLocalizationTest extends TestCase
             ->patchJson('/api/v1/me', ['locale' => 'fr'])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['locale']);
+    }
+
+    public function test_notifications_use_the_customers_saved_language_when_sent(): void
+    {
+        Notification::fake();
+        $km = Customer::factory()->create(['locale' => 'km']);
+        $en = Customer::factory()->create(['locale' => 'en']);
+
+        $km->notify(new AccountSecurityNotice('Your Bookly password was changed', 'x', 'password_changed'));
+        $en->notify(new AccountSecurityNotice('Your Bookly password was changed', 'x', 'password_changed'));
+
+        Notification::assertSentTo($km, AccountSecurityNotice::class, fn ($n, $channels, $notifiable, $locale) => $locale === 'km');
+        Notification::assertSentTo($en, AccountSecurityNotice::class, fn ($n, $channels, $notifiable, $locale) => $locale === 'en');
+    }
+
+    public function test_every_security_notice_has_khmer_text_and_english_stays_the_same(): void
+    {
+        $customer = Customer::factory()->create(['locale' => 'km', 'name' => 'Sokha']);
+        $notice = new AccountSecurityNotice('New sign-in to Bookly with Telegram', 'x', 'telegram_sign_in', ['at' => '1 Jan 2026, 10:00', 'button' => 'Sign me out']);
+
+        app()->setLocale('km');
+        $this->assertSame('មានការចូលគណនី Bookly ថ្មីតាម Telegram', $notice->toMail($customer)->subject);
+        app()->setLocale('en');
+        $this->assertStringContainsString('1 Jan 2026, 10:00 (Phnom Penh time)', $notice->toMail($customer)->introLines[0]);
+        $this->assertSame('Hello Sokha,', (new OrderStatusChangedNotification(Order::factory()->make(['order_number' => 'ORD-1']), OrderStatus::Processing))->toMail($customer)->greeting);
+    }
+
+    public function test_checkout_errors_follow_accept_language(): void
+    {
+        $customer = Customer::factory()->create();
+        $token = $customer->createToken('t', ['customer'])->plainTextToken;
+
+        $this->withToken($token)->withHeader('Accept-Language', 'km')->postJson('/api/v1/checkout/preview', ['address_id' => 999999])
+            ->assertUnprocessable()->assertJsonPath('errors.address_id.0', 'សូមជ្រើសរើសអាសយដ្ឋានមួយដែលអ្នកបានរក្សាទុក។');
+        $this->withToken($token)->withHeader('Accept-Language', 'en-US,en;q=0.9')->postJson('/api/v1/checkout/preview', ['address_id' => 999999])
+            ->assertUnprocessable()->assertJsonPath('errors.address_id.0', 'Choose one of your saved addresses.');
     }
 }

@@ -44,7 +44,7 @@ class OrderStatusChangedNotification extends Notification implements ShouldQueue
 
         $mail = (new MailMessage)
             ->subject($subject)
-            ->greeting(__('mail.welcome_greeting', ['name' => $notifiable->name]))
+            ->greeting(__('mail.hello_greeting', ['name' => $notifiable->name]))
             ->line($intro)
             ->line(__('mail.order_number', ['number' => $number]));
 

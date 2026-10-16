@@ -11,6 +11,7 @@ return [
 
     // Welcome
     'welcome_subject' => 'សូមស្វាគមន៍មកកាន់ Bookly',
+    'hello_greeting' => 'សួស្តី :name,',
     'welcome_greeting' => 'សូមស្វាគមន៍ :name!',
     'welcome_line1' => 'គណនី Bookly របស់អ្នកបានរួចរាល់ហើយ។ ឥឡូវនេះអ្នកអាចបន្ថែមសៀវភៅទៅក្នុងកន្ត្រក និងបញ្ជាទិញដោយបង់ប្រាក់ពេលទទួលទំនិញបាន។',
     'welcome_line2' => 'យើងនឹងផ្ញើអ៊ីមែលជូនដំណឹងអ្នកនៅគ្រប់ជំហាននៃការបញ្ជាទិញ៖ បានបញ្ជាក់ កំពុងដឹកជញ្ជូន (ជាមួយលេខតាមដាន) បានដឹកជញ្ជូនដល់ និងរាល់ការប្តូរទំនិញ។',
@@ -83,4 +84,14 @@ return [
     'refund_bank_transfer' => 'យើងបានសងប្រាក់អ្នកតាមការផ្ទេរប្រាក់តាមធនាគារ។',
     'refund_bank_transfer_reference' => 'យើងបានសងប្រាក់អ្នកតាមការផ្ទេរប្រាក់តាមធនាគារ (លេខយោង៖ :reference)។',
     'refund_store_credit' => 'យើងបានសងប្រាក់អ្នកជាឥណទានហាង៖ ប្រើកូដ :code ពេលទូទាត់ ដើម្បីបញ្ចុះ :amount ដុល្លារ មានសុពលភាពរហូតដល់ :date (ប្រើបានម្តង)។',
+    'security_telegram_sign_in_subject' => 'មានការចូលគណនី Bookly ថ្មីតាម Telegram',
+    'security_telegram_sign_in_body' => 'គណនី Bookly របស់អ្នកត្រូវបានចូលតាម Telegram នៅ :at (ម៉ោងភ្នំពេញ)។ ប្រសិនបើមិនមែនជាអ្នកទេ សូមបើកបូត Bookly ហើយចុច “:button” ឬទាក់ទងមកយើង។',
+    'security_phone_added_subject' => 'លេខទូរស័ព្ទមួយត្រូវបានបន្ថែមទៅគណនី Bookly របស់អ្នក',
+    'security_phone_added_body' => ':phone អាចចូលគណនី Bookly របស់អ្នកតាម Telegram ឥឡូវនេះ។ ប្រសិនបើមិនមែនជាអ្នកទេ សូមកំណត់ពាក្យសម្ងាត់ឡើងវិញ ហើយទាក់ទងមកយើង។',
+    'security_email_changed_subject' => 'អ៊ីមែល Bookly របស់អ្នកត្រូវបានផ្លាស់ប្តូរ',
+    'security_email_changed_body' => 'អ៊ីមែលនៃគណនី Bookly របស់អ្នកត្រូវបានប្តូរទៅ :email។ អ៊ីមែលចូលគណនី និងការបញ្ជាទិញនឹងផ្ញើទៅទីនោះ។',
+    'security_connected_subject' => ':name ត្រូវបានភ្ជាប់ទៅគណនី Bookly របស់អ្នក',
+    'security_connected_body' => 'អ្នកអាចចូល Bookly ដោយប្រើ :name ឥឡូវនេះ។',
+    'security_disconnected_subject' => ':name ត្រូវបានផ្តាច់ពីគណនី Bookly របស់អ្នក',
+    'security_disconnected_body' => ':name មិនអាចប្រើចូល Bookly បានទៀតទេ។',
 ];
