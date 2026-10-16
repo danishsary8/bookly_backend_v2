@@ -416,6 +416,15 @@ components:
         requested_at: { type: string, format: date-time }
         resolved_at: { type: string, format: date-time, nullable: true }
         can_withdraw: { type: boolean }
+    BookImportRow:
+      type: object
+      properties:
+        row_number: { type: integer, description: 'Data rows start at 2 (row 1 is the header)' }
+        action: { type: string, enum: [new, update, error] }
+        title: { type: string }
+        format: { type: string }
+        sku: { type: string }
+        messages: { type: array, items: { type: string } }
     Review:
       type: object
       properties:
@@ -863,9 +872,46 @@ paths:
   /staff/books/export-template:
     get: { tags: [Staff catalog], summary: '(admin) Download CSV import template', responses: { '200': { description: CSV } } }
   /staff/books/import/preview:
-    post: { tags: [Staff catalog], summary: '(admin) Preview CSV book import (file)', responses: { '200': { description: Preview } } }
+    post:
+      tags: [Staff catalog]
+      summary: '(admin) Preview CSV book import: nothing is written'
+      description: 'Same columns as the export (book_id ignored), one row per format; only `sku` is a required column. A row updates the format with the same SKU (any case), else the same ISBN (digits/X compared); otherwise it creates a new book + format (needs title, format, sku, price_usd; new books are drafts unless `status` says otherwise; rows with the same title and authors become one book). On an update a blank cell keeps the current value. Categories must exist; authors, publisher and series are created. `publish_at` is read in shop time. Max 2 MB and 2000 rows; quoted cells may span lines.'
+      requestBody: { content: { multipart/form-data: { schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } } } } }
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      preview_token: { type: string }
+                      totals: { type: object, properties: { total: { type: integer }, new: { type: integer }, update: { type: integer }, error: { type: integer } } }
+                      rows: { type: array, items: { $ref: '#/components/schemas/BookImportRow' } }
   /staff/books/import/confirm:
-    post: { tags: [Staff catalog], summary: '(admin) Confirm CSV book import (preview_token)', responses: { '200': { description: Imported } } }
+    post:
+      tags: [Staff catalog]
+      summary: '(admin) Apply a previewed import'
+      description: 'Checks every row again against the catalog as it is now, then applies the valid rows in one transaction (stock changes are logged as adjustments). The token works once, for 30 minutes, for the admin who made it.'
+      requestBody: { content: { application/json: { schema: { type: object, required: [preview_token], properties: { preview_token: { type: string } } } } } }
+      responses:
+        '200':
+          description: Imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      created: { type: integer }
+                      updated: { type: integer }
+                      skipped: { type: integer }
+                      errors: { type: array, items: { $ref: '#/components/schemas/BookImportRow' } }
   /staff/books/{id}:
     get: { tags: [Staff catalog], summary: 'Book with all variants', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Book } } }
     patch: { tags: [Staff catalog], summary: 'Update a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }

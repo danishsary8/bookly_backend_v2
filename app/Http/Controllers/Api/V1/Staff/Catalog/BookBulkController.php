@@ -55,7 +55,10 @@ class BookBulkController extends Controller
         }
 
         $items = DB::transaction(function () use ($data, $user) {
-            $books = Book::whereIn('id', $data['ids'])->get();
+            $books = Book::whereIn('id', $data['ids'])->lockForUpdate()->get();
+            if ($books->count() !== count($data['ids'])) {
+                throw ValidationException::withMessages(['ids' => 'Some of these books were deleted. Reload the list and try again.']);
+            }
             $results = [];
 
             foreach ($books as $book) {
@@ -107,7 +110,7 @@ class BookBulkController extends Controller
             'stock_quantity' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'low_stock_threshold' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'is_active' => ['nullable', 'boolean'],
-            'price_usd' => ['nullable', 'numeric', 'min:0', 'max:99999.99', 'regex:/^\d+(\.\d{1,2})?$/'],
+            'price_usd' => ['nullable', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
         ]);
 
         $user = $request->user();
@@ -118,7 +121,10 @@ class BookBulkController extends Controller
         }
 
         $items = DB::transaction(function () use ($data, $user) {
-            $variants = BookVariant::whereIn('id', $data['ids'])->lockForUpdate()->get();
+            $variants = BookVariant::whereIn('id', $data['ids'])->whereHas('book')->lockForUpdate()->get();
+            if ($variants->count() !== count($data['ids'])) {
+                throw ValidationException::withMessages(['ids' => 'Some of these formats belong to deleted books. Reload the list and try again.']);
+            }
             $results = [];
 
             foreach ($variants as $variant) {
@@ -126,6 +132,7 @@ class BookBulkController extends Controller
 
                 if (array_key_exists('stock_quantity', $data) && $data['stock_quantity'] !== null && ! $variant->format->isDigital()) {
                     $this->inventory->setStock($variant, (int) $data['stock_quantity'], InventoryReason::Adjustment, $user);
+                    $variant->refresh(); // setStock writes the row itself; keep the model (and the result) current
                 }
 
                 if (array_key_exists('price_usd', $data) && $data['price_usd'] !== null) {

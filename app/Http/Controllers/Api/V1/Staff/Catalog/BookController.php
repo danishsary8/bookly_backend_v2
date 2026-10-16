@@ -100,27 +100,30 @@ class BookController extends Controller
         $user = $request->user();
         $isAdmin = $user->role === StaffRole::Admin;
 
+        $samePublishAt = fn ($value) => $value === null || $value === ''
+            ? $book->publish_at === null
+            : $book->publish_at !== null && Carbon::parse($value)->equalTo($book->publish_at);
+
         if (! $isAdmin) {
-            if ($request->has('status') && $request->input('status') !== $book->status && in_array($request->input('status'), ['live', 'scheduled'], true)) {
-                abort(403, 'Only an admin can publish books.');
-            }
-            if ($request->has('publish_at') && $request->input('publish_at') != $book->publish_at) {
+            // Staff may send the form back unchanged; changing the status or the time is for admins.
+            if (($request->has('status') && $request->input('status') !== $book->status)
+                || ($request->has('publish_at') && ! $samePublishAt($request->input('publish_at')))) {
                 abort(403, 'Only an admin can publish books.');
             }
             unset($data['status'], $data['publish_at']);
-        } else {
-            if (isset($data['status'])) {
-                if ($data['status'] === 'scheduled') {
-                    $publishAt = $data['publish_at'] ?? $book->publish_at;
-                    if (empty($publishAt)) {
-                        throw ValidationException::withMessages(['publish_at' => 'A publish date is required for scheduled books.']);
-                    }
-                    if (Carbon::parse($publishAt)->isPast()) {
-                        throw ValidationException::withMessages(['publish_at' => 'Publish date must be in the future.']);
-                    }
-                } elseif ($data['status'] !== 'scheduled') {
-                    $data['publish_at'] = null;
+        } elseif (isset($data['status'])) {
+            if ($data['status'] === 'scheduled') {
+                $publishAt = array_key_exists('publish_at', $data) ? $data['publish_at'] : $book->publish_at;
+                if (empty($publishAt)) {
+                    throw ValidationException::withMessages(['publish_at' => 'A publish date is required for scheduled books.']);
                 }
+                // A time that has already passed is fine when nothing about the schedule changes (an edit of the text).
+                $unchanged = $book->status === 'scheduled' && $samePublishAt($publishAt);
+                if (! $unchanged && Carbon::parse($publishAt)->isPast()) {
+                    throw ValidationException::withMessages(['publish_at' => 'Publish date must be in the future.']);
+                }
+            } else {
+                $data['publish_at'] = null;
             }
         }
 

@@ -8,10 +8,10 @@ use App\Models\Book;
 use App\Models\BookVariant;
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\InventoryMovement;
 use App\Models\StaffUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -342,133 +342,185 @@ class BookPublishingBulkCsvTest extends TestCase
         $this->assertStringContainsString('The Great Gatsby', $templateContent);
     }
 
+    private const CSV_HEADER = 'book_id,title,authors,categories,series,series_order,publisher,language,page_count,publish_date,description,status,publish_at,format,sku,isbn,price_usd,stock_quantity,low_stock_threshold,is_active,cover_image_url';
+
+    private function preview(string $csv, ?StaffUser $as = null)
+    {
+        return $this->actingAsStaff($as ?? $this->admin)->postJson('/api/v1/staff/books/import/preview', [
+            'file' => UploadedFile::fake()->createWithContent('books.csv', $csv),
+        ]);
+    }
+
+    private function importCsv(string $csv)
+    {
+        $token = $this->preview($csv)->assertOk()->json('data.preview_token');
+
+        return $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/confirm', ['preview_token' => $token]);
+    }
+
     public function test_csv_import_preview_classifications_and_validation(): void
     {
-        $category = Category::create(['name' => 'History', 'slug' => 'history']);
-
+        Category::create(['name' => 'History', 'slug' => 'history']);
         $existingBook = Book::create(['title' => 'Ancient Rome', 'status' => 'live']);
-        $existingVariant = BookVariant::create([
-            'book_id' => $existingBook->id,
-            'format' => BookFormat::Hardcover,
-            'sku' => 'ROME-HC',
-            'isbn' => '9780123456789',
-            'price_usd' => '30.00',
-            'stock_quantity' => 5,
-            'is_active' => true,
-        ]);
+        BookVariant::create(['book_id' => $existingBook->id, 'format' => BookFormat::Hardcover, 'sku' => 'ROME-HC',
+            'isbn' => '978-0-12-345678-9', 'price_usd' => '30.00', 'stock_quantity' => 5, 'is_active' => true]);
 
-        // CSV rows:
-        // 1. Valid update by SKU
-        // 2. Valid new book
-        // 3. Invalid row: unknown category
-        // 4. Invalid row: bad price
-        $csvContent = implode("\n", [
-            'book_id,title,authors,categories,series,series_order,publisher,language,page_count,publish_date,description,status,publish_at,format,sku,isbn,price_usd,stock_quantity,low_stock_threshold,is_active,cover_image_url',
-            ',Ancient Rome (Updated),Author A,History,,,,English,300,2020-01-01,Updated text,live,,hardcover,ROME-HC,9780123456789,35.00,12,5,1,',
+        $csv = implode("\n", [
+            self::CSV_HEADER,
+            ',Ancient Rome (Updated),Author A,History,,,,English,300,2020-01-01,Updated text,live,,hardcover,rome-hc,,35.00,12,5,1,',
+            ',,,,,,,,,,,,,hardcover,,9780123456789,36.00,,,,',
             ',Brand New Book,Author B,History,,,,English,200,2021-01-01,New book text,live,,paperback,NEW-001,9780987654321,19.99,25,5,1,',
             ',Unknown Cat Book,Author C,NonExistentCategory,,,,English,150,2022-01-01,,draft,,paperback,ERR-001,9781111111111,10.00,10,5,1,',
-            ',Bad Price Book,Author D,History,,,,English,150,2022-01-01,,draft,,paperback,ERR-002,9782222222222,not_a_price,10,5,1,',
+            ',Bad Price Book,Author D,History,,,,English,150,2022-01-01,,draft,,paperback,ERR-002,9782222222222,9.999,10,5,1,',
+            ',Dup Book,Author E,,,,,,,,,,,paperback,NEW-001,,5.00,,,,',
+            ',Late Book,Author F,,,,,,,,,scheduled,2020-01-01 09:00,paperback,ERR-003,,5.00,,,,',
+            ',Minus Stock,Author G,,,,,,,,,,,paperback,ERR-004,,5.00,-5,,,',
         ]);
 
-        $file = UploadedFile::fake()->createWithContent('books.csv', $csvContent);
+        $this->preview($csv, $this->staff)->assertForbidden();
+        $res = $this->preview($csv)->assertOk();
 
-        // Staff cannot preview -> 403
-        $this->actingAsStaff($this->staff)->postJson('/api/v1/staff/books/import/preview', [
-            'file' => $file,
-        ])->assertForbidden();
+        $this->assertSame(['total' => 8, 'new' => 1, 'update' => 2, 'error' => 5], $res->json('data.totals'));
+        $rows = $res->json('data.rows');
+        $this->assertSame(['update', 'update', 'new', 'error', 'error', 'error', 'error', 'error'], array_column($rows, 'action'));
+        $this->assertSame([2, 3, 4, 5, 6, 7, 8, 9], array_column($rows, 'row_number'));
+        $this->assertStringContainsString("doesn't exist", $rows[3]['messages'][0]);
+        $this->assertStringContainsString('price usd', strtolower($rows[4]['messages'][0]));
+        $this->assertStringContainsString('row 4 of this file', implode(' ', $rows[5]['messages']));
+        $this->assertStringContainsString('in the future', implode(' ', $rows[6]['messages']));
+        $this->assertStringContainsString('stock quantity', strtolower(implode(' ', $rows[7]['messages'])));
+        $this->assertArrayNotHasKey('plan', $rows[0]);
 
-        // Admin previews
-        $previewRes = $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/preview', [
-            'file' => $file,
-        ]);
-        $previewRes->assertOk();
-
-        $token = $previewRes->json('preview_token');
-        $this->assertNotEmpty($token);
-
-        $totals = $previewRes->json('totals');
-        $this->assertSame(4, $totals['total']);
-        $this->assertSame(1, $totals['update']);
-        $this->assertSame(1, $totals['new']);
-        $this->assertSame(2, $totals['error']);
-
-        $rows = $previewRes->json('rows');
-        $this->assertSame('update', $rows[0]['action']);
-        $this->assertSame('new', $rows[1]['action']);
-        $this->assertSame('error', $rows[2]['action']);
-        $this->assertStringContainsString("Category 'NonExistentCategory' does not exist", $rows[2]['messages'][0]);
-        $this->assertSame('error', $rows[3]['action']);
-        $this->assertStringContainsString('must be a valid amount', $rows[3]['messages'][0]);
-
-        // Verify nothing was written to DB yet
         $this->assertDatabaseMissing('books', ['title' => 'Brand New Book']);
         $this->assertSame('Ancient Rome', $existingBook->fresh()->title);
     }
 
     public function test_csv_import_confirm_applies_valid_rows_in_one_transaction(): void
     {
-        $category = Category::create(['name' => 'Science', 'slug' => 'science']);
-
+        Category::create(['name' => 'Science', 'slug' => 'science']);
         $existingBook = Book::create(['title' => 'Physics 101', 'status' => 'draft']);
-        $existingVariant = BookVariant::create([
-            'book_id' => $existingBook->id,
-            'format' => BookFormat::Paperback,
-            'sku' => 'PHYS-101',
-            'price_usd' => '15.00',
-            'stock_quantity' => 2,
-            'is_active' => true,
-        ]);
+        $existingVariant = BookVariant::create(['book_id' => $existingBook->id, 'format' => BookFormat::Paperback,
+            'sku' => 'PHYS-101', 'price_usd' => '15.00', 'stock_quantity' => 2, 'is_active' => true]);
 
-        $csvContent = implode("\n", [
-            'book_id,title,authors,categories,series,series_order,publisher,language,page_count,publish_date,description,status,publish_at,format,sku,isbn,price_usd,stock_quantity,low_stock_threshold,is_active,cover_image_url',
+        $res = $this->importCsv(implode("\n", [
+            self::CSV_HEADER,
             ',Physics 101,Isaac Newton,Science,,,,,250,,Updated physics,live,,paperback,PHYS-101,,22.50,15,5,1,',
             ',Chemistry 101,Marie Curie,Science,,,,,280,,Intro to chemistry,live,,hardcover,CHEM-101,9781234567890,29.99,8,5,1,',
-        ]);
+            ',Chemistry 101,Marie Curie,Science,,,,,280,,Intro to chemistry,live,,ebook,CHEM-101-E,,9.99,,,1,',
+            ',Broken,,,,,,,,,,,,paperback,BROKEN-1,,abc,,,,',
+        ]))->assertOk();
+        $this->assertSame(['created' => 2, 'updated' => 1, 'skipped' => 1], array_intersect_key($res->json('data'), array_flip(['created', 'updated', 'skipped'])));
+        $this->assertSame(5, $res->json('data.errors.0.row_number'));
 
-        $file = UploadedFile::fake()->createWithContent('import.csv', $csvContent);
-
-        $previewRes = $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/preview', [
-            'file' => $file,
-        ]);
-        $previewRes->assertOk();
-        $token = $previewRes->json('preview_token');
-
-        // Confirm
-        $confirmRes = $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/confirm', [
-            'preview_token' => $token,
-        ]);
-        $confirmRes->assertOk();
-        $this->assertSame(2, $confirmRes->json('data.imported_count'));
-        $this->assertSame(1, $confirmRes->json('data.totals.new'));
-        $this->assertSame(1, $confirmRes->json('data.totals.update'));
-
-        // Check updated book and variant
         $existingBook->refresh();
         $existingVariant->refresh();
         $this->assertSame('live', $existingBook->status);
         $this->assertSame('22.50', $existingVariant->price_usd);
         $this->assertSame(15, $existingVariant->stock_quantity);
         $this->assertTrue($existingBook->authors->contains('name', 'Isaac Newton'));
+        $this->assertDatabaseHas('inventory_movements', ['book_variant_id' => $existingVariant->id, 'change_qty' => 13, 'reason' => InventoryReason::Adjustment->value]);
 
-        // Check inventory movement was logged as adjustment
-        $this->assertDatabaseHas('inventory_movements', [
-            'book_variant_id' => $existingVariant->id,
-            'change_qty' => 13, // 15 - 2
-            'reason' => InventoryReason::Adjustment->value,
-        ]);
+        $chemistry = Book::where('title', 'Chemistry 101')->sole(); // two formats, one book
+        $this->assertSame('live', $chemistry->status);
+        $this->assertEqualsCanonicalizing(['CHEM-101', 'CHEM-101-E'], $chemistry->variants->pluck('sku')->all());
+        $this->assertSame(8, $chemistry->variants->firstWhere('sku', 'CHEM-101')->stock_quantity);
+    }
 
-        // Check new book and variant
-        $newBook = Book::where('title', 'Chemistry 101')->first();
-        $this->assertNotNull($newBook);
-        $this->assertSame('live', $newBook->status);
-        $this->assertTrue($newBook->authors->contains('name', 'Marie Curie'));
-        $newVariant = $newBook->variants->first();
-        $this->assertSame('CHEM-101', $newVariant->sku);
-        $this->assertSame(8, $newVariant->stock_quantity);
+    public function test_blank_cells_keep_the_current_values_on_update(): void
+    {
+        $book = Book::create(['title' => 'Keep Me', 'status' => 'live', 'description' => 'Original', 'language' => 'Khmer']);
+        $variant = BookVariant::create(['book_id' => $book->id, 'format' => BookFormat::Paperback, 'sku' => 'KEEP-1',
+            'isbn' => '9780306406157', 'price_usd' => '10.00', 'stock_quantity' => 7, 'low_stock_threshold' => 2,
+            'is_active' => false, 'cover_image_url' => 'https://example.com/c.jpg']);
 
-        // Token should now be removed from cache (cannot confirm twice)
-        $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/confirm', [
-            'preview_token' => $token,
-        ])->assertUnprocessable();
+        $this->importCsv("sku,price_usd\nKEEP-1,12.00\n")->assertOk();
+
+        $book->refresh();
+        $variant->refresh();
+        $this->assertSame('12.00', $variant->price_usd);
+        $this->assertSame(['live', 'Original', 'Khmer', 'Keep Me'], [$book->status, $book->description, $book->language, $book->title]);
+        $this->assertSame([7, 2, false, '9780306406157', 'https://example.com/c.jpg'],
+            [$variant->stock_quantity, $variant->low_stock_threshold, $variant->is_active, $variant->isbn, $variant->cover_image_url]);
+        $this->assertSame(0, InventoryMovement::count());
+    }
+
+    public function test_quoted_multi_line_cells_and_the_export_round_trip(): void
+    {
+        $book = Book::create(['title' => 'Round Trip', 'status' => 'live', 'description' => "Line one\nLine two, with comma"]);
+        BookVariant::create(['book_id' => $book->id, 'format' => BookFormat::Paperback, 'sku' => '=RT-1', 'price_usd' => '10.00', 'stock_quantity' => 3, 'is_active' => true]);
+
+        $csv = $this->actingAsStaff($this->admin)->get('/api/v1/staff/books/export')->streamedContent();
+        $res = $this->preview($csv)->assertOk();
+
+        $this->assertSame(['total' => 1, 'new' => 0, 'update' => 1, 'error' => 0], $res->json('data.totals'));
+        $this->importCsv($csv)->assertOk();
+        $this->assertSame("Line one\nLine two, with comma", $book->fresh()->description);
+    }
+
+    public function test_preview_token_is_single_use_and_tied_to_the_admin(): void
+    {
+        $token = $this->preview("title,format,sku,price_usd\nT,paperback,TOK-1,1.00\n")->assertOk()->json('data.preview_token');
+        $otherAdmin = StaffUser::factory()->admin()->withTwoFactor()->create();
+
+        $this->actingAsStaff($otherAdmin)->postJson('/api/v1/staff/books/import/confirm', ['preview_token' => $token])->assertUnprocessable();
+        $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/confirm', ['preview_token' => $token])->assertOk();
+        $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/confirm', ['preview_token' => $token])->assertUnprocessable();
+        $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/confirm', ['preview_token' => str_repeat('x', 40)])->assertUnprocessable();
+    }
+
+    public function test_confirm_checks_again_when_the_catalog_changed_after_the_preview(): void
+    {
+        $token = $this->preview("title,format,sku,price_usd\nRace,paperback,RACE-1,1.00\n")->assertOk()->json('data.preview_token');
+        $other = Book::create(['title' => 'Other', 'status' => 'live']);
+        BookVariant::create(['book_id' => $other->id, 'format' => BookFormat::Hardcover, 'sku' => 'RACE-1', 'price_usd' => '9.00', 'is_active' => true]);
+
+        $res = $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/confirm', ['preview_token' => $token]);
+
+        // The row now matches the hardcover RACE-1, and a paperback can't become a hardcover: nothing is written.
+        $res->assertUnprocessable();
+        $this->assertSame('9.00', BookVariant::where('sku', 'RACE-1')->sole()->price_usd);
+    }
+
+    public function test_file_limits(): void
+    {
+        $rows = implode("\n", array_map(fn ($i) => "T{$i},paperback,LIM-{$i},1.00", range(1, 2001)));
+        $this->preview("title,format,sku,price_usd\n{$rows}\n")->assertUnprocessable()->assertJsonValidationErrors('file');
+
+        $big = UploadedFile::fake()->create('big.csv', 2049, 'text/csv');
+        $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/import/preview', ['file' => $big])->assertUnprocessable();
+
+        $this->preview("title,format\nNo SKU,paperback\n")->assertUnprocessable()->assertJsonValidationErrors('file');
+    }
+
+    public function test_bulk_variants_return_the_new_stock_and_refuse_deleted_books(): void
+    {
+        $book = Book::create(['title' => 'Bulk', 'status' => 'live']);
+        $variant = BookVariant::create(['book_id' => $book->id, 'format' => BookFormat::Paperback, 'sku' => 'BULK-1', 'price_usd' => '5.00', 'stock_quantity' => 1, 'is_active' => true]);
+
+        $this->actingAsStaff($this->staff)->postJson('/api/v1/staff/variants/bulk', ['ids' => [$variant->id], 'stock_quantity' => 9])
+            ->assertOk()->assertJsonPath('data.items.0.stock_quantity', 9);
+
+        $book->delete();
+        $this->actingAsStaff($this->staff)->postJson('/api/v1/staff/variants/bulk', ['ids' => [$variant->id], 'stock_quantity' => 3])
+            ->assertUnprocessable()->assertJsonValidationErrors('ids');
+        $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/bulk', ['ids' => [$book->id], 'status' => 'draft'])
+            ->assertUnprocessable()->assertJsonValidationErrors('ids');
+        $this->assertSame(9, $variant->fresh()->stock_quantity);
+    }
+
+    public function test_a_book_whose_scheduled_time_passed_can_still_be_edited(): void
+    {
+        $book = Book::create(['title' => 'Went live', 'status' => 'scheduled', 'publish_at' => now()->subHour()]);
+        $sameTime = $book->publish_at->toIso8601String();
+
+        $this->actingAsStaff($this->admin)->patchJson("/api/v1/staff/books/{$book->id}", ['title' => 'Went live (2nd ed.)', 'status' => 'scheduled', 'publish_at' => $sameTime])
+            ->assertOk();
+        $this->actingAsStaff($this->staff)->patchJson("/api/v1/staff/books/{$book->id}", ['title' => 'Typo fixed', 'status' => 'scheduled', 'publish_at' => $sameTime])
+            ->assertOk();
+        $this->actingAsStaff($this->staff)->patchJson("/api/v1/staff/books/{$book->id}", ['publish_at' => now()->addDay()->toIso8601String()])
+            ->assertForbidden();
+        $this->actingAsStaff($this->admin)->patchJson("/api/v1/staff/books/{$book->id}", ['status' => 'scheduled', 'publish_at' => now()->subMinute()->toIso8601String()])
+            ->assertUnprocessable();
+        $this->assertSame('Typo fixed', $book->fresh()->title);
     }
 }

@@ -92,8 +92,8 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | POST | /staff/variants/bulk | ids (1-100), stock_quantity? (sets via adjustment), low_stock_threshold?, is_active?, price_usd? (admin only) |
 | GET | /staff/books/export | admin only; UTF-8 CSV with BOM of all books and variants; formula injection protected |
 | GET | /staff/books/export-template | admin only; sample CSV import template |
-| POST | /staff/books/import/preview | admin only (throttle: 10/hour); multipart `file` (.csv <= 2MB, <= 2000 rows); returns `preview_token`, totals (new/update/error), and per-row preview |
-| POST | /staff/books/import/confirm | admin only (throttle: 10/hour); `preview_token`; applies non-error rows in one transaction |
+| POST | /staff/books/import/preview | admin only (throttle: 10/hour); multipart `file` (.csv ≤ 2 MB, ≤ 2000 rows, quoted cells may span lines); nothing is written. `data {preview_token, totals {total, new, update, error}, rows[{row_number, action, title, format, sku, messages[]}]}`. A row updates the format with the same SKU (any case), else ISBN; else creates a draft book + format (rows with the same title + authors share one book). **On an update a blank cell keeps the current value.** Categories must exist; authors/publisher/series are created; `publish_at` is shop time |
+| POST | /staff/books/import/confirm | admin only (throttle: 10/hour); `preview_token` (single use, 30 min, same admin); checks every row again, then applies the valid ones in one transaction → `data {created, updated, skipped, errors[]}` |
 | DELETE | /staff/books/{id} | admin; soft delete (hidden from catalog) |
 | POST | /staff/books/{id}/restore | admin |
 | POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
