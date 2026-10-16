@@ -19,6 +19,7 @@ use App\Notifications\OrderPlacedNotification;
 use App\Services\Cart\CartService;
 use App\Services\Cart\CouponService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Telegram\CustomerOrderUpdates;
 use App\Services\Telegram\OpsAlerts;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
@@ -153,6 +154,7 @@ class CheckoutService
         if ($result['created']) {
             app(OpsAlerts::class)->newOrder($result['order']);
             $customer->notify(new OrderPlacedNotification($result['order']));
+            app(CustomerOrderUpdates::class)->orderPlaced($result['order']);
 
             if ($crossedLowStock !== []) {
                 $staff = StaffUser::all();

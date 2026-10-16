@@ -53,6 +53,14 @@ class TelegramAuthController extends Controller
         return $this->start($request, 'phone', $customer->getKey());
     }
 
+    /**
+     * Generates a link to connect the customer's Telegram chat for real-time order notifications.
+     */
+    public function orderUpdates(Request $request): JsonResponse
+    {
+        return $this->start($request, 'order_updates', $request->user()->getKey());
+    }
+
     public function status(Request $request): JsonResponse
     {
         $data = $request->validate(['key' => ['required', 'string', 'max:100']]);

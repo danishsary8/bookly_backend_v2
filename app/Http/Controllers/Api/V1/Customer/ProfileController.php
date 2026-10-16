@@ -32,11 +32,23 @@ class ProfileController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'locale' => ['sometimes', 'required', 'string', Rule::in(['en', 'km'])],
+            'telegram_order_updates' => ['sometimes', 'boolean'],
         ]);
 
         $request->user()->update($data);
 
         return new CustomerResource($request->user());
+    }
+
+    public function disconnectTelegram(Request $request): CustomerResource
+    {
+        $customer = $request->user();
+        $customer->update([
+            'telegram_chat_id' => null,
+            'telegram_order_updates' => false,
+        ]);
+
+        return new CustomerResource($customer);
     }
 
     public function changePassword(Request $request): JsonResponse
