@@ -98,5 +98,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Newsletter sign-up: 5 per hour per IP to prevent inbox flooding.
         RateLimiter::for('newsletter-subscribe', fn (Request $request) => Limit::perHour(5)->by('newsletter-sub|'.$request->ip()));
+
+        // Media uploads for staff: max 30 per minute per staff member.
+        RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(30)->by('uploads|'.$who($request)));
     }
 }

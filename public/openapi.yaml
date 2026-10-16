@@ -116,6 +116,17 @@ components:
         from: { type: integer, nullable: true }
         to: { type: integer, nullable: true }
         path: { type: string }
+    UploadedMedia:
+      type: object
+      required: [url, path, filename, width, height, size_bytes, mime]
+      properties:
+        url: { type: string, format: uri }
+        path: { type: string }
+        filename: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        size_bytes: { type: integer }
+        mime: { type: string }
     PageLinks:
       type: object
       properties:
@@ -1131,6 +1142,28 @@ paths:
     get: { tags: [Staff operations], summary: 'One coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Coupon } } }
     patch: { tags: [Staff operations], summary: '(admin) Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' } } }
     delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/media/upload:
+    post:
+      tags: [Staff catalog]
+      summary: Upload and securely validate a media image (book cover, author photo)
+      description: Validates file format (JPEG, PNG, WebP), magic bytes, dimensions (100x100 to 4000x4000), and file size (max 5 MB). Returns public URL and dimensions.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary, description: Image file (max 5 MB) }
+      responses:
+        '201':
+          description: Uploaded media
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadedMedia'
+        '422': { $ref: '#/components/responses/Validation' }
   /staff/orders:
     get: { tags: [Staff operations], summary: 'Orders (status, q = order number/customer, from, to)', responses: { '200': { description: Orders } } }
   /staff/orders/bulk-status:

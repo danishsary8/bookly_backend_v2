@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookControl
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookCsvController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\MediaUploadController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\StockController;
@@ -254,6 +255,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/series/{series}', [StaffSeriesController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::get('/coupons', [StaffCouponController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show'])->middleware('ability:catalog:view,admin');
+    Route::post('/media/upload', [MediaUploadController::class, 'upload'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
 
     Route::middleware('abilities:admin')->group(function () {
         Route::get('/books/export', [BookCsvController::class, 'export']);
