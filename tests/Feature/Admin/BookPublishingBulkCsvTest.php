@@ -523,4 +523,16 @@ class BookPublishingBulkCsvTest extends TestCase
             ->assertUnprocessable();
         $this->assertSame('Typo fixed', $book->fresh()->title);
     }
+
+    public function test_a_schedule_sent_in_cambodia_time_is_stored_as_utc(): void
+    {
+        $book = Book::create(['title' => 'Zone', 'status' => 'draft']);
+
+        $this->actingAsStaff($this->admin)->patchJson("/api/v1/staff/books/{$book->id}", ['status' => 'scheduled', 'publish_at' => '2099-01-01T09:00:00+07:00'])
+            ->assertOk()->assertJsonPath('data.publish_at', '2099-01-01T02:00:00+00:00');
+        $this->assertSame('2099-01-01 02:00:00', $book->fresh()->getRawOriginal('publish_at'));
+
+        $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/bulk', ['ids' => [$book->id], 'status' => 'scheduled', 'publish_at' => '2099-02-01T09:00:00+07:00'])->assertOk();
+        $this->assertSame('2099-02-01 02:00:00', $book->fresh()->getRawOriginal('publish_at'));
+    }
 }

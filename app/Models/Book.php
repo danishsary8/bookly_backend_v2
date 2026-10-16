@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class Book extends Model
 {
@@ -20,6 +22,17 @@ class Book extends Model
     ];
 
     protected $hidden = ['search_vector'];
+
+    /**
+     * The column has no time zone, so a time sent with an offset ("09:00+07:00" from the admin form) is turned into UTC
+     * before it is stored; otherwise it would be saved as 09:00 UTC, 7 hours late.
+     */
+    protected function publishAt(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => $value === null || $value === '' ? null : Carbon::parse($value)->utc()->format('Y-m-d H:i:s'),
+        );
+    }
 
     protected function casts(): array
     {
