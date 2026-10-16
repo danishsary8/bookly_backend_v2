@@ -10,21 +10,11 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class StoreCreditController extends Controller
 {
+    /** The customer's store credits (refunds paid as a coupon), newest first, used and expired ones included. */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $credits = Coupon::query()
-            ->where('user_id', $request->user()->id)
-            ->where('is_store_credit', true)
-            ->where('is_active', true)
-            ->where(function ($q) {
-                $q->whereNull('max_uses')->orWhereColumn('used_count', '<', 'max_uses');
-            })
-            ->where(function ($q) {
-                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-            })
-            ->latest('id')
-            ->get();
-
-        return StoreCreditResource::collection($credits);
+        return StoreCreditResource::collection(
+            Coupon::where('customer_id', $request->user()->id)->latest('id')->get()
+        );
     }
 }

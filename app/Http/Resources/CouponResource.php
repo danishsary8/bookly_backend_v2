@@ -21,6 +21,11 @@ class CouponResource extends JsonResource
             'starts_at' => $this->starts_at,
             'expires_at' => $this->expires_at,
             'is_active' => $this->is_active,
+            // Set for store credit (a refund paid as a coupon): only this customer can use it. Never editable.
+            'store_credit_for' => $this->customer_id === null ? null : [
+                'id' => $this->customer_id,
+                'name' => $this->relationLoaded('customer') ? $this->customer?->name : null,
+            ],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

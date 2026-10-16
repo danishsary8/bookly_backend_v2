@@ -17,6 +17,7 @@ class StaffReturnResource extends ReturnResource
                 'phone' => $this->customer->phone,
             ]),
             'handled_by' => $this->whenLoaded('handledBy', fn () => $this->handledBy ? ['id' => $this->handledBy->id, 'name' => $this->handledBy->name] : null),
+            'store_credit_coupon_id' => $this->store_credit_coupon_id,
             'refunded_by' => $this->whenLoaded('refundedBy', fn () => $this->refundedBy ? ['id' => $this->refundedBy->id, 'name' => $this->refundedBy->name] : null),
         ];
     }

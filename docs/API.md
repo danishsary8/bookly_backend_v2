@@ -41,7 +41,7 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 | POST | /me/email/verify | code | auth. Saves the new address as verified, cancels codes sent to the old one, signs out other devices, and emails the old (proven) address "Your Bookly email was changed to n***@…". |
 | POST | /me/connections/{google\|facebook} | access_token, password (when the account has one) | auth. Connects the provider: the token must be issued to our app (profile read from the provider); 409 if that provider account is linked to another Bookly account or another one is already connected; 422 if the token can't be verified (not 401: the customer stays signed in). A verified email gets a "was connected" notice.. **New way in** (security review 2026-10-15): accounts with a password type it; accounts without one must have signed in within the last 10 minutes, else 403 `reason: sign_in_again` "For your safety, sign in again first, then try this within 10 minutes." |
 | DELETE | /me/connections/{google\|facebook} | — | auth. Disconnects it; 422 `reason: last_way_in` "Add a password first, so you can still sign in." when it's the only way left (`sign_in_methods` on the customer: `password` (with an email), `google`, `facebook`, `telegram` (a verified number, while the Telegram bot is on)). |
-| GET | /me/store-credits | — | auth (customer). Active, unused store credit coupons bound to this customer account. |
+| GET | /me/store-credits | — | auth (customer). Store credits (refunds paid as a coupon), newest first, used and expired included: `{id, code, amount_usd, expires_at, used, expired, created_at}`. |
 | GET | /me/stock-alerts | — | auth (customer). All stock alerts for the customer with book and variant details |
 | POST | /me/stock-alerts | book_variant_id | auth (customer). 201. Physical, active format of public book currently out of stock. Max 50 active alerts per customer. |
 | DELETE | /me/stock-alerts/{id} | — | auth (customer). 204. Removes an alert |
@@ -182,7 +182,7 @@ Low-stock alert (`type: low_stock`) is sent to every staff member once, when a s
 | DELETE | /returns/{id} | withdraw; only while `requested` |
 
 Rules: order must be `delivered`; within `RETURN_WINDOW_DAYS` (default 3) of delivery; physical formats only (ebooks/audiobooks are not returnable); some or all copies, never more than bought minus copies already in requested/approved/refunded returns; one requested/approved return per order at a time. Errors (422): `order` (not delivered, window closed, request in progress, nothing left), `items`.
-Return shape: `{id, order_id, order_number, status (requested|approved|rejected|refunded), reason, items[{id, order_item_id, title, format, quantity, unit_price_usd, reason}], refund_amount_usd, is_refund_final, staff_note, requested_at, resolved_at, can_withdraw}`. Before the refund `refund_amount_usd` is an estimate: the items minus their share of the order's coupon discount (shipping is not refunded).
+Return shape: `{id, order_id, order_number, status (requested|approved|rejected|refunded), reason, items[{id, order_item_id, title, format, quantity, unit_price_usd, reason}], refund_amount_usd, is_refund_final, staff_note, requested_at, resolved_at, can_withdraw}`. Before the refund `refund_amount_usd` is an estimate: the items minus their share of the order's coupon discount (shipping is not refunded). Refund record: `refund_method` (cash\|bank_transfer\|store_credit, null for older refunds), `refund_reference`, `refunded_at`, `store_credit {code, amount_usd, expires_at}`; staff also get `refunded_by {id, name}`.
 
 ## Staff returns (staff token + 2FA)
 | Method | Path | Body / notes |
@@ -191,7 +191,7 @@ Return shape: `{id, order_id, order_number, status (requested|approved|rejected|
 | GET | /staff/returns/{id} | |
 | POST | /staff/returns/{id}/approve | note? — requested -> approved (no stock change yet) |
 | POST | /staff/returns/{id}/reject | note (required) — requested or approved -> rejected |
-| POST | /staff/returns/{id}/refund | method (`store_credit`\|`manual_offline`), reference? (required for manual_offline), note? — approved -> refunded: books back in stock, refund amount saved. Issues a store credit coupon (1 year expiry) or records offline reference. |
+| POST | /staff/returns/{id}/refund | `method` (required: `cash`\|`bank_transfer`\|`store_credit`), `reference?` (≤ 100, only for bank_transfer), `note?` — approved -> refunded: books back in stock, refund record saved (amount, method, reference, who, when). `store_credit` makes a one-use fixed coupon `CREDIT-XXXXXXXX` for the refund amount, locked to this customer (anyone else gets the unknown-code answer), valid until 23:59:59 shop time on the same day 12 months later; the customer email says how they were refunded |
 
 When every physical copy of an order has been refunded, the order becomes `returned` and its payment `refunded`.
 

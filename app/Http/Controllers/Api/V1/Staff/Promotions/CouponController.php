@@ -27,6 +27,7 @@ class CouponController extends Controller
 
         return CouponResource::collection(
             Coupon::query()
+                ->with('customer')
                 ->when($data['q'] ?? null, fn ($q, $term) => $q->where('code', 'ilike', '%'.addcslashes($term, '%_').'%'))
                 ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')))
                 ->latest()
@@ -38,7 +39,7 @@ class CouponController extends Controller
 
     public function show(Coupon $coupon): CouponResource
     {
-        return new CouponResource($coupon);
+        return new CouponResource($coupon->load('customer'));
     }
 
     public function store(Request $request): JsonResponse

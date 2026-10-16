@@ -51,8 +51,6 @@ return [
     'return_refunded_subject' => 'Your refund for :number is done',
     'return_refunded_intro' => 'We received your books and paid your refund.',
     'refund_amount' => 'Refund amount: :amount USD (the shipping fee is not refunded).',
-    'refund_store_credit' => 'Your refund has been issued as store credit. You can use coupon code :code at checkout (valid for 1 year).',
-    'refund_manual_offline' => 'Refund reference / receipt: :reference',
 
     // Security & Account
     'security_password_reset_subject' => 'Your Bookly password was reset',
@@ -81,4 +79,8 @@ return [
     'newsletter_confirm_outro' => 'If you did not sign up for this newsletter, you can safely ignore this email.',
     'newsletter_unsubscribe_notice' => 'You are receiving this email because you subscribed to the Bookly newsletter.',
     'newsletter_unsubscribe_action' => 'Unsubscribe from newsletter',
+    'refund_cash' => 'You were refunded in cash.',
+    'refund_bank_transfer' => 'You were refunded by bank transfer.',
+    'refund_bank_transfer_reference' => 'You were refunded by bank transfer (reference: :reference).',
+    'refund_store_credit' => 'You were refunded as store credit: use code :code at checkout for :amount USD off, valid until :date (one use).',
 ];

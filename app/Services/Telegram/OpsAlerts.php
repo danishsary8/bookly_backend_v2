@@ -4,7 +4,6 @@ namespace App\Services\Telegram;
 
 use App\Models\BookVariant;
 use App\Models\Order;
-use App\Models\OrderReturn;
 use App\Models\Review;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Http;
@@ -77,21 +76,6 @@ class OpsAlerts
     {
         $date = $reopenUntil instanceof CarbonInterface ? $reopenUntil->toFormattedDayDateString() : $reopenUntil;
         $this->send("Customer account closed by {$adminName}: {$customerName}, can be reopened until {$date}");
-    }
-
-    public function returnRefunded(OrderReturn $return): void
-    {
-        $return->loadMissing(['order', 'customer']);
-        $methodLabel = $return->refund_method === 'store_credit' ? 'Store Credit' : 'Manual/Offline';
-        $ref = $return->refund_reference ? " ({$return->refund_reference})" : '';
-
-        $this->send(implode("\n", array_filter([
-            "💸 Return #{$return->id} refunded",
-            "Order: {$return->order?->order_number}",
-            "Customer: {$return->customer?->name}",
-            "Amount: {$return->refund_amount} USD",
-            "Method: {$methodLabel}{$ref}",
-        ])), staff: true);
     }
 
     /** The chats a message goes to: the owner's, plus the staff group for staff messages; the same chat only once. */

@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Models\Customer;
 use App\Models\StaffUser;
-use App\Services\Telegram\OpsAlerts;
 use Illuminate\Notifications\Notification;
 use Throwable;
 
@@ -36,15 +35,6 @@ class SafeNotifier
 
         try {
             $staff->notify($notification);
-        } catch (Throwable $e) {
-            report($e);
-        }
-    }
-
-    public static function telegram(callable $notify): void
-    {
-        try {
-            $notify(app(OpsAlerts::class));
         } catch (Throwable $e) {
             report($e);
         }

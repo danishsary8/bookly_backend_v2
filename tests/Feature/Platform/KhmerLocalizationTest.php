@@ -82,7 +82,7 @@ class KhmerLocalizationTest extends TestCase
             $statusMail = $statusNotif->toMail($customer);
             $this->assertSame('យើងកំពុងរៀបចំការបញ្ជាទិញរបស់អ្នក ORD-KM-101', $statusMail->subject);
 
-            // 5. Return Updated Notification (with Store Credit)
+            // 5. Return Updated Notification (bank transfer with a reference)
             $return = OrderReturn::create([
                 'order_id' => $order->id,
                 'customer_id' => $customer->id,
@@ -90,7 +90,7 @@ class KhmerLocalizationTest extends TestCase
                 'status' => ReturnStatus::Refunded,
                 'requested_at' => now(),
                 'refund_amount' => 15.00,
-                'refund_method' => 'store_credit',
+                'refund_method' => 'bank_transfer',
                 'refund_reference' => 'SC-TEST-999',
             ]);
             $return->setRelation('order', $order);

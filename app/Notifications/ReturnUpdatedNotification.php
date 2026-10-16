@@ -41,11 +41,19 @@ class ReturnUpdatedNotification extends Notification implements ShouldQueue
 
         if ($return->status === ReturnStatus::Refunded) {
             $mail->line(__('mail.refund_amount', ['amount' => $return->refund_amount]));
-            if ($return->refund_method === 'store_credit' && filled($return->refund_reference)) {
-                $mail->line(__('mail.refund_store_credit', ['code' => $return->refund_reference]));
-            } elseif ($return->refund_method === 'manual_offline' && filled($return->refund_reference)) {
-                $mail->line(__('mail.refund_manual_offline', ['reference' => $return->refund_reference]));
-            }
+            $coupon = $return->storeCreditCoupon;
+            match ($return->refund_method) {
+                'cash' => $mail->line(__('mail.refund_cash')),
+                'bank_transfer' => $mail->line(filled($return->refund_reference)
+                    ? __('mail.refund_bank_transfer_reference', ['reference' => $return->refund_reference])
+                    : __('mail.refund_bank_transfer')),
+                'store_credit' => $coupon ? $mail->line(__('mail.refund_store_credit', [
+                    'code' => $coupon->code,
+                    'amount' => $coupon->value,
+                    'date' => $coupon->expires_at->timezone(config('shop.timezone'))->format('j M Y'),
+                ])) : null,
+                default => null,
+            };
         }
 
         if (filled($return->staff_note) && $return->status !== ReturnStatus::Requested) {

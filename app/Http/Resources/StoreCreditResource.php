@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Coupon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin Coupon */
 class StoreCreditResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -12,12 +14,10 @@ class StoreCreditResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
-            'value_usd' => $this->value,
-            'type' => $this->type->value ?? $this->type,
-            'used_count' => $this->used_count,
-            'max_uses' => $this->max_uses,
-            'starts_at' => $this->starts_at,
+            'amount_usd' => $this->value,
             'expires_at' => $this->expires_at,
+            'used' => $this->max_uses !== null && $this->used_count >= $this->max_uses,
+            'expired' => $this->expires_at !== null && $this->expires_at->isPast(),
             'created_at' => $this->created_at,
         ];
     }

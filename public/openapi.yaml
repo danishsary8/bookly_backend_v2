@@ -408,9 +408,10 @@ components:
           items: { type: object, properties: { id: { type: integer }, order_item_id: { type: integer }, title: { type: string }, format: { type: string }, quantity: { type: integer }, unit_price_usd: { $ref: '#/components/schemas/Money' }, reason: { type: string, nullable: true } } }
         refund_amount_usd: { $ref: '#/components/schemas/Money' }
         is_refund_final: { type: boolean, description: false while the amount is an estimate }
-        refund_method: { type: string, nullable: true, enum: [store_credit, manual_offline] }
-        refund_reference: { type: string, nullable: true }
+        refund_method: { type: string, nullable: true, enum: [cash, bank_transfer, store_credit], description: null before the refund and for refunds made before methods were recorded }
+        refund_reference: { type: string, nullable: true, description: bank transfer reference }
         refunded_at: { type: string, format: date-time, nullable: true }
+        store_credit: { type: object, nullable: true, properties: { code: { type: string }, amount_usd: { $ref: '#/components/schemas/Money' }, expires_at: { type: string, format: date-time } } }
         staff_note: { type: string, nullable: true }
         requested_at: { type: string, format: date-time }
         resolved_at: { type: string, format: date-time, nullable: true }
@@ -698,8 +699,8 @@ paths:
   /me/store-credits:
     get:
       tags: [Customer]
-      summary: Active store credits for the signed-in customer
-      description: 'Lists active, unexpired, and unused store credit coupons bound to the current customer.'
+      summary: Store credits of the signed-in customer (refunds paid as a coupon)
+      description: 'Newest first, including used and expired ones.'
       responses:
         '200':
           description: Store credits
@@ -714,13 +715,11 @@ paths:
                       type: object
                       properties:
                         id: { type: integer }
-                        code: { type: string, example: CREDIT-ABCD-1234 }
-                        value_usd: { type: string, example: '25.00' }
-                        type: { type: string, example: fixed }
-                        used_count: { type: integer }
-                        max_uses: { type: integer, nullable: true }
-                        starts_at: { type: string, format: date-time, nullable: true }
+                        code: { type: string, example: CREDIT-K7M2Q9XA }
+                        amount_usd: { $ref: '#/components/schemas/Money' }
                         expires_at: { type: string, format: date-time, nullable: true }
+                        used: { type: boolean }
+                        expired: { type: boolean }
                         created_at: { type: string, format: date-time }
   /me/stock-alerts:
     get:
@@ -1012,17 +1011,19 @@ paths:
   /staff/returns/{id}/refund:
     post:
       tags: [Staff operations]
-      summary: 'Mark refunded: books back in stock, issue store credit or record manual offline refund'
+      summary: 'Mark refunded: books back in stock and the refund record saved (how, who, when)'
+      description: 'store_credit makes a one-use fixed coupon CREDIT-XXXXXXXX for the refund amount, usable only by this customer, valid until 23:59:59 shop time on the same day 12 months later (for anyone else it answers like an unknown code).'
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       requestBody:
         content:
           application/json:
             schema:
               type: object
+              required: [method]
               properties:
-                method: { type: string, enum: [store_credit, manual_offline], default: manual_offline }
-                reference: { type: string, description: 'Required for manual_offline: receipt or transaction ref' }
-                note: { type: string }
+                method: { type: string, enum: [cash, bank_transfer, store_credit] }
+                reference: { type: string, maxLength: 100, description: 'Optional; only allowed for bank_transfer' }
+                note: { type: string, maxLength: 1000 }
       responses: { '200': { description: Refunded } }
   /staff/reviews:
     get: { tags: [Staff operations], summary: 'Reviews (visible, book_id, max_rating, q)', responses: { '200': { description: Reviews } } }

@@ -14,7 +14,6 @@ use App\Notifications\ReturnUpdatedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Inventory\InventoryService;
 use App\Services\Orders\OrderStatusService;
-use App\Services\Telegram\OpsAlerts;
 use App\Support\Money;
 use App\Support\SafeNotifier;
 use Carbon\CarbonInterface;
@@ -29,6 +28,9 @@ class ReturnService
 
     /** A request that staff still have to finish. Only one per order at a time. */
     private const OPEN = [ReturnStatus::Requested, ReturnStatus::Approved];
+
+    /** Store-credit codes: uppercase letters and digits without the look-alikes 0/O and 1/I. */
+    private const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     public function __construct(
         private readonly InventoryService $inventory,
@@ -152,22 +154,16 @@ class ReturnService
     }
 
     /**
-     * The books have arrived and the money was paid back outside the system (cash or bank transfer).
-     * Stock goes back up, the refund amount is saved, and when every returnable item of the order has
+     * The books have arrived and the money goes back: in cash, by bank transfer (both outside the system) or as
+     * store credit (a one-use coupon for the refund amount, locked to this customer, valid 12 months).
+     * Stock goes back up, the refund record is saved, and when every returnable item of the order has
      * been refunded the order becomes `returned`.
+     *
+     * @param  'cash'|'bank_transfer'|'store_credit'  $method
      */
-    public function refund(
-        OrderReturn $return,
-        StaffUser $staff,
-        ?string $note = null,
-        string $method = 'manual_offline',
-        ?string $reference = null
-    ): OrderReturn {
+    public function refund(OrderReturn $return, StaffUser $staff, string $method, ?string $reference = null, ?string $note = null): OrderReturn
+    {
         return $this->resolve($return, $staff, [ReturnStatus::Approved], function (OrderReturn $locked) use ($staff, $note, $method, $reference) {
-            if ($locked->refunded_at !== null) {
-                throw ValidationException::withMessages(['status' => 'This return has already been refunded.']);
-            }
-
             $order = Order::whereKey($locked->order_id)->lockForUpdate()->firstOrFail();
             $locked->load('items.orderItem.variant');
 
@@ -175,46 +171,22 @@ class ReturnService
             // so several partial refunds add up exactly to the full amount (no rounding drift).
             $previous = $order->returns()->where('status', ReturnStatus::Refunded)->with('items.orderItem')->get();
             $allItems = $previous->flatMap->items->concat($locked->items);
-            $refund = $this->refundCents($order, $allItems) - $previous->sum(fn ($r) => Money::toCents($r->refund_amount));
+            $refund = Money::format($this->refundCents($order, $allItems) - $previous->sum(fn ($r) => Money::toCents($r->refund_amount)));
 
             foreach ($locked->items as $item) {
                 $this->inventory->restockFromReturn($item->orderItem->book_variant_id, $item->quantity, $locked, $staff);
             }
 
-            $refundAmountFormatted = Money::format($refund);
-
-            if ($method === 'store_credit') {
-                do {
-                    $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                    $p1 = substr(str_shuffle($chars), 0, 4);
-                    $p2 = substr(str_shuffle($chars), 0, 4);
-                    $code = "CREDIT-{$p1}-{$p2}";
-                } while (Coupon::where('code', $code)->exists());
-
-                Coupon::create([
-                    'code' => $code,
-                    'type' => CouponType::Fixed,
-                    'value' => $refundAmountFormatted,
-                    'user_id' => $locked->customer_id,
-                    'is_store_credit' => true,
-                    'max_uses' => 1,
-                    'used_count' => 0,
-                    'starts_at' => now(),
-                    'expires_at' => now()->addYear(),
-                    'is_active' => true,
-                ]);
-
-                $reference = $code;
-            }
+            $coupon = $method === 'store_credit' ? $this->storeCredit($locked->customer_id, $refund) : null;
 
             $locked->update([
                 'status' => ReturnStatus::Refunded,
-                'refund_amount' => $refundAmountFormatted,
-                'refund_amount_usd' => $refundAmountFormatted,
+                'refund_amount' => $refund,
                 'refund_method' => $method,
-                'refund_reference' => $reference,
+                'refund_reference' => $method === 'bank_transfer' ? $reference : null,
+                'refunded_by_staff_id' => $staff->id,
                 'refunded_at' => now(),
-                'refunded_by_id' => $staff->id,
+                'store_credit_coupon_id' => $coupon?->id,
                 'staff_note' => $note ?? $locked->staff_note,
                 'resolved_at' => now(),
             ]);
@@ -223,6 +195,25 @@ class ReturnService
                 $this->orderStatuses->markReturned($order, $staff, "All returnable items refunded (return #{$locked->id}).");
             }
         });
+    }
+
+    /** A one-use fixed-amount coupon for one customer, valid until the end of the same day 12 months later (shop time). */
+    private function storeCredit(int $customerId, string $amount): Coupon
+    {
+        do {
+            $code = 'CREDIT-'.collect(range(1, 8))->map(fn () => self::CODE_ALPHABET[random_int(0, strlen(self::CODE_ALPHABET) - 1)])->implode('');
+        } while (Coupon::where('code', $code)->exists());
+
+        return Coupon::create([
+            'code' => $code,
+            'type' => CouponType::Fixed,
+            'value' => $amount,
+            'customer_id' => $customerId,
+            'max_uses' => 1,
+            'used_count' => 0,
+            'expires_at' => now(config('shop.timezone'))->addMonthsNoOverflow(12)->endOfDay()->utc(),
+            'is_active' => true,
+        ]);
     }
 
     /** Refund for a set of return items: their price minus their share of the order's coupon discount, in cents. */
@@ -252,18 +243,14 @@ class ReturnService
                 [
                     'status' => $locked->status->value,
                     'refund_amount' => $locked->refund_amount,
-                    'refund_amount_usd' => $locked->refund_amount_usd,
                     'refund_method' => $locked->refund_method,
                     'refund_reference' => $locked->refund_reference,
+                    'store_credit_coupon_id' => $locked->store_credit_coupon_id,
                     'note' => $locked->staff_note,
                 ]);
 
             return $locked;
         });
-
-        if ($resolved->status === ReturnStatus::Refunded) {
-            SafeNotifier::telegram(fn (OpsAlerts $ops) => $ops->returnRefunded($resolved));
-        }
 
         // After the commit, so a mail outage can never undo or block the return step.
         SafeNotifier::toCustomer($resolved->customer, new ReturnUpdatedNotification($resolved));
