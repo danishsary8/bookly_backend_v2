@@ -38,8 +38,9 @@ class SitemapController extends Controller
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
 
         foreach ($staticRoutes as $route) {
+            $loc = htmlspecialchars("{$baseUrl}{$route['path']}", ENT_XML1, 'UTF-8');
             $xml .= "  <url>\n";
-            $xml .= "    <loc>{$baseUrl}{$route['path']}</loc>\n";
+            $xml .= "    <loc>{$loc}</loc>\n";
             $xml .= "    <changefreq>{$route['changefreq']}</changefreq>\n";
             $xml .= "    <priority>{$route['priority']}</priority>\n";
             $xml .= "  </url>\n";
@@ -49,8 +50,9 @@ class SitemapController extends Controller
         $books = Book::visible()->select(['id', 'updated_at'])->get();
         foreach ($books as $book) {
             $lastmod = $book->updated_at ? $book->updated_at->toIso8601String() : date('c');
+            $loc = htmlspecialchars("{$baseUrl}/books/{$book->id}", ENT_XML1, 'UTF-8');
             $xml .= "  <url>\n";
-            $xml .= "    <loc>{$baseUrl}/books/{$book->id}</loc>\n";
+            $xml .= "    <loc>{$loc}</loc>\n";
             $xml .= "    <lastmod>{$lastmod}</lastmod>\n";
             $xml .= "    <changefreq>weekly</changefreq>\n";
             $xml .= "    <priority>0.8</priority>\n";
@@ -64,8 +66,9 @@ class SitemapController extends Controller
         foreach ($categories as $cat) {
             $slug = rawurlencode($cat->slug);
             $lastmod = $cat->updated_at ? $cat->updated_at->toIso8601String() : date('c');
+            $loc = htmlspecialchars("{$baseUrl}/categories/{$slug}", ENT_XML1, 'UTF-8');
             $xml .= "  <url>\n";
-            $xml .= "    <loc>{$baseUrl}/categories/{$slug}</loc>\n";
+            $xml .= "    <loc>{$loc}</loc>\n";
             $xml .= "    <lastmod>{$lastmod}</lastmod>\n";
             $xml .= "    <changefreq>weekly</changefreq>\n";
             $xml .= "    <priority>0.7</priority>\n";
@@ -78,8 +81,9 @@ class SitemapController extends Controller
             ->get();
         foreach ($authors as $author) {
             $lastmod = $author->updated_at ? $author->updated_at->toIso8601String() : date('c');
+            $loc = htmlspecialchars("{$baseUrl}/authors/{$author->id}", ENT_XML1, 'UTF-8');
             $xml .= "  <url>\n";
-            $xml .= "    <loc>{$baseUrl}/authors/{$author->id}</loc>\n";
+            $xml .= "    <loc>{$loc}</loc>\n";
             $xml .= "    <lastmod>{$lastmod}</lastmod>\n";
             $xml .= "    <changefreq>weekly</changefreq>\n";
             $xml .= "    <priority>0.6</priority>\n";
@@ -92,8 +96,9 @@ class SitemapController extends Controller
             ->get();
         foreach ($series as $item) {
             $lastmod = $item->updated_at ? $item->updated_at->toIso8601String() : date('c');
+            $loc = htmlspecialchars("{$baseUrl}/series/{$item->id}", ENT_XML1, 'UTF-8');
             $xml .= "  <url>\n";
-            $xml .= "    <loc>{$baseUrl}/series/{$item->id}</loc>\n";
+            $xml .= "    <loc>{$loc}</loc>\n";
             $xml .= "    <lastmod>{$lastmod}</lastmod>\n";
             $xml .= "    <changefreq>weekly</changefreq>\n";
             $xml .= "    <priority>0.6</priority>\n";
@@ -106,8 +111,9 @@ class SitemapController extends Controller
             ->get();
         foreach ($publishers as $pub) {
             $lastmod = $pub->updated_at ? $pub->updated_at->toIso8601String() : date('c');
+            $loc = htmlspecialchars("{$baseUrl}/publishers/{$pub->id}", ENT_XML1, 'UTF-8');
             $xml .= "  <url>\n";
-            $xml .= "    <loc>{$baseUrl}/publishers/{$pub->id}</loc>\n";
+            $xml .= "    <loc>{$loc}</loc>\n";
             $xml .= "    <lastmod>{$lastmod}</lastmod>\n";
             $xml .= "    <changefreq>monthly</changefreq>\n";
             $xml .= "    <priority>0.5</priority>\n";

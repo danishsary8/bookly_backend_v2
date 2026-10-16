@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\StaffUser;
 use App\Services\Orders\OrderStatusService;
+use App\Services\Telegram\CustomerOrderUpdates;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -213,5 +214,50 @@ class TelegramOrderUpdatesTest extends TestCase
         $updated = $service->changeByStaff($order, OrderStatus::Processing, $staff);
 
         $this->assertSame(OrderStatus::Processing, $updated->fresh()->status);
+    }
+
+    public function test_special_html_characters_are_escaped_for_telegram_message(): void
+    {
+        $customer = Customer::factory()->create([
+            'telegram_chat_id' => self::CHAT,
+            'telegram_order_updates' => true,
+            'locale' => 'en',
+        ]);
+        $staff = StaffUser::factory()->admin()->create();
+
+        $book = Book::factory()->create(['title' => 'Romeo & Juliet <Special Edition>']);
+        $variant = BookVariant::factory()->for($book)->create(['price_usd' => 20.00]);
+
+        $order = Order::factory()->for($customer)->create([
+            'order_number' => 'ORD-20261016-HTML1',
+            'status' => OrderStatus::Pending,
+            'total_amount' => 20.00,
+        ]);
+        OrderItem::factory()->for($order)->create([
+            'book_variant_id' => $variant->id,
+            'quantity' => 1,
+            'unit_price' => 20.00,
+            'subtotal' => 20.00,
+        ]);
+
+        $updates = app(CustomerOrderUpdates::class);
+        $updates->orderPlaced($order);
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://api.telegram.org/bot123:bot-token/sendMessage'
+                && $request['chat_id'] === self::CHAT
+                && str_contains($request['text'], 'Romeo &amp; Juliet &lt;Special Edition&gt;')
+                && ! str_contains($request['text'], 'Romeo & Juliet <Special Edition>');
+        });
+
+        $service = app(OrderStatusService::class);
+        $service->changeByStaff($order, OrderStatus::Processing, $staff);
+        $service->changeByStaff($order, OrderStatus::Shipped, $staff, 'Tracking: A & B <fast>');
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://api.telegram.org/bot123:bot-token/sendMessage'
+                && $request['chat_id'] === self::CHAT
+                && str_contains($request['text'], 'Tracking: A &amp; B &lt;fast&gt;');
+        });
     }
 }
