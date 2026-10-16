@@ -1357,6 +1357,7 @@ paths:
     get:
       tags: [Admin]
       summary: (admin) List newsletter campaigns
+      description: 'Paginated, newest first. Each campaign has `status` (draft|sending|sent), `recipients_total` and `sent_count` (emails that have really gone out; the outbox sends at most MARKETING_DAILY_LIMIT a day). A campaign becomes `sent` when its last email has gone out.'
       responses:
         '200': { description: Campaigns list }
     post:

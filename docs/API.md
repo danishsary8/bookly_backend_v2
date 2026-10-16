@@ -292,13 +292,13 @@ Cached for 5 minutes per report and range. All endpoints take `from` and `to` (Y
 | Method | Path | Auth | Body / notes |
 | --- | --- | --- | --- |
 | POST | /newsletter/subscribe | public | `email`, `locale`? (en\|km), `turnstile_token`? — 202 "Check your inbox to confirm." (always same message, no enumeration). Double opt-in confirmation email throttled to at most once per 10 minutes per email. Rate limit 5/hour per IP. |
-| POST | /newsletter/confirm | public | `token` — confirms subscription (sets confirmed_at, clears confirm_token_hash). |
+| POST | /newsletter/confirm | public | `token` — confirms subscription (sets confirmed_at, clears confirm_token_hash). A confirm link works for 7 days. |
 | POST | /newsletter/unsubscribe | public | `token` — unsubscribes from newsletter via web form. |
 | POST | /newsletter/unsubscribe/one-click | public | query `token` (RFC 8058 one-click unsubscribe for mail user agents). Every newsletter email includes `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers. |
 | GET | /me/newsletter | customer | `{subscribed, status, locale}` |
 | PUT | /me/newsletter | customer, verified | `subscribed` (bool), `locale`? (en\|km) — verified customer can subscribe or unsubscribe without confirmation email. 403 if unverified. |
-| GET | /staff/newsletter/summary | admin | `{confirmed, pending, unsubscribed, total}` counts |
-| GET | /staff/newsletter/campaigns | admin | paginated list of campaigns (`status`: draft\|sending\|sent) |
+| GET | /staff/newsletter/summary | admin | `{confirmed, pending, unsubscribed, total, daily_limit}` (daily_limit = MARKETING_DAILY_LIMIT) |
+| GET | /staff/newsletter/campaigns | admin | paginated list of campaigns: `status` (draft\|sending\|sent: `sent` once its last email went out), `recipients_total`, `sent_count` |
 | POST | /staff/newsletter/campaigns | admin | `subject_en`, `subject_km`?, `body_en`, `body_km`?, `book_ids`? (up to 12). Creates draft campaign; audit-logged. |
 | GET | /staff/newsletter/campaigns/{id} | admin | campaign details with chosen book previews |
 | PUT | /staff/newsletter/campaigns/{id} | admin | update draft campaign (422 if not draft); audit-logged. |

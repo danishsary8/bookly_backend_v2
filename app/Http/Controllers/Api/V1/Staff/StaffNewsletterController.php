@@ -39,6 +39,7 @@ class StaffNewsletterController extends Controller
             'pending' => $pending,
             'unsubscribed' => $unsubscribed,
             'total' => $total,
+            'daily_limit' => (int) config('shop.marketing_daily_limit', 60),
         ]);
     }
 
@@ -47,7 +48,11 @@ class StaffNewsletterController extends Controller
      */
     public function indexCampaigns(Request $request): JsonResponse
     {
+        // sent_count: emails of this campaign that have really gone out (the outbox sends at most the daily limit).
         $campaigns = NewsletterCampaign::with('createdByStaff:id,name,email')
+            ->select('newsletter_campaigns.*')
+            ->selectSub(fn ($q) => $q->from('marketing_outbox')->selectRaw('count(*)')->where('kind', 'newsletter')->where('status', 'sent')
+                ->whereRaw("(payload->>'campaign_id')::bigint = newsletter_campaigns.id"), 'sent_count')
             ->orderBy('id', 'desc')
             ->paginate(min(100, max(1, $request->integer('per_page', 20))));
 
