@@ -15,6 +15,7 @@ use App\Services\Inventory\InventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class StockController extends Controller
 {
@@ -28,11 +29,16 @@ class StockController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
+        $data = $request->validate([
+            'status' => ['nullable', 'in:low,out'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
         $query = BookVariant::with('book')
+            ->whereHas('book') // formats of deleted books are not listed
             ->whereIn('format', [BookFormat::Hardcover->value, BookFormat::Paperback->value]);
 
-        if ($request->filled('status')) {
-            $status = $request->query('status');
+        if ($status = $data['status'] ?? null) {
             if ($status === 'low') {
                 $query->where('stock_quantity', '>', 0)
                     ->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
@@ -41,8 +47,8 @@ class StockController extends Controller
             }
         }
 
-        if ($request->filled('q')) {
-            $term = trim((string) $request->query('q'));
+        if (filled($data['q'] ?? null)) {
+            $term = trim($data['q']);
             $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term);
             $query->where(function ($w) use ($escaped) {
                 $w->whereHas('book', fn ($b) => $b->where('title', 'ILIKE', "%{$escaped}%"))
@@ -53,7 +59,8 @@ class StockController extends Controller
 
         $variants = $query->orderBy('stock_quantity', 'asc')
             ->orderBy('id', 'asc')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($data['per_page'] ?? 20)
+            ->withQueryString();
 
         return StaffStockResource::collection($variants);
     }
@@ -76,31 +83,34 @@ class StockController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $beforeStock = $variant->stock_quantity;
+        // The stock change and its audit entry commit together.
+        $movement = DB::transaction(function () use ($variant, $data, $request) {
+            $beforeStock = $variant->stock_quantity;
+            $movement = $this->inventory->restock(
+                variant: $variant,
+                quantity: (int) $data['quantity'],
+                staff: $request->user(),
+                supplier: $data['supplier'] ?? null,
+                unitCostUsd: $data['unit_cost_usd'] ?? null,
+                note: $data['note'] ?? null,
+            );
+            $variant->refresh();
+            $this->audit->custom(
+                staff: $request->user(),
+                verb: 'restocked',
+                model: $variant,
+                before: ['stock_quantity' => $beforeStock],
+                after: [
+                    'stock_quantity' => $variant->stock_quantity,
+                    'restock_quantity' => $data['quantity'],
+                    'supplier' => $data['supplier'] ?? null,
+                    'unit_cost_usd' => $data['unit_cost_usd'] ?? null,
+                    'note' => $data['note'] ?? null,
+                ],
+            );
 
-        $movement = $this->inventory->restock(
-            variant: $variant,
-            quantity: (int) $data['quantity'],
-            staff: $request->user(),
-            supplier: $data['supplier'] ?? null,
-            unitCostUsd: isset($data['unit_cost_usd']) ? $data['unit_cost_usd'] : null,
-            note: $data['note'] ?? null,
-        );
-
-        $variant->refresh();
-
-        $this->audit->custom(
-            staff: $request->user(),
-            verb: 'restocked',
-            model: $variant,
-            before: ['stock_quantity' => $beforeStock],
-            after: [
-                'stock_quantity' => $variant->stock_quantity,
-                'restock_quantity' => $data['quantity'],
-                'supplier' => $data['supplier'] ?? null,
-                'note' => $data['note'] ?? null,
-            ],
-        );
+            return $movement;
+        });
 
         return response()->json([
             'variant' => new StaffBookVariantResource($variant),
@@ -122,7 +132,7 @@ class StockController extends Controller
             )
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min(100, max(1, $request->integer('per_page', 20))));
 
         $orderIds = collect($movements->items())
             ->where('reference_type', 'order')

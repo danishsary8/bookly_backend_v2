@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\CustomerTag;
 use App\Services\Admin\AuditLogger;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -66,7 +67,11 @@ class CustomerTagController extends Controller
             // Matching is case-insensitive and reuses the existing tag's spelling
             $tag = CustomerTag::whereRaw('LOWER(name) = ?', [$lower])->first();
             if (! $tag) {
-                $tag = CustomerTag::create(['name' => $name]);
+                try {
+                    $tag = CustomerTag::create(['name' => $name]);
+                } catch (UniqueConstraintViolationException) { // made at the same moment by another request
+                    $tag = CustomerTag::whereRaw('LOWER(name) = ?', [$lower])->firstOrFail();
+                }
             }
             $tagIds[] = $tag->id;
         }

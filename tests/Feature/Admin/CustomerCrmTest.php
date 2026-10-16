@@ -298,4 +298,20 @@ class CustomerCrmTest extends TestCase
             ->postJson("/api/v1/staff/customers/{$this->customer->id}/resend-verification")
             ->assertStatus(429);
     }
+
+    public function test_tag_rules_and_exact_tag_filter(): void
+    {
+        $put = fn (array $tags) => $this->asToken($this->staffToken)->putJson("/api/v1/staff/customers/{$this->customer->id}/tags", ['tags' => $tags]);
+
+        $put([str_repeat('x', 41)])->assertUnprocessable();
+        $put([' Late   payer ', 'late payer', 'VIP'])->assertOk()->assertJsonPath('tags', ['Late payer', 'VIP']);
+
+        $other = Customer::factory()->create();
+        $this->asToken($this->staffToken)->putJson("/api/v1/staff/customers/{$other->id}/tags", ['tags' => ['V_P']])->assertOk();
+
+        $ids = fn (string $tag) => array_column($this->asToken($this->staffToken)->getJson('/api/v1/staff/customers?tag='.urlencode($tag))->assertOk()->json('data'), 'id');
+        $this->assertSame([$this->customer->id], $ids('vip'));
+        $this->assertSame([$other->id], $ids('V_P'));
+        $this->assertSame([], $ids('V%'));
+    }
 }

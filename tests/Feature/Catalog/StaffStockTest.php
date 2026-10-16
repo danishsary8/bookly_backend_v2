@@ -273,4 +273,11 @@ class StaffStockTest extends TestCase
         $this->assertCount(1, $resSku->json('data'));
         $this->assertSame($v1->id, $resSku->json('data.0.id'));
     }
+
+    public function test_stock_list_checks_its_filters(): void
+    {
+        $token = $this->staffToken();
+        $this->asToken($token)->getJson('/api/v1/staff/stock?status=nope')->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->asToken($token)->getJson('/api/v1/staff/stock?per_page=500')->assertUnprocessable()->assertJsonValidationErrors('per_page');
+    }
 }

@@ -56,10 +56,10 @@ class CustomerController extends Controller
         // Search and active filters, without the verified filter: the tabs show every count.
         $base = $search(Customer::query())
             ->when($request->has('active'), fn ($q) => $q->where('is_active', $request->boolean('active')))
-            ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->where('name', 'ilike', $tag)));
+            ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->whereRaw('lower(name) = ?', [mb_strtolower($tag)])));
         // Closed by the customer, still inside the 30 days before their details are erased (newest first).
         $closed = $search($this->closed->reopenable())
-            ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->where('name', 'ilike', $tag)));
+            ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->whereRaw('lower(name) = ?', [mb_strtolower($tag)])));
 
         $list = $request->boolean('closed')
             ? (clone $closed)->latest('deleted_at')
