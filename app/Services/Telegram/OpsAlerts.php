@@ -33,13 +33,19 @@ class OpsAlerts
             ? 'Note: '.Str::limit($order->delivery_note, 300)
             : null;
 
+        $phone = $order->shipping_phone ?: $order->customer?->phone;
+        $customerLine = "Customer: {$order->customer?->name}".($phone ? " ({$phone})" : '');
+        $deliveryLocation = filled($order->shipping_address_line1)
+            ? "Delivery: {$order->shipping_address_line1}, {$order->shipping_city}, {$order->shipping_country}"
+            : "Delivery: {$order->shipping_city}, {$order->shipping_country}";
+
         $this->send(implode("\n", array_filter([
             "🛒 New order {$order->order_number}",
             "Total: {$order->total_amount} USD ({$order->items->sum('quantity')} items)",
             ...$lines->take(10)->all(),
             $lines->count() > 10 ? '• … and '.($lines->count() - 10).' more lines' : null,
-            "Customer: {$order->customer?->name}",
-            "Delivery: {$order->shipping_city}, {$order->shipping_country}",
+            $customerLine,
+            $deliveryLocation,
             $note,
             'Payment: cash on delivery',
             $shop !== '' ? "Open: {$shop}/admin/orders/{$order->id}" : null,
@@ -122,5 +128,33 @@ class OpsAlerts
                 }
             }
         });
+    }
+
+    /** Sends synchronously to a specific chat ID; returns status and result array. */
+    public function sendDirect(string $chatId, string $text): array
+    {
+        $token = (string) config('services.ops_alerts.token');
+        if ($token === '' || $chatId === '') {
+            return ['ok' => false, 'status' => 0, 'description' => 'Token or chat ID is empty'];
+        }
+
+        try {
+            $response = Http::timeout(5)->connectTimeout(3)->post(
+                rtrim((string) config('services.ops_alerts.url'), '/').'/bot'.$token.'/sendMessage',
+                ['chat_id' => $chatId, 'text' => $text],
+            );
+
+            return [
+                'ok' => $response->successful(),
+                'status' => $response->status(),
+                'description' => $response->json('description'),
+            ];
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'status' => 0,
+                'description' => $e->getMessage(),
+            ];
+        }
     }
 }

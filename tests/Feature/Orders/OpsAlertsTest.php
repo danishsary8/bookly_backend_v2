@@ -166,4 +166,74 @@ class OpsAlertsTest extends TestCase
         Http::assertSentCount(1);
         Http::assertSent(fn (Request $r) => str_contains($r['text'], 'Note: Please call 012345678 before delivery'));
     }
+
+    public function test_new_order_alert_includes_recipient_phone_and_address_line(): void
+    {
+        $this->enableAlerts();
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $variant = BookVariant::factory()->create(['stock_quantity' => 50]);
+        $customer = Customer::factory()->create(['name' => 'Chann', 'phone' => '098765432']);
+        $address = CustomerAddress::factory()->for($customer)->create([
+            'address_line1' => 'House 45, Street 19',
+            'city' => 'Phnom Penh',
+            'country' => 'Cambodia',
+            'phone' => '012345678',
+        ]);
+        $this->asToken($customer->createToken('t', ['customer'])->plainTextToken)
+            ->postJson('/api/v1/cart/items', ['book_variant_id' => $variant->id, 'quantity' => 1])->assertCreated();
+
+        $this->withHeader('Idempotency-Key', 'checkout-key-phone-addr')->postJson('/api/v1/checkout', [
+            'address_id' => $address->id,
+            'payment_method' => 'cod',
+        ])->assertCreated();
+
+        Http::assertSentCount(1);
+        Http::assertSent(function (Request $r) {
+            return str_contains($r['text'], 'Customer: Chann (012345678)')
+                && str_contains($r['text'], 'Delivery: House 45, Street 19, Phnom Penh, Cambodia');
+        });
+    }
+
+    public function test_send_test_ops_alert_command_delivers_to_configured_owner_and_staff(): void
+    {
+        $this->enableAlerts();
+        config(['services.ops_alerts.staff_chat_id' => '-100999']);
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $this->artisan('ops:test-alert')
+            ->expectsOutputToContain('Testing Owner (OPS_ALERT_CHAT_ID) [ID: 777]...')
+            ->expectsOutputToContain('Testing Staff Group (OPS_STAFF_CHAT_ID) [ID: -100999]...')
+            ->expectsOutputToContain('Delivered successfully')
+            ->assertSuccessful();
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn (Request $r) => $r['chat_id'] === '777' && str_contains($r['text'], '🧪 Test alert'));
+        Http::assertSent(fn (Request $r) => $r['chat_id'] === '-100999' && str_contains($r['text'], '🧪 Test alert'));
+    }
+
+    public function test_send_test_ops_alert_command_warns_when_not_configured(): void
+    {
+        config(['services.ops_alerts.token' => null]);
+
+        $this->artisan('ops:test-alert')
+            ->expectsOutputToContain('OPS_ALERT_BOT_TOKEN is not configured.')
+            ->assertFailed();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_send_test_ops_alert_command_targets_specific_chat(): void
+    {
+        $this->enableAlerts();
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $this->artisan('ops:test-alert', ['--chat' => '-100888', '--message' => 'Custom ping'])
+            ->expectsOutputToContain('Testing Custom [ID: -100888]...')
+            ->expectsOutputToContain('Delivered successfully')
+            ->assertSuccessful();
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r) => $r['chat_id'] === '-100888' && str_contains($r['text'], 'Custom ping'));
+    }
 }

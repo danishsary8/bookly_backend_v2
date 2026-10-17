@@ -291,3 +291,14 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     - Full test suite: 567 tests, 3,652 assertions passing (100% green).
     - Code style: `vendor/bin/pint --test` clean.
 
+- [x] Staff Telegram group alerts enhancement & test command (2026-10-17, branch `feature/staff-telegram-alerts`):
+  - In `OpsAlerts.php`:
+    - Enriched `newOrder()` notification with customer/recipient phone number and street address line (`shipping_address_line1`) for instant staff/courier contact.
+    - Added synchronous `sendDirect(string $chatId, string $text)` method for testing bot connectivity and chat ID delivery.
+  - In `app/Console/Commands/SendTestOpsAlert.php`:
+    - Added `php artisan ops:test-alert {--chat=} {--message=}` command to test Telegram bot delivery against the owner chat, staff group, or custom chat ID with clear diagnostic status.
+  - Tests:
+    - Added 4 feature tests in `tests/Feature/Orders/OpsAlertsTest.php` covering phone/address enrichment, command delivery, unconfigured warnings, and specific chat targeting.
+    - Full test suite: 571 tests, 3,671 assertions passing (100% green); `vendor/bin/pint --test` clean.
+
+
