@@ -70,8 +70,10 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 | Public catalog (no login needed)
 */
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
+Route::get('/catalog/recommendations', [BookController::class, 'recommendations'])->middleware('throttle:catalog');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
 Route::get('/books/{book}/also-bought', [BookController::class, 'alsoBought'])->whereNumber('book');
+Route::get('/books/{book}/related', [BookController::class, 'related'])->whereNumber('book');
 Route::get('/books/{book}/reviews', [BookReviewController::class, 'index'])->whereNumber('book');
 Route::get('/authors', [AuthorController::class, 'index']);
 Route::get('/authors/{author}', [AuthorController::class, 'show'])->whereNumber('author');

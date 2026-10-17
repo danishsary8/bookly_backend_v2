@@ -3,17 +3,15 @@
 namespace App\Http\Controllers\Api\V1\Catalog;
 
 use App\Enums\BookFormat;
-use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BookDetailResource;
 use App\Http\Resources\BookResource;
 use App\Models\Book;
+use App\Services\Catalog\RecommendationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class BookController extends Controller
@@ -101,87 +99,35 @@ class BookController extends Controller
         return new BookDetailResource($model);
     }
 
-    public function alsoBought(int $book): AnonymousResourceCollection
+    public function alsoBought(Request $request, int $book, RecommendationService $recommender): AnonymousResourceCollection
+    {
+        return $this->related($request, $book, $recommender);
+    }
+
+    public function related(Request $request, int $book, RecommendationService $recommender): AnonymousResourceCollection
     {
         $targetBook = Book::query()->visible()->findOrFail($book);
+        $limit = max(1, min(12, (int) $request->query('limit', 6)));
 
-        $results = Cache::remember("books:{$targetBook->id}:also-bought-ids", 3600, function () use ($targetBook) {
-            $coBookIds = DB::table('order_items as oi2')
-                ->join('book_variants as bv2', 'bv2.id', '=', 'oi2.book_variant_id')
-                ->whereIn('oi2.order_id', function ($query) use ($targetBook) {
-                    $query->select('oi.order_id')
-                        ->from('order_items as oi')
-                        ->join('book_variants as bv', 'bv.id', '=', 'oi.book_variant_id')
-                        ->join('orders as o', 'o.id', '=', 'oi.order_id')
-                        ->where('bv.book_id', $targetBook->id)
-                        ->whereNull('o.deleted_at')
-                        ->whereNotIn('o.status', [OrderStatus::Pending->value, OrderStatus::Cancelled->value]);
-                })
-                ->where('bv2.book_id', '!=', $targetBook->id)
-                ->groupBy('bv2.book_id')
-                ->havingRaw('COUNT(DISTINCT oi2.order_id) >= 2')
-                ->orderByRaw('COUNT(DISTINCT oi2.order_id) DESC')
-                ->limit(50) // most are filtered below (hidden or out of stock), the first 6 that remain are kept
-                ->pluck('bv2.book_id')
-                ->all();
+        $results = $recommender->getRecommendedIdsForBook($targetBook, $limit);
+        $books = $this->catalogQuery()->whereIn('books.id', $results)->get();
 
-            $alsoBought = collect();
+        return BookResource::collection(collect($results)->map(fn ($id) => $books->firstWhere('id', $id))->filter()->values());
+    }
 
-            if (! empty($coBookIds)) {
-                $books = $this->catalogQuery()
-                    ->whereHas('activeVariants', fn ($v) => $v->where(fn ($w) => $w
-                        ->where('stock_quantity', '>', 0)
-                        ->orWhereIn('format', [BookFormat::Ebook->value, BookFormat::Audiobook->value])))
-                    ->whereIn('books.id', $coBookIds)
-                    ->get();
+    public function recommendations(Request $request, RecommendationService $recommender): AnonymousResourceCollection
+    {
+        $limit = max(1, min(12, (int) $request->query('limit', 6)));
 
-                $alsoBought = collect($coBookIds)
-                    ->map(fn ($id) => $books->firstWhere('id', $id))
-                    ->filter()
-                    ->take(6)
-                    ->values();
-            }
+        $cartRaw = $request->query('cart_ids');
+        $cartIds = is_array($cartRaw) ? $cartRaw : explode(',', (string) $cartRaw);
+        $cartIds = array_values(array_unique(array_filter(array_map('intval', $cartIds), fn ($id) => $id > 0)));
 
-            if ($alsoBought->count() < 3) {
-                $categoryIds = $targetBook->categories()->pluck('categories.id')->all();
+        $excludeRaw = $request->query('exclude_ids');
+        $excludeIds = is_array($excludeRaw) ? $excludeRaw : explode(',', (string) $excludeRaw);
+        $excludeIds = array_values(array_unique(array_filter(array_map('intval', $excludeIds), fn ($id) => $id > 0)));
 
-                if (! empty($categoryIds)) {
-                    $excludeIds = array_merge([$targetBook->id], $alsoBought->pluck('id')->all());
-                    $needed = 6 - $alsoBought->count();
-
-                    $salesSubquery = DB::table('order_items')
-                        ->join('orders', 'orders.id', '=', 'order_items.order_id')
-                        ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
-                        ->whereNull('orders.deleted_at')
-                        ->whereNotIn('orders.status', [OrderStatus::Pending->value, OrderStatus::Cancelled->value])
-                        ->groupBy('book_variants.book_id')
-                        ->selectRaw('book_variants.book_id, SUM(order_items.quantity) AS units_sold');
-
-                    $fillers = Book::query()
-                        ->visible()
-                        ->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds))
-                        ->whereNotIn('books.id', $excludeIds)
-                        ->whereHas('activeVariants', fn ($v) => $v->where(fn ($w) => $w
-                            ->where('stock_quantity', '>', 0)
-                            ->orWhereIn('format', [BookFormat::Ebook->value, BookFormat::Audiobook->value])))
-                        ->leftJoinSub($salesSubquery, 'cat_sales', 'cat_sales.book_id', '=', 'books.id')
-                        ->with(['authors', 'activeVariants'])
-                        ->withMin('activeVariants as min_price', 'price_usd')
-                        ->withAvg('approvedReviews as rating_avg', 'rating')
-                        ->withCount('approvedReviews as review_count')
-                        ->orderByRaw('cat_sales.units_sold DESC NULLS LAST') // best sellers first, unsold books last
-                        ->orderByDesc('books.id')
-                        ->limit($needed)
-                        ->get();
-
-                    $alsoBought = $alsoBought->concat($fillers)->take(6);
-                }
-            }
-
-            return $alsoBought->pluck('id')->all();
-        });
-
-        // Only the ids are cached: a book that was hidden or sold out since then drops out straight away.
+        $results = $recommender->getRecommendedIdsForCart($cartIds, $excludeIds, $limit);
         $books = $this->catalogQuery()->whereIn('books.id', $results)->get();
 
         return BookResource::collection(collect($results)->map(fn ($id) => $books->firstWhere('id', $id))->filter()->values());

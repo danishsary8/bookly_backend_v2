@@ -313,5 +313,26 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     - Added `tests/Feature/Platform/BrandedEmailTemplatesTest.php` testing order placed, order status changed, OTP codes, and Khmer locale button rendering.
     - Full test suite: 575 tests, 3,690 assertions passing (100% green); `vendor/bin/pint --test` clean.
 
+- [x] Related Books & Cart Recommendations Engine (2026-10-17, branch `feature/related-books-recommendations`):
+  - In `app/Services/Catalog/RecommendationService.php`:
+    - Multi-tier recommendation algorithm:
+      - Tier 1: Co-purchases in completed orders (frequently bought together, >= 2 shared orders).
+      - Tier 2: Same category AND author topical affinity.
+      - Tier 3: Same category best-sellers (ranked by units sold/popularity).
+      - Tier 4: Same author titles.
+      - Tier 5: Store-wide popular fallback for cart recommendations.
+    - Strict visibility and active stock filtering (excludes target books, cart items, out-of-stock physical items).
+    - Added `getRecommendedIdsForBook()` and `getRecommendedIdsForCart()`.
+  - In `BookController.php` & `routes/api.php`:
+    - Added `GET /api/v1/books/{book}/related` (supporting custom `limit` parameter, max 12).
+    - Preserved backward compatibility for `GET /api/v1/books/{book}/also-bought`.
+    - Added `GET /api/v1/catalog/recommendations` accepting `cart_ids`, `exclude_ids`, and `limit`.
+  - In `public/openapi.yaml`:
+    - Fully documented `/books/{id}/related` and `/catalog/recommendations` endpoints.
+  - Tests:
+    - Added `tests/Feature/Catalog/RelatedBooksTest.php` (5 tests covering 404s, category/author matching, limits, and cart recommendations).
+    - Full test suite: 580 tests, 3,703 assertions passing (100% green); `vendor/bin/pint --test` clean.
+
+
 
 

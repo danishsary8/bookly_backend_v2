@@ -612,6 +612,42 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
         '404': { $ref: '#/components/responses/NotFound' }
+  /books/{id}/related:
+    get:
+      tags: [Public]
+      summary: Up to 12 recommended books related to this book (co-purchases, category affinity, author affinity, and top sellers)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 12, default: 6 } }
+      responses:
+        '200':
+          description: Recommended book cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /catalog/recommendations:
+    get:
+      tags: [Public]
+      summary: Recommended books based on cart contents or store popularity
+      security: []
+      parameters:
+        - { name: cart_ids, in: query, description: 'Comma-separated book IDs currently in cart', schema: { type: string } }
+        - { name: exclude_ids, in: query, description: 'Comma-separated book IDs to exclude', schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 12, default: 6 } }
+      responses:
+        '200':
+          description: Recommended book cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
   /books/{id}/reviews:
     get:
       tags: [Public]
