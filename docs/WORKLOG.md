@@ -301,4 +301,17 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     - Added 4 feature tests in `tests/Feature/Orders/OpsAlertsTest.php` covering phone/address enrichment, command delivery, unconfigured warnings, and specific chat targeting.
     - Full test suite: 571 tests, 3,671 assertions passing (100% green); `vendor/bin/pint --test` clean.
 
+- [x] Branded HTML email templates & order action buttons (2026-10-17, branch `feature/branded-email-templates`):
+  - Published and customized Laravel mail views (`resources/views/vendor/mail/html` and `text`):
+    - Branded header (`header.blade.php`) with Bookly book icon and warm serif styling.
+    - Branded footer (`footer.blade.php`) with `Bookly · Phnom Penh, Cambodia`.
+    - Custom theme CSS (`themes/default.css`): warm paper cream background (`#f8f7f5`), serif headings, dark charcoal buttons with gold accents.
+  - Added primary action button ("View your order" / "មើលការបញ្ជាទិញរបស់អ្នក"):
+    - In `OrderPlacedNotification.php` and `OrderStatusChangedNotification.php`, directs customers straight to their order page on the frontend (`/account/orders/{id}`).
+    - Localized in English (`lang/en/mail.php`) and Khmer (`lang/km/mail.php`).
+  - Tests:
+    - Added `tests/Feature/Platform/BrandedEmailTemplatesTest.php` testing order placed, order status changed, OTP codes, and Khmer locale button rendering.
+    - Full test suite: 575 tests, 3,690 assertions passing (100% green); `vendor/bin/pint --test` clean.
+
+
 

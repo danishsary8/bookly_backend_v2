@@ -27,6 +27,7 @@ return [
     'total' => 'សរុប៖ :amount ដុល្លារ',
     'payment_cod' => 'ការទូទាត់៖ បង់ប្រាក់ពេលទទួលទំនិញ (Cash on Delivery)។',
     'delivery_to' => 'ដឹកជញ្ជូនទៅកាន់៖ :recipient, :address, :city, :country',
+    'view_order' => 'មើលការបញ្ជាទិញរបស់អ្នក',
 
     // Order Status Changed
     'order_processing_subject' => 'យើងកំពុងរៀបចំការបញ្ជាទិញរបស់អ្នក :number',

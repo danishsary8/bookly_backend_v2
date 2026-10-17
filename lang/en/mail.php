@@ -27,6 +27,7 @@ return [
     'total' => 'Total: :amount USD',
     'payment_cod' => 'Payment: cash on delivery.',
     'delivery_to' => 'Delivery to: :recipient, :address, :city, :country',
+    'view_order' => 'View your order',
 
     // Order Status Changed
     'order_processing_subject' => 'We are packing your order :number',

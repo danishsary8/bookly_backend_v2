@@ -39,8 +39,7 @@ class OrderPlacedNotification extends Notification implements ShouldQueue
             $mail->line(__('mail.discount', ['amount' => $order->discount_amount]));
         }
 
-        return $mail
-            ->line(__('mail.shipping', ['amount' => $order->shipping_fee]))
+        $mail->line(__('mail.shipping', ['amount' => $order->shipping_fee]))
             ->line(__('mail.total', ['amount' => $order->total_amount]))
             ->line(__('mail.payment_cod'))
             ->line(__('mail.delivery_to', [
@@ -49,5 +48,12 @@ class OrderPlacedNotification extends Notification implements ShouldQueue
                 'city' => $order->shipping_city,
                 'country' => $order->shipping_country,
             ]));
+
+        $shop = rtrim((string) (config('shop.url') ?: config('app.url')), '/');
+        if ($shop !== '') {
+            $mail->action(__('mail.view_order'), "{$shop}/account/orders/{$order->id}");
+        }
+
+        return $mail;
     }
 }

@@ -65,6 +65,11 @@ class OrderStatusChangedNotification extends Notification implements ShouldQueue
             $mail->line(__('mail.order_cancelled_footer'));
         }
 
+        $shop = rtrim((string) (config('shop.url') ?: config('app.url')), '/');
+        if ($shop !== '') {
+            $mail->action(__('mail.view_order'), "{$shop}/account/orders/{$this->order->id}");
+        }
+
         return $mail;
     }
 }
