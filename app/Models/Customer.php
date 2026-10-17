@@ -144,7 +144,7 @@ class Customer extends Authenticatable implements HasLocalePreference
 
     public function wishlistBooks(): BelongsToMany
     {
-        return $this->belongsToMany(Book::class, 'wishlists')->withPivot('created_at');
+        return $this->belongsToMany(Book::class, 'wishlists')->withPivot(['status', 'created_at']);
     }
 
     public function orders(): HasMany

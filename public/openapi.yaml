@@ -923,10 +923,69 @@ paths:
   /cart/coupon/check:
     post: { tags: [Customer], summary: 'Preview a coupon against the cart (10/min)', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string } } } } } }, responses: { '200': { description: Discount preview, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CouponCheck' } } } } } }, '422': { description: 'Invalid, expired, used up, minimum not met or already used by you' } } }
   /wishlist:
-    get: { tags: [Customer], summary: 'Saved books (newest first)', responses: { '200': { description: Book cards, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
-    post: { tags: [Customer], summary: 'Save a book', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { book_id: { type: integer } } } } } }, responses: { '201': { description: Added }, '200': { description: Already saved } } }
+    get:
+      tags: [Customer]
+      summary: 'Saved books (newest first, filterable by reading status)'
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [want_to_read, reading, finished] }
+          description: Optional reading status filter
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: Book cards with reading status and category counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+    post:
+      tags: [Customer]
+      summary: 'Save a book with optional reading status'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [book_id]
+              properties:
+                book_id: { type: integer }
+                status: { type: string, enum: [want_to_read, reading, finished] }
+      responses:
+        '201': { description: Added }
+        '200': { description: Already saved }
   /wishlist/{id}:
-    delete: { tags: [Customer], summary: 'Remove a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+    patch:
+      tags: [Customer]
+      summary: 'Update reading status for a saved book'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [want_to_read, reading, finished] }
+      responses:
+        '200': { description: Status updated }
+        '404': { description: Book not found in wishlist }
+    delete:
+      tags: [Customer]
+      summary: 'Remove a book'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': { $ref: '#/components/responses/NoContent' }
 
   /checkout/preview:
     post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', description: 'Delivery is priced for address_id, else the default address: Phnom Penh 1.50 USD, the provinces 3.00 USD (SHIPPING_FEE_PHNOM_PENH / SHIPPING_FEE_PROVINCES).', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'address_id is not one of your addresses, or a bad coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }

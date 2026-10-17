@@ -27,6 +27,8 @@ class BookResource extends JsonResource
             'in_stock' => $variants->contains(fn ($v) => $v->isAvailable()),
             'rating_avg' => $this->rating_avg !== null ? round((float) $this->rating_avg, 1) : null,
             'review_count' => (int) ($this->review_count ?? 0),
+            'wishlist_status' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->status ?? 'want_to_read'),
+            'wishlist_saved_at' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->created_at?->toIso8601String()),
         ];
     }
 }

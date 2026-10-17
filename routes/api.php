@@ -174,6 +174,7 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
+    Route::patch('/wishlist/{book}', [WishlistController::class, 'update'])->whereNumber('book');
     Route::delete('/wishlist/{book}', [WishlistController::class, 'destroy'])->whereNumber('book');
 });
 
