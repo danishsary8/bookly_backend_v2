@@ -31,6 +31,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
         $middleware->throttleApi('api');
 
+        // There is no "login" page to redirect guests to: API requests get a JSON 401 instead, even from a browser tab.
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/');
+
         // The free host has no scheduler: the housekeeping jobs run from API traffic (needs RUN_MAINTENANCE_ON_REQUEST=true).
         $middleware->api(append: [RunDueMaintenance::class, SetAppLocaleFromHeader::class]);
 

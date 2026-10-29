@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Wishlist extends Model
 {
     public const STATUS_WANT_TO_READ = 'want_to_read';
+
     public const STATUS_READING = 'reading';
+
     public const STATUS_FINISHED = 'finished';
 
     public const STATUSES = [

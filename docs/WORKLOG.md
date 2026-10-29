@@ -336,3 +336,14 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 
 
 
+
+- [x] Fix guest browser requests to protected API routes (2026-10-29, Sentry "Route [login] not defined"):
+  - Cause: opening e.g. `/api/v1/staff/books` in a browser tab without a token (no `Accept: application/json`) made Laravel's
+    default guest redirect call `route('login')`, which this API does not define → 500 + Sentry alert.
+  - Fix: `bootstrap/app.php` → `redirectGuestsTo()` returns no redirect for `api/*`, so guests get the normal JSON 401.
+  - Also: `pint` formatting fix in `app/Models/Wishlist.php` (pre-existing `class_attributes_separation`).
+  - Tests: `tests/Feature/Platform/GuestApiResponseTest.php` (fails before the fix, passes after). Full suite 582 passing; `pint --test` clean.
+  - Open question for the owner (not changed): the Sentry "Neon quota exceeded" alerts (2026-10-22) are an account limit, not a code bug.
+    Likely cause: the uptime monitor pings `/api/v1/health` every 5 min; that endpoint queries the database, so Neon never scales to zero
+    and burns compute hours all month. Options: point the monitor at `/api/v1/ping` or `/up` (no DB), lower the ping frequency, or upgrade Neon.
+    Note pinging a non-DB route means the request-driven housekeeping still runs (it is API middleware) but `/up` would skip it.
