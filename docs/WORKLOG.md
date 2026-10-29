@@ -345,5 +345,6 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - Tests: `tests/Feature/Platform/GuestApiResponseTest.php` (fails before the fix, passes after). Full suite 582 passing; `pint --test` clean.
   - Open question for the owner (not changed): the Sentry "Neon quota exceeded" alerts (2026-10-22) are an account limit, not a code bug.
     Likely cause: the uptime monitor pings `/api/v1/health` every 5 min; that endpoint queries the database, so Neon never scales to zero
-    and burns compute hours all month. Options: point the monitor at `/api/v1/ping` or `/up` (no DB), lower the ping frequency, or upgrade Neon.
-    Note pinging a non-DB route means the request-driven housekeeping still runs (it is API middleware) but `/up` would skip it.
+    and burns compute hours all month. Every `/api/v1/*` request touches the DB (rate limiter + housekeeping use `CACHE_STORE=database`),
+    so only `/up` lets Neon sleep. Options: point the monitor at `/up` and ping less often (housekeeping then only runs on real traffic),
+    switch `CACHE_STORE` to `file`, or upgrade Neon.
