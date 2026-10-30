@@ -57,6 +57,7 @@
         .more details[open] summary::after { content: "–"; }
         .more ul, .more ol { margin: 0 0 14px; padding-left: 20px; color: var(--muted); font-size: 14px; }
         .more li { margin: 4px 0; }
+        .more .note { margin: 0 0 10px; padding: 10px 12px; background: #fff7f3; border: 1px solid #f6d3c4; border-radius: 10px; color: var(--ink); font-size: 13.5px; }
         .more li strong { color: var(--ink); }
         .more code { font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef0f4; padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
         .ok-text { color: var(--ok); font-weight: 600; }
@@ -206,6 +207,19 @@
                 <li>Checkout needs an <code>Idempotency-Key</code> header (any new random text per order), so a retried request never creates a second order.</li>
                 <li>The shared demo account can't change its password, email or linked logins, and is tidied every hour.</li>
             </ul>
+        </details>
+
+        <details>
+            <summary>Test as staff or admin (account owner only)</summary>
+            <p class="note">Needs a staff or admin password <strong>and</strong> the 6-digit code from that person's authenticator app, so visitors can't do this. A staff token can change real shop data: use it on your own computer and log out after.</p>
+            <ol>
+                <li>Open <strong>Staff auth → POST /staff/auth/login</strong>, enter the staff email and password, press <strong>Execute</strong>. Copy <code>challenge_token</code> from the answer.</li>
+                <li>Open <strong>POST /staff/auth/two-factor/challenge</strong>. Send <code>challenge_token</code> and <code>code</code> (the 6 digits from the authenticator app). Copy <code>token</code> from the answer.</li>
+                <li>Click the green <strong>Authorize</strong> button, paste the token, press <strong>Authorize</strong>, then <strong>Close</strong>.</li>
+                <li>Staff routes now work, e.g. <strong>Staff catalog → GET /staff/books</strong> gives <code>200</code>. Admin-only routes (marked <em>(admin)</em>) need an admin account.</li>
+                <li>When done: <strong>Authorize → Logout</strong>, and send <code>POST /staff/auth/logout</code> to end the token on the server too.</li>
+            </ol>
+            <p class="note">First staff sign-in ever? Login answers with <code>two_factor_required: false</code> and a token: use that token for <code>POST /staff/auth/two-factor/setup</code>, add the returned <code>secret</code> to your authenticator app (or make a QR code from <code>otpauth_uri</code>), then send a 6-digit <code>code</code> to <code>/staff/auth/two-factor/confirm</code>. Other staff routes open after that.</p>
         </details>
 
         <details>
