@@ -48,6 +48,17 @@
         .tag.get { background: #2f6fd6; }
         .facts { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 16px; font-size: 13px; color: var(--muted); }
         .facts strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 2px; }
+        .more { margin: 12px 0 8px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 22px; }
+        .more h2 { margin: 0 0 8px; font-size: 18px; }
+        .more details { border-top: 1px solid var(--line); }
+        .more summary { cursor: pointer; padding: 12px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; }
+        .more summary::-webkit-details-marker { display: none; }
+        .more summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 18px; line-height: 1; }
+        .more details[open] summary::after { content: "–"; }
+        .more ul, .more ol { margin: 0 0 14px; padding-left: 20px; color: var(--muted); font-size: 14px; }
+        .more li { margin: 4px 0; }
+        .more li strong { color: var(--ink); }
+        .more code { font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef0f4; padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
         .ok-text { color: var(--ok); font-weight: 600; }
         .err-text { color: var(--bad); }
         .start code, footer code { font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef0f4; padding: 1px 5px; border-radius: 5px; }
@@ -145,6 +156,69 @@
             <div><strong>Errors</strong> Always JSON. <code>401</code> not signed in · <code>403</code> not allowed · <code>422</code> wrong input · <code>429</code> too many requests.</div>
             <div><strong>Try this</strong> Staff routes answer <code>403</code> to the demo token: the access control working.</div>
         </div>
+    </section>
+
+    <section class="more" aria-labelledby="more-title">
+        <h2 id="more-title">Details</h2>
+
+        <details>
+            <summary>Base URL and format</summary>
+            <ul>
+                <li>Base URL: <code>{{ $api }}</code></li>
+                <li>Send and receive JSON. Always add the header <code>Accept: application/json</code>.</li>
+                <li>Dates are ISO 8601 (UTC). Money is a string with 2 decimals, e.g. <code>"12.99"</code>, in USD with a KHR (riel) copy.</li>
+                <li>The free server sleeps when idle: the first request can take up to a minute.</li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Authentication (customers and staff)</summary>
+            <ul>
+                <li><strong>Customer:</strong> <code>POST /auth/login</code> with email and password → a token valid for 7 days. Shopping routes also need a verified email.</li>
+                <li><strong>Staff:</strong> <code>POST /staff/auth/login</code> → <code>challenge_token</code>, then <code>POST /staff/auth/two-factor/challenge</code> with the 6-digit code from an authenticator app → a token valid for 12 hours.</li>
+                <li>Send the token on every request: <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+                <li>Customer and staff tokens are separate: each only works on its own routes. Log out with <code>POST /auth/logout</code>.</li>
+                <li>Demo: <code>POST /demo/token</code> gives a 2-hour token for the protected demo customer (no password; 10 per hour).</li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Errors and status codes</summary>
+            <ul>
+                <li>Every error is JSON: <code>{"message": "..."}</code>. Wrong input (<code>422</code>) also has <code>errors: {field: [messages]}</code>.</li>
+                <li><code>200/201</code> OK · <code>204</code> done, no body · <code>401</code> not signed in · <code>403</code> not allowed · <code>404</code> not found · <code>422</code> wrong input · <code>429</code> too many requests (see <code>Retry-After</code>) · <code>503</code> temporarily unavailable.</li>
+                <li>Every response has an <code>X-Request-Id</code> header: quote it when reporting a problem.</li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Lists, search and filters</summary>
+            <ul>
+                <li>Lists are paged: <code>?page=2&amp;per_page=20</code> (max 100). The answer has <code>data</code>, <code>links</code> and <code>meta</code> (<code>current_page</code>, <code>last_page</code>, <code>total</code>).</li>
+                <li>Search books: <code>GET /books?q=pride</code>. Filter with <code>category_id</code>, <code>author_id</code>, <code>format</code>, <code>min_price</code>, <code>max_price</code>, <code>in_stock</code>; sort with <code>sort</code>.</li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Rate limits and safety</summary>
+            <ul>
+                <li>120 requests per minute per user or IP, with stricter limits on sign-in, email codes, coupon checks and checkout.</li>
+                <li>Checkout needs an <code>Idempotency-Key</code> header (any new random text per order), so a retried request never creates a second order.</li>
+                <li>The shared demo account can't change its password, email or linked logins, and is tidied every hour.</li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Test with Postman</summary>
+            <ol>
+                <li>In Postman click <strong>Import</strong> → <strong>Link</strong>, paste <code>{{ url('/openapi.yaml') }}</code> and import it as a collection. Every endpoint appears, grouped like this page.</li>
+                <li>Open the collection's <strong>Variables</strong> and set <code>baseUrl</code> to <code>{{ $api }}</code>.</li>
+                <li>Send <code>POST {{ $api }}/demo/token</code> (no body). Copy the <code>token</code> from the answer.</li>
+                <li>On the collection, open <strong>Authorization</strong> → type <strong>Bearer Token</strong> → paste the token. All requests now use it.</li>
+                <li>Try <code>GET /cart</code> (200), then <code>GET /staff/books</code> (403: a customer can't use staff routes).</li>
+                <li>Add the header <code>Accept: application/json</code> if a request returns a web page instead of JSON.</li>
+            </ol>
+        </details>
     </section>
 </main>
 
