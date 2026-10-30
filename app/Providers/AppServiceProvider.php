@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\CurrencyService;
 use App\Services\KhrRateHistory;
 use App\Services\Telegram\TelegramBot;
+use Database\Seeders\DemoSeeder;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
@@ -50,7 +51,9 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(30)->by('ip|'.$request->ip()),
             ];
 
-            if ($email !== '') {
+            // The shared demo account (published on /docs) skips the per-email cap, or one busy hour would lock every
+            // visitor out; the per-IP limits above still apply to it.
+            if ($email !== '' && $email !== DemoSeeder::EMAIL) {
                 $limits[] = Limit::perHour(20)->by('email|'.$email);
             }
 

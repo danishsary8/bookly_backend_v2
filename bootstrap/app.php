@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureCustomerEmailIsVerified;
+use App\Http\Middleware\EnsureNotDemoAccount;
 use App\Http\Middleware\EnsureStaffTwoFactorEnabled;
 use App\Http\Middleware\RunDueMaintenance;
 use App\Http\Middleware\SecurityHeaders;
@@ -46,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability' => CheckForAnyAbility::class,
             'verified.customer' => EnsureCustomerEmailIsVerified::class,
             'staff.2fa' => EnsureStaffTwoFactorEnabled::class,
+            'not.demo' => EnsureNotDemoAccount::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -19,6 +19,9 @@ class SafeNotifier
         if ($customer === null || blank($customer->email)) {
             return; // phone-only account (Telegram sign-up): nothing to email
         }
+        if (str_ends_with(strtolower($customer->email), '.test')) {
+            return; // reserved domain (demo accounts): it can never receive mail, and bounces hurt delivery for everyone
+        }
 
         try {
             $customer->notify($notification);

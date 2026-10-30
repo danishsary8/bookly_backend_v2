@@ -13,7 +13,7 @@ class ResetDemoCustomer extends Command
 {
     protected $signature = 'demo:reset';
 
-    protected $description = 'Empty the shared demo customer\'s cart and cancel their pending orders older than a day (stock is restored)';
+    protected $description = 'Restore the shared demo customer: name and password, empty cart, pending orders older than an hour cancelled (stock restored)';
 
     public function handle(CartService $carts, OrderStatusService $statuses): int
     {
@@ -24,10 +24,12 @@ class ResetDemoCustomer extends Command
             return self::SUCCESS;
         }
 
+        // Visitors can rename the account; sign-in details are guarded by EnsureNotDemoAccount, the password reset is a backstop.
+        $demo->forceFill(['name' => 'Demo Customer', 'password_hash' => DemoSeeder::PASSWORD])->save();
         $carts->clear($demo);
 
         // The real customer cancel, so stock and coupon uses come back exactly as they would for a shopper.
-        $stale = $demo->orders()->where('status', OrderStatus::Pending)->where('placed_at', '<', now()->subDay())->get();
+        $stale = $demo->orders()->where('status', OrderStatus::Pending)->where('placed_at', '<', now()->subHour())->get();
         foreach ($stale as $order) {
             $statuses->cancelByCustomer($order, 'Daily demo reset');
         }

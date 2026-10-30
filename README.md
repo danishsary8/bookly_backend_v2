@@ -17,7 +17,7 @@
 
 [![Bookly API docs page](docs/images/docs-page.png)](https://bookly-api-zasc.onrender.com/docs)
 
-> **Try it in 30 seconds:** open the [live docs](https://bookly-api-zasc.onrender.com/docs), click **Try as demo customer**, then send a real request to `GET /cart`. The API runs on a free plan, so the first request after a quiet spell can take ~50 s to wake it up.
+> **Try it in 30 seconds:** open the [live docs](https://bookly-api-zasc.onrender.com/docs), click **Try as demo customer**, then send a real request to `GET /cart`. The shared demo account is protected (its sign-in details can't be changed) and tidied every hour. The API runs on a free plan, so the first request after a quiet spell can take ~50 s to wake it up.
 
 ## Highlights
 
@@ -98,15 +98,16 @@ More protections: email codes are stored hashed, single-use and die after 5 wron
 
 ### Data model
 
-27 tables in third normal form:
+35 domain tables in third normal form (42 including Laravel's own cache, queue and token tables):
 
 | Domain | Tables |
 | --- | --- |
-| Accounts | customers, staff_users, customer_addresses, verification_tokens |
+| Accounts | customers, staff_users, customer_addresses, verification_tokens, staff_login_histories |
+| CRM | customer_tags, customer_customer_tag, customer_notes |
 | Catalog | books, book_variants, authors, publishers, categories, series, book_authors, book_categories |
-| Inventory | inventory_movements |
+| Inventory | inventory_movements, stock_alerts |
 | Cart | carts, cart_items, wishlists |
-| Promotions | coupons |
+| Promotions | coupons, newsletter_subscribers, newsletter_campaigns, marketing_outbox |
 | Orders | orders, order_items, order_status_history |
 | Payments | payments, payment_webhook_logs |
 | Returns | returns, return_items |

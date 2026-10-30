@@ -105,7 +105,7 @@
         <p class="lead">How the API protects customers, staff and stock.</p>
         <div class="grid">
             <div class="card"><h3>Bearer tokens with abilities</h3><p>Customer and staff tokens are separate: each only works on its own side of the API.</p><code>POST /auth/login · ability customer</code></div>
-            <div class="card"><h3>Mandatory staff 2FA</h3><p>Staff sign in with a password plus an authenticator-app (TOTP) code; no 2FA, no access.</p><code>POST /staff/auth/login → /staff/auth/2fa</code></div>
+            <div class="card"><h3>Mandatory staff 2FA</h3><p>Staff sign in with a password plus an authenticator-app (TOTP) code; no 2FA, no access.</p><code>POST /staff/auth/login → /staff/auth/two-factor/challenge</code></div>
             <div class="card"><h3>Rate limiting</h3><p>120 requests/min per user or IP, plus strict limits on login, codes, coupon checks and checkout.</p><code>429 + Retry-After</code></div>
             <div class="card"><h3>Verified-email gate</h3><p>Shopping needs a verified account, so carts and orders belong to real, reachable people.</p><code>middleware verified.customer</code></div>
             <div class="card"><h3>Idempotent checkout</h3><p>Every order needs an Idempotency-Key, so a retried request never charges or ships twice.</p><code>Idempotency-Key header</code></div>
@@ -134,7 +134,7 @@
 
 <div id="reference"></div>
 
-<footer class="site-footer"><div class="wrap">Bookly API · the demo account is shared and tidied every night · <a href="https://github.com/danishsary8/bookly_backend_v2">Source on GitHub</a></div></footer>
+<footer class="site-footer"><div class="wrap">Bookly API · the demo account is shared and tidied every hour · <a href="https://github.com/danishsary8/bookly_backend_v2">Source on GitHub</a></div></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.74.0/dist/browser/standalone.js" integrity="sha384-VXnKAz61Xwc3tbw1P+KKrUP7YbcsSl1Ik4is5UnogJyw9XEYZ5Ay/T1i0zPYtSZH" crossorigin="anonymous"></script>
 <script>
@@ -207,11 +207,11 @@
 
     if (token) { showSignedIn(); }
 
-    // Status: /up answers without the database, /health checks it. The free host sleeps when idle, so a first
-    // failure means "waking up" and is retried once.
+    // Status: /up answers without the database, /health checks it. The free host sleeps when idle and can take about
+    // a minute to wake, so each attempt waits up to 45 s and a first failure ("waking up") is retried once.
     const status = document.getElementById('status');
     const setStatus = (kind, text) => { status.innerHTML = '<span class="dot ' + kind + '"></span><span></span>'; status.lastChild.textContent = text; };
-    const get = (url) => fetch(url, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined });
+    const get = (url) => fetch(url, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(45000) : undefined });
     const check = async (retried) => {
         try {
             const up = await get('/up');

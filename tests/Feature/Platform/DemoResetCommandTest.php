@@ -9,6 +9,7 @@ use App\Models\CustomerAddress;
 use App\Models\Order;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -25,7 +26,7 @@ class DemoResetCommandTest extends TestCase
     }
 
     /** Places an order through the real cart and checkout, then moves it back in time. */
-    private function placeOrder(Customer $customer, BookVariant $variant, int $qty, int $hoursAgo): Order
+    private function placeOrder(Customer $customer, BookVariant $variant, int $qty, int $minutesAgo): Order
     {
         $this->withToken($customer->createToken('t', ['customer'])->plainTextToken);
         $this->postJson('/api/v1/cart/items', ['book_variant_id' => $variant->id, 'quantity' => $qty])->assertCreated();
@@ -35,7 +36,7 @@ class DemoResetCommandTest extends TestCase
         ])->assertCreated()->json('data.id');
 
         $order = Order::findOrFail($id);
-        $order->forceFill(['placed_at' => now()->subHours($hoursAgo)])->save();
+        $order->forceFill(['placed_at' => now()->subMinutes($minutesAgo)])->save();
 
         return $order;
     }
@@ -55,7 +56,7 @@ class DemoResetCommandTest extends TestCase
     {
         $demo = $this->demo();
         $variant = BookVariant::factory()->create(['stock_quantity' => 10]);
-        $order = $this->placeOrder($demo, $variant, 2, 25);
+        $order = $this->placeOrder($demo, $variant, 2, 90);
         $this->addToCart($demo, BookVariant::factory()->create(['stock_quantity' => 5]));
         $this->assertSame(8, $variant->fresh()->stock_quantity);
 
@@ -69,8 +70,8 @@ class DemoResetCommandTest extends TestCase
     public function test_it_keeps_recent_pending_and_non_pending_orders(): void
     {
         $demo = $this->demo();
-        $recent = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 2);
-        $delivered = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 72);
+        $recent = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 30);
+        $delivered = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 3 * 24 * 60);
         $delivered->forceFill(['status' => OrderStatus::Delivered])->save();
 
         $this->artisan('demo:reset')->assertExitCode(0);
@@ -83,13 +84,25 @@ class DemoResetCommandTest extends TestCase
     {
         $this->demo();
         $other = Customer::factory()->create();
-        $order = $this->placeOrder($other, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 25);
+        $order = $this->placeOrder($other, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 90);
         $this->addToCart($other, BookVariant::factory()->create(['stock_quantity' => 5]));
 
         $this->artisan('demo:reset')->assertExitCode(0);
 
         $this->assertSame(OrderStatus::Pending, $order->fresh()->status);
         $this->assertSame(1, $other->cart()->first()->items()->count());
+    }
+
+    public function test_it_restores_the_demo_name_and_password(): void
+    {
+        $demo = $this->demo();
+        $demo->forceFill(['name' => 'Someone else', 'password_hash' => 'changed-Pass1'])->save();
+
+        $this->artisan('demo:reset')->assertExitCode(0);
+
+        $demo->refresh();
+        $this->assertSame('Demo Customer', $demo->name);
+        $this->assertTrue(Hash::check(DemoSeeder::PASSWORD, $demo->password_hash));
     }
 
     public function test_it_does_nothing_without_the_demo_account(): void
