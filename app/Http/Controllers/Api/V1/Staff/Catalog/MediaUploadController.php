@@ -91,12 +91,13 @@ class MediaUploadController extends Controller
             ]);
         }
 
-        // 5. Store with random UUID filename on public disk
+        // 5. Store with a random UUID filename on the media disk (Cloudflare R2 in production, see config/filesystems.php)
+        $disk = config('filesystems.media_disk');
         $filename = (string) Str::uuid().'.'.$ext;
         $folder = 'covers/'.date('Y/m');
-        $path = $file->storeAs($folder, $filename, 'public');
+        $path = $file->storeAs($folder, $filename, $disk);
 
-        $url = Storage::disk('public')->url($path);
+        $url = Storage::disk($disk)->url($path);
 
         return response()->json([
             'url' => $url,
