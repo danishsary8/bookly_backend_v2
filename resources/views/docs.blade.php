@@ -7,6 +7,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
     <title>Bookly API docs</title>
     <meta name="description" content="Bookly REST API: a Laravel 13 + PostgreSQL bookstore backend. Try it live with a demo account.">
     <style>
@@ -14,13 +15,6 @@
             --bg: #f7f6f2; --card: #ffffff; --ink: #14182b; --muted: #5b6075; --line: #e3e1da;
             --brand: #1d2a6b; --accent: #e8572e; --ok: #1f8a4c; --warn: #b7791f; --bad: #c53030;
             --code-bg: #14182b; --code-ink: #e9e7df;
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0f1220; --card: #171b2e; --ink: #ecebe6; --muted: #a3a7ba; --line: #2a2f47;
-                --brand: #9fb0ff; --accent: #ff7a52; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
-                --code-bg: #0a0d18; --code-ink: #e9e7df;
-            }
         }
         * { box-sizing: border-box; }
         [hidden] { display: none !important; }
@@ -155,7 +149,10 @@
         agent: { disabled: true },
         mcp: { disabled: true },
         showDeveloperTools: 'never',
-        darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+        // Always light, so the page looks the same in every screenshot, demo and portfolio link.
+        darkMode: false,
+        forceDarkModeState: 'light',
+        hideDarkModeToggle: true,
         defaultHttpClient: { targetKey: 'shell', clientKey: 'curl' },
         hiddenClients: { node: true, python: true, ruby: true, go: true, java: true, kotlin: true, csharp: true, c: true, clojure: true, objc: true, ocaml: true, powershell: true, r: true, swift: true, dart: true, fsharp: true, http: false, javascript: false, php: false, shell: false },
     };
