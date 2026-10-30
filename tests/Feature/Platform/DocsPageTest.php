@@ -22,4 +22,15 @@ class DocsPageTest extends TestCase
             ->assertDontSee('Password123!')
             ->assertDontSee('admin@bookly.test');
     }
+
+    public function test_docs_page_explains_auth_errors_and_postman(): void
+    {
+        $this->get('/docs')
+            ->assertOk()
+            ->assertSee('Authentication (customers and staff)')
+            ->assertSee('/staff/auth/two-factor/challenge')
+            ->assertSee('Errors and status codes')
+            ->assertSee('Test with Postman')
+            ->assertSee(url('/openapi.yaml'));
+    }
 }
