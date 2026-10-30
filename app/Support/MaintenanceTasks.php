@@ -27,6 +27,8 @@ class MaintenanceTasks
             // Marketing outbox (runs every minute, capped daily).
             ['name' => 'marketing-outbox', 'command' => 'marketing:send', 'parameters' => [], 'cron' => '* * * * *'],
             // Permanently purge soft-deleted catalog items trashed for more than 30 days.
+            // The docs page lets visitors sign in as the shared demo customer: keep that account usable for the next one.
+            ['name' => 'demo-reset', 'command' => 'demo:reset', 'parameters' => [], 'cron' => '0 3 * * *'],
             ['name' => 'purge-trash', 'command' => 'trash:purge', 'parameters' => [], 'cron' => '0 0 * * *'],
         ];
     }

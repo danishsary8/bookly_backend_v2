@@ -179,6 +179,11 @@ class DueMaintenanceTest extends TestCase
         }
     }
 
+    public function test_the_shared_demo_account_is_reset_daily(): void
+    {
+        $this->assertContains(['name' => 'demo-reset', 'command' => 'demo:reset', 'parameters' => [], 'cron' => '0 3 * * *'], MaintenanceTasks::all());
+    }
+
     public function test_the_scheduler_lists_exactly_the_registered_jobs(): void
     {
         Artisan::call('schedule:list');

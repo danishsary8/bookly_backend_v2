@@ -40,6 +40,9 @@ class DemoSeeder extends Seeder
 {
     public const PASSWORD = 'Password123!';
 
+    /** The shared demo customer (the docs page signs visitors in as this account; `demo:reset` tidies it daily). */
+    public const EMAIL = 'demo@bookly.test';
+
     public function run(): void
     {
         if (app()->isProduction() && ! config('app.demo_seed_allowed')) {
@@ -47,7 +50,7 @@ class DemoSeeder extends Seeder
 
             return;
         }
-        if (Customer::where('email', 'demo@bookly.test')->exists()) {
+        if (Customer::where('email', self::EMAIL)->exists()) {
             $this->command?->warn('Demo data is already there (demo@bookly.test exists). Run migrate:fresh first to start over.');
 
             return;
@@ -170,7 +173,7 @@ class DemoSeeder extends Seeder
     private function customers(): array
     {
         $people = [
-            'demo' => ['Demo Customer', 'demo@bookly.test', 'Street 240, House 12', 'Phnom Penh'],
+            'demo' => ['Demo Customer', self::EMAIL, 'Street 240, House 12', 'Phnom Penh'],
             'sokha' => ['Sokha Chan', 'sokha@bookly.test', 'Street 63, House 5B', 'Phnom Penh'],
             'dara' => ['Dara Kim', 'dara@bookly.test', 'Sivutha Blvd 88', 'Siem Reap'],
             'malis' => ['Malis Heng', 'malis@bookly.test', 'Street 7 Makara, House 21', 'Battambang'],
