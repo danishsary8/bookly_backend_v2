@@ -356,3 +356,15 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - Owner must change in dashboards (not in code): Render → Environment `CACHE_STORE=file`, Render → Settings → Health Check Path `/up`,
     UptimeRobot monitor URL → `https://bookly-api-zasc.onrender.com/up`.
   - Tests: full suite 582 passing; `pint --test` clean.
+
+- [x] "Buy again" / reorder (2026-10-30, idea taken from the open-source Bagisto shop):
+  - Research: inspected Bagisto's storefront with the REA reverse-engineering CLI (`rea analyze-javascript-application`) plus its
+    route files, and compared against our routes. Gaps found: reorder, sitemap.xml/robots.txt, product compare, contact-us form,
+    wishlist → cart move, customer data export (GDPR), back-in-stock alerts. Reorder picked as the first one.
+  - `POST /api/v1/orders/{id}/reorder` (`OrderController::reorder`): reuses `CartService::add()` per item, so stock, digital
+    and availability rules are the same as manual adding. Unlike Bagisto (which silently drops failures), it returns
+    `added`, `skipped` (with the reason) and the updated `cart`. Own orders only (404 otherwise); throttle 10/min.
+  - Decisions for the owner to confirm: any order status can be reordered (incl. cancelled); an item with less stock than
+    ordered is skipped, not reduced to what is left.
+  - Docs: `docs/API.md`, `public/openapi.yaml`. Tests: `tests/Feature/Orders/ReorderTest.php` (3). Full suite 585 passing; pint clean.
+  - Frontend (not done): "Buy again" button on the order page.
