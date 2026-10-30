@@ -151,6 +151,7 @@ The API ships as one Docker image. Step-by-step guide (free hosting or Railway):
 - [Live API docs](https://bookly-api-zasc.onrender.com/docs) and the [OpenAPI file](public/openapi.yaml)
 - [docs/API.md](docs/API.md): every endpoint, field by field
 - [docs/RATE_LIMITS.md](docs/RATE_LIMITS.md): every limit and why
+- [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md): what is done and what is left before real customers
 - [docs/WORKLOG.md](docs/WORKLOG.md): how the project was built, step by step
 
 **Next up:** card and Bakong KHQR payments (the database tables are already in place).
