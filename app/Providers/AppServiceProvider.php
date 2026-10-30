@@ -68,6 +68,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // New Telegram bot links: free to make, but each one is a cache entry. 10 per 10 minutes is plenty.
+        // The docs page's demo sign-in: enough for a visitor exploring the API, not enough to farm tokens.
+        RateLimiter::for('demo-token', fn (Request $request) => Limit::perHour(10)->by('demo-token|'.$request->ip()));
+
         RateLimiter::for('telegram-link', fn (Request $request) => Limit::perMinutes(10, 10)
             ->by('telegram|'.($request->user()?->getKey() ?? 'guest').'|'.$request->ip()));
 
