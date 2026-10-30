@@ -7,6 +7,7 @@ use App\Models\BookVariant;
 use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\Order;
+use App\Services\Orders\OrderStatusService;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -91,6 +92,30 @@ class DemoResetCommandTest extends TestCase
 
         $this->assertSame(OrderStatus::Pending, $order->fresh()->status);
         $this->assertSame(1, $other->cart()->first()->items()->count());
+    }
+
+    public function test_one_order_that_cannot_be_cancelled_does_not_stop_the_others(): void
+    {
+        $demo = $this->demo();
+        $first = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 90);
+        $second = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 90);
+
+        // The first cancel fails (e.g. staff moved the order on a moment earlier); the second must still be cancelled.
+        $real = app(OrderStatusService::class);
+        $this->mock(OrderStatusService::class, function ($mock) use ($real, $first) {
+            $mock->shouldReceive('cancelByCustomer')->andReturnUsing(function ($order, $reason) use ($real, $first) {
+                if ($order->id === $first->id) {
+                    throw new \RuntimeException('Order is no longer pending.');
+                }
+
+                return $real->cancelByCustomer($order, $reason);
+            });
+        });
+
+        $this->artisan('demo:reset')->expectsOutputToContain('1 stale order(s) cancelled')->assertExitCode(0);
+
+        $this->assertSame(OrderStatus::Pending, $first->fresh()->status);
+        $this->assertSame(OrderStatus::Cancelled, $second->fresh()->status);
     }
 
     public function test_it_restores_the_demo_name_and_password(): void
