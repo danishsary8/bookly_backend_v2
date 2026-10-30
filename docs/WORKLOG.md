@@ -348,3 +348,11 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     and burns compute hours all month. Every `/api/v1/*` request touches the DB (rate limiter + housekeeping use `CACHE_STORE=database`),
     so only `/up` lets Neon sleep. Options: point the monitor at `/up` and ping less often (housekeeping then only runs on real traffic),
     switch `CACHE_STORE` to `file`, or upgrade Neon.
+
+- [x] Stop scheduled checks from keeping Neon awake (2026-10-30, owner chose options A + B from the entry above):
+  - B: `CACHE_STORE` default is now `file` (`config/cache.php`, `.env.example`); rate limits and housekeeping state no longer hit Postgres.
+  - A: `docs/DEPLOYMENT.md` now uses `/up` (no database) for the Render health check path and the uptime monitor (every 14 min);
+    `/api/v1/health` is for manual checks only. Housekeeping now runs from real traffic, plus once after each restart (harmless cleanup jobs).
+  - Owner must change in dashboards (not in code): Render → Environment `CACHE_STORE=file`, Render → Settings → Health Check Path `/up`,
+    UptimeRobot monitor URL → `https://bookly-api-zasc.onrender.com/up`.
+  - Tests: full suite 582 passing; `pint --test` clean.

@@ -41,7 +41,7 @@ and no shell — admin and demo data are created from your own computer (steps F
 1. Sign up at render.com (GitHub login), allow access to `danishsary8/bookly_backend_v2`.
 2. **New → Web Service** → pick the repository → branch `main` → **Language/Runtime: Docker** (Render finds the
    `Dockerfile`) → region **Singapore** → instance type **Free**.
-3. **Advanced → Health Check Path:** `/api/v1/health`.
+3. **Advanced → Health Check Path:** `/up` (answers without touching the database, so Render's frequent checks let Neon sleep).
 4. **Auto-Deploy:** choose the option that waits for CI checks to pass (otherwise "On Commit").
 
 ### F3. Environment variables (Render → your service → Environment)
@@ -55,7 +55,7 @@ and no shell — admin and demo data are created from your own computer (steps F
 | `RUN_MIGRATIONS` | `true` |
 | `QUEUE_CONNECTION` | `sync` |
 | `RUN_MAINTENANCE_ON_REQUEST` | `true` (runs the housekeeping jobs from web traffic; see "Housekeeping without a scheduler") |
-| `CACHE_STORE` | `database` |
+| `CACHE_STORE` | `file` (rate limits and housekeeping state stay on the instance, so normal API requests do not wake Neon; cleared on each restart, which is harmless) |
 | `SESSION_DRIVER` | `array` |
 | `TRUSTED_PROXIES` | `REMOTE_ADDR` |
 | `CORS_ALLOWED_ORIGINS` | your frontend URL |
@@ -115,7 +115,8 @@ Render's free plan runs only the web process, so `schedule:work` never runs. The
 old failed jobs and job batches daily). With `RUN_MAINTENANCE_ON_REQUEST=true`, any API request checks (at most once a
 minute, shared through the cache) whether a job is due and runs it **after the response has been prepared**, so visitors
 do not wait. "Due" means a scheduled time has passed since the job last ran, so it catches up even though requests come at
-random times. Your uptime monitor's 5-minute ping of `/api/v1/health` keeps this running all day. Failures never change a
+random times. It only runs when real API traffic arrives (the uptime monitor pings `/up`, which skips it), and because the
+cache is `file`, every job also runs once after an instance restart; they are cleanup jobs, so repeating them is harmless. Failures never change a
 response: they are reported (Sentry) and the job is retried after 10 minutes. Leave the setting off wherever a real
 scheduler runs (Railway). The first request after turning it on runs every job once to clear any backlog.
 
@@ -128,8 +129,10 @@ login and key, `MAIL_FROM_ADDRESS` = the verified sender. With a verified domain
 sign-up keeps no half-made account.
 
 ### F4. Keep it awake (optional)
-Free uptime monitors such as UptimeRobot can call `/api/v1/health` every 10 minutes so visitors rarely hit a sleeping
-instance. Render's free plan includes a limited number of instance hours per month; one always-on service fits.
+Free uptime monitors such as UptimeRobot can call `/up` every 14 minutes so visitors rarely hit a sleeping instance
+(Render sleeps after 15 idle minutes). Do **not** ping `/api/v1/health` on a schedule: it queries the database, so Neon
+(which suspends after ~5 idle minutes) never sleeps and the free compute quota runs out (seen 2026-10-22). Open
+`/api/v1/health` by hand when you want the database checked. Render's free plan includes a limited number of instance hours per month; one always-on service fits.
 
 ### F5. First admin (from your computer, against Neon)
 PowerShell in the project folder — the variables only last for this terminal window:
@@ -286,7 +289,7 @@ Use `pg_dump`/`pg_restore` version 18 or newer (same as the server).
 | --- | --- |
 | see logs | **web → Logs** (or `railway logs --service web`); every line is JSON with a `request_id` — search for the `X-Request-Id` a user reports |
 | see errors | Sentry (5xx only, user id only, no personal data) |
-| check health | `GET /api/v1/health` — add it to a free uptime monitor (e.g. UptimeRobot) |
+| check health | `GET /up` in the uptime monitor (no database); `GET /api/v1/health` by hand to check the database |
 | change a setting | edit `.railway/railway.ts`, `railway config plan`, `railway config apply` (or a shared variable in the dashboard) |
 | roll back | **web → Deployments →** an older deployment **→ Redeploy** (migrations are not rolled back) |
 | use a custom domain later | add it in **web → Settings → Networking**, then update `APP_URL` and the frontend's API URL |
