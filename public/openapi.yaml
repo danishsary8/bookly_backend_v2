@@ -1007,6 +1007,8 @@ paths:
     get: { tags: [Checkout & orders], summary: 'One order with status history', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order }, '404': { $ref: '#/components/responses/NotFound' } } }
   /orders/{id}/cancel:
     post: { tags: [Checkout & orders], summary: 'Cancel while pending (stock and coupon use are given back)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cancelled }, '422': { description: No longer cancellable } } }
+  /orders/{id}/reorder:
+    post: { tags: [Checkout & orders], summary: 'Buy again: add the order items to the cart (items that cannot be bought now are skipped with a reason); 10/min', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: 'data.added (book_variant_id, title, quantity), data.skipped (book_variant_id, title, reason), data.cart (Cart)' }, '404': { $ref: '#/components/responses/NotFound' } } }
   /orders/{id}/invoice:
     get: { tags: [Checkout & orders], summary: 'Print data for your invoice (not for a cancelled order)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Invoice data, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/OrderDocument' } } } } } }, '404': { $ref: '#/components/responses/NotFound' }, '422': { description: Cancelled order } } }
   /orders/{id}/returnable-items:

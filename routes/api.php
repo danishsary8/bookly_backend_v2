@@ -160,6 +160,7 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
+    Route::post('/orders/{order}/reorder', [OrderController::class, 'reorder'])->whereNumber('order')->middleware('throttle:10,1');
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->whereNumber('order')->middleware('throttle:30,1');
     Route::get('/orders/{order}/returnable-items', [ReturnController::class, 'returnable'])->whereNumber('order');
     Route::post('/orders/{order}/returns', [ReturnController::class, 'store'])->whereNumber('order');

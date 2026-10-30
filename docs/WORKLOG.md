@@ -336,3 +336,35 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 
 
 
+
+- [x] Fix guest browser requests to protected API routes (2026-10-29, Sentry "Route [login] not defined"):
+  - Cause: opening e.g. `/api/v1/staff/books` in a browser tab without a token (no `Accept: application/json`) made Laravel's
+    default guest redirect call `route('login')`, which this API does not define → 500 + Sentry alert.
+  - Fix: `bootstrap/app.php` → `redirectGuestsTo()` returns no redirect for `api/*`, so guests get the normal JSON 401.
+  - Also: `pint` formatting fix in `app/Models/Wishlist.php` (pre-existing `class_attributes_separation`).
+  - Tests: `tests/Feature/Platform/GuestApiResponseTest.php` (fails before the fix, passes after). Full suite 582 passing; `pint --test` clean.
+  - Open question for the owner (not changed): the Sentry "Neon quota exceeded" alerts (2026-10-22) are an account limit, not a code bug.
+    Likely cause: the uptime monitor pings `/api/v1/health` every 5 min; that endpoint queries the database, so Neon never scales to zero
+    and burns compute hours all month. Every `/api/v1/*` request touches the DB (rate limiter + housekeeping use `CACHE_STORE=database`),
+    so only `/up` lets Neon sleep. Options: point the monitor at `/up` and ping less often (housekeeping then only runs on real traffic),
+    switch `CACHE_STORE` to `file`, or upgrade Neon.
+
+- [x] Stop scheduled checks from keeping Neon awake (2026-10-30, owner chose options A + B from the entry above):
+  - B: `CACHE_STORE` default is now `file` (`config/cache.php`, `.env.example`); rate limits and housekeeping state no longer hit Postgres.
+  - A: `docs/DEPLOYMENT.md` now uses `/up` (no database) for the Render health check path and the uptime monitor (every 14 min);
+    `/api/v1/health` is for manual checks only. Housekeeping now runs from real traffic, plus once after each restart (harmless cleanup jobs).
+  - Owner must change in dashboards (not in code): Render → Environment `CACHE_STORE=file`, Render → Settings → Health Check Path `/up`,
+    UptimeRobot monitor URL → `https://bookly-api-zasc.onrender.com/up`.
+  - Tests: full suite 582 passing; `pint --test` clean.
+
+- [x] "Buy again" / reorder (2026-10-30, idea taken from the open-source Bagisto shop):
+  - Research: inspected Bagisto's storefront with the REA reverse-engineering CLI (`rea analyze-javascript-application`) plus its
+    route files, and compared against our routes. Gaps found: reorder, sitemap.xml/robots.txt, product compare, contact-us form,
+    wishlist → cart move, customer data export (GDPR), back-in-stock alerts. Reorder picked as the first one.
+  - `POST /api/v1/orders/{id}/reorder` (`OrderController::reorder`): reuses `CartService::add()` per item, so stock, digital
+    and availability rules are the same as manual adding. Unlike Bagisto (which silently drops failures), it returns
+    `added`, `skipped` (with the reason) and the updated `cart`. Own orders only (404 otherwise); throttle 10/min.
+  - Decisions for the owner to confirm: any order status can be reordered (incl. cancelled); an item with less stock than
+    ordered is skipped, not reduced to what is left.
+  - Docs: `docs/API.md`, `public/openapi.yaml`. Tests: `tests/Feature/Orders/ReorderTest.php` (3). Full suite 585 passing; pint clean.
+  - Frontend (not done): "Buy again" button on the order page.
