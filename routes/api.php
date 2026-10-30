@@ -112,7 +112,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout', [CustomerAuthController::class, 'logout']);
         Route::post('/verify-email', [CustomerAuthController::class, 'verifyEmail'])->middleware('throttle:auth');
         Route::post('/resend-verification', [CustomerAuthController::class, 'resendVerification'])->middleware('throttle:otp-send');
-        Route::post('/telegram/phone', [TelegramAuthController::class, 'phone'])->middleware('throttle:telegram-link');
+        Route::post('/telegram/phone', [TelegramAuthController::class, 'phone'])->middleware(['not.demo', 'throttle:telegram-link']);
         Route::post('/telegram/order-updates', [TelegramAuthController::class, 'orderUpdates'])->middleware('throttle:telegram-link');
     });
 });
@@ -123,13 +123,13 @@ Route::prefix('auth')->group(function () {
 Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
     Route::patch('/', [ProfileController::class, 'update']);
-    Route::delete('/telegram', [ProfileController::class, 'disconnectTelegram']);
-    Route::put('/password', [ProfileController::class, 'changePassword'])->middleware('throttle:auth');
-    Route::delete('/', [ProfileController::class, 'destroy'])->middleware('throttle:auth');
-    Route::post('/email', [EmailController::class, 'store'])->middleware('throttle:otp-send');
-    Route::post('/email/verify', [EmailController::class, 'verify'])->middleware('throttle:auth');
-    Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
-    Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
+    Route::delete('/telegram', [ProfileController::class, 'disconnectTelegram'])->middleware('not.demo');
+    Route::put('/password', [ProfileController::class, 'changePassword'])->middleware(['not.demo', 'throttle:auth']);
+    Route::delete('/', [ProfileController::class, 'destroy'])->middleware(['not.demo', 'throttle:auth']);
+    Route::post('/email', [EmailController::class, 'store'])->middleware(['not.demo', 'throttle:otp-send']);
+    Route::post('/email/verify', [EmailController::class, 'verify'])->middleware(['not.demo', 'throttle:auth']);
+    Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware(['not.demo', 'throttle:auth']);
+    Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware(['not.demo', 'throttle:auth']);
     Route::get('/store-credits', [StoreCreditController::class, 'index']);
     Route::get('/stock-alerts', [StockAlertController::class, 'index']);
     Route::post('/stock-alerts', [StockAlertController::class, 'store']);

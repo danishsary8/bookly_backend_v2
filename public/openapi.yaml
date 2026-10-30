@@ -3,20 +3,34 @@ info:
   title: Bookly API
   version: "1.0"
   description: |
-    REST API for the Bookly bookstore (Laravel 13 + PostgreSQL).
+    REST API behind **Bookly**, a bookstore shop in Cambodia (Laravel 13 + PostgreSQL). Prices in USD and riel,
+    cash-on-delivery checkout, staff back office with mandatory two-factor login.
 
-    **Auth.** Log in to get a Bearer token (customers: valid 7 days, staff: 12 hours) and send it as `Authorization: Bearer <token>`.
-    Customer tokens only work on customer routes; staff tokens only on `/staff/*` routes, and only after
-    two-factor authentication is set up. Admin-only routes are marked **(admin)**.
+    ## Try it in 30 seconds
+    1. Click **Try as demo customer** at the top of this page (account `demo@bookly.test`). Every *Test request* below is then sent with that token.
+    2. Open **Customer → GET /cart**, then **POST /cart/items** with `{"book_variant_id": 1}`.
+    3. Staff routes answer **401/403** to a customer token: that is the access control working, not a bug.
 
-    **Errors.** `{"message": "..."}`. Validation errors are 422 with `errors: {field: [messages]}`.
-    401 = not logged in, 403 = not allowed (wrong account type, email not verified, 2FA not set up,
-    deactivated account), 429 = rate limited (see `Retry-After`).
+    The demo account is shared and tidied every hour (cart emptied, pending orders older than an hour cancelled). Its password, email and linked logins cannot be changed.
 
-    **Rate limits.** 120 requests/min per user or IP, plus stricter limits on login, codes, coupons,
-    checkout and reviews. Every response has an `X-Request-Id` header — quote it when reporting a problem.
+    ## Authentication
+    Log in to get a Bearer token and send it as `Authorization: Bearer <token>`.
+    Customer tokens (7 days) only work on customer routes; staff tokens (12 hours) only on `/staff/*`, and only after
+    two-factor authentication (authenticator app) is set up. Admin-only routes are marked **(admin)**.
 
-    Full field-by-field reference: `docs/API.md` in the repository.
+    ## Errors
+    Always JSON: `{"message": "..."}`. Validation errors are 422 with `errors: {field: [messages]}`.
+    401 = not logged in, 403 = not allowed (wrong account type, email not verified, 2FA not set up, deactivated),
+    429 = rate limited (see `Retry-After`). Every response carries an `X-Request-Id` header for tracing.
+
+    ## Rate limits and safety
+    120 requests/min per user or IP, plus stricter limits on login, codes, coupon checks, checkout and reviews.
+    Checkout needs an `Idempotency-Key` header, so a retried request never places a second order.
+
+    ## Pagination
+    Lists return `data`, `links` and `meta` (`current_page`, `last_page`, `per_page`, `total`); use `page` and `per_page` (max 100).
+
+    Field-by-field reference: `docs/API.md` in the repository.
 servers:
   - url: /api/v1
 tags:
@@ -25,16 +39,20 @@ tags:
   - { name: Customer, description: 'Profile, addresses, cart, wishlist (verified customers)' }
   - { name: Checkout & orders, description: 'Cash-on-delivery checkout and order history' }
   - { name: Returns & reviews, description: 'Returns for delivered orders and book reviews' }
-  - { name: Staff auth, description: 'Staff login with required authenticator-app 2FA' }
-  - { name: Staff catalog, description: 'Books, formats, authors, categories, publishers, series' }
-  - { name: Staff operations, description: 'Coupons, orders, returns, reviews, customers, alerts' }
-  - { name: Admin, description: 'Admin-only: staff, exchange rates, audit log, dashboard, export' }
+  - { name: Staff auth, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Staff login with required authenticator-app 2FA' }
+  - { name: Staff catalog, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Books, formats, authors, categories, publishers, series' }
+  - { name: Staff operations, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Coupons, orders, returns, reviews, customers, alerts' }
+  - { name: Admin, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Admin-only: staff, exchange rates, audit log, dashboard, export' }
 
 components:
   securitySchemes:
     bearer:
       type: http
       scheme: bearer
+      description: |
+        Sanctum personal access token. Customer tokens come from `POST /auth/login` (ability `customer`, 7 days);
+        staff tokens from `POST /staff/auth/login` plus a TOTP code (ability `staff`, 12 hours). A token only works on
+        its own side of the API. On this page, the *Try as demo customer* button fills it in for you.
   parameters:
     Id:
       name: id
@@ -558,23 +576,75 @@ paths:
 
   /books:
     get:
-      tags: [Public]
+      tags:
+      - Public
       summary: List, search, filter and sort books
       security: []
       parameters:
-        - { name: q, in: query, description: 'Search as you type: every word must match the title, description, an author, the series or a category name; words match as prefixes', schema: { type: string } }
-        - { name: category_id, in: query, schema: { type: integer } }
-        - { name: author_id, in: query, schema: { type: integer } }
-        - { name: series_id, in: query, schema: { type: integer } }
-        - { name: publisher_id, in: query, schema: { type: integer } }
-        - { name: format, in: query, schema: { type: string, enum: [hardcover, paperback, ebook, audiobook] } }
-        - { name: language, in: query, schema: { type: string } }
-        - { name: min_price, in: query, schema: { type: number } }
-        - { name: max_price, in: query, schema: { type: number } }
-        - { name: in_stock, in: query, schema: { type: boolean } }
-        - { name: sort, in: query, schema: { type: string, enum: [relevance, newest, price_asc, price_desc, title, rating] } }
-        - { name: ids, in: query, description: 'Comma-separated IDs or array (max 12); keeps order and drops missing/hidden books', schema: { type: string } }
-        - $ref: '#/components/parameters/PerPage'
+      - name: q
+        in: query
+        description: 'Search as you type: every word must match the title, description, an author, the series or a category name; words match as
+          prefixes'
+        schema:
+          type: string
+      - name: category_id
+        in: query
+        schema:
+          type: integer
+      - name: author_id
+        in: query
+        schema:
+          type: integer
+      - name: series_id
+        in: query
+        schema:
+          type: integer
+      - name: publisher_id
+        in: query
+        schema:
+          type: integer
+      - name: format
+        in: query
+        schema:
+          type: string
+          enum:
+          - hardcover
+          - paperback
+          - ebook
+          - audiobook
+      - name: language
+        in: query
+        schema:
+          type: string
+      - name: min_price
+        in: query
+        schema:
+          type: number
+      - name: max_price
+        in: query
+        schema:
+          type: number
+      - name: in_stock
+        in: query
+        schema:
+          type: boolean
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - relevance
+          - newest
+          - price_asc
+          - price_desc
+          - title
+          - rating
+      - name: ids
+        in: query
+        description: Comma-separated IDs or array (max 12); keeps order and drops missing/hidden books
+        schema:
+          type: string
+      - $ref: '#/components/parameters/PerPage'
       responses:
         '200':
           description: Paginated book cards
@@ -583,19 +653,65 @@ paths:
               schema:
                 type: object
                 properties:
-                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
-                  links: { $ref: '#/components/schemas/PageLinks' }
-                  meta: { $ref: '#/components/schemas/PageMeta' }
-        '422': { $ref: '#/components/responses/Validation' }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BookCard'
+                  links:
+                    $ref: '#/components/schemas/PageLinks'
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+              example:
+                data:
+                - id: 1
+                  title: Pride and Prejudice
+                  language: English
+                  authors:
+                  - id: 1
+                    name: Jane Austen
+                  cover_image_url: https://picsum.photos/seed/bookly-1/400/600
+                  price_from_usd: '8.99'
+                  price_from_khr: '36859'
+                  formats:
+                  - hardcover
+                  - ebook
+                  - paperback
+                  in_stock: true
+                  rating_avg: 5
+                  review_count: 1
+                meta:
+                  current_page: 1
+                  last_page: 1
+                  per_page: 20
+                  total: 1
+        '422':
+          $ref: '#/components/responses/Validation'
+      description: 'Public, no token needed. Full-text search (`q`) matches every word as a prefix across title, description, authors, series and
+        categories. Paginated: `data`, `links`, `meta`.'
   /books/{id}:
     get:
-      tags: [Public]
+      tags:
+      - Public
       summary: Book detail with active formats
       security: []
-      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      parameters:
+      - $ref: '#/components/parameters/Id'
       responses:
-        '200': { description: Book, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/BookDetail' } } } } } }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '200':
+          description: Book
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BookDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          content:
+            application/json:
+              example:
+                message: Not found.
   /books/{id}/also-bought:
     get:
       tags: [Public]
@@ -697,9 +813,16 @@ paths:
 
   /auth/register:
     post:
-      tags: [Customer auth]
+      tags:
+      - Customer auth
       summary: Create an account; confirm it with an email code, or with your phone number in the Telegram bot (verify_by)
-      description: 'verify_by=telegram needs GET /auth/options telegram=true (else 422 on verify_by); the email is then optional; a typed email is not saved yet but gets an email-change code (pending_email in the answer) and is added by POST /me/email/verify; the website continues with POST /auth/telegram/phone, and the number shared in the bot verifies the account (it then signs in with Continue with Telegram). If the email belongs to a sign-up that was never verified, an email sign-up takes that account over (new name and password, its old sessions and codes cancelled); an unproven copy of the email on a phone account is taken off it. Forgot/reset password is refused for such an unproven email. Sign-ups still unverified after UNVERIFIED_CUSTOMER_HOURS (48) are deleted. An account with a proven email, or a deactivated or deleted one, keeps its email (422).'
+      description: verify_by=telegram needs GET /auth/options telegram=true (else 422 on verify_by); the email is then optional; a typed email is
+        not saved yet but gets an email-change code (pending_email in the answer) and is added by POST /me/email/verify; the website continues with
+        POST /auth/telegram/phone, and the number shared in the bot verifies the account (it then signs in with Continue with Telegram). If the
+        email belongs to a sign-up that was never verified, an email sign-up takes that account over (new name and password, its old sessions and
+        codes cancelled); an unproven copy of the email on a phone account is taken off it. Forgot/reset password is refused for such an unproven
+        email. Sign-ups still unverified after UNVERIFIED_CUSTOMER_HOURS (48) are deleted. An account with a proven email, or a deactivated or deleted
+        one, keeps its email (422).
       security: []
       requestBody:
         required: true
@@ -707,15 +830,40 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, password, password_confirmation]
+              required:
+              - name
+              - password
+              - password_confirmation
               properties:
-                name: { type: string }
-                email: { type: string, format: email, description: 'Required unless verify_by=telegram' }
-                password: { type: string, minLength: 8, description: Letters and numbers }
-                password_confirmation: { type: string }
-                phone: { type: string, description: 'Contact number for email sign-ups; ignored with verify_by=telegram (the bot gives the proven number)' }
-                verify_by: { type: string, enum: [email, telegram], default: email }
-                turnstile_token: { type: string, description: 'Cloudflare Turnstile token; required once TURNSTILE_SECRET_KEY is set' }
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                  description: Required unless verify_by=telegram
+                password:
+                  type: string
+                  minLength: 8
+                  description: Letters and numbers
+                password_confirmation:
+                  type: string
+                phone:
+                  type: string
+                  description: Contact number for email sign-ups; ignored with verify_by=telegram (the bot gives the proven number)
+                verify_by:
+                  type: string
+                  enum:
+                  - email
+                  - telegram
+                  default: email
+                turnstile_token:
+                  type: string
+                  description: Cloudflare Turnstile token; required once TURNSTILE_SECRET_KEY is set
+            example:
+              name: Sok Dara
+              email: dara@example.com
+              password: a-long-passphrase
+              password_confirmation: a-long-passphrase
       responses:
         '201':
           description: Account + token + verify_by. Shopping routes return 403 until the account is confirmed.
@@ -723,23 +871,82 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/TokenResponse'
-                  - type: object
-                    properties: { customer: { $ref: '#/components/schemas/Customer' }, message: { type: string }, verify_by: { type: string, enum: [email, telegram] } }
-        '422': { $ref: '#/components/responses/Validation' }
+                - $ref: '#/components/schemas/TokenResponse'
+                - type: object
+                  properties:
+                    customer:
+                      $ref: '#/components/schemas/Customer'
+                    message:
+                      type: string
+                    verify_by:
+                      type: string
+                      enum:
+                      - email
+                      - telegram
+        '422':
+          $ref: '#/components/responses/Validation'
   /auth/options:
     get: { tags: [Customer auth], summary: 'What sign-up and sign-in can offer: telegram is true once TELEGRAM_BOT_TOKEN is set', security: [], responses: { '200': { description: Options, content: { application/json: { schema: { type: object, properties: { telegram: { type: boolean } } } } } } } }
   /auth/login:
     post:
-      tags: [Customer auth]
+      tags:
+      - Customer auth
       summary: Log in with email and password
       security: []
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email, password], properties: { email: { type: string }, password: { type: string }, turnstile_token: { type: string, description: 'Cloudflare Turnstile token; required once TURNSTILE_SECRET_KEY is set' } } } } } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                turnstile_token:
+                  type: string
+                  description: Cloudflare Turnstile token; required once TURNSTILE_SECRET_KEY is set
+            example:
+              email: demo@bookly.test
+              password: Password123!
       responses:
-        '200': { description: Token, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
-        '401': { description: Wrong email or password }
-        '403': { description: Account deactivated }
-        '429': { description: Too many attempts }
+        '200':
+          description: Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                customer:
+                  id: 1
+                  name: Demo Customer
+                  email: demo@bookly.test
+                  email_verified: true
+                  verified: true
+                  has_password: true
+                  locale: en
+                token: 10|FYJNQVFV2…
+                token_type: Bearer
+                expires_at: '2026-11-06T07:33:58+00:00'
+        '401':
+          description: Wrong email or password
+          content:
+            application/json:
+              example:
+                message: Invalid email or password.
+        '403':
+          description: Account deactivated
+        '429':
+          description: Too many attempts
+      description: 'Returns a customer Bearer token (valid 7 days) with the `customer` ability. Send it as `Authorization: Bearer <token>`. Wrong
+        credentials and rate limits answer with JSON, never a redirect.
+  
+  
+        **Try it:** use the *Try as demo customer* button at the top of `/docs`, or the demo account below.'
   /auth/social/{provider}:
     post:
       tags: [Customer auth]
@@ -909,14 +1116,105 @@ paths:
     patch: { tags: [Customer], summary: 'Update; is_default: true moves the default', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Customer], summary: 'Delete (the newest remaining becomes default)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
   /cart:
-    get: { tags: [Customer], summary: 'Cart with current prices and per-line issues', responses: { '200': { description: Cart, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Cart' } } } } } } } }
-    delete: { tags: [Customer], summary: 'Empty the cart', responses: { '200': { description: Empty cart } } }
+    get:
+      tags:
+      - Customer
+      summary: Cart with current prices and per-line issues
+      responses:
+        '200':
+          description: Cart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Cart'
+              example:
+                data:
+                  id: 4
+                  items:
+                  - id: 28
+                    book_variant_id: 1
+                    book:
+                      id: 1
+                      title: Pride and Prejudice
+                    format: paperback
+                    quantity: 1
+                    unit_price_usd: '12.99'
+                    unit_price_khr: '53259'
+                    line_total_usd: '12.99'
+                    line_total_khr: '53259'
+                    issues: []
+                  item_count: 1
+                  subtotal_usd: '12.99'
+                  subtotal_khr: '53259'
+                  can_checkout: true
+      description: Needs a verified customer token. Prices are always today's; a line whose price, stock or availability changed since it was added
+        carries an `issues` entry instead of changing silently.
+    delete:
+      tags:
+      - Customer
+      summary: Empty the cart
+      responses:
+        '200':
+          description: Empty cart
   /cart/items:
     post:
-      tags: [Customer]
+      tags:
+      - Customer
       summary: Add a format (same format again increases quantity; max 10; ebooks/audiobooks 1)
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [book_variant_id], properties: { book_variant_id: { type: integer }, quantity: { type: integer, default: 1 } } } } } }
-      responses: { '201': { description: Cart }, '422': { description: 'Not available, out of stock or over the limit' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - book_variant_id
+              properties:
+                book_variant_id:
+                  type: integer
+                quantity:
+                  type: integer
+                  default: 1
+            example:
+              book_variant_id: 1
+              quantity: 1
+      responses:
+        '201':
+          description: Cart
+          content:
+            application/json:
+              example:
+                data:
+                  id: 4
+                  items:
+                  - id: 28
+                    book_variant_id: 1
+                    book:
+                      id: 1
+                      title: Pride and Prejudice
+                    format: paperback
+                    quantity: 1
+                    unit_price_usd: '12.99'
+                    unit_price_khr: '53259'
+                    line_total_usd: '12.99'
+                    line_total_khr: '53259'
+                    issues: []
+                  item_count: 1
+                  subtotal_usd: '12.99'
+                  subtotal_khr: '53259'
+                  can_checkout: true
+        '422':
+          description: Not available, out of stock or over the limit
+          content:
+            application/json:
+              example:
+                message: This item is out of stock.
+                errors:
+                  quantity:
+                  - This item is out of stock.
   /cart/items/{id}:
     patch: { tags: [Customer], summary: 'Set quantity', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cart } } }
     delete: { tags: [Customer], summary: 'Remove a line', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cart } } }
@@ -991,16 +1289,59 @@ paths:
     post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', description: 'Delivery is priced for address_id, else the default address: Phnom Penh 1.50 USD, the provinces 3.00 USD (SHIPPING_FEE_PHNOM_PENH / SHIPPING_FEE_PROVINCES).', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'address_id is not one of your addresses, or a bad coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
-      tags: [Checkout & orders]
+      tags:
+      - Checkout & orders
       summary: Place a cash-on-delivery order from the cart
-      description: Prices are re-checked at today's price, stock is taken out of stock, the coupon is applied and the cart is emptied. Repeating a request with the same Idempotency-Key returns the same order.
+      description: Prices are re-checked at today's price, stock is taken out of stock, the coupon is applied and the cart is emptied. Repeating
+        a request with the same Idempotency-Key returns the same order.
       parameters:
-        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 100 }, description: New random value per order }
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [address_id, payment_method], properties: { address_id: { type: integer }, payment_method: { type: string, enum: [cod] }, coupon_code: { type: string }, delivery_note: { type: string, maxLength: 300 } } } } } }
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 8
+          maxLength: 100
+        description: New random value per order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - address_id
+              - payment_method
+              properties:
+                address_id:
+                  type: integer
+                payment_method:
+                  type: string
+                  enum:
+                  - cod
+                coupon_code:
+                  type: string
+                delivery_note:
+                  type: string
+                  maxLength: 300
+            example:
+              address_id: 1
+              payment_method: cod
+              coupon_code: WELCOME10
       responses:
-        '201': { description: Order placed, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Order' } } } } } }
-        '200': { description: Same key repeated — the existing order (header Idempotent-Replayed true) }
-        '422': { description: 'Cart empty or has issues, bad address, coupon or key' }
+        '201':
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '200':
+          description: Same key repeated — the existing order (header Idempotent-Replayed true)
+        '422':
+          description: Cart empty or has issues, bad address, coupon or key
   /orders:
     get: { tags: [Checkout & orders], summary: 'Your orders (status filter)', responses: { '200': { description: 'Orders (without status_history)', content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Order' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /orders/{id}:
@@ -1008,7 +1349,48 @@ paths:
   /orders/{id}/cancel:
     post: { tags: [Checkout & orders], summary: 'Cancel while pending (stock and coupon use are given back)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cancelled }, '422': { description: No longer cancellable } } }
   /orders/{id}/reorder:
-    post: { tags: [Checkout & orders], summary: 'Buy again: add the order items to the cart (items that cannot be bought now are skipped with a reason); 10/min', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: 'data.added (book_variant_id, title, quantity), data.skipped (book_variant_id, title, reason), data.cart (Cart)' }, '404': { $ref: '#/components/responses/NotFound' } } }
+    post:
+      tags:
+      - Checkout & orders
+      summary: 'Buy again: add the order items to the cart (items that cannot be bought now are skipped with a reason); 10/min'
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: data.added (book_variant_id, title, quantity), data.skipped (book_variant_id, title, reason), data.cart (Cart)
+          content:
+            application/json:
+              example:
+                data:
+                  added:
+                  - book_variant_id: 1
+                    title: Pride and Prejudice
+                    quantity: 1
+                  skipped:
+                  - book_variant_id: 23
+                    title: Treasure Island
+                    reason: This item is out of stock.
+                  cart:
+                    id: 4
+                    items:
+                    - id: 28
+                      book_variant_id: 1
+                      book:
+                        id: 1
+                        title: Pride and Prejudice
+                      format: paperback
+                      quantity: 1
+                      unit_price_usd: '12.99'
+                      unit_price_khr: '53259'
+                      line_total_usd: '12.99'
+                      line_total_khr: '53259'
+                      issues: []
+                    item_count: 1
+                    subtotal_usd: '12.99'
+                    subtotal_khr: '53259'
+                    can_checkout: true
+        '404':
+          $ref: '#/components/responses/NotFound'
   /orders/{id}/invoice:
     get: { tags: [Checkout & orders], summary: 'Print data for your invoice (not for a cancelled order)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Invoice data, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/OrderDocument' } } } } } }, '404': { $ref: '#/components/responses/NotFound' }, '422': { description: Cancelled order } } }
   /orders/{id}/returnable-items:

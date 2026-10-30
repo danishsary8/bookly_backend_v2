@@ -69,7 +69,7 @@ class SecurityLeftoversTest extends TestCase
         $response->assertOk();
 
         $content = $response->getContent();
-        $this->assertStringContainsString('swagger-ui-dist@5.17.14', $content);
+        $this->assertStringContainsString('@scalar/api-reference@1.74.0', $content);
         $this->assertStringContainsString('integrity="sha384-', $content);
         $this->assertStringContainsString('crossorigin="anonymous"', $content);
     }
