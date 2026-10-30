@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\Customer\StoreCreditController;
 use App\Http\Controllers\Api\V1\Customer\TelegramAuthController;
 use App\Http\Controllers\Api\V1\Customer\WishlistController;
 use App\Http\Controllers\Api\V1\DeliveryController;
+use App\Http\Controllers\Api\V1\DemoTokenController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Newsletter\NewsletterController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
@@ -62,6 +63,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v1']));
 Route::get('/health', HealthController::class);
+// One-click sign-in for the docs page: a 2-hour token for the shared demo customer only (10 per hour per IP).
+Route::post('/demo/token', DemoTokenController::class)->middleware('throttle:demo-token');
 
 // The Bookly Telegram bot's updates (Telegram signs each one with the webhook secret).
 Route::post('/telegram/webhook', TelegramWebhookController::class);

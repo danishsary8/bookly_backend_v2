@@ -10,187 +10,153 @@
     <meta name="color-scheme" content="light">
     <title>Bookly API docs</title>
     <meta name="description" content="Bookly REST API: a Laravel 13 + PostgreSQL bookstore backend. Try it live with a demo account.">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css" integrity="sha384-wxLW6kwyHktdDGr6Pv1zgm/VGJh99lfUbzSn6HNHBENZlCN7W602k9VkGdxuFvPn" crossorigin="anonymous">
     <style>
-        :root {
-            --bg: #f7f6f2; --card: #ffffff; --ink: #14182b; --muted: #5b6075; --line: #e3e1da;
-            --brand: #1d2a6b; --accent: #e8572e; --ok: #1f8a4c; --warn: #b7791f; --bad: #c53030;
-            --code-bg: #14182b; --code-ink: #e9e7df;
-        }
+        :root { --bg: #f6f7f9; --card: #fff; --ink: #1a1f36; --muted: #5d6478; --line: #e3e6ec; --brand: #1d2a6b; --accent: #e8572e; --ok: #1f8a4c; --warn: #b7791f; --bad: #c53030; }
         * { box-sizing: border-box; }
         [hidden] { display: none !important; }
-        body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-        .intro a { color: var(--brand); }
-        .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
-        .intro header.hero { padding: 48px 0 32px; border-bottom: 1px solid var(--line); }
-        .eyebrow { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
-        .intro h1 { font: 700 clamp(2rem, 5vw, 3.1rem)/1.1 Georgia, "Times New Roman", serif; margin: 8px 0 12px; }
-        .pitch { color: var(--muted); max-width: 720px; margin: 0 0 20px; font-size: 1.08rem; }
-        .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; background: var(--card); }
+        body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+        /* Header: one compact bar with everything a visitor needs to start testing. */
+        .bar { background: var(--card); border-bottom: 1px solid var(--line); }
+        .bar-in { max-width: 1460px; margin: 0 auto; padding: 18px 20px; display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo { width: 38px; height: 38px; border-radius: 10px; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 20px; }
+        .brand h1 { margin: 0; font-size: 20px; line-height: 1.2; }
+        .brand p { margin: 0; color: var(--muted); font-size: 13px; }
+        .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; background: var(--card); }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
         .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
-        .links { margin-top: 18px; }
-        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: 600 15px/1 inherit; text-decoration: none; cursor: pointer; }
-        .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .link { color: var(--brand); font-weight: 600; text-decoration: none; padding: 6px 8px; border-radius: 8px; }
+        .link:hover { background: #eef0f8; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font: 600 14px/1 inherit; cursor: pointer; }
+        .btn.ghost { background: var(--card); color: var(--ink); border-color: var(--line); }
         .btn[disabled] { opacity: .6; cursor: progress; }
-        .intro section { padding: 32px 0; border-bottom: 1px solid var(--line); }
-        .intro h2 { font: 700 1.6rem/1.2 Georgia, "Times New Roman", serif; margin: 0 0 6px; }
-        .lead { color: var(--muted); margin: 0 0 18px; }
-        .try { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 12px; }
-        .signed { color: var(--ok); font-weight: 600; }
-        .error { color: var(--bad); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-        .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
-        .card h3 { margin: 0 0 6px; font-size: 1rem; }
-        .card p { margin: 0 0 8px; color: var(--muted); font-size: .95rem; }
-        .intro code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-        .card code { color: var(--brand); overflow-wrap: anywhere; }
-        .intro pre { margin: 0; background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
-        .steps { display: grid; gap: 14px; }
-        .step-title { font-weight: 600; margin: 0 0 6px; }
-        #reference { min-height: 60vh; }
-        .site-footer { padding: 24px 0 40px; color: var(--muted); font-size: 14px; }
+
+        /* Demo strip: one sentence telling the visitor what to do next. */
+        .demo { max-width: 1460px; margin: 16px auto 0; padding: 0 20px; }
+        .demo-in { background: #fff7f3; border: 1px solid #f6d3c4; border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+        .demo-in .msg { flex: 1 1 320px; }
+        .ok-text { color: var(--ok); font-weight: 600; }
+        .err-text { color: var(--bad); }
+        .demo-in code, footer code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef0f4; padding: 1px 5px; border-radius: 5px; }
+
+        /* Swagger UI, lightly restyled: same layout as before, cleaner surfaces. */
+        #swagger-ui { max-width: 1460px; margin: 0 auto; padding: 8px 20px 48px; }
+        .swagger-ui, .swagger-ui .info .title, .swagger-ui .opblock-tag, .swagger-ui .opblock .opblock-summary-description { font-family: inherit; color: var(--ink); }
+        .swagger-ui .topbar { display: none; }
+        .swagger-ui .info { margin: 24px 0 8px; }
+        .swagger-ui .info .title small { background: var(--brand); }
+        .swagger-ui .info .markdown p, .swagger-ui .info .markdown li { font-size: 14px; color: var(--muted); }
+        .swagger-ui .scheme-container { background: transparent; box-shadow: none; padding: 8px 0 16px; }
+        .swagger-ui .opblock-tag { border-bottom: 1px solid var(--line); font-size: 20px; }
+        .swagger-ui .opblock { border-radius: 10px; box-shadow: none; margin: 0 0 8px; background: var(--card) !important; border-width: 1px; }
+        .swagger-ui .opblock .opblock-summary { padding: 8px 10px; }
+        .swagger-ui .opblock .opblock-summary-method { border-radius: 7px; min-width: 70px; font-weight: 700; }
+        .swagger-ui .opblock.opblock-get { border-color: #c9dcf5; } .swagger-ui .opblock.opblock-get .opblock-summary-method { background: #2f6fd6; }
+        .swagger-ui .opblock.opblock-post { border-color: #c4e8d4; } .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #1f9d5b; }
+        .swagger-ui .opblock.opblock-put { border-color: #f3dfbd; } .swagger-ui .opblock.opblock-put .opblock-summary-method { background: #d4880f; }
+        .swagger-ui .opblock.opblock-patch { border-color: #d7e9e4; } .swagger-ui .opblock.opblock-patch .opblock-summary-method { background: #2a9d8f; }
+        .swagger-ui .opblock.opblock-delete { border-color: #f3c9c9; } .swagger-ui .opblock.opblock-delete .opblock-summary-method { background: #d64545; }
+        .swagger-ui .btn.authorize { border-radius: 10px; color: var(--ok); border-color: var(--ok); }
+        .swagger-ui .btn.execute { background: var(--brand); border-color: var(--brand); border-radius: 8px; }
+        .swagger-ui .btn { border-radius: 8px; }
+        .swagger-ui section.models { border-radius: 10px; border-color: var(--line); background: var(--card); }
+        footer { max-width: 1460px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 13px; }
+        @media (max-width: 640px) { .brand p { display: none; } .swagger-ui .opblock .opblock-summary-path { font-size: 13px; } }
     </style>
 </head>
 <body>
-<div class="intro">
-<header class="hero">
-    <div class="wrap">
-        <div class="eyebrow">Bookly API · v1</div>
-        <h1>A real bookstore backend you can try right now</h1>
-        <p class="pitch">REST API for an online bookshop in Cambodia: catalog search, cart, cash-on-delivery checkout,
-            returns, reviews and a staff back office with mandatory two-factor login. Built with Laravel 13 and PostgreSQL.</p>
-        <div class="row">
-            <span class="badge" id="status" aria-live="polite"><span class="dot"></span><span>Checking API status…</span></span>
-            <span class="badge">Laravel 13</span>
-            <span class="badge">PostgreSQL</span>
-            <span class="badge">Sanctum tokens + TOTP 2FA</span>
-            <span class="badge">OpenAPI 3</span>
+<header class="bar">
+    <div class="bar-in">
+        <div class="brand">
+            <div class="logo" aria-hidden="true">📚</div>
+            <div>
+                <h1>Bookly API</h1>
+                <p>Bookstore backend · Laravel 13 · PostgreSQL · Sanctum tokens + staff 2FA</p>
+            </div>
         </div>
-        <div class="row links">
-            <a class="btn" href="https://github.com/danishsary8/bookly_backend_v2">GitHub repository</a>
+        <nav class="actions" aria-label="Links">
+            <span class="pill" id="status" aria-live="polite"><span class="dot"></span><span>Checking API…</span></span>
+            <a class="link" href="https://github.com/danishsary8/bookly_backend_v2">GitHub</a>
             @if ($shop)
-                <a class="btn" href="{{ $shop }}">Live storefront</a>
+                <a class="link" href="{{ $shop }}">Storefront</a>
             @endif
-            <a class="btn" href="/openapi.yaml">openapi.yaml</a>
-        </div>
+            <a class="link" href="/openapi.yaml">openapi.yaml</a>
+        </nav>
     </div>
 </header>
 
-<section id="try">
-    <div class="wrap">
-        <h2>Try it in 30 seconds</h2>
-        <p class="lead">Sign in as the shared demo customer. Every <em>Test request</em> in the reference below is then sent with that token.</p>
-        <div class="try">
-            <div class="row">
-                <button class="btn primary" id="demo-login" type="button">Try as demo customer</button>
-                <span id="demo-state" aria-live="polite">Account <code>demo@bookly.test</code> · password <code>Password123!</code></span>
-                <button class="btn" id="demo-logout" type="button" hidden>Sign out</button>
-            </div>
-            <div>Then open <strong>Customer → GET /cart</strong> and press <em>Test request</em>. Staff routes will answer
-                <code>401</code>/<code>403</code> to this token: that is the access control working.</div>
-        </div>
+<section class="demo" aria-label="Try the API">
+    <div class="demo-in">
+        <button class="btn" id="demo-login" type="button">Sign in as demo customer</button>
+        <span class="msg" id="demo-state" aria-live="polite">One click, no password. Then open any endpoint, press <strong>Try it out</strong> and <strong>Execute</strong>.</span>
+        <button class="btn ghost" id="demo-logout" type="button" hidden>Sign out</button>
     </div>
 </section>
 
-<section id="security">
-    <div class="wrap">
-        <h2>Security at a glance</h2>
-        <p class="lead">How the API protects customers, staff and stock.</p>
-        <div class="grid">
-            <div class="card"><h3>Bearer tokens with abilities</h3><p>Customer and staff tokens are separate: each only works on its own side of the API.</p><code>POST /auth/login · ability customer</code></div>
-            <div class="card"><h3>Mandatory staff 2FA</h3><p>Staff sign in with a password plus an authenticator-app (TOTP) code; no 2FA, no access.</p><code>POST /staff/auth/login → /staff/auth/two-factor/challenge</code></div>
-            <div class="card"><h3>Rate limiting</h3><p>120 requests/min per user or IP, plus strict limits on login, codes, coupon checks and checkout.</p><code>429 + Retry-After</code></div>
-            <div class="card"><h3>Verified-email gate</h3><p>Shopping needs a verified account, so carts and orders belong to real, reachable people.</p><code>middleware verified.customer</code></div>
-            <div class="card"><h3>Idempotent checkout</h3><p>Every order needs an Idempotency-Key, so a retried request never charges or ships twice.</p><code>Idempotency-Key header</code></div>
-            <div class="card"><h3>Consistent JSON errors</h3><p>Every error is JSON (never a login redirect), and every response has an ID for tracing.</p><code>X-Request-Id</code></div>
-        </div>
-    </div>
-</section>
+<div id="swagger-ui"></div>
 
-<section id="quick-start">
-    <div class="wrap">
-        <h2>Quick start</h2>
-        <p class="lead">The same three calls from a terminal.</p>
-        <div class="steps">
-            <div><p class="step-title">1 · Search the catalog (no login)</p>
-<pre><code>curl "{{ $api }}/books?q=pride&amp;per_page=5" -H "Accept: application/json"</code></pre></div>
-            <div><p class="step-title">2 · Log in as the demo customer</p>
-<pre><code>curl -X POST "{{ $api }}/auth/login" -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{"email":"demo@bookly.test","password":"Password123!"}'</code></pre></div>
-            <div><p class="step-title">3 · Add a book to the cart with the token</p>
-<pre><code>curl -X POST "{{ $api }}/cart/items" -H "Accept: application/json" -H "Content-Type: application/json" \
-  -H "Authorization: Bearer &lt;token&gt;" -d '{"book_variant_id":1,"quantity":1}'</code></pre></div>
-        </div>
-    </div>
-</section>
-</div>
+<footer>The demo account is shared and tidied every hour. Staff routes answer <code>403</code> to a customer token: that is the access control working.</footer>
 
-<div id="reference"></div>
-
-<footer class="site-footer"><div class="wrap">Bookly API · the demo account is shared and tidied every hour · <a href="https://github.com/danishsary8/bookly_backend_v2">Source on GitHub</a></div></footer>
-
-<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.74.0/dist/browser/standalone.js" integrity="sha384-VXnKAz61Xwc3tbw1P+KKrUP7YbcsSl1Ik4is5UnogJyw9XEYZ5Ay/T1i0zPYtSZH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js" integrity="sha384-wmyclcVGX/WhUkdkATwhaK1X1JtiNrr2EoYJ+diV3vj4v6OC5yCeSu+yW13SYJep" crossorigin="anonymous"></script>
 <script>
 (() => {
     const API = @json($api);
-    const DEMO = { email: 'demo@bookly.test', password: 'Password123!' };
     const KEY = 'bookly-docs-token';
 
-    // The token lives in this variable; sessionStorage (this tab only) is a convenience that may be blocked.
+    // Token lives in this variable; sessionStorage (this tab only) is a convenience that may be blocked.
     let token = null;
-    try { token = sessionStorage.getItem(KEY); } catch (e) { /* private mode: keep it in memory */ }
+    try { token = sessionStorage.getItem(KEY); } catch (e) { /* private mode: memory only */ }
     const remember = (t) => { token = t; try { t ? sessionStorage.setItem(KEY, t) : sessionStorage.removeItem(KEY); } catch (e) {} };
 
-    const baseConfig = {
-        url: '/openapi.yaml',
-        withDefaultFonts: false,
-        // No third-party AI chat or MCP hooks on a portfolio page: everything a visitor does goes to this API only.
-        agent: { disabled: true },
-        mcp: { disabled: true },
-        showDeveloperTools: 'never',
-        // Always light, so the page looks the same in every screenshot, demo and portfolio link.
-        darkMode: false,
-        forceDarkModeState: 'light',
-        hideDarkModeToggle: true,
-        defaultHttpClient: { targetKey: 'shell', clientKey: 'curl' },
-        hiddenClients: { node: true, python: true, ruby: true, go: true, java: true, kotlin: true, csharp: true, c: true, clojure: true, objc: true, ocaml: true, powershell: true, r: true, swift: true, dart: true, fsharp: true, http: false, javascript: false, php: false, shell: false },
-    };
-    const withToken = () => ({ ...baseConfig, authentication: { preferredSecurityScheme: 'bearer', securitySchemes: { bearer: { token: token || '' } } } });
-
-    let reference = null;
-    if (window.Scalar) {
-        reference = Scalar.createApiReference('#reference', withToken());
+    let ui = null;
+    if (window.SwaggerUIBundle) {
+        ui = SwaggerUIBundle({
+            url: '/openapi.yaml',
+            dom_id: '#swagger-ui',
+            docExpansion: 'list',
+            defaultModelsExpandDepth: -1,
+            tryItOutEnabled: true,
+            filter: true,
+            displayRequestDuration: true,
+            persistAuthorization: false,
+            onComplete: () => { if (token) authorize(token); },
+        });
     } else {
-        document.getElementById('reference').innerHTML = '<div class="wrap"><p class="error">The reference viewer could not load. The raw spec is at <a href="/openapi.yaml">/openapi.yaml</a>.</p></div>';
+        document.getElementById('swagger-ui').innerHTML = '<p class="err-text">The API reference could not load. The raw spec is at <a href="/openapi.yaml">/openapi.yaml</a>.</p>';
     }
+
+    // Fill Swagger's "Authorize" box with the demo token, exactly as if the visitor had pasted it.
+    const authorize = (t) => {
+        if (!ui) return;
+        ui.authActions.authorize({ bearer: { name: 'bearer', schema: { type: 'http', scheme: 'bearer' }, value: t } });
+    };
 
     const loginBtn = document.getElementById('demo-login');
     const logoutBtn = document.getElementById('demo-logout');
     const state = document.getElementById('demo-state');
     const showSignedIn = () => {
-        state.innerHTML = '<span class="signed">Signed in as demo@bookly.test ✓</span> · requests below now carry the token';
+        state.innerHTML = '<span class="ok-text">Signed in as demo@bookly.test ✓</span> Open <strong>Customer → GET /cart</strong>, press <strong>Try it out</strong>, then <strong>Execute</strong>.';
         loginBtn.hidden = true; logoutBtn.hidden = false;
     };
-    const showSignedOut = (message) => {
-        state.innerHTML = message ? '<span class="error"></span>' : 'Account <code>demo@bookly.test</code> · password <code>Password123!</code>';
-        if (message) state.firstChild.textContent = message;
-        loginBtn.hidden = false; logoutBtn.hidden = true; loginBtn.disabled = false; loginBtn.textContent = 'Try as demo customer';
+    const showSignedOut = (error) => {
+        if (error) { state.innerHTML = '<span class="err-text"></span>'; state.firstChild.textContent = error; }
+        else { state.innerHTML = 'One click, no password. Then open any endpoint, press <strong>Try it out</strong> and <strong>Execute</strong>.'; }
+        loginBtn.hidden = false; logoutBtn.hidden = true; loginBtn.disabled = false; loginBtn.textContent = 'Sign in as demo customer';
     };
-    const applyToken = () => { if (reference) reference.updateConfiguration(withToken()); };
 
     loginBtn.addEventListener('click', async () => {
         loginBtn.disabled = true; loginBtn.textContent = 'Signing in…';
         try {
-            const res = await fetch(API + '/auth/login', {
-                method: 'POST', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(DEMO),
-            });
+            const res = await fetch(API + '/demo/token', { method: 'POST', headers: { 'Accept': 'application/json' } });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || !body.token) {
                 showSignedOut(body.message || ('Sign-in failed (' + res.status + '). Try again in a minute.'));
                 return;
             }
-            remember(body.token); applyToken(); showSignedIn();
+            remember(body.token); authorize(body.token); showSignedIn();
         } catch (e) {
             showSignedOut('The API is not reachable right now (it may be waking up). Try again in a minute.');
         }
@@ -198,14 +164,14 @@
 
     logoutBtn.addEventListener('click', async () => {
         const old = token;
-        remember(null); applyToken(); showSignedOut();
+        remember(null); if (ui) ui.authActions.logout(['bearer']); showSignedOut();
         try { await fetch(API + '/auth/logout', { method: 'POST', headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + old } }); } catch (e) {}
     });
 
     if (token) { showSignedIn(); }
 
-    // Status: /up answers without the database, /health checks it. The free host sleeps when idle and can take about
-    // a minute to wake, so each attempt waits up to 45 s and a first failure ("waking up") is retried once.
+    // Status: /up answers without the database, /health checks it. The free host can take about a minute to wake,
+    // so each attempt waits up to 45 s and a first failure ("waking up") is retried once.
     const status = document.getElementById('status');
     const setStatus = (kind, text) => { status.innerHTML = '<span class="dot ' + kind + '"></span><span></span>'; status.lastChild.textContent = text; };
     const get = (url) => fetch(url, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(45000) : undefined });
@@ -217,7 +183,7 @@
             health.ok ? setStatus('ok', 'API operational') : setStatus('bad', 'Database unavailable');
         } catch (e) {
             if (retried) { setStatus('bad', 'API not reachable'); return; }
-            setStatus('warn', 'Waking up… (free hosting sleeps when idle)');
+            setStatus('warn', 'Waking up…');
             setTimeout(() => check(true), 20000);
         }
     };

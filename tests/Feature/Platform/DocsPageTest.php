@@ -7,7 +7,7 @@ use Tests\TestCase;
 
 class DocsPageTest extends TestCase
 {
-    public function test_docs_page_renders_without_a_database_and_pins_scalar(): void
+    public function test_docs_page_renders_without_a_database_and_offers_the_demo_sign_in(): void
     {
         // The docs must load even when the database is down (they are how visitors find out what the API does).
         config(['database.connections.pgsql.port' => 1]);
@@ -15,10 +15,11 @@ class DocsPageTest extends TestCase
 
         $this->get('/docs')
             ->assertOk()
-            ->assertSee('@scalar/api-reference@1.74.0', false)
-            ->assertSee('Try as demo customer')
-            ->assertSee('demo@bookly.test')
-            ->assertDontSee('admin@bookly.test')
-            ->assertDontSee('swagger-ui', false);
+            ->assertSee('swagger-ui-dist@5.17.14', false)
+            ->assertSee('Sign in as demo customer')
+            ->assertSee('/demo/token', false)
+            // The button needs no password, so no password is published on the page.
+            ->assertDontSee('Password123!')
+            ->assertDontSee('admin@bookly.test');
     }
 }

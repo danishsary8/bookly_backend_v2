@@ -378,3 +378,10 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - Verified: 591 tests + pint; Playwright on `/docs` (light/dark/390 px, no overflow, no console errors; demo login → Scalar "Test request" `GET /cart` 200 with token, `GET /staff/books` 403; API asleep → "Waking up…"; 429 → message + button re-enabled; storage blocked → still works); Mermaid blocks render; README links resolve.
 
 - [x] Docs page always light (2026-10-30, branch `feature/docs-light-mode`): removed the dark colour scheme from the intro, `<meta name="color-scheme" content="light">`, Scalar `forceDarkModeState: 'light'` + `hideDarkModeToggle`. Verified in a browser that prefers dark: intro and reference stay light, toggle hidden, no overflow or console errors.
+
+- [x] Simpler docs page + demo sign-in that works with Turnstile (2026-10-30, branch `feature/docs-demo-token`):
+  - Cause: production has Turnstile on, so the docs button's `POST /auth/login` failed ("We couldn't check that you're a person").
+  - `POST /api/v1/demo/token` (`DemoTokenController`): no password, only ever the demo customer, `customer` ability, 2-hour token, 10/hour per IP (`throttle:demo-token`), 404 when the demo account is missing or inactive. Real logins keep Turnstile; the demo account stays guarded by `not.demo` and the hourly `demo:reset`.
+  - `/docs` back to Swagger UI 5.17.14 (same SRI hashes as before), restyled: compact header bar (status, links), one demo strip; the button fills Swagger's Authorize via `authActions.authorize`. Light only. The demo password is no longer shown on the page.
+  - Spec intro rewritten in plain words ("Try it in 3 steps"); README rewritten in plain English.
+  - Verified: 599 tests + pint; Playwright: demo token 200, Authorize shows Authorized, GET /cart Execute 200 with token, GET /staff/books 403, Sign out hidden before sign-in, no overflow at 390 px, no console errors; Mermaid renders; README links resolve.

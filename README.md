@@ -2,111 +2,108 @@
 
 # 📚 Bookly API
 
-**The backend of a real online bookstore in Cambodia: catalog search, cart, checkout, returns, reviews and a staff back office with mandatory two-factor login.**
+**The backend for a real online bookshop in Cambodia.**
+Customers can search books, fill a cart, check out and return items. Staff run the shop from a back office.
 
 [![Tests](https://github.com/danishsary8/bookly_backend_v2/actions/workflows/tests.yml/badge.svg)](https://github.com/danishsary8/bookly_backend_v2/actions/workflows/tests.yml)
-![591 tests](https://img.shields.io/badge/tests-591%20passing-2ea44f)
 ![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
 ![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![OpenAPI 3](https://img.shields.io/badge/OpenAPI-3.0-6BA539?logo=openapiinitiative&logoColor=white)
 
-### [▶ Try the live API](https://bookly-api-zasc.onrender.com/docs) · [🛒 Live storefront](https://bookly-frontend-five.vercel.app) · [💻 Frontend repo](https://github.com/danishsary8/bookly_frontend)
+### [▶ Try the live API](https://bookly-api-zasc.onrender.com/docs) · [🛒 See the shop](https://bookly-frontend-five.vercel.app) · [💻 Frontend code](https://github.com/danishsary8/bookly_frontend)
 
 </div>
 
-[![Bookly API docs page](docs/images/docs-page.png)](https://bookly-api-zasc.onrender.com/docs)
+[![The Bookly API docs page](docs/images/docs-page.png)](https://bookly-api-zasc.onrender.com/docs)
 
-> **Try it in 30 seconds:** open the [live docs](https://bookly-api-zasc.onrender.com/docs), click **Try as demo customer**, then send a real request to `GET /cart`. The shared demo account is protected (its sign-in details can't be changed) and tidied every hour. The API runs on a free plan, so the first request after a quiet spell can take ~50 s to wake it up.
+## Try it yourself (1 minute)
 
-## Highlights
+1. Open the **[live API docs](https://bookly-api-zasc.onrender.com/docs)**. The first visit can take up to a minute while the free server wakes up.
+2. Click **Sign in as demo customer**. No password needed.
+3. Open **Customer → GET /cart**, press **Try it out**, then **Execute**. You get a real answer from the live server.
+4. Now try a staff endpoint, like **GET /staff/books**. You get **403 Forbidden**: a customer can never use staff features.
 
-- 🔐 **Two kinds of tokens, two-factor staff login.** Customer and staff tokens carry different abilities, so neither can reach the other's routes; staff must pass an authenticator-app (TOTP) code.
-- 🧾 **Checkout that can't double-charge.** An `Idempotency-Key` makes retries safe, and row locks in a fixed order mean two people buying the last copy get one order and one clear "out of stock".
-- 🛒 **A cart that never silently changes.** Prices, stock and availability are re-checked on every read; a changed line carries an `issues` entry instead of a surprise at checkout.
-- 🔎 **PostgreSQL full-text search** across titles, descriptions, authors, series and categories, with filters and sorting.
-- 💵 **USD and Cambodian riel** side by side, converted from the exchange rate in force when the order was placed.
-- 📣 **Operations built in:** Telegram and email order alerts, JSON logs with request IDs, Sentry, health checks and self-running housekeeping jobs.
+## What it does
 
-## Architecture
+**For customers**
+- Sign up with email (a 6-digit code confirms it) or with Google / Facebook
+- Search and filter books; see prices in US dollars and Cambodian riel
+- Wishlist, cart, coupons and cash-on-delivery checkout
+- Order history, cancel an order while it is still pending, and **buy again** in one click
+- Return books after delivery, and review books they bought
+
+**For staff**
+- Sign in with a password **plus** a code from an authenticator app (two-factor login)
+- Manage books, authors, categories, stock, orders, returns, coupons and reviews
+- Dashboard, reports, CSV import/export and an audit log of every change
+
+## How it keeps things safe
+
+| Problem | How Bookly solves it |
+| --- | --- |
+| Someone steals a customer's login | Customer and staff use **different tokens**. A customer token can never open staff pages. |
+| Someone guesses a staff password | Staff also need a **one-time code** from an authenticator app. |
+| Bots try thousands of passwords | **Rate limits** slow down sign-in, codes, coupons and checkout. |
+| A customer clicks "Order" twice | Each order has a unique **idempotency key**, so the second click can't create a second order. |
+| Two people buy the last copy at once | Stock is **locked** during checkout, so only one order succeeds; the other gets "out of stock". |
+| A price changes after adding to cart | The cart **shows a warning** on that line instead of quietly changing the total. |
+
+Everything about the public demo is locked down too: the demo account can't change its password or email, it is cleaned every hour, and the demo sign-in button is limited to 10 uses per hour per visitor.
+
+## How it is built
 
 ```mermaid
 flowchart LR
-    Shopper([Shopper]) --> FE[Storefront<br/>React · Vercel]
-    Staff([Staff]) --> FE
-    FE -->|REST /api/v1<br/>Bearer token| API[Bookly API<br/>Laravel 13 · Docker on Render]
+    Customer([Customer]) --> Shop[Shop website<br/>React on Vercel]
+    Shop -->|API calls with a token| API[Bookly API<br/>Laravel on Render]
     Visitor([Visitor]) -->|/docs| API
-    API --> DB[(PostgreSQL<br/>Neon)]
-    API --> Mail[Email<br/>Brevo / Resend]
-    API --> TG[Telegram bot<br/>alerts + login]
-    API --> Sentry[Sentry<br/>errors]
+    API --> DB[(PostgreSQL<br/>database on Neon)]
+    API --> Email[Emails]
+    API --> Telegram[Telegram alerts]
 ```
 
-Inside the API, routes go through middleware (token abilities, verified email, staff 2FA, rate limits) to thin controllers. Business rules live in small services (`CartService`, `CheckoutService`, `InventoryService`, `OrderStatusService`, …) so checkout, returns and the back office share one set of rules.
+**In simple words:**
+- The **shop website** (a separate project) talks to this API over the internet.
+- The **API** checks who you are, applies the shop's rules (stock, prices, coupons) and saves everything in the **database**.
+- The shop owner gets **Telegram and email alerts** for new orders and low stock.
 
-## Security
-
-**Customer login** — a token that only works on customer routes:
+### Signing in, step by step
 
 ```mermaid
 sequenceDiagram
-    participant C as Customer app
-    participant A as Bookly API
-    C->>A: POST /auth/login {email, password}
-    A-->>C: 200 {token (ability: customer, 7 days)}
-    C->>A: GET /cart (Authorization: Bearer token)
-    A-->>C: 200 cart
-    C->>A: GET /staff/books (same token)
-    A-->>C: 403 wrong ability
+    participant App as Customer's browser
+    participant API as Bookly API
+    App->>API: Log in (email + password)
+    API-->>App: Here is your token
+    App->>API: Show my cart (with token)
+    API-->>App: Your cart
+    App->>API: Show staff pages (same token)
+    API-->>App: 403 Not allowed
 ```
 
-**Staff login** — no access without the authenticator-app code:
+Staff do the same, plus one extra step: after the password, they enter the 6-digit code from their authenticator app before they get a token.
 
-```mermaid
-sequenceDiagram
-    participant S as Staff app
-    participant A as Bookly API
-    S->>A: POST /staff/auth/login {email, password}
-    A-->>S: 200 {two_factor_required: true, challenge_token}
-    S->>A: POST /staff/auth/two-factor/challenge {challenge_token, code}
-    A-->>S: 200 {token (ability: staff, 12 hours)}
-    S->>A: GET /staff/books (Bearer token)
-    A-->>S: 200 books
-```
+## Why I chose these tools
 
-More protections: email codes are stored hashed, single-use and die after 5 wrong guesses; TOTP codes cannot be replayed; login, code, coupon and checkout endpoints are rate-limited per email and per IP; every error is JSON with an `X-Request-Id`; security headers on every response. Full limits: [docs/RATE_LIMITS.md](docs/RATE_LIMITS.md).
-
-## Tech choices
-
-| Choice | Why | Trade-off |
+| Choice | Why | The trade-off |
 | --- | --- | --- |
-| Laravel 13 + Sanctum tokens | Mature framework; token abilities give a clean customer/staff split for a separate React app | No cookies/sessions, so the frontend stores the token itself |
-| PostgreSQL full-text search | One database, no extra search service to run or pay for | Less typo-tolerant than a dedicated engine like Meilisearch |
-| Idempotency keys on checkout | A double click or network retry can't create two orders | Clients must send a fresh key per order |
-| Money in integer cents | No floating-point rounding errors in totals and discounts | Conversions at the edges (stored as `DECIMAL(10,2)`) |
-| Housekeeping run from API traffic | Works on hosts with no scheduler (Render free); same jobs run on a real scheduler elsewhere | Jobs only run while the API receives requests |
-| Render + Neon free tier | Real public deployment at no cost | Cold starts after idle time; monthly database compute limit |
-| OpenAPI spec as the source of truth | The docs page, the frontend's TypeScript types and a test that every route is documented all come from one file | The spec must be updated with every route (the test enforces it) |
+| **Laravel + Sanctum** | Fast to build with; tokens make it easy to keep customers and staff apart | The website has to store the token itself |
+| **PostgreSQL search** | Good search without paying for or running a separate search service | Less forgiving of typos than a dedicated search engine |
+| **Prices in cents** | Whole numbers never have rounding errors | Convert to dollars only when showing them |
+| **OpenAPI spec as the single source** | The docs page, the website's TypeScript types and a test that checks every route is documented all come from one file | Every new route must be added to the spec (a test makes sure) |
+| **Free hosting (Render + Neon)** | A real, public deployment that costs nothing | The server sleeps when idle, so the first request is slow |
 
-## Design decisions worth noting
+## The database
 
-- **Formats as variants.** A book has shared details; each format (paperback, hardcover, ebook, audiobook) is a `book_variants` row with its own price, stock and SKU.
-- **History is never lost.** Orders keep a copy of the shipping address and the price paid; ordered formats can be deactivated but not deleted; books are soft-deleted.
-- **Stock has one entry point.** Every change goes through `InventoryService`, which locks the row and writes an `inventory_movements` entry.
-- **Database-level rules.** CHECK constraints for statuses, formats, ratings and prices; unique constraints such as one format per book.
-- **Performance.** The book list loads in a fixed number of queries regardless of page size (covered by a test).
+35 tables, grouped by what they store:
 
-### Data model
-
-35 domain tables in third normal form (42 including Laravel's own cache, queue and token tables):
-
-| Domain | Tables |
+| Area | Tables |
 | --- | --- |
 | Accounts | customers, staff_users, customer_addresses, verification_tokens, staff_login_histories |
-| CRM | customer_tags, customer_customer_tag, customer_notes |
-| Catalog | books, book_variants, authors, publishers, categories, series, book_authors, book_categories |
-| Inventory | inventory_movements, stock_alerts |
-| Cart | carts, cart_items, wishlists |
+| Customer notes | customer_tags, customer_customer_tag, customer_notes |
+| Books | books, book_variants (each format: paperback, ebook…), authors, publishers, categories, series, book_authors, book_categories |
+| Stock | inventory_movements, stock_alerts |
+| Shopping | carts, cart_items, wishlists |
 | Promotions | coupons, newsletter_subscribers, newsletter_campaigns, marketing_outbox |
 | Orders | orders, order_items, order_status_history |
 | Payments | payments, payment_webhook_logs |
@@ -114,54 +111,50 @@ More protections: email codes are stored hashed, single-use and die after 5 wron
 | Reviews | reviews |
 | Admin | exchange_rates, admin_audit_logs |
 
-## Features
+A few rules that keep the data trustworthy:
+- **Orders keep a copy** of the address and the price paid, so old orders never change.
+- **Every stock change is logged**, so you can always see why a number went up or down.
+- **The database itself checks** prices, ratings and statuses, so bad data can't get in even by mistake.
 
-**Customers:** sign up with email (6-digit code) or Google/Facebook · full-text search with filters and sorting · USD and KHR prices · saved addresses · wishlist with reading status · cart with stock checks · coupons · cash-on-delivery checkout · order history, cancel while pending, **buy again** · returns for physical formats within a configurable window (7 days by default) · verified-purchase reviews.
+## Run it on your computer
 
-**Staff and admins:** mandatory TOTP 2FA · manage books, formats, authors, categories, publishers and series (CSV import/export) · stock adjustments with history · orders, returns and refunds · coupons · review moderation · customers · dashboard and reports · exchange rates · staff accounts · audit log.
-
-## Run it locally
-
-Requirements: PHP 8.4+, Composer, PostgreSQL 14+.
+You need: PHP 8.4, Composer and PostgreSQL.
 
 ```bash
-git clone https://github.com/danishsary8/bookly_backend_v2.git && cd bookly_backend_v2
-composer install && cp .env.example .env && php artisan key:generate
+git clone https://github.com/danishsary8/bookly_backend_v2.git
+cd bookly_backend_v2
+composer install
+cp .env.example .env            # then set the DB_* lines to your database
+php artisan key:generate
 php artisan migrate
-php artisan db:seed --class=DemoSeeder   # 20 books, 5 customers, a month of orders
-php artisan serve                        # docs at http://localhost:8000/docs
+php artisan db:seed --class=DemoSeeder   # 20 books, 5 customers, sample orders
+php artisan serve                        # open http://localhost:8000/docs
 ```
 
-Set the `DB_*` values in `.env` first (database `bookshop_v2`, plus `bookshop_v2_test` for the tests). Demo logins: `demo@bookly.test`, `admin@bookly.test`, `staff@bookly.test`, password `Password123!` (staff set up 2FA at first login). Optional settings (email, social login, Sentry, CORS) are listed in `.env.example`.
+Demo accounts: `demo@bookly.test` (customer), `admin@bookly.test` and `staff@bookly.test` (staff). Password for all: `Password123!`. Staff set up two-factor login the first time they sign in.
 
 ## Tests
 
 ```bash
-php artisan test            # 591 tests against PostgreSQL
+php artisan test            # 599 tests
 vendor/bin/pint --test      # code style
 ```
 
-CI runs both on every push and pull request; deploys wait for green CI. The suite includes a test that every route is documented in the OpenAPI spec, query-count checks on the book list, and checks that every housekeeping job is a real command.
+Every push and pull request runs these automatically on GitHub.
 
-## Deployment
+## Deploy
 
-One Docker image (FrankenPHP) runs as web server, queue worker or scheduler (`CONTAINER_ROLE`). Two ready paths: free (Render + Neon) or Railway with infrastructure as code. Step by step: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+The API ships as one Docker image. Step-by-step guide (free hosting or Railway): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-```bash
-docker build -t bookly-api .
-docker run --rm -p 8080:8080 --env-file .env bookly-api   # http://localhost:8080/docs
-```
+## More docs
 
-## Documentation
-
-- [Live API reference](https://bookly-api-zasc.onrender.com/docs) and the raw [OpenAPI spec](public/openapi.yaml)
-- [docs/API.md](docs/API.md): field-by-field endpoint reference
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): deploy, operate and back up
+- [Live API docs](https://bookly-api-zasc.onrender.com/docs) and the [OpenAPI file](public/openapi.yaml)
+- [docs/API.md](docs/API.md): every endpoint, field by field
 - [docs/RATE_LIMITS.md](docs/RATE_LIMITS.md): every limit and why
-- [docs/WORKLOG.md](docs/WORKLOG.md): step-by-step build log and decisions
+- [docs/WORKLOG.md](docs/WORKLOG.md): how the project was built, step by step
 
-**Next on the roadmap:** card and Bakong KHQR payments (the `payments` and `payment_webhook_logs` tables are ready).
+**Next up:** card and Bakong KHQR payments (the database tables are already in place).
 
-## Author
+---
 
-Built by [@danishsary8](https://github.com/danishsary8) — API design, database, security and deployment.
+Built by [@danishsary8](https://github.com/danishsary8).

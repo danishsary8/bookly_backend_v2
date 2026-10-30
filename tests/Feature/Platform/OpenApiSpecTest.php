@@ -68,6 +68,6 @@ class OpenApiSpecTest extends TestCase
         $this->get('/docs')
             ->assertOk()
             ->assertSee('/openapi.yaml', false)
-            ->assertSee('@scalar/api-reference@1.74.0', false);
+            ->assertSee('swagger-ui', false);
     }
 }
