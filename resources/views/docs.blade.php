@@ -19,7 +19,7 @@
 
         /* Header: one compact bar with everything a visitor needs to start testing. */
         .bar { background: var(--card); border-bottom: 1px solid var(--line); }
-        .bar-in { max-width: 1460px; margin: 0 auto; padding: 18px 20px; display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; }
+        .bar-in { max-width: 1180px; margin: 0 auto; padding: 18px 20px; display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; }
         .brand { display: flex; align-items: center; gap: 12px; }
         .logo { width: 38px; height: 38px; border-radius: 10px; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 20px; }
         .brand h1 { margin: 0; font-size: 20px; line-height: 1.2; }
@@ -34,37 +34,59 @@
         .btn.ghost { background: var(--card); color: var(--ink); border-color: var(--line); }
         .btn[disabled] { opacity: .6; cursor: progress; }
 
-        /* Demo strip: one sentence telling the visitor what to do next. */
-        .demo { max-width: 1460px; margin: 16px auto 0; padding: 0 20px; }
-        .demo-in { background: #fff7f3; border: 1px solid #f6d3c4; border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
-        .demo-in .msg { flex: 1 1 320px; }
+        /* Getting-started guide. */
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+        .start { margin: 24px 0 8px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+        .start h2 { margin: 0 0 14px; font-size: 18px; }
+        .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+        .step { display: flex; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fbfbfd; }
+        .step h3 { margin: 2px 0 4px; font-size: 15px; }
+        .step p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+        .num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+        .row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag { display: inline-block; padding: 1px 6px; border-radius: 5px; color: #fff; font-size: 11px; font-weight: 700; }
+        .tag.get { background: #2f6fd6; }
+        .facts { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 16px; font-size: 13px; color: var(--muted); }
+        .facts strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 2px; }
         .ok-text { color: var(--ok); font-weight: 600; }
         .err-text { color: var(--bad); }
-        .demo-in code, footer code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef0f4; padding: 1px 5px; border-radius: 5px; }
+        .start code, footer code { font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef0f4; padding: 1px 5px; border-radius: 5px; }
+        footer a { color: var(--brand); }
 
-        /* Swagger UI, lightly restyled: same layout as before, cleaner surfaces. */
-        #swagger-ui { max-width: 1460px; margin: 0 auto; padding: 8px 20px 48px; }
-        .swagger-ui, .swagger-ui .info .title, .swagger-ui .opblock-tag, .swagger-ui .opblock .opblock-summary-description { font-family: inherit; color: var(--ink); }
-        .swagger-ui .topbar { display: none; }
-        .swagger-ui .info { margin: 24px 0 8px; }
-        .swagger-ui .info .title small { background: var(--brand); }
-        .swagger-ui .info .markdown p, .swagger-ui .info .markdown li { font-size: 14px; color: var(--muted); }
-        .swagger-ui .scheme-container { background: transparent; box-shadow: none; padding: 8px 0 16px; }
-        .swagger-ui .opblock-tag { border-bottom: 1px solid var(--line); font-size: 20px; }
-        .swagger-ui .opblock { border-radius: 10px; box-shadow: none; margin: 0 0 8px; background: var(--card) !important; border-width: 1px; }
-        .swagger-ui .opblock .opblock-summary { padding: 8px 10px; }
-        .swagger-ui .opblock .opblock-summary-method { border-radius: 7px; min-width: 70px; font-weight: 700; }
-        .swagger-ui .opblock.opblock-get { border-color: #c9dcf5; } .swagger-ui .opblock.opblock-get .opblock-summary-method { background: #2f6fd6; }
-        .swagger-ui .opblock.opblock-post { border-color: #c4e8d4; } .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #1f9d5b; }
-        .swagger-ui .opblock.opblock-put { border-color: #f3dfbd; } .swagger-ui .opblock.opblock-put .opblock-summary-method { background: #d4880f; }
-        .swagger-ui .opblock.opblock-patch { border-color: #d7e9e4; } .swagger-ui .opblock.opblock-patch .opblock-summary-method { background: #2a9d8f; }
-        .swagger-ui .opblock.opblock-delete { border-color: #f3c9c9; } .swagger-ui .opblock.opblock-delete .opblock-summary-method { background: #d64545; }
-        .swagger-ui .btn.authorize { border-radius: 10px; color: var(--ok); border-color: var(--ok); }
+        /* Swagger UI, restyled: same rows as before, cleaner surfaces. */
+        #swagger-ui { max-width: 1180px; margin: 0 auto; padding: 0 20px 40px; }
+        .swagger-ui, .swagger-ui .opblock-tag, .swagger-ui .opblock .opblock-summary-description { font-family: inherit; color: var(--ink); }
+        .swagger-ui .topbar, .swagger-ui .information-container { display: none; }
+        .swagger-ui .scheme-container { background: transparent; box-shadow: none; padding: 12px 0 4px; margin: 0; }
+        .swagger-ui .scheme-container .schemes-server-container, .swagger-ui .servers-title, .swagger-ui .servers { display: none; }
+        .swagger-ui .wrapper { padding: 0; max-width: none; }
+        .swagger-ui .filter-container .filter, .swagger-ui .filter-container .filter > div { width: 100%; max-width: none; flex: 1 1 100%; }
+        .swagger-ui .filter .operation-filter-input { width: 100%; max-width: none; }
+        .swagger-ui .scheme-container .schemes { justify-content: flex-end; }
+        .swagger-ui .filter-container { margin: 0; }
+        .swagger-ui .filter-container .filter { margin: 0; padding: 0; }
+        .swagger-ui .filter .operation-filter-input { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0 14px; font-size: 14px; background: var(--card); }
+        .swagger-ui .opblock-tag-section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 0 0 10px; padding: 0 14px; }
+        .swagger-ui .opblock-tag { border-bottom: 0; padding: 12px 4px; margin: 0; font-size: 17px; font-weight: 700; }
+        .swagger-ui .opblock-tag small { font-size: 13px; font-weight: 400; color: var(--muted); padding-left: 10px; }
+        .swagger-ui .opblock-tag-section.is-open { padding-bottom: 12px; }
+        .swagger-ui .opblock { border-radius: 10px; box-shadow: none; margin: 0 0 6px; background: var(--card) !important; border-width: 1px; }
+        .swagger-ui .opblock .opblock-summary { padding: 6px 8px; }
+        .swagger-ui .opblock .opblock-summary-method { border-radius: 7px; min-width: 64px; font-size: 12px; padding: 6px 0; font-weight: 700; }
+        .swagger-ui .opblock .opblock-summary-path { font-size: 14px; }
+        .swagger-ui .opblock .opblock-summary-description { color: var(--muted); font-size: 13px; }
+        .swagger-ui .opblock.opblock-get { border-color: #d3e2f7; } .swagger-ui .opblock.opblock-get .opblock-summary-method { background: #2f6fd6; }
+        .swagger-ui .opblock.opblock-post { border-color: #cdeedb; } .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #1f9d5b; }
+        .swagger-ui .opblock.opblock-put { border-color: #f5e4c6; } .swagger-ui .opblock.opblock-put .opblock-summary-method { background: #d4880f; }
+        .swagger-ui .opblock.opblock-patch { border-color: #d7ece6; } .swagger-ui .opblock.opblock-patch .opblock-summary-method { background: #2a9d8f; }
+        .swagger-ui .opblock.opblock-delete { border-color: #f5d0d0; } .swagger-ui .opblock.opblock-delete .opblock-summary-method { background: #d64545; }
+        .swagger-ui .btn.authorize { border-radius: 10px; color: var(--ok); border-color: var(--ok); background: var(--card); }
+        .swagger-ui .btn.authorize svg { fill: var(--ok); }
         .swagger-ui .btn.execute { background: var(--brand); border-color: var(--brand); border-radius: 8px; }
         .swagger-ui .btn { border-radius: 8px; }
-        .swagger-ui section.models { border-radius: 10px; border-color: var(--line); background: var(--card); }
-        footer { max-width: 1460px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 13px; }
-        @media (max-width: 640px) { .brand p { display: none; } .swagger-ui .opblock .opblock-summary-path { font-size: 13px; } }
+        .swagger-ui .opblock-body pre.microlight { border-radius: 10px; }
+        footer { max-width: 1180px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 13px; }
+        @media (max-width: 640px) { .brand p { display: none; } .swagger-ui .opblock-tag { flex-wrap: wrap; } .swagger-ui .opblock-tag small { flex: 1 0 100%; padding: 4px 0 0; order: 3; } .swagger-ui .opblock-tag > a { flex: 1; } .swagger-ui .opblock .opblock-summary-path { font-size: 12.5px; } .swagger-ui .opblock .opblock-summary-description { display: none; } .start { padding: 16px; } }
     </style>
 </head>
 <body>
@@ -88,17 +110,47 @@
     </div>
 </header>
 
-<section class="demo" aria-label="Try the API">
-    <div class="demo-in">
-        <button class="btn" id="demo-login" type="button">Sign in as demo customer</button>
-        <span class="msg" id="demo-state" aria-live="polite">One click, no password. Then open any endpoint, press <strong>Try it out</strong> and <strong>Execute</strong>.</span>
-        <button class="btn ghost" id="demo-logout" type="button" hidden>Sign out</button>
-    </div>
-</section>
+<main class="wrap">
+    <section class="start" aria-labelledby="start-title">
+        <h2 id="start-title">Test the API in 3 steps</h2>
+        <ol class="steps">
+            <li class="step">
+                <span class="num">1</span>
+                <div>
+                    <h3>Sign in</h3>
+                    <p id="demo-state" aria-live="polite">One click as the demo customer. No password needed.</p>
+                    <div class="row">
+                        <button class="btn" id="demo-login" type="button">Sign in as demo customer</button>
+                        <button class="btn ghost" id="demo-logout" type="button" hidden>Sign out</button>
+                    </div>
+                </div>
+            </li>
+            <li class="step">
+                <span class="num">2</span>
+                <div>
+                    <h3>Open an endpoint</h3>
+                    <p>Click a section below, for example <strong>Customer</strong>, then a row like <span class="tag get">GET</span> <code>/cart</code>.</p>
+                </div>
+            </li>
+            <li class="step">
+                <span class="num">3</span>
+                <div>
+                    <h3>Execute</h3>
+                    <p>Press <strong>Execute</strong>. You get a real answer from the live server, with the status code and JSON.</p>
+                </div>
+            </li>
+        </ol>
+        <div class="facts">
+            <div><strong>Sign-in</strong> Send <code>Authorization: Bearer &lt;token&gt;</code>. Customer and staff tokens are separate; staff also need a 2FA code.</div>
+            <div><strong>Errors</strong> Always JSON. <code>401</code> not signed in · <code>403</code> not allowed · <code>422</code> wrong input · <code>429</code> too many requests.</div>
+            <div><strong>Try this</strong> Staff routes answer <code>403</code> to the demo token: the access control working.</div>
+        </div>
+    </section>
+</main>
 
 <div id="swagger-ui"></div>
 
-<footer>The demo account is shared and tidied every hour. Staff routes answer <code>403</code> to a customer token: that is the access control working.</footer>
+<footer>The demo account is shared, protected and tidied every hour. Built by <a href="https://github.com/danishsary8">@danishsary8</a>.</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js" integrity="sha384-wmyclcVGX/WhUkdkATwhaK1X1JtiNrr2EoYJ+diV3vj4v6OC5yCeSu+yW13SYJep" crossorigin="anonymous"></script>
 <script>
@@ -116,7 +168,7 @@
         ui = SwaggerUIBundle({
             url: '/openapi.yaml',
             dom_id: '#swagger-ui',
-            docExpansion: 'list',
+            docExpansion: 'none',
             defaultModelsExpandDepth: -1,
             tryItOutEnabled: true,
             filter: true,
@@ -138,12 +190,12 @@
     const logoutBtn = document.getElementById('demo-logout');
     const state = document.getElementById('demo-state');
     const showSignedIn = () => {
-        state.innerHTML = '<span class="ok-text">Signed in as demo@bookly.test ✓</span> Open <strong>Customer → GET /cart</strong>, press <strong>Try it out</strong>, then <strong>Execute</strong>.';
+        state.innerHTML = '<span class="ok-text">Signed in as demo@bookly.test ✓</span> Every request below now uses this account.';
         loginBtn.hidden = true; logoutBtn.hidden = false;
     };
     const showSignedOut = (error) => {
         if (error) { state.innerHTML = '<span class="err-text"></span>'; state.firstChild.textContent = error; }
-        else { state.innerHTML = 'One click, no password. Then open any endpoint, press <strong>Try it out</strong> and <strong>Execute</strong>.'; }
+        else { state.textContent = 'One click as the demo customer. No password needed.'; }
         loginBtn.hidden = false; logoutBtn.hidden = true; loginBtn.disabled = false; loginBtn.textContent = 'Sign in as demo customer';
     };
 

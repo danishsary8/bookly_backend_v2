@@ -32,10 +32,11 @@ tags:
   - { name: Customer, description: 'Profile, addresses, cart, wishlist (verified customers)' }
   - { name: Checkout & orders, description: 'Cash-on-delivery checkout and order history' }
   - { name: Returns & reviews, description: 'Returns for delivered orders and book reviews' }
-  - { name: Staff auth, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Staff login with required authenticator-app 2FA' }
-  - { name: Staff catalog, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Books, formats, authors, categories, publishers, series' }
-  - { name: Staff operations, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Coupons, orders, returns, reviews, customers, alerts' }
-  - { name: Admin, description: '🔒 Staff only — requires a staff token with 2FA; visitors get 401/403. Admin-only: staff, exchange rates, audit log, dashboard, export' }
+  - { name: Staff auth, description: '🔒 Staff only · Staff login with required authenticator-app 2FA' }
+  - { name: Staff catalog, description: '🔒 Staff only · Books, formats, authors, categories, publishers, series' }
+  - { name: Staff operations, description: '🔒 Staff only · Coupons, orders, returns, reviews, customers, alerts' }
+  - { name: Newsletter, description: 'Sign up for the newsletter (double opt-in) and unsubscribe' }
+  - { name: Admin, description: '🔒 Staff only · Admin-only: staff, exchange rates, audit log, dashboard, export' }
 
 components:
   securitySchemes:
