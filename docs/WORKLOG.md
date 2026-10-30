@@ -368,3 +368,10 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     ordered is skipped, not reduced to what is left.
   - Docs: `docs/API.md`, `public/openapi.yaml`. Tests: `tests/Feature/Orders/ReorderTest.php` (3). Full suite 585 passing; pint clean.
   - Frontend (not done): "Buy again" button on the order page.
+
+- [x] Portfolio API docs and README (2026-10-30, branch `feature/portfolio-docs`; spec `docs/superpowers/specs/2026-10-30-portfolio-docs-design.md`, plan `docs/superpowers/plans/2026-10-30-portfolio-docs.md`):
+  - `/docs` rebuilt on Scalar (`@scalar/api-reference@1.74.0`, pinned with SRI) with an intro: live status badge (`/up` + `/health`, "waking up" retry for Render cold starts), **Try as demo customer** (logs in `demo@bookly.test`, hands the token to Scalar's bearer auth; sessionStorage with in-memory fallback), six security cards, curl quick start. Scalar's AI agent, MCP and developer toolbar are off; page CSS scoped to `.intro`.
+  - `demo:reset` (daily 03:00 via `MaintenanceTasks`): empties the demo customer's cart and cancels their pending orders older than 24 h through the normal customer cancel (stock and coupon uses restored). `DemoSeeder::EMAIL` is the single source of the demo email.
+  - OpenAPI: rewritten intro (try-it, auth, errors, limits, pagination), bearer scheme explained, staff tags marked "🔒 staff only", real examples on login/register/books/book/cart/cart items/checkout/reorder.
+  - README rewritten for the portfolio (live links, screenshot, highlights, architecture + auth sequence diagrams, tech-choice table, facts from code).
+  - Verified: 591 tests + pint; Playwright on `/docs` (light/dark/390 px, no overflow, no console errors; demo login → Scalar "Test request" `GET /cart` 200 with token, `GET /staff/books` 403; API asleep → "Waking up…"; 429 → message + button re-enabled; storage blocked → still works); Mermaid blocks render; README links resolve.
