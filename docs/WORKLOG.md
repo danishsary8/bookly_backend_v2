@@ -376,3 +376,5 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - OpenAPI: rewritten intro (try-it, auth, errors, limits, pagination), bearer scheme explained, staff tags marked "🔒 staff only", real examples on login/register/books/book/cart/cart items/checkout/reorder.
   - README rewritten for the portfolio (live links, screenshot, highlights, architecture + auth sequence diagrams, tech-choice table, facts from code).
   - Verified: 591 tests + pint; Playwright on `/docs` (light/dark/390 px, no overflow, no console errors; demo login → Scalar "Test request" `GET /cart` 200 with token, `GET /staff/books` 403; API asleep → "Waking up…"; 429 → message + button re-enabled; storage blocked → still works); Mermaid blocks render; README links resolve.
+
+- [x] Docs page always light (2026-10-30, branch `feature/docs-light-mode`): removed the dark colour scheme from the intro, `<meta name="color-scheme" content="light">`, Scalar `forceDarkModeState: 'light'` + `hideDarkModeToggle`. Verified in a browser that prefers dark: intro and reference stay light, toggle hidden, no overflow or console errors.
