@@ -30,6 +30,8 @@ class DocsPageTest extends TestCase
             ->assertSee('Authentication (customers and staff)')
             ->assertSee('/staff/auth/two-factor/challenge')
             ->assertSee('Errors and status codes')
+            ->assertSee('Test as staff or admin (account owner only)')
+            ->assertSee('/staff/auth/two-factor/setup')
             ->assertSee('Test with Postman')
             ->assertSee(url('/openapi.yaml'));
     }
