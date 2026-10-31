@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\SendsAfterResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 /** Sent once, when a customer's account first becomes verified (email code, Telegram phone or a verified social email). */
 class WelcomeNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsAfterResponse;
 
     public function via(object $notifiable): array
     {

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\SendsAfterResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -13,7 +14,7 @@ use Illuminate\Notifications\Notification;
  */
 class AccountSecurityNotice extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsAfterResponse;
 
     /**
      * $subject and $what are the English text. With a $key, the mail is built from `mail.security_{key}_subject` /

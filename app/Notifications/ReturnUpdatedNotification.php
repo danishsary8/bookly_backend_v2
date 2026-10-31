@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Enums\ReturnStatus;
 use App\Models\OrderReturn;
+use App\Notifications\Concerns\SendsAfterResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -12,7 +13,7 @@ use Illuminate\Notifications\Notification;
 /** One email per return step: requested, approved, rejected, refunded. */
 class ReturnUpdatedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsAfterResponse;
 
     public function __construct(public readonly OrderReturn $return) {}
 

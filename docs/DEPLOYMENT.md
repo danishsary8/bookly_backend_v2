@@ -27,8 +27,9 @@ Use this when a paid Railway plan is not an option. Same Docker image, two free 
 | API (`web` role) | [Render](https://render.com) free web service | sleeps after ~15 min without traffic; the next request takes 30-60 s to wake it |
 | Database | [Neon](https://neon.tech) free PostgreSQL | 0.5 GB, does not expire (Render's own free database is deleted after 30 days) |
 
-Differences from the Railway setup: no queue worker (`QUEUE_CONNECTION=sync`, emails are sent during the request — if
-Resend is down, that request fails), no scheduler (the housekeeping jobs run from web requests instead, see "Housekeeping without a scheduler" below),
+Differences from the Railway setup: no queue worker (`QUEUE_CONNECTION=sync`: one-time codes and invitations are sent
+during the request, so if Resend is down that request answers "try again"; order, status and security emails are sent
+right after the answer, so a mail outage never fails them — `QUEUE_AFTER_RESPONSE_CONNECTION`, default `deferred`), no scheduler (the housekeeping jobs run from web requests instead, see "Housekeeping without a scheduler" below),
 and migrations run when the container starts (`RUN_MIGRATIONS=true`) because the free plan has no pre-deploy step
 and no shell — admin and demo data are created from your own computer (steps F5-F6).
 

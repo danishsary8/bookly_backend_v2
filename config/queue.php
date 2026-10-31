@@ -29,6 +29,13 @@ return [
     |
     */
 
+    /*
+    | Connection for the emails that are sent after the API answer (App\Notifications\Concerns\SendsAfterResponse).
+    | "deferred" sends them in the same process right after the response; "sync" sends them during the request.
+    */
+
+    'after_response_connection' => env('QUEUE_AFTER_RESPONSE_CONNECTION', 'deferred'),
+
     'connections' => [
 
         'sync' => [
