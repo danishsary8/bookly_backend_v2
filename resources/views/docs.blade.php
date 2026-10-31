@@ -308,7 +308,20 @@
         try { await fetch(API + '/auth/logout', { method: 'POST', headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + old } }); } catch (e) {}
     });
 
-    if (token) { showSignedIn(); }
+    // A token kept from an earlier visit may have expired (2 hours) or been revoked: check it before saying
+    // "Signed in", so the visitor never meets a confusing 401 on their first request.
+    if (token) {
+        showSignedIn();
+        fetch(API + '/me', { headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + token } })
+            .then((res) => {
+                if (res.status === 401) {
+                    remember(null);
+                    if (ui) ui.authActions.logout(['bearer']);
+                    showSignedOut('Your demo session ended. Sign in again.');
+                }
+            })
+            .catch(() => { /* API asleep or offline: keep the token, the status badge explains */ });
+    }
 
     // Status: /up answers without the database, /health checks it. The free host can take about a minute to wake,
     // so each attempt waits up to 45 s and a first failure ("waking up") is retried once.
