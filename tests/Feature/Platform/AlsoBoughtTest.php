@@ -96,9 +96,10 @@ class AlsoBoughtTest extends TestCase
         $res = $this->getJson("/api/v1/books/{$target->id}/also-bought")
             ->assertOk();
 
+        // B is the only real "bought together" book (2 paid orders), so it comes first. C and D are only store
+        // best-seller fillers: C sold 1 paid copy, D none (its orders were cancelled or pending), so D is last.
         $ids = collect($res->json('data'))->pluck('id')->all();
-        $this->assertContains($bookB->id, $ids);
-        $this->assertNotContains($bookD->id, $ids);
+        $this->assertSame([$bookB->id, $bookC->id, $bookD->id], $ids);
         $this->assertNotContains($target->id, $ids);
     }
 
