@@ -34,6 +34,8 @@ All branches start from `main` and were checked together: every order merges cle
   (faster checkout; a mail outage no longer shows an error after the order is saved). Codes still go out at once.
   Nothing to set up (free, no worker)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/send-emails-after-response
+- [ ] `feature/staging-setup-kit` — the staging guide (`docs/STAGING.md`) and CI on the `staging` branch. Docs only
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/staging-setup-kit
 - [ ] `docs/overnight-notes` — this file and the work log
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/overnight-notes
 
@@ -50,6 +52,9 @@ All branches start from `main` and were checked together: every order merges cle
 - [ ] `feature/admin-orders-auto-refresh` — new orders appear in the admin by themselves (checks every 30 s while
   the tab is open; a toast, the list reloads, a "New" badge). Frontend only, nothing to set up
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-orders-auto-refresh
+- [ ] `feature/staging-banner` — a "Staging site: test data only" bar, shown only when `VITE_APP_ENV=staging`
+  (nothing changes on the live site); CI on the `staging` branch
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/staging-banner
 
 After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** on Render (Events tab).
 
@@ -106,6 +111,15 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
 - [ ] **Speed check of the live site** (after merging `feature/load-test-kit`, k6 installed: `winget install k6 --source winget`):
   `k6 run -e BASE_URL=https://bookly-api-zasc.onrender.com/api/v1 load/live-check.js` → about 5 minutes → look for
   `RESULT: PASS`, then paste the report into `load/RESULTS.md` ("Live check"). How to read it: `load/README.md`.
+
+---
+
+## 4b. Staging (when you want it, about 45 minutes)
+
+- [ ] After merging the two staging branches: follow `docs/STAGING.md` step by step (staging branches, Neon project
+  `bookly-staging`, Render `bookly-api-staging`, demo data, Vercel Preview variables).
+- [ ] **Important:** keep `bookly-api-staging` **suspended** when you are not testing. Render's free hours are shared,
+  and the live API uses almost all of them; running out stops the live shop too.
 
 ---
 
