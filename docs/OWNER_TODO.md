@@ -28,6 +28,8 @@ All branches start from `main` and were checked together: every order merges cle
 - [ ] `feature/typo-tolerant-search` — search finds books despite typos ("frankenstien", "sherlok", "jane austin");
   no migration needed (pg_trgm is already on)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/typo-tolerant-search
+- [ ] `feature/load-test-kit` — `load/live-check.js`: a gentle k6 check of the live API (see section 4)
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/load-test-kit
 - [ ] `docs/overnight-notes` — this file and the work log
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/overnight-notes
 
@@ -94,6 +96,9 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
   GET /me/export → Execute** → 200 and a JSON file.
 - [ ] **404 answer:** `GET /books/999999` in the docs → `{"message": "Not found."}` (no `App\Models\…`).
 - [ ] **Staff/admin testing** (only you): docs → **Details → Test as staff or admin**.
+- [ ] **Speed check of the live site** (after merging `feature/load-test-kit`, k6 installed: `winget install k6 --source winget`):
+  `k6 run -e BASE_URL=https://bookly-api-zasc.onrender.com/api/v1 load/live-check.js` → about 5 minutes → look for
+  `RESULT: PASS`, then paste the report into `load/RESULTS.md` ("Live check"). How to read it: `load/README.md`.
 
 ---
 
