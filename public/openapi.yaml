@@ -724,9 +724,12 @@ paths:
   /books/{id}/also-bought:
     get:
       tags: [Public]
-      summary: Up to 6 recommended books bought together with this book, fallback to category best sellers
+      summary: Same list as /books/{id}/related (kept for older clients)
+      description: Same order, caching and stock rules as `GET /books/{id}/related`.
       security: []
-      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 12, default: 6 } }
       responses:
         '200':
           description: Recommended book cards
@@ -740,7 +743,24 @@ paths:
   /books/{id}/related:
     get:
       tags: [Public]
-      summary: Up to 12 recommended books related to this book (co-purchases, category affinity, author affinity, and top sellers)
+      summary: '"You may also like": up to 12 books similar to this one'
+      description: |
+        Filled up to `limit` in this order:
+        1. Same series: the next books first (reading order), then the earlier ones.
+        2. Bought together with this book in at least 2 orders.
+        3. Same category and same author (best sellers first).
+        4. Same categories (best sellers first).
+        5. Same authors (highest rated first).
+        6. Store best sellers.
+
+        Never the book itself, no duplicates, only visible books that can be bought (an active format in stock,
+        or an ebook/audiobook). Best sellers and "bought together" count only orders that are not pending,
+        cancelled or deleted.
+
+        Caching: the list (12 ids) is cached for 1 hour per catalogue version. Any staff change to a book
+        (create, edit, delete, restore, authors, categories, series, bulk edit, CSV import) starts fresh lists
+        for every book. Stock and visibility are checked again on every read, so a sold-out or hidden book never
+        shows; the list can then be shorter than `limit`.
       security: []
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -759,6 +779,17 @@ paths:
     get:
       tags: [Public]
       summary: Recommended books based on cart contents or store popularity
+      description: |
+        With `cart_ids`, filled up to `limit` in this order:
+        1. Series in the cart: the books after the furthest one in the cart (reading order), then the earlier ones.
+           With several series they take turns, so the next book of every series comes first.
+        2. Same categories as the cart (best sellers first).
+        3. Same authors (newest first).
+        4. Store best sellers.
+
+        Without `cart_ids`: store best sellers. Never a cart book or an `exclude_ids` book, no duplicates, only
+        visible books that can be bought. Best sellers count only orders that are not pending, cancelled or
+        deleted. Not cached.
       security: []
       parameters:
         - { name: cart_ids, in: query, description: 'Comma-separated book IDs currently in cart', schema: { type: string } }
