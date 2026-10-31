@@ -18,6 +18,23 @@ working with today's settings.
 
 ---
 
+## 0. New since 2026-10-31 (notes for each task: `docs/HANDOFF.md` on this branch)
+
+**Task F: phone sign-in code hint** (frontend only, no backend change, no setting to change)
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint → **Create pull request** →
+  wait for green CI → check the reviewer checklist in `docs/prompts/README.md` → **Merge**. Vercel deploys by itself.
+- [ ] Live check after Vercel shows **Ready**: https://bookly-frontend-five.vercel.app/login →
+  **Sign in with phone number?** → the hint "Codes only go to a confirmed number…" is under the field → type `123` →
+  **Send code in Telegram** → red error → type `012 345 678` → the error goes away and the hint is back.
+  Then switch the language to Khmer → the same hint in Khmer.
+- [ ] Signed in: **Account → Profile** → under **Phone**: "Couriers call this number…" → click **Sign-in & security**
+  → that page opens.
+- [ ] Khmer wording: read the two new Khmer lines (login hint and Profile hint; text in `docs/HANDOFF.md`). Change them
+  if a native speaker would say it differently.
+- [ ] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
+
+---
+
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
