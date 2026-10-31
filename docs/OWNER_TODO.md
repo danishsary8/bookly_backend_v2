@@ -52,6 +52,14 @@ each branch works alone)
 - Note (no action): if staff mark a book back in stock, add a format, or a scheduled book goes live, it can take up to
   1 hour to join these lists. A sold-out book never shows.
 
+**Task B+D: offers ("Buy 2, get 15% off") + offer reports** (in progress; spec
+`docs/superpowers/specs/2026-10-31-offers-design.md` on `feature/offers-engine`)
+- [ ] **Rollout order (important):** merge the frontend `feature/offers-storefront` **before** you create or resume
+  the first live offer in the admin. Why: today's checkout page does not know about offers, so a coupon that lost to
+  an offer would vanish from the summary without an explanation. Until a live offer exists, nothing changes for
+  customers (the demo offer from the seeder is created **paused**).
+- Merge links and live checks for each branch will be added here when the branches are finished.
+
 ---
 
 ## 1. Merge (any order is fine)
