@@ -1,68 +1,74 @@
-# Catalog Load Testing with k6
+# Load testing with k6
 
-This directory contains load testing scripts for Bookly API public catalog endpoints.
+Two tests, for two questions:
+
+| Test | Question it answers | Where | Load |
+| --- | --- | --- | --- |
+| **Live check** — `live-check.js` | "How fast does the real site feel to shoppers?" | the live API | gentle: 2 shoppers, 3 min, ~1 request/s |
+| **Local stress test** — `load-test.js` | "Where does the API break under heavy traffic?" | your own computer only | heavy: 30 users |
+
+Why the live check is gentle: the API limits every IP address to 120 requests a minute (search 60). From one computer, a
+heavy test would only measure those limits (HTTP 429), not speed, and it would burn the free database's monthly compute
+hours. The live check stays under the limits, so it measures what real visitors feel.
+
+## 1. Install k6 (once)
+
+- Windows: `winget install k6 --source winget` (or `choco install k6`)
+- macOS: `brew install k6`
+- Linux / other: https://grafana.com/docs/k6/latest/set-up/install-k6/
+
+Check: `k6 version`.
+
+## 2. Live check (run this one)
+
+From the repository folder:
+
+```bash
+k6 run -e BASE_URL=https://bookly-api-zasc.onrender.com/api/v1 load/live-check.js
+```
+
+What happens:
+1. **Wake-up** (up to 2.5 min): it calls `/up` and `/health` until the free server is awake. Not counted in the results.
+2. **3 minutes of browsing** by 2 shoppers: book list → a search → a book page → categories, with pauses like a person.
+3. **A short report** in the terminal, and the full numbers in `load/live-check-result.json` (not committed).
+
+Run it when the site is quiet, and at most a few times a month (each run keeps the database awake ~5 minutes).
+
+### Reading the results
+
+The report ends with `RESULT: PASS` or `RESULT: CHECK`.
+
+| Line | Good | If not |
+| --- | --- | --- |
+| **Typical (median)** | under ~500 ms | Neon in another region than Render, or the database waking up: run again |
+| **Slow ones (p95)** | under 1500 ms (the target) | Look at *Per endpoint*: the slowest one is where to add caching (see below) |
+| **Failed requests** | under 1 % | Read the API log on Render and Sentry for 500s at that time |
+| **Rate limited 429** | 0 | Another tool (or a second run) was hitting the API from your IP at the same time |
+
+**Cache only if needed.** If one endpoint is slow (most likely `GET /books?q=` or `GET /books`), that is the one to
+cache; if everything passes, no cache is needed yet.
+
+Please paste the report into `load/RESULTS.md` (section "Live check") with the date, so the numbers are kept.
+
+## 3. Local stress test (your computer only)
 
 > [!WARNING]
-> **DO NOT RUN AGAINST RENDER OR NEON LIVE URLS WITHOUT OWNER APPROVAL.**
-> Both Render and Neon instances operate on free/hobby compute tiers. Running a 30-VU load test against live production instances can quickly exhaust compute quotas, spike latency, or trigger auto-suspension.
-> Only run these scripts against the **local development API** (`http://127.0.0.1:8000`).
+> **Never run `load-test.js` against the live API.** It sends 30 users' worth of traffic and fakes many IP addresses,
+> which only works on a local API started with `TRUSTED_PROXIES="*"`.
 
----
-
-## Prerequisites
-
-1. Install [k6](https://k6.io/docs/get-started/installation/):
-   - Windows (winget): `winget install k6 --source winget`
-   - Windows (choco): `choco install k6`
-   - MacOS (brew): `brew install k6`
-   - Direct download: download `k6-vX.Y.Z-windows-amd64.zip` from https://github.com/grafana/k6/releases/latest, unzip, and run `k6.exe` by path.
-
-2. Ensure your local backend is running on local demo data with trusted proxies enabled for IP spreading:
+1. Seed demo data: `php artisan db:seed --class=DemoSeeder`
+2. Start the API with trusted proxies **in this shell only** (never in production):
    ```bash
    TRUSTED_PROXIES="*" php artisan serve --port=8000
    ```
-   > [!CAUTION]
-   > `TRUSTED_PROXIES="*"` must ONLY be set in the shell for this local test run, and NEVER in production or on any shared deployment.
-
-3. Ensure local PostgreSQL database has seeded demo catalog data:
+3. Run:
    ```bash
-   php artisan db:seed --class=DemoSeeder
+   SPREAD_IPS=1 BASE_URL=http://127.0.0.1:8000/api/v1 k6 run load/load-test.js
    ```
 
----
+`SPREAD_IPS=1` makes each virtual user send `X-Forwarded-For: 10.0.<vu>.1`, so the per-IP limits don't stop the test;
+429s are still counted in `rate_limited_429`. Profile: 0 → 30 users over 30 s, 30 users for 1 min, then down
+(2 min in total). Thresholds: p95 < 800 ms, errors < 1 %.
 
-## Running the Test
-
-The API enforces strict per-IP rate limits (`GET /books` at 120/min, `?q=` search at 60/min). Because all virtual users from one machine share the same loopback IP, requests would quickly hit HTTP 429 without simulated distinct IPs.
-
-When `SPREAD_IPS=1` is set, each virtual user sends a simulated header `X-Forwarded-For: 10.0.<vu>.1` (where `<vu>` is the k6 virtual user ID `__VU`). This header is only respected by the local API when started with `TRUSTED_PROXIES=*`. Any HTTP 429 responses are tracked in the custom `rate_limited_429` metric so they are not hidden.
-
-Run the test against your local API:
-
-```bash
-SPREAD_IPS=1 BASE_URL=http://127.0.0.1:8000/api/v1 k6 run load/load-test.js
-```
-
-To customize the target URL via `API_BASE_URL` or `BASE_URL`:
-
-```bash
-SPREAD_IPS=1 BASE_URL=http://127.0.0.1:8000/api/v1 k6 run load/load-test.js
-```
-
----
-
-## Workload & Thresholds
-
-- **Endpoints tested**:
-  - `GET /api/v1/books` (browsing)
-  - `GET /api/v1/books?q=the` (full-text search)
-  - `GET /api/v1/books/1` (single book view)
-  - `GET /api/v1/categories` (category taxonomy)
-- **Ramping profile**:
-  - 0 -> 30 virtual users over 30s
-  - 30 virtual users sustained for 1m
-  - 30 -> 0 virtual users ramp down over 30s
-  - Total duration: 2 minutes
-- **Thresholds**:
-  - `http_req_duration`: p95 < 800 ms
-  - `http_req_failed`: error rate < 1%
+Note: `php artisan serve` is single-threaded, so local numbers are much slower than the real FrankenPHP server (see
+`RESULTS.md`). Use the local test to compare before/after a change, not as production speed.

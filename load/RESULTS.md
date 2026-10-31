@@ -1,5 +1,19 @@
 # Load Test Results — Public Catalog Endpoints
 
+## Live check (`load/live-check.js`, production)
+
+Not run yet. After running `k6 run -e BASE_URL=https://bookly-api-zasc.onrender.com/api/v1 load/live-check.js`,
+paste the report here with the date:
+
+```
+(date)
+(paste the "Bookly live check" report)
+```
+
+---
+
+## Local stress test (`load/load-test.js`)
+
 - **Date**: 2026-10-15
 - **Environment**: Local development API (`http://127.0.0.1:8000/api/v1`)
 - **Machine**: 11th Gen Intel(R) Core(TM) i5-11300H @ 3.10GHz (4 cores, 8 logical processors), 35.74 GB RAM, Windows 11 Home Single Language 64-bit
