@@ -43,6 +43,9 @@ All branches start from `main` and were checked together: every order merges cle
 - [ ] `feature/download-my-data` — "Download my data" button on Account → Sign-in & security (says "not available yet"
   until `feature/customer-data-export` is merged; safe either order)
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/download-my-data
+- [ ] `feature/admin-orders-auto-refresh` — new orders appear in the admin by themselves (checks every 30 s while
+  the tab is open; a toast, the list reloads, a "New" badge). Frontend only, nothing to set up
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-orders-auto-refresh
 
 After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** on Render (Events tab).
 
