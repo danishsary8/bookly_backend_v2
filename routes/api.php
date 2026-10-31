@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Customer\CartController;
 use App\Http\Controllers\Api\V1\Customer\CheckoutController;
 use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
+use App\Http\Controllers\Api\V1\Customer\DataExportController;
 use App\Http\Controllers\Api\V1\Customer\EmailController;
 use App\Http\Controllers\Api\V1\Customer\NewsletterCustomerController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
@@ -125,6 +126,8 @@ Route::prefix('auth')->group(function () {
 */
 Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
+    // "Download my data": one JSON file with everything the account shows (5 per hour).
+    Route::get('/export', DataExportController::class)->middleware('throttle:5,60');
     Route::patch('/', [ProfileController::class, 'update']);
     Route::delete('/telegram', [ProfileController::class, 'disconnectTelegram'])->middleware('not.demo');
     Route::put('/password', [ProfileController::class, 'changePassword'])->middleware(['not.demo', 'throttle:auth']);

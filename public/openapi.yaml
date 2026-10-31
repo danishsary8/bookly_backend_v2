@@ -1002,6 +1002,22 @@ paths:
       responses: { '200': { description: 'status pending | failed (message says why: no account with this number, number on another account, not +855, deactivated) | done (customer; plus token and expires_at for a sign-in, handed out once)' }, '404': { description: 'Unknown key, or the link expired' } }
   /auth/reset-password:
     post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
+  /me/export:
+    get:
+      tags: [Customer]
+      summary: 'Download my data: one JSON file with everything your account shows (5 per hour)'
+      description: |
+        Profile, addresses, cart, wishlist, orders (with status history), returns, reviews, stock alerts, store credits and
+        newsletter status. Sent as a file download (`Content-Disposition: attachment`). Internal data (password hash,
+        tokens, staff notes and tags) is never included.
+      responses:
+        '200':
+          description: The export file
+          content:
+            application/json:
+              example: { exported_at: '2026-10-30T10:00:00+07:00', profile: { id: 1, name: Sok Dara, email: dara@example.com }, addresses: [], cart: { items: [] }, wishlist: [], orders: [], returns: [], reviews: [], stock_alerts: [], store_credits: [], newsletter: { status: none } }
+        '401': { description: Not signed in }
+        '429': { description: More than 5 exports in an hour }
   /me:
     get: { tags: [Customer], summary: 'Your profile', responses: { '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '200': { description: Customer, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } } } }
     patch: { tags: [Customer], summary: 'Update name, phone, or locale (en|km)', responses: { '200': { description: Updated } } }
