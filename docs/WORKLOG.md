@@ -446,3 +446,24 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   `docs/HANDOFF.md` + `docs/OWNER_TODO.md` on `docs/handoff-notes`). Found while writing: similar books (`/books/{id}/related`,
   cart recommendations) and the free-delivery bar already exist, so prompt 2 audits and fills gaps instead of rebuilding.
   `docs/OWNER_TODO.md`: today's progress ticked, phone-code step paused with the fix (confirm the phone in Sign-in & security).
+- [x] Better "You may also like" lists (2026-10-31, branch `feature/better-similar-books`; PRODUCTION_CHECKLIST 4.1; no migration):
+  - Audit first (demo data): no book pair was bought together twice, so every list was topic matches; *Meditations* got 1 book;
+    a cart with Holmes #1 never suggested #2; the cache was never cleared and a sold-out book could show for an hour.
+  - `RecommendationService`, book page (`/books/{id}/related`, same as `/also-bought`), filled up to `limit` (1-12):
+    same series (next books first, then earlier) > bought together (>= 2 orders) > same category + author (by units sold) >
+    same categories (best sellers) > same authors (highest rated) > store best sellers. Never the book itself, no duplicates, buyable only.
+  - Cart (`/catalog/recommendations`): for each series in the cart, the books after the furthest cart book, then earlier ones;
+    several series take turns; then categories, authors, store best sellers. Never a cart or `exclude_ids` book.
+  - Rankings ("best sellers", "bought together") leave out pending, cancelled, returned and deleted orders (`notSales()`, owner
+    choice B); processing and shipped still count. One `unitsSoldSubquery()` helper replaces three copies.
+  - Cache: 12 ids per book, 1 h, key includes ONE catalogue version (`catalog:recommendations-version`). `catalogChanged()` bumps it
+    after commit on Book created/updated/deleted/restored and after author/category changes in staff edit, bulk edit and CSV import.
+    Stock and visibility are re-checked on every read (a sold-out or hidden book never shows), then the list is cut to `limit`.
+  - Known limits (owner accepted): back-in-stock books, new formats, scheduled books going live and deleted categories/authors
+    reach cached lists within 1 hour.
+  - Docs: `docs/API.md` (rows for `/related`, `/also-bought`, new row for `/catalog/recommendations`), `public/openapi.yaml`.
+  - Tests: `tests/Feature/Catalog/SeriesRecommendationsTest.php` (8), `tests/Feature/Catalog/RecommendationCacheTest.php` (7),
+    `AlsoBoughtTest` now checks the exact order. Each new rule test failed on the old code first. Full suite 642 passing; pint clean.
+  - Verified on the local API with the demo data: *Sign of the Four* → 6, 4, 1, 2, 3, 16; *Meditations* `limit=12` → 12 books;
+    cart with Holmes #1 → 5 first. Not verified: the live API (Render).
+  - Frontend part (separate branch): hide repeats, ask `limit=12`, "You may also like" title, loading skeleton.
