@@ -348,13 +348,49 @@ applies) and written as final in spec 4.6 (`0444105`).
   the winner's discount (same rule as before, the discount can now be an offer).
 - `POST /cart/coupon/check`: no old field changes meaning (they still describe the coupon alone); the winner is in the
   new `best_*` fields.
-- **Not mergeable yet (mid-task state):** `POST /checkout` already charges the winner's amount (same function), but does not
-  yet save `orders.offer_id` + copy, the per-line `discount_amount`, or count/lock `used_count` / `max_orders`. That is the
-  next step; do not merge `feature/offers-engine` before it.
+- ~~Not mergeable yet: checkout did not save the offer.~~ Fixed by `f09ade1` (below).
+- `GET/POST` order responses: new `offer` and item `discount_usd` (added fields, no old meaning changes). Order CSV
+  export: new last column `offer_name` (old columns keep their place). Refunds of **new** orders with a discount now use
+  each line's own share (see below); refunds of older orders are calculated exactly as before.
+
+Coupon check + preview reviewed by the project lead: approved.
+
+| Commit | What |
+|---|---|
+| `f09ade1` | `POST /checkout` saves the winner. Inside the transaction (after the cart, variant and coupon locks): `CheckoutService::lockBestLiveOffer()` reads the live offers **fresh** (`OfferService::liveFresh()`, no cache), locks the row of the offer that would win, re-checks it under the lock (active, dates, `used_count < max_orders`) and, if it is no longer live, drops it and tries the next best. Only the winner's row is locked. The order gets `offer_id` + copy (`offer_name`, `offer_min_quantity`, `offer_percent_off`); each line gets `discount_amount` (`app/Services/Offers/LineDiscounts.php`: offer = each covered line's own discount; coupon = split by line price, rounding cents on the last line, never more than a line's price); `used_count` + 1. O1 = A: optional `offer_id` in the body -> 422 `offer_id` (`messages.offer_ended`, EN + KM) when it no longer wins, nothing placed, cart kept. Cancel (`OrderStatusService::undoOrder`): offer use back, skipped when `offer_id` is null, never below 0. `ReturnService::refundCents`: per-line rule when any line has a discount (grouped by order line, so partial returns add up exactly), else the old proportional rule. `OrderResource` `offer` + item `discount_usd`; CSV `offer_name`. Docs: `docs/API.md` (checkout row, order shape, return estimate, export columns), `openapi.yaml` (`offer_id`, 422, `Order.offer`, item `discount_usd`, cancel summary). |
+- Tests: `tests/Feature/Offers/CheckoutWithOfferTest.php` (12) and `tests/Unit/Offers/LineDiscountsTest.php` (6).
+  **Every placed order is checked: line discounts add up exactly to `orders.discount_amount`, no line over its price.**
+  - Example 1: discount 3.00, total 48.50, lines 1.50/1.50/0.00, copy saved, `coupon_id` null, `used_count` 1, stock -1 each;
+    after delivery, return the cookbook -> refund **$30.00**, then Holmes A -> **$8.50** (Holmes B keeps its discount: no claw-back).
+  - Example 2: READ10 wins, lines 1.00/1.00/3.00, offer `used_count` stays 0, coupon 1; return the cookbook -> **$27.00**.
+  - Coupon rounding: $10 off three $10 books -> 3.33/3.33/3.34. No discount -> 0.00 on every line.
+  - Old order (all lines 0.00, $4.00 whole-order coupon): return the $30 book -> $27.00 (proportional rule unchanged).
+  - Idempotency: same key twice -> same order, `Idempotent-Replayed: true`, one order, `used_count` 1 (not 2).
+  - Last use: `max_orders = 1`; another customer checks out first; then this customer, with `offer_id` -> 422, no order,
+    cart still 3 items; without `offer_id` -> placed at full price (50.00, free delivery), no offer, `used_count` stays 1.
+    The cache still said "free slot" (it was read before), so this also proves checkout reads fresh under the lock.
+  - Best offer used up in the DB but still in the cache -> the next best offer applies (`used_count` 5 and 1).
+  - Paused after the preview + `offer_id` -> 422.
+  - Cancel: use back to 0; cancel again -> 422 and still 0; an offer already at 0 stays 0; offer deleted -> cancel works,
+    order keeps the copy (`offer.id` null).
+  - CSV: header ends with `offer_name`, the row with "Buy 2 Holmes".
+  - `LineDiscounts`: Example 2 split, rest on the last line, a fully discounted last line passes the rest back, 200 seeded
+    random orders always add up exactly, never negative, never over a line's price.
+- Checks on `f09ade1`: `php artisan test` **702 passed**; `vendor/bin/pint --test` clean (pint fixed spacing in
+  `CheckoutService.php` before the commit; the tests were re-run after it, still 702); `openapi.yaml` parses, every `$ref` resolves.
+
+**Race test: what was and was not proven**
+- Proven: the path a waiting checkout takes once the other one has committed (the second checkout sees the used-up offer
+  under the row lock and refuses with `offer_id` / pays full price without it); checkout ignores a stale cache; when the best
+  offer is used up, the next best is used; retries never count twice.
+- **Not proven:** two checkouts running at the **same moment** in two database connections. PHPUnit runs one request at a
+  time inside one test transaction, so a true parallel run is not possible there. The guarantee rests on PostgreSQL's
+  `SELECT ... FOR UPDATE` (the second transaction waits, then reads the committed `used_count`), the same mechanism the
+  coupon limit already uses. A manual check would need two terminals against a real database (not done).
+- Khmer text for `messages.offer_ended` ("ការផ្តល់ជូននេះទើបតែបញ្ចប់។ …") should be read by a native speaker (owner step).
 
 **Where I stopped / next step**
-- Offer vs coupon done and pushed. Waiting for the owner's `confirm`.
-- Next step: `POST /checkout` saves the winner (spec 4.4, 4.7, 4.9, O1 = A): `offer_id` + copy on the order, per-line
-  `discount_amount` (offer exact, coupon split with the rest on the last line), lock live offers in id order + `used_count`,
-  optional `offer_id` in the request -> 422 if it no longer applies, race test for the last use, cancel gives the use back
-  (skip when `offer_id` is null). `OrderResource` `offer` + item `discount_usd`.
+- Checkout saving the offer done and pushed. Waiting for the owner's `confirm`.
+- Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
+  (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
+  `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
