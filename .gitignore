@@ -25,3 +25,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# k6 live check output (numbers go into load/RESULTS.md by hand)
+/load/live-check-result.json

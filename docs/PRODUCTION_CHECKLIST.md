@@ -40,7 +40,7 @@ platform. Written 2026-10-30.
 | 9 | **Uptime alert on `/up`** | Know within minutes when the site is down. | ✅ UptimeRobot set to `/up` (2026-10-30) |
 | 10 | **Typo-tolerant search** | Bagisto offers Elasticsearch. Bookly uses PostgreSQL full-text (fast, no extra service) but a typo finds nothing: `frankenstein` → 1 book, `frankenstien` → 0, `sherlok` → 0 (checked on the demo data). | ✅ typo fallback with `pg_trgm` (branch `feature/typo-tolerant-search`; no new service, no migration) |
 | 11 | **Live admin updates** | Bagisto's admin uses websockets (`echo` module). Bookly staff refresh the page; new orders already reach Telegram. | 🛠 optional; Telegram alerts cover the urgent case |
-| 12 | **Real load test, then cache if needed** | Bagisto has full-page cache. Bookly's only load test (`load/RESULTS.md`) ran on the single-threaded dev server, so real production speed is unknown. | 🛠 re-run `load/load-test.js` against the deployed API, add caching only if it is slow |
+| 12 | **Real load test, then cache if needed** | Bagisto has full-page cache. Bookly's only load test (`load/RESULTS.md`) ran on the single-threaded dev server, so real production speed is unknown. | 🛠 kit ready: `load/live-check.js` (gentle, stays under the API's own limits; branch `feature/load-test-kit`) · 👤 run it once (`load/README.md`), then caching only if a target is missed |
 | 13 | **Cookie notice** | Only needed if you add analytics or ad cookies; sign-in uses a token, not cookies. | 👤 decide when adding analytics |
 
 ## 3. Already done ✅
