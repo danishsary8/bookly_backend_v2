@@ -30,6 +30,10 @@ All branches start from `main` and were checked together: every order merges cle
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/typo-tolerant-search
 - [ ] `feature/load-test-kit` — `load/live-check.js`: a gentle k6 check of the live API (see section 4)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/load-test-kit
+- [ ] `feature/send-emails-after-response` — order, status and security emails are sent right after the answer
+  (faster checkout; a mail outage no longer shows an error after the order is saved). Codes still go out at once.
+  Nothing to set up (free, no worker)
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/send-emails-after-response
 - [ ] `docs/overnight-notes` — this file and the work log
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/overnight-notes
 
@@ -113,7 +117,8 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
   way, or include them?
 - [x] Typo-tolerant search: approved and built (no migration was needed after all).
 - [x] Vitest 5: approved and done (in `chore/dependency-audit`).
-- [ ] **Email worker:** keep sending emails inside the request (free), or a paid Render worker (~$7/month)?
+- [x] Email worker: you chose the free way (emails after the answer, `feature/send-emails-after-response`). A paid
+  worker is only needed later for heavy mail volume.
 - [ ] **Old Neon project `bookly`:** after its quota resets, copy anything you need, then delete it (or keep it).
 
 ---
