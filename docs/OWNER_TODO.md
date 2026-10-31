@@ -38,6 +38,9 @@ All branches start from `main` and were checked together: every order merges cle
 - [ ] `feature/typo-search-notice` — search results say "No exact match for … Showing books with a similar spelling"
   when the backend used typo matching (shows nothing until `feature/typo-tolerant-search` is merged; safe either order)
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/typo-search-notice
+- [ ] `feature/download-my-data` — "Download my data" button on Account → Sign-in & security (says "not available yet"
+  until `feature/customer-data-export` is merged; safe either order)
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/download-my-data
 
 After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** on Render (Events tab).
 
