@@ -58,8 +58,20 @@ Account → Profile is only a courier contact and is not confirmed, so people (t
 - Profile, Khmer, 390 px: the account tab row is cut at the right edge ("អាសយដ្ឋា…"). It scrolls sideways, and it
   existed before this change.
 
-**Review**
-- (reviewer: write findings here)
+**Review** (2026-10-31, project review; verdict: **pass, OK to merge**)
+- Checklist: branch name and both commit messages are plain, no tool names, no Co-authored-by lines. Only the 7
+  files the task needs changed (5 source/i18n, 2 tests) + `docs/WORKLOG.md`. No backend, no migrations, no secrets.
+- Re-ran on the pushed branch (`d78dc9d`, clean install): `npm run lint` 0 errors, `npm run typecheck` clean,
+  `npm test` 440 passed / 3 skipped, `npm run build` ok. Matches the report above.
+- Code: reuses `TextField`'s `hint` prop, so the hint is the field's accessible description and the error replaces it
+  like every other field. Re-check after the first Send is small and correct (`phoneChecked` + `checkPhone`); the test
+  proves no request is sent while typing. Profile link copies the email hint's pattern. Comment updated.
+- Nit (no change needed now): the new Khmer login hint writes "លេខទូរស័ព្ទ" while the field label above it writes
+  "លេខទូរសព្ទ". The app already mixes both spellings; leave it for the native-speaker review (owner step) and fix all
+  of them together then.
+- Nit: the work log went into a second commit; fine, no need to squash.
+- Not verifiable here: the live check (owner step, section 0) and a real bot code.
+
 
 **Where I stopped / next step**
 - Task F is finished and pushed. Next: the owner merges `fix/phone-code-hint`, does the live check in `OWNER_TODO.md`
