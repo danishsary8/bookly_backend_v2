@@ -6,6 +6,7 @@ use App\Enums\BookFormat;
 use App\Enums\OrderStatus;
 use App\Models\Book;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +24,10 @@ class RecommendationService
         $limit = max(1, min(12, $limit));
 
         return Cache::remember("books:{$targetBook->id}:recommendations:{$limit}", 3600, function () use ($targetBook, $limit) {
-            $collected = collect();
+            // 0. Same series: the next books first, then the earlier ones
+            $collected = collect($targetBook->series_id
+                ? $this->querySeriesBookIds($targetBook->series_id, $targetBook->series_order, [$targetBook->id], $limit)
+                : []);
 
             // 1. Co-purchases in completed orders (>= 2 shared orders)
             $coBookIds = $this->queryCoPurchasedBookIds($targetBook->id);
@@ -48,6 +52,9 @@ class RecommendationService
                     ->whereNotIn('books.id', $excludeIds)
                     ->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds))
                     ->whereHas('authors', fn ($a) => $a->whereIn('authors.id', $authorIds))
+                    ->leftJoinSub($this->unitsSoldSubquery(), 'ca_sales', 'ca_sales.book_id', '=', 'books.id')
+                    ->orderByRaw('ca_sales.units_sold DESC NULLS LAST')
+                    ->orderByDesc('books.id')
                     ->limit($needed)
                     ->pluck('books.id')
                     ->all();
@@ -100,7 +107,13 @@ class RecommendationService
             return $this->queryPopularBookIds($allExclude, $limit);
         }
 
-        $collected = collect();
+        // 0. Next books of every series in the cart (then the earlier ones), taking turns between series
+        $collected = collect($this->queryCartSeriesBookIds($cartBookIds, $allExclude, $limit));
+        $allExclude = array_values(array_unique(array_merge($allExclude, $collected->all())));
+
+        if ($collected->count() >= $limit) {
+            return $collected->take($limit)->all();
+        }
 
         // 1. Extract categories and authors of items in the cart
         $categoryIds = DB::table('book_categories')
@@ -117,7 +130,7 @@ class RecommendationService
 
         // 2. Complementary books from the same categories ordered by units sold
         if (! empty($categoryIds)) {
-            $catMatches = $this->queryCategoryBestSellers($categoryIds, $allExclude, $limit);
+            $catMatches = $this->queryCategoryBestSellers($categoryIds, $allExclude, $limit - $collected->count());
             $collected = $collected->concat($catMatches)->unique()->values();
         }
 
@@ -172,6 +185,81 @@ class RecommendationService
             ->limit($limit)
             ->pluck('books.id')
             ->all();
+    }
+
+    /**
+     * Buyable books of one series, never the excluded ones: books after $fromOrder first (reading order), then the
+     * earlier ones (from book 1), then books without a number. With no $fromOrder, plain reading order.
+     *
+     * @param  list<int>  $excludeIds
+     * @return list<int>
+     */
+    private function querySeriesBookIds(int $seriesId, ?int $fromOrder, array $excludeIds, int $limit): array
+    {
+        return $this->baseBuyableQuery()
+            ->where('books.series_id', $seriesId)
+            ->when(! empty($excludeIds), fn ($q) => $q->whereNotIn('books.id', $excludeIds))
+            ->when($fromOrder !== null, fn ($q) => $q->orderByRaw(
+                'CASE WHEN books.series_order > ? THEN 0 WHEN books.series_order IS NOT NULL THEN 1 ELSE 2 END',
+                [$fromOrder],
+            ))
+            ->orderByRaw('books.series_order ASC NULLS LAST')
+            ->orderBy('books.id')
+            ->limit($limit)
+            ->pluck('books.id')
+            ->all();
+    }
+
+    /**
+     * Series suggestions for a cart: for each series in the cart, the books after the furthest one in the cart
+     * (then the earlier ones). Series take turns, so the next book of every series comes before the second of any.
+     *
+     * @param  list<int>  $cartBookIds
+     * @param  list<int>  $excludeIds  already includes the cart books
+     * @return list<int>
+     */
+    private function queryCartSeriesBookIds(array $cartBookIds, array $excludeIds, int $limit): array
+    {
+        $furthest = Book::query()
+            ->whereIn('id', $cartBookIds)
+            ->whereNotNull('series_id')
+            ->groupBy('series_id')
+            ->selectRaw('series_id, MAX(series_order) AS furthest, MIN(id) AS first_id')
+            ->orderBy('first_id')
+            ->get();
+
+        $lists = $furthest
+            ->map(fn ($row) => $this->querySeriesBookIds(
+                (int) $row->series_id,
+                $row->furthest === null ? null : (int) $row->furthest,
+                $excludeIds,
+                $limit,
+            ))
+            ->filter()
+            ->values();
+
+        $picked = [];
+        for ($round = 0; count($picked) < $limit && $lists->contains(fn ($list) => isset($list[$round])); $round++) {
+            foreach ($lists as $list) {
+                if (isset($list[$round]) && count($picked) < $limit) {
+                    $picked[] = $list[$round];
+                }
+            }
+        }
+
+        return $picked;
+    }
+
+    /** Units sold per book in paid orders (not pending, cancelled or deleted). */
+    private function unitsSoldSubquery(): QueryBuilder
+    {
+        return DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->whereNull('orders.deleted_at')
+            ->whereNotIn('orders.status', [OrderStatus::Pending->value, OrderStatus::Cancelled->value])
+            ->groupBy('book_variants.book_id')
+            ->selectRaw('book_variants.book_id, SUM(order_items.quantity) AS units_sold');
     }
 
     /**
