@@ -24,6 +24,15 @@ class OtpService
     }
 
     /**
+     * A sign-in code for the Bookly Telegram bot to send (POST /auth/phone/code). Returns the code; only its hash
+     * is stored. Same rules as email codes: a new code cancels the old one, 5 wrong guesses throw it away.
+     */
+    public function issuePhoneLoginCode(Customer $customer, int $ttlMinutes): string
+    {
+        return $this->newCode($customer, VerificationPurpose::PhoneLogin, $ttlMinutes)[0];
+    }
+
+    /**
      * Emails a code to an address the customer wants to add or switch to. The address is only saved once its
      * code comes back (verifyEmailChange), so a typo never replaces the email the customer already has.
      */
@@ -65,12 +74,12 @@ class OtpService
     }
 
     /** @return array{string, int} the new code and its lifetime in minutes */
-    private function newCode(Customer|StaffUser $user, VerificationPurpose $purpose): array
+    private function newCode(Customer|StaffUser $user, VerificationPurpose $purpose, ?int $ttlMinutes = null): array
     {
         $this->tokensFor($user, $purpose)->whereNull('used_at')->update(['used_at' => now()]);
 
         $code = str_pad((string) random_int(0, 999999), config('auth.otp.length', 6), '0', STR_PAD_LEFT);
-        $ttl = (int) config('auth.otp.ttl_minutes', 15);
+        $ttl = $ttlMinutes ?? (int) config('auth.otp.ttl_minutes', 15);
 
         VerificationToken::create([
             'user_type' => $this->typeOf($user),

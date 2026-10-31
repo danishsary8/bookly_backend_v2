@@ -1002,6 +1002,22 @@ paths:
       security: []
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [key], properties: { key: { type: string } } } } } }
       responses: { '200': { description: 'status pending | failed (message says why: no account with this number, number on another account, not +855, deactivated) | done (customer; plus token and expires_at for a sign-in, handed out once)' }, '404': { description: 'Unknown key, or the link expired' } }
+  /auth/phone/code:
+    post:
+      tags: [Customer auth]
+      summary: Send a sign-in code to a phone number through the Bookly Telegram bot
+      security: []
+      description: 'Works for numbers whose owner opened the Bookly bot before (signed in or confirmed the number with Telegram); others use POST /auth/telegram once. Always the same 202 answer, whether or not the number belongs to an account, so the page cannot be used to find out who shops at Bookly (the code is made and sent after the response). Limits: per number 1 a minute and 5 an hour; per IP 10 per 10 minutes; Turnstile when on.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string, example: '012 345 678' }, turnstile_token: { type: string } } } } } }
+      responses: { '202': { description: 'message, expires_in_minutes (10)' }, '422': { description: 'Not a Cambodian (+855) number' }, '429': { description: 'Too many codes for this number or device (Retry-After)' }, '503': { description: 'The Telegram bot is off' } }
+  /auth/phone/verify:
+    post:
+      tags: [Customer auth]
+      summary: Sign in with the phone number and the code from Telegram
+      security: []
+      description: 'Codes last 10 minutes; a new code cancels the old one; 5 wrong guesses throw a code away. On success the bot confirms the sign-in in the chat with a "Sign me out everywhere" button (24 hours), and a verified email gets a security notice.'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone, code], properties: { phone: { type: string }, code: { type: string, pattern: '^[0-9]{6}$' } } } } } }
+      responses: { '200': { description: 'customer, token, token_type, expires_at' }, '422': { description: 'Wrong or expired code (same answer for an unknown number)' }, '429': { description: 'Too many guesses (5 a minute per number and IP)' } }
   /auth/reset-password:
     post: { tags: [Customer auth], summary: 'Set a new password with the code (signs out everywhere)', security: [], requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string }, code: { type: string }, password: { type: string }, password_confirmation: { type: string } } } } } }, responses: { '200': { description: Reset }, '422': { description: Wrong or expired code } } }
   /me:

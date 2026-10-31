@@ -74,6 +74,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('telegram-link', fn (Request $request) => Limit::perMinutes(10, 10)
             ->by('telegram|'.($request->user()?->getKey() ?? 'guest').'|'.$request->ip()));
 
+        // Sign-in codes by Telegram (owner's limits, 2026-10-31). Per number (1 a minute, 5 an hour) is counted in
+        // PhoneCodeController; these cap one device or network, and code guesses (5 wrong kill a code anyway).
+        RateLimiter::for('phone-code-send', fn (Request $request) => Limit::perMinutes(10, 10)->by('phone-code-send|'.$request->ip()));
+        RateLimiter::for('phone-code-verify', fn (Request $request) => [
+            Limit::perMinute(5)->by('phone-code-verify|'.preg_replace('/\D/', '', (string) $request->input('phone')).'|'.$request->ip()),
+            Limit::perMinute(30)->by('phone-code-verify-ip|'.$request->ip()),
+        ]);
+
         // Limits chosen by the owner on 2026-10-13 ("looser" set, docs/RATE_LIMITS.md). Logged-in routes count per
         // customer or staff member, so people sharing a mobile network IP (CGNAT in Cambodia) don't block each other.
         $who = fn (Request $request): string => $request->user() ? class_basename($request->user()).':'.$request->user()->getKey() : 'ip:'.$request->ip();

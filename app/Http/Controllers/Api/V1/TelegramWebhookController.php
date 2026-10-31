@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Notifications\AccountSecurityNotice;
 use App\Services\Telegram\TelegramBot;
 use App\Services\Telegram\TelegramLinks;
+use App\Services\Telegram\TelegramSignIns;
 use App\Support\PhoneNumber;
 use App\Support\SafeNotifier;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -149,7 +150,7 @@ class TelegramWebhookController extends Controller
             return $this->reply($chatId, 'There is no recent Bookly sign-in from this chat to undo. If something looks wrong, reset your password on the website or contact us.', remove: true);
         }
         // The website may not have collected its sign-in yet: it must get nothing.
-        if ($this->links->find($recent['code'])) {
+        if (($recent['code'] ?? null) !== null && $this->links->find($recent['code'])) {
             $this->links->finish($recent['code'], ['status' => 'failed', 'message' => 'This sign-in was cancelled in Telegram.']);
         }
         $customer->tokens()->delete();
@@ -190,20 +191,9 @@ class TelegramWebhookController extends Controller
     /** A Telegram sign-in: the owner hears about it, and this chat can undo it for a day. */
     private function signedIn(int $chatId, string $code, Customer $customer, string $message): JsonResponse
     {
-        Cache::put('telegram-signout:'.$chatId, ['customer_id' => $customer->id, 'code' => $code], now()->addHours(self::SIGN_OUT_HOURS));
-        $at = now()->timezone('Asia/Phnom_Penh')->format('j M Y, H:i');
-        SafeNotifier::toCustomer($customer, new AccountSecurityNotice(
-            'New sign-in to Bookly with Telegram',
-            "Your Bookly account was signed in with Telegram on {$at} (Phnom Penh time). If this wasn't you, open the Bookly bot and tap “".self::SIGN_OUT_BUTTON.'”, or contact us.',
-            'telegram_sign_in',
-            ['at' => $at, 'button' => self::SIGN_OUT_BUTTON],
-        ));
+        [$text, $keyboard] = app(TelegramSignIns::class)->record($chatId, $customer, $code, $message);
 
-        return $this->reply($chatId, "✅ {$message}\n\nSigned in on {$at}. Not you? Tap “".self::SIGN_OUT_BUTTON.'” within 24 hours.', [
-            'keyboard' => [[['text' => self::SIGN_OUT_BUTTON]]],
-            'resize_keyboard' => true,
-            'one_time_keyboard' => true,
-        ]);
+        return $this->reply($chatId, $text, $keyboard);
     }
 
     /** @return array{string, string, ?Customer} status, message, the account */

@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\EmailController;
 use App\Http\Controllers\Api\V1\Customer\NewsletterCustomerController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
+use App\Http\Controllers\Api\V1\Customer\PhoneCodeController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
@@ -110,6 +111,8 @@ Route::prefix('auth')->group(function () {
     Route::post('/forgot-password', [CustomerAuthController::class, 'forgotPassword'])->middleware('throttle:otp-send');
     Route::post('/telegram', [TelegramAuthController::class, 'login'])->middleware('throttle:telegram-link');
     Route::post('/telegram/status', [TelegramAuthController::class, 'status'])->middleware('throttle:telegram-status');
+    Route::post('/phone/code', [PhoneCodeController::class, 'send'])->middleware('throttle:phone-code-send');
+    Route::post('/phone/verify', [PhoneCodeController::class, 'verify'])->middleware('throttle:phone-code-verify');
 
     Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
         Route::post('/logout', [CustomerAuthController::class, 'logout']);
