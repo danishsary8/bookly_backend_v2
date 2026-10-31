@@ -76,3 +76,76 @@ Account → Profile is only a courier contact and is not confirmed, so people (t
 **Where I stopped / next step**
 - Task F is finished and pushed. Next: the owner merges `fix/phone-code-hint`, does the live check in `OWNER_TODO.md`
   section 0, then confirms the phone in Sign-in & security (section 4c). Next task prompt: `docs/prompts/02-you-may-also-like.md`.
+
+---
+## 2026-10-31 · Task A: "You may also like" (similar books), PRODUCTION_CHECKLIST.md 4.1
+**Branches (planned, not created yet)**
+- Backend `feature/better-similar-books`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books
+- Frontend `feature/better-similar-books`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
+**Status:** partly done. Step 1 (read-only audit) finished; the owner chose the fixes. No code changed yet.
+
+**What already exists (do not rebuild)**
+- Routes (`routes/api.php`): `GET /books/{id}/related` and `GET /books/{id}/also-bought` (same method,
+  `BookController::alsoBought` calls `related`), `GET /catalog/recommendations?cart_ids=&exclude_ids=&limit=`
+  (note: the path is `/catalog/...`, not `/books/recommendations`). `limit` 1 to 12, default 6.
+- Logic: `app/Services/Catalog/RecommendationService.php`.
+  - Book page (`getRecommendedIdsForBook`, cached 1 h, key `books:{id}:recommendations:{limit}`):
+    1. co-purchases in >= 2 shared paid orders (not pending/cancelled, not soft-deleted), most shared first;
+    2. same category AND same author (no ORDER BY, so the database picks the order);
+    3. same categories, by units sold, then rating, then newest id;
+    4. same authors, by rating, then newest id;
+    nothing after that. Always: not the book itself, no duplicates, visible + buyable (`baseBuyableQuery`: an
+    active variant with stock > 0, or an ebook/audiobook).
+  - Cart (`getRecommendedIdsForCart`, not cached): same categories by units sold, then same authors (newest),
+    then store best sellers (`queryPopularBookIds`). Empty cart = store best sellers.
+  - Controller `related()` re-loads with `catalogQuery()` (visible only) but does NOT re-check stock.
+- Tests: `tests/Feature/Catalog/RelatedBooksTest.php` (5), `tests/Feature/Platform/AlsoBoughtTest.php` (3).
+- Frontend: `src/pages/catalog/BookDetailPage.tsx` rows in order: series (`otherInSeries`, from `/series/{id}`),
+  "More by {author}" (`otherByAuthor`, up to 8), also-bought (`alsoBought`, ~line 553, eyebrow
+  `book.alsoBoughtEyebrow` "Customers also bought", title `book.alsoBought` "Readers also enjoyed", no `loading`
+  prop), recently viewed. `src/pages/cart/CartPage.tsx` `CartRecommendations` (`cartPage.recommendedEyebrow`,
+  `recommendedWithOrder` / `popularPicks`). Shared row: `src/components/catalog/BookShelf.tsx` (hides itself when
+  loaded and empty; skeleton when `loading`). API calls: `src/api/endpoints/catalog.ts`. No frontend test covers
+  these rows.
+
+**Audit results on the local demo data (20 books, 10 paid orders)**
+- No book pair was bought together twice, so step 1 (co-purchases) never fires: every result is a topic match,
+  yet the row says "Customers also bought".
+- Book 5 *The Sign of the Four* (Sherlock Holmes #2) → 4, 6, 1, 2, 3, 16. Holmes books appear only because they
+  share the author, and they appear in three rows (series, author, also-bought).
+- Book 18 *Meditations* → only 1 book (19). No fallback on the book page.
+- Cart with book 4 (Holmes #1) → 6, 1, 2, 3, 16, 15. The next book in the series (5) is missing.
+- Cache is never cleared; a sold-out book can show for up to 1 h; edits to categories/authors take up to 1 h.
+- Khmer strings exist but are marked `// draft`. 390 px browser check not done yet (shared `BookShelf`, 2 cards wide).
+
+**Decisions the owner made (2026-10-31): 1A 2A 3A 4B, with changes**
+1. **1A Series first** (book page AND cart): later books in the series first (by `series_order`), then earlier ones;
+   step 2 (same category + author) gets a real sort (by sales).
+2. **2A Frontend**: remove books already shown in the series or author rows; ask for `limit=12` so enough stay;
+   rename the row to eyebrow "More like this", title "You may also like" (+ Khmer); add the loading skeleton;
+   **hide the row if fewer than 2 books are left** after removing repeats. Must still work against today's API.
+3. **3A changed by the owner**: fill the rest of the book-page row with best sellers from the SAME CATEGORY first,
+   then store best sellers. Never the book itself, no duplicates, in stock only.
+4. **4B Cache**: cache 12 ids; clear a book's cached list when staff edit the book (version number in the cache
+   key, works with the `file` store). **Stock re-check on every read**, so a sold-out book never shows, even when cached.
+
+**Planned steps (one per "confirm")**
+- Backend `feature/better-similar-books` from fresh `origin/main`:
+  - Step 2: fix 1 (series next-first, then earlier; cart too). Tests: series next-first then earlier; never the book
+    itself; no duplicates.
+  - Step 3: fix 3 (fallback same-category best sellers, then store best sellers). Test: fallback order.
+  - Step 4: fix 4 (cache 12 ids, re-check stock on read, version key bumped on staff book edit). Tests: sold-out
+    excluded even when cached; staff edit clears the cache.
+  - Then `php artisan test` + `vendor/bin/pint --test`; update `docs/API.md` + `public/openapi.yaml` descriptions
+    of the order/behaviour; WORKLOG entry; push.
+- Frontend `feature/better-similar-books` from fresh `origin/main`: step 5: fix 2. Then lint, typecheck, test,
+  build; browser check: a book in a series (e.g. id 5), a book without one (e.g. id 18 or 1), the cart; desktop +
+  390 px; English + Khmer. WORKLOG entry; push.
+- Finally: update this section and `docs/OWNER_TODO.md` (merge links, live check).
+
+**Not verified yet:** everything after step 1. 390 px layout of the row in a browser.
+**Open questions:** none.
+**Where I stopped / next step**
+- Step 1 done and decisions recorded. Next: step 2, create backend `feature/better-similar-books` from fresh
+  `origin/main` and add "series first" to `RecommendationService` with its tests. Local API was started on :8000
+  (`php artisan serve`) for the audit.
