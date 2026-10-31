@@ -36,6 +36,9 @@ All branches start from `main` and were checked together: every order merges cle
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/send-emails-after-response
 - [ ] `feature/staging-setup-kit` — the staging guide (`docs/STAGING.md`) and CI on the `staging` branch. Docs only
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/staging-setup-kit
+- [ ] `feature/telegram-phone-code` — sign in with a phone number + a 6-digit code from the Bookly bot (no
+  migration). Merge together with the frontend branch of the same name (either first is safe)
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/telegram-phone-code
 - [ ] `docs/overnight-notes` — this file and the work log
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/overnight-notes
 
@@ -52,6 +55,9 @@ All branches start from `main` and were checked together: every order merges cle
 - [ ] `feature/admin-orders-auto-refresh` — new orders appear in the admin by themselves (checks every 30 s while
   the tab is open; a toast, the list reloads, a "New" badge). Frontend only, nothing to set up
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-orders-auto-refresh
+- [ ] `feature/telegram-phone-code` — the phone sign-in asks for the number and the code; Continue with Telegram
+  stays under it as the backup (before the backend part is live, it says codes aren't available yet)
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/telegram-phone-code
 - [ ] `feature/staging-banner` — a "Staging site: test data only" bar, shown only when `VITE_APP_ENV=staging`
   (nothing changes on the live site); CI on the `staging` branch
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/staging-banner
@@ -120,6 +126,15 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
   `bookly-staging`, Render `bookly-api-staging`, demo data, Vercel Preview variables).
 - [ ] **Important:** keep `bookly-api-staging` **suspended** when you are not testing. Render's free hours are shared,
   and the live API uses almost all of them; running out stops the live shop too.
+
+---
+
+## 4c. Try the phone code on the live site (after both `feature/telegram-phone-code` branches are deployed)
+
+- [ ] Sign in → **Sign in with phone number?** → your own number → **Send code in Telegram** → the Bookly bot sends
+  a code → type it → you are signed in, and the bot says "Signed in … Not you?".
+- [ ] Nothing arrives? Your number was linked before the bot stored chats: tap **Continue with Telegram** once,
+  then codes work for it.
 
 ---
 
