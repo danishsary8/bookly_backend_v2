@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Notifications\Concerns\SendsAfterResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -12,7 +13,7 @@ use Illuminate\Notifications\Notification;
 /** Tells the customer about processing, shipped, delivered and cancelled. The staff note (e.g. tracking number) is included. */
 class OrderStatusChangedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsAfterResponse;
 
     public function __construct(
         public readonly Order $order,

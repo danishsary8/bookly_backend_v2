@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\SendsAfterResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 /** Sent when the shop reopens an account the customer closed (within its 30 days). */
 class AccountReopenedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsAfterResponse;
 
     public function via(object $notifiable): array
     {
