@@ -185,7 +185,11 @@ branch never conflicts with the R2 branch's own entry at the end.
   "No query results for model [App\Models\Order] 7" (found by testing with `APP_DEBUG=false`); unknown routes unchanged.
   OpenAPI: `/books/{id}` 404 example moved into the shared `NotFound` response (OpenAPI ignores siblings of `$ref`).
   Docs status badge says "Busy" on a 429 instead of "Database unavailable". 2 tests; browser check of `/docs`.
-- [x] Safety check: all 5 open backend branches merged together in two orders → clean; combined suite 608/608, pint
+- [x] `fix/demo-reset-keeps-going` (second commit): new `OrderStatusService::cancelAutomatically()` (same pending-only
+  rule, stock and coupon restored) so the history reads "Cancelled automatically: hourly demo reset". Test added.
+- [x] `fix/docs-stale-demo-token`: on load, `/docs` checks a saved demo token with `GET /me`; on 401 it clears it and
+  says "Your demo session ended. Sign in again." Browser-checked: valid, expired and no token.
+- [x] Safety check: all 7 open backend branches merged together in two orders → clean; combined suite 609/609, pint
   clean, `composer audit` clean.
 - [x] Frontend `chore/dependency-audit`: `npm audit fix` (no majors), 14 → 6 advisories, shipped code 0 (details in
   the frontend worklog).

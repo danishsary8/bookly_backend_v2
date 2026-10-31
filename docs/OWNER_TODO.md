@@ -9,19 +9,22 @@ working with today's settings.
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
-608 backend tests. For each link: **Create pull request** → wait for green CI → **Merge**.
+609 backend tests. For each link: **Create pull request** → wait for green CI → **Merge**.
 
 **Backend** (`bookly_backend_v2`)
 - [ ] `feature/r2-media-storage` — book covers can be stored on Cloudflare R2 (stays on today's disk until you do step 3)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/r2-media-storage
 - [ ] `fix/symfony-mime-advisory` — security update (symfony/mime 7.4.22, CVE-2026-45070)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/symfony-mime-advisory
-- [ ] `fix/demo-reset-keeps-going` — the hourly demo reset no longer stops at one bad order
+- [ ] `fix/demo-reset-keeps-going` — the hourly demo reset no longer stops at one bad order, and the order history
+  says "Cancelled automatically" instead of "Cancelled by customer"
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/demo-reset-keeps-going
 - [ ] `feature/customer-data-export` — new `GET /api/v1/me/export` ("Download my data")
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/customer-data-export
 - [ ] `fix/docs-small-followups` — 404s no longer reveal internal class names; two docs fixes
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/docs-small-followups
+- [ ] `fix/docs-stale-demo-token` — the docs page checks a saved demo token, so an expired one never shows "Signed in"
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/docs-stale-demo-token
 - [ ] `docs/overnight-notes` — this file and the work log
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/overnight-notes
 
