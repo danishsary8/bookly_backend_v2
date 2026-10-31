@@ -32,6 +32,9 @@ Resend is down, that request fails), no scheduler (the housekeeping jobs run fro
 and migrations run when the container starts (`RUN_MIGRATIONS=true`) because the free plan has no pre-deploy step
 and no shell — admin and demo data are created from your own computer (steps F5-F6).
 
+Want to try changes on a private copy first? See `docs/STAGING.md` (second free Render service, its own Neon
+project, demo data only).
+
 ### F1. Neon database
 1. Sign up at neon.tech (GitHub login) → **New project** → name `bookly`, Postgres 17 or newer, region **AWS Asia Pacific (Singapore)**.
 2. **Connect** → turn **Connection pooling off** (direct connection) → copy the connection string:
