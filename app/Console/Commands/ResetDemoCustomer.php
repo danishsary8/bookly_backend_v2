@@ -8,6 +8,7 @@ use App\Services\Cart\CartService;
 use App\Services\Orders\OrderStatusService;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Console\Command;
+use Throwable;
 
 class ResetDemoCustomer extends Command
 {
@@ -28,13 +29,21 @@ class ResetDemoCustomer extends Command
         $demo->forceFill(['name' => 'Demo Customer', 'password_hash' => DemoSeeder::PASSWORD])->save();
         $carts->clear($demo);
 
-        // The real customer cancel, so stock and coupon uses come back exactly as they would for a shopper.
+        // The same cancel rules as a shopper (stock and coupon uses come back), recorded as automatic in the history.
+        // One order that can't be cancelled (e.g. staff moved it on a moment earlier) is reported and skipped, so it
+        // never holds back the others; it is tried again on the next run if it is still pending.
         $stale = $demo->orders()->where('status', OrderStatus::Pending)->where('placed_at', '<', now()->subHour())->get();
+        $cancelled = 0;
         foreach ($stale as $order) {
-            $statuses->cancelByCustomer($order, 'Daily demo reset');
+            try {
+                $statuses->cancelAutomatically($order, 'hourly demo reset');
+                $cancelled++;
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
 
-        $this->info("Demo reset: cart emptied, {$stale->count()} stale order(s) cancelled.");
+        $this->info("Demo reset: cart emptied, {$cancelled} stale order(s) cancelled.");
 
         return self::SUCCESS;
     }
