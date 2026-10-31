@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OfferPayload;
 use App\Http\Resources\OrderResource;
 use App\Services\CurrencyService;
 use App\Services\Orders\CheckoutService;
@@ -38,7 +39,11 @@ class CheckoutController extends Controller
             'shipping_fee' => $money($totals['shipping_cents']),
             'tax' => $money($totals['tax_cents']),
             'total' => $money($totals['total_cents']),
+            // Only when the coupon won; a valid coupon that lost to an offer is in coupon_not_used.
             'coupon_code' => $totals['coupon']?->code,
+            'applied' => $totals['choice']->applied,
+            'offer' => OfferPayload::offer($totals['choice']->offer, $currency),
+            'coupon_not_used' => $totals['choice']->couponNotUsedPayload(),
             'requires_shipping' => $totals['requires_shipping'],
             'delivery_area' => $totals['delivery_area'],
             'can_checkout' => $totals['can_checkout'],

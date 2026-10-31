@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OfferPayload;
 use App\Services\Cart\CartService;
 use App\Services\Cart\CouponService;
 use App\Services\CurrencyService;
+use App\Services\Offers\CartPricing;
+use App\Services\Offers\DiscountChoice;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +25,7 @@ class CouponCheckController extends Controller
 
     public const LOCK_MINUTES = 15;
 
-    public function __invoke(Request $request, CartService $carts, CouponService $coupons, CurrencyService $currency): JsonResponse
+    public function __invoke(Request $request, CartService $carts, CouponService $coupons, CurrencyService $currency, CartPricing $pricing): JsonResponse
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:50']]);
         $wrongKey = 'coupon-wrong:'.$request->user()->getKey();
@@ -54,7 +57,12 @@ class CouponCheckController extends Controller
         $discountUsd = Money::format($discount);
         $total = Money::format($summary['subtotal_cents'] - $discount);
 
+        // Offer vs coupon, the same choice checkout makes (spec 4.4, 6.2).
+        $choice = DiscountChoice::pick($pricing->bestOffer($summary), $coupon, $discount);
+        $bestTotal = $summary['subtotal_cents'] - $choice->discountCents;
+
         return response()->json(['data' => [
+            // These describe the coupon alone, as before.
             'code' => $coupon->code,
             'type' => $coupon->type->value,
             'value' => $coupon->value,
@@ -63,6 +71,13 @@ class CouponCheckController extends Controller
             'discount_khr' => $currency->usdToKhr($discountUsd),
             'total_before_shipping_usd' => $total,
             'total_before_shipping_khr' => $currency->usdToKhr($total),
+            // New: which one the customer gets, and its numbers.
+            'applied' => $choice->applied,
+            'offer' => OfferPayload::offer($choice->offer, $currency),
+            'coupon_not_used' => $choice->couponNotUsedPayload(),
+            ...OfferPayload::money($choice->discountCents, 'best_discount', $currency),
+            ...OfferPayload::money($bestTotal, 'best_total_before_shipping', $currency),
+            'free_shipping' => OfferPayload::freeShipping(CartPricing::freeShipping($summary['lines'], $bestTotal), $currency),
         ]]);
     }
 }

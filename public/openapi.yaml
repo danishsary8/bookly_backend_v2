@@ -247,7 +247,10 @@ components:
         shipping_fee: { $ref: '#/components/schemas/Amount' }
         tax: { $ref: '#/components/schemas/Amount' }
         total: { $ref: '#/components/schemas/Amount' }
-        coupon_code: { type: string, nullable: true }
+        coupon_code: { type: string, nullable: true, description: 'Set only when the coupon won against the offer.' }
+        applied: { type: string, enum: [offer, coupon], nullable: true, description: 'Which discount `discount` and `total` use (never both; bigger wins; tie -> offer).' }
+        offer: { $ref: '#/components/schemas/CartOffer' }
+        coupon_not_used: { $ref: '#/components/schemas/CouponNotUsed' }
         requires_shipping: { type: boolean, description: false when the cart only has ebooks/audiobooks }
         delivery_area: { type: string, enum: [phnom_penh, provinces], nullable: true, description: 'Area the shipping fee was priced for; null when the customer has no address yet (the provinces fee is quoted)' }
         can_checkout: { type: boolean }
@@ -268,6 +271,44 @@ components:
         discount_khr: { $ref: '#/components/schemas/Riel' }
         total_before_shipping_usd: { $ref: '#/components/schemas/Money' }
         total_before_shipping_khr: { $ref: '#/components/schemas/Riel' }
+        applied: { type: string, enum: [offer, coupon], description: 'The discount the customer gets (the fields above are the coupon alone).' }
+        offer: { $ref: '#/components/schemas/CartOffer' }
+        coupon_not_used: { $ref: '#/components/schemas/CouponNotUsed' }
+        best_discount_usd: { $ref: '#/components/schemas/Money' }
+        best_discount_khr: { $ref: '#/components/schemas/Riel' }
+        best_total_before_shipping_usd: { $ref: '#/components/schemas/Money' }
+        best_total_before_shipping_khr: { $ref: '#/components/schemas/Riel' }
+        free_shipping: { $ref: '#/components/schemas/CartFreeShipping' }
+    CartOffer:
+      type: object
+      nullable: true
+      description: The best live offer for the cart (tie -> lower id); null when none applies.
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [buy_n_percent] }
+        min_quantity: { type: integer, example: 2 }
+        percent_off: { type: string, example: '15.00' }
+        ends_at: { type: string, format: date-time, nullable: true }
+        target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
+        discount_usd: { $ref: '#/components/schemas/Money' }
+        discount_khr: { $ref: '#/components/schemas/Riel' }
+    CartFreeShipping:
+      type: object
+      nullable: true
+      description: Null when free delivery is off (FREE_SHIPPING_THRESHOLD empty or 0) or the cart has only ebooks/audiobooks. Judged on subtotal minus discount, like checkout.
+      properties:
+        threshold_usd: { $ref: '#/components/schemas/Money' }
+        threshold_khr: { $ref: '#/components/schemas/Riel' }
+        amount_needed_usd: { $ref: '#/components/schemas/Money' }
+        amount_needed_khr: { $ref: '#/components/schemas/Riel' }
+        is_free: { type: boolean }
+    CouponNotUsed:
+      type: object
+      nullable: true
+      description: A valid coupon that was not used because the offer saves at least as much.
+      properties:
+        code: { type: string, example: READ10 }
+        reason: { type: string, enum: [offer_better] }
     TokenResponse:
       type: object
       properties:
@@ -403,19 +444,7 @@ components:
         discount_khr: { $ref: '#/components/schemas/Riel' }
         total_before_shipping_usd: { $ref: '#/components/schemas/Money' }
         total_before_shipping_khr: { $ref: '#/components/schemas/Riel' }
-        offer:
-          type: object
-          nullable: true
-          description: The offer that saves the most (tie -> lower id); null when none applies.
-          properties:
-            id: { type: integer }
-            type: { type: string, enum: [buy_n_percent] }
-            min_quantity: { type: integer, example: 2 }
-            percent_off: { type: string, example: '15.00' }
-            ends_at: { type: string, format: date-time, nullable: true }
-            target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
-            discount_usd: { $ref: '#/components/schemas/Money' }
-            discount_khr: { $ref: '#/components/schemas/Riel' }
+        offer: { $ref: '#/components/schemas/CartOffer' }
         nudge:
           type: object
           nullable: true
@@ -427,16 +456,7 @@ components:
             add_quantity: { type: integer, example: 1 }
             percent_off: { type: string, example: '15.00' }
             target_label: { type: string, nullable: true }
-        free_shipping:
-          type: object
-          nullable: true
-          description: Null when free delivery is off (FREE_SHIPPING_THRESHOLD empty or 0) or the cart has only ebooks/audiobooks. Judged on subtotal minus discount, like checkout.
-          properties:
-            threshold_usd: { $ref: '#/components/schemas/Money' }
-            threshold_khr: { $ref: '#/components/schemas/Riel' }
-            amount_needed_usd: { $ref: '#/components/schemas/Money' }
-            amount_needed_khr: { $ref: '#/components/schemas/Riel' }
-            is_free: { type: boolean }
+        free_shipping: { $ref: '#/components/schemas/CartFreeShipping' }
     Order:
       type: object
       properties:

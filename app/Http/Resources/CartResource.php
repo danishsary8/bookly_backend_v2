@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use App\Services\CurrencyService;
 use App\Services\Offers\CartPricing;
-use App\Services\Offers\OfferResult;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -53,40 +52,20 @@ class CartResource extends JsonResource
 
     private function pricing(array $pricing, CurrencyService $currency): array
     {
-        $money = fn (int $cents, string $name) => [
-            "{$name}_usd" => Money::format($cents),
-            "{$name}_khr" => $currency->usdToKhr(Money::format($cents)),
-        ];
-
-        /** @var OfferResult|null $offer */
-        $offer = $pricing['offer'];
         $nudge = $pricing['nudge'];
-        $free = $pricing['free_shipping'];
 
         return [
-            ...$money($pricing['subtotal_cents'], 'subtotal'),
-            ...$money($pricing['discount_cents'], 'discount'),
-            ...$money($pricing['subtotal_cents'] - $pricing['discount_cents'], 'total_before_shipping'),
-            'offer' => $offer === null ? null : [
-                'id' => $offer->offer->id,
-                'type' => 'buy_n_percent',
-                'min_quantity' => $offer->offer->minQuantity,
-                'percent_off' => $offer->offer->percentOff,
-                'ends_at' => $offer->offer->endsAtIso,
-                'target_label' => $offer->offer->targetLabel,
-                ...$money($offer->discountCents, 'discount'),
-            ],
+            ...OfferPayload::money($pricing['subtotal_cents'], 'subtotal', $currency),
+            ...OfferPayload::money($pricing['discount_cents'], 'discount', $currency),
+            ...OfferPayload::money($pricing['subtotal_cents'] - $pricing['discount_cents'], 'total_before_shipping', $currency),
+            'offer' => OfferPayload::offer($pricing['offer'], $currency),
             'nudge' => $nudge === null ? null : [
                 'offer_id' => $nudge['offer']->id,
                 'add_quantity' => $nudge['add_quantity'],
                 'percent_off' => $nudge['offer']->percentOff,
                 'target_label' => $nudge['offer']->targetLabel,
             ],
-            'free_shipping' => $free === null ? null : [
-                ...$money($free['threshold_cents'], 'threshold'),
-                ...$money($free['amount_needed_cents'], 'amount_needed'),
-                'is_free' => $free['is_free'],
-            ],
+            'free_shipping' => OfferPayload::freeShipping($pricing['free_shipping'], $currency),
         ];
     }
 }

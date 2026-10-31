@@ -19,6 +19,8 @@ use App\Notifications\OrderPlacedNotification;
 use App\Services\Cart\CartService;
 use App\Services\Cart\CouponService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Offers\CartPricing;
+use App\Services\Offers\DiscountChoice;
 use App\Services\Telegram\CustomerOrderUpdates;
 use App\Services\Telegram\OpsAlerts;
 use App\Support\Money;
@@ -32,6 +34,7 @@ class CheckoutService
         private readonly CartService $carts,
         private readonly CouponService $coupons,
         private readonly InventoryService $inventory,
+        private readonly CartPricing $pricing,
     ) {}
 
     /**
@@ -168,22 +171,31 @@ class CheckoutService
         return $result;
     }
 
+    /**
+     * THE totals function: the preview (quote) and placing an order (place) both use it, so they cannot differ.
+     * Offer vs coupon is decided by DiscountChoice (better one wins, tie -> offer). A coupon that is wrong, expired or
+     * needs a bigger order is still refused exactly as before, even when an offer would win anyway.
+     */
     private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address): array
     {
         $subtotal = $summary['subtotal_cents'];
         $coupon = null;
-        $discount = 0;
+        $couponDiscount = 0;
 
         if ($couponCode !== null && $couponCode !== '') {
             if ($subtotal === 0) {
                 throw ValidationException::withMessages(['coupon_code' => 'Add items to your cart before using a coupon.']);
             }
             try {
-                ['coupon' => $coupon, 'discount_cents' => $discount] = $this->coupons->evaluate($customer, $couponCode, $subtotal);
+                ['coupon' => $coupon, 'discount_cents' => $couponDiscount] = $this->coupons->evaluate($customer, $couponCode, $subtotal);
             } catch (ValidationException $e) {
                 throw ValidationException::withMessages(['coupon_code' => $e->errors()['code'] ?? $e->getMessage()]);
             }
         }
+
+        $choice = DiscountChoice::pick($this->pricing->bestOffer($summary), $coupon, $couponDiscount);
+        $discount = $choice->discountCents;
+        $coupon = $choice->coupon;
 
         $requiresShipping = $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
         $area = DeliveryArea::for($address);
@@ -226,7 +238,8 @@ class CheckoutService
             'province_code' => $provinceCode,
             'province_name' => $province['name_en'] ?? null,
             'estimated_delivery' => $estimatedDelivery,
-            'coupon' => $coupon,
+            'coupon' => $coupon,           // only when the coupon won
+            'choice' => $choice,           // applied, offer, coupon not used
             'can_checkout' => $summary['can_checkout'],
         ];
     }

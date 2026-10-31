@@ -34,6 +34,19 @@ class CartPricing
             $nudge = $this->calculator->nudge($live, $lines, $offer);
         }
 
+        return $this->shape($summary, $offer, $nudge);
+    }
+
+    /** The live offer that saves the most on this cart, or null (spec 4.4 step 1). Used by checkout totals. */
+    public function bestOffer(array $summary): ?OfferResult
+    {
+        $live = $this->offers->live();
+
+        return $live === [] ? null : $this->calculator->best($live, $this->offerLines($summary['lines']));
+    }
+
+    private function shape(array $summary, ?OfferResult $offer, ?array $nudge): array
+    {
         $subtotal = $summary['subtotal_cents'];
         $discount = $offer?->discountCents ?? 0;
 
