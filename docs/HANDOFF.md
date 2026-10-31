@@ -81,9 +81,8 @@ Account → Profile is only a courier contact and is not confirmed, so people (t
 ## 2026-10-31 · Task A: "You may also like" (similar books), PRODUCTION_CHECKLIST.md 4.1
 **Branches**
 - Backend `feature/better-similar-books` (pushed): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books
-- Frontend `feature/better-similar-books` (not created yet): https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
-**Status:** partly done. Backend fixes 1, 3, 4 + the owner's order-status rule are pushed and green; backend
-WORKLOG entry and the frontend fix 2 are still to do. (Progress details at the end of this section.)
+- Frontend `feature/better-similar-books` (pushed): https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
+**Status:** done (both branches pushed, not merged). Backend approved by the project lead. (Details at the end.)
 
 **What already exists (do not rebuild)**
 - Routes (`routes/api.php`): `GET /books/{id}/related` and `GET /books/{id}/also-bought` (same method,
@@ -178,8 +177,38 @@ None of them can show a wrong book (stock and visibility are re-checked on every
 - A category or author is deleted (pivot rows go without a book event).
 - After a re-check removes sold-out or hidden books, a cached list can be shorter than `limit` until it is rebuilt.
 
-**Not verified yet:** the frontend part (fix 2) and its browser check. Live API (Render) not called.
-**Open questions:** none.
+- `00e8612`: backend `docs/WORKLOG.md` entry. **Review** (project lead, 2026-10-31): 642 tests + pint re-run on
+  `00e8612`, **approved**.
+
+**Frontend progress (branch `feature/better-similar-books`, commit `a0a8597`)**
+- `src/pages/catalog/BookDetailPage.tsx`: the old "Customers also bought" row (`/also-bought`, 6 books) is replaced by
+  `SimilarBooks`: `GET /books/{id}/related?limit=12` (exists on today's API too), minus the current book and every book
+  the series row and the "More by" row show. Recently viewed is NOT removed (it is history, not a suggestion; removing it
+  would empty the row for people who browse a lot; the owner allowed skipping it).
+- Loading: the shelf skeleton shows while the list, the book, the series row or the author row is loading (the repeats
+  can only be removed once those are known). Loaded with fewer than 2 books left → renders nothing (no heading, no gap).
+  Errors behave like before: the row just does not show.
+- Strings: `book.similarEyebrow` "More like this" / "សៀវភៅស្រដៀងគ្នា", `book.similarTitle` "You may also like" /
+  "អ្នកប្រហែលជាចូលចិត្ត" (same Khmer as the cart's existing "You may also like"). Old `alsoBought*` keys and their
+  `// draft` mark removed. `catalogApi.alsoBought` is left in `catalog.ts` (unused now; harmless).
+- Tests (`src/pages/catalog/catalog-pages.test.tsx`, 4 new): asks 12 + repeats removed (series/author/self); row hidden
+  with < 2 left; skeleton while loading, then nothing when empty; fewer than 12 shown in the API's order. A default
+  `related` mock was added to the older detail tests.
+- Checks: `npm run lint` 0, `npm run typecheck` clean, `npm test` 444 passed / 3 skipped, `npm run build` ok.
+- Browser (Playwright/Chromium, Vite :5173, demo data, EN + KM, 1280 + 390 px), two runs:
+  - Local API on the **new backend branch**: Holmes #2 → series row 4, 6; author row 6, 4; "You may also like"
+    1, 2, 3, 16, 15, 14, 13, 11, 10, 20 (no repeats, not itself). Meditations → 12 books. Cart (demo customer,
+    Holmes #1) → 5, 6, 1, 2, 3, 16. Khmer eyebrow + title show. No horizontal overflow anywhere.
+  - Local API on **backend `main`** (= today's live API code): Holmes #2 same row, no repeats; Meditations → only 1
+    book left, so the row is hidden (no heading, no gap); cart → 6, 1, 2, … (old order). So the frontend works alone.
+  - Console: only cover images from an external photo host failing (no internet in this sandbox); no app errors.
+
+**Not verified:** the live site (Render + Vercel) in a browser (owner step in `OWNER_TODO.md` section 0); the Khmer
+eyebrow by a native speaker.
+**Open questions:** is "សៀវភៅស្រដៀងគ្នា" a natural Khmer eyebrow for "More like this"? (owner step)
 **Where I stopped / next step**
-- Backend code, tests and docs are pushed (`f6e26e9`). Next: step 5, backend `docs/WORKLOG.md` entry on
-  `feature/better-similar-books` (checks first, push). Then the frontend branch, fix 2.
+- Task A is finished on both branches, pushed, not merged. Merge order: any.
+  Backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books ·
+  Frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
+- Next: the owner merges both and does the live check in `OWNER_TODO.md` section 0 (Task A). Next task prompt:
+  `docs/prompts/03-*` (offers + reports), as listed in `docs/prompts/`.

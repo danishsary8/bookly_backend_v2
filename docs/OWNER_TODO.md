@@ -33,6 +33,25 @@ working with today's settings.
   if a native speaker would say it differently.
 - [ ] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
 
+**Task A: "You may also like" (similar books)** (backend + frontend; no migration, no setting to change; merge order: any,
+each branch works alone)
+- [ ] Merge the backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books →
+  **Create pull request** → wait for green CI → check the reviewer checklist → **Merge**. Render deploys by itself.
+- [ ] Merge the frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books →
+  **Create pull request** → green CI → **Merge**. Vercel deploys by itself.
+- [ ] Live check when both show **Ready/Live** (the first visit may take ~1 minute while Render wakes up):
+  1. Open a book in a series, e.g. the 2nd Sherlock Holmes book on https://bookly-frontend-five.vercel.app/books →
+     scroll down: rows "The series", "More by …", then **More like this / You may also like**. No book in the last row
+     is in the two rows above, and the book itself is not in it.
+  2. Open a book with few matches (e.g. *Meditations*) → **You may also like** shows a full row (up to 12 books).
+  3. Sign in, put the 1st book of a series in the cart → open **Cart** → under **Recommended with your order** the
+     next book of that series comes first.
+  4. Switch the language to Khmer → the row reads **សៀវភៅស្រដៀងគ្នា / អ្នកប្រហែលជាចូលចិត្ត**.
+  5. On your phone (or the browser at phone width) → the rows scroll sideways and the page does not.
+- [ ] Khmer wording: is **សៀវភៅស្រដៀងគ្នា** ("similar books") a natural eyebrow for "More like this"? Change it if not.
+- Note (no action): if staff mark a book back in stock, add a format, or a scheduled book goes live, it can take up to
+  1 hour to join these lists. A sold-out book never shows.
+
 ---
 
 ## 1. Merge (any order is fine)
