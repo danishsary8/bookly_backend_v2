@@ -266,3 +266,16 @@ https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine
 **Where I stopped / next step**
 - Waiting for the owner's review of the spec and an answer to O1. No migration or code written yet.
 - Next after OK: build `feature/offers-engine` in small steps (migrations first), each step tested and pushed.
+
+### Review of the offers spec (project lead, 2026-10-31; spec `770e25f` on `feature/offers-engine`)
+Verdict: **approved with changes**. Cents math in examples 1-3 re-checked by hand (150+150; 100/100/300; 300+119): correct.
+Migration dates sort after the last one on `main` (`2026_10_17_*`). O1 = A.
+Changes asked before building:
+1. Partial return of an offer book: keep each line's own discount (no claw-back when the remaining books fall under N).
+   Write it in 4.8. The floor in the per-unit share favours the customer by at most 1 cent; say so.
+2. Cancel: guard `offer_id` null (offer deleted, SET NULL) before `decrement`.
+3. Book list `offer` field: no N+1 (categories/series already loaded or eager-loaded); add a query-count test.
+4. Demo offer in `DemoSeeder`: create it **paused** (`is_active = false`), so seeding never starts a live discount on the
+   real shop.
+5. Rollout: until an admin creates a live offer nothing changes for customers. Note in OWNER_TODO: merge
+   `offers-storefront` before creating the first live offer (today's checkout page hides a coupon that lost to an offer).
