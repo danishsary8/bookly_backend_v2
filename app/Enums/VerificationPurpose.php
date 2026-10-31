@@ -9,6 +9,6 @@ enum VerificationPurpose: string
     /** Telegram Gateway codes, no longer sent (phone numbers are shared in the Telegram bot); kept for old rows. */
     case PhoneVerify = 'phone_verify';
     case EmailChange = 'email_change';
-    /** Telegram Gateway sign-in codes, no longer sent; kept for old rows. */
+    /** Sign-in codes the Bookly Telegram bot sends (POST /auth/phone/code); the paid Gateway used it before. */
     case PhoneLogin = 'phone_login';
 }
