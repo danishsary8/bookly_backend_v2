@@ -203,6 +203,13 @@ None of them can show a wrong book (stock and visibility are re-checked on every
     book left, so the row is hidden (no heading, no gap); cart → 6, 1, 2, … (old order). So the frontend works alone.
   - Console: only cover images from an external photo host failing (no internet in this sandbox); no app errors.
 
+**Review** (project lead, 2026-10-31; verdict: **pass, both branches OK to merge, any order**)
+- Frontend `a0a8597` re-run on a clean install: lint 0, typecheck clean, 444 passed / 3 skipped, build ok. Diff is the 5
+  files the task needs (page, en/km strings, tests, work log). Commit messages plain, no tool names.
+- Backend `00e8612` re-run: 642 tests, pint clean. Cache version bumps only after commit; checked that orders and
+  checkout never save `Book`, so normal sales do not clear the cache.
+- Good calls: recently viewed left alone; frontend works on today's API (Meditations row hidden, no gap).
+- Nit (later, tiny): `catalogApi.alsoBought` is now unused in `catalog.ts`; remove in a future cleanup.
 **Not verified:** the live site (Render + Vercel) in a browser (owner step in `OWNER_TODO.md` section 0); the Khmer
 eyebrow by a native speaker.
 **Open questions:** is "សៀវភៅស្រដៀងគ្នា" a natural Khmer eyebrow for "More like this"? (owner step)
