@@ -3,9 +3,13 @@
 namespace Tests\Feature\Catalog;
 
 use App\Enums\BookFormat;
+use App\Enums\OrderStatus;
+use App\Models\Author;
 use App\Models\Book;
 use App\Models\BookVariant;
 use App\Models\Category;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Series;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -75,6 +79,59 @@ class SeriesRecommendationsTest extends TestCase
 
         $this->assertSame([$four->id, $one->id], $ids);
         $this->assertNotContains($soldOut->id, $ids);
+    }
+
+    public function test_book_with_few_matches_gets_same_category_best_sellers_then_store_best_sellers_up_to_the_limit(): void
+    {
+        $philosophy = Category::factory()->create();
+        $history = Category::factory()->create();
+
+        // A "Meditations"-like book: only 2 in-stock books share its category.
+        $target = $this->book([], 10, $philosophy);
+        $sibling = $this->book([], 10, $philosophy);
+        $bestSibling = $this->book([], 10, $philosophy);
+        $soldOutSibling = $this->book([], 0, $philosophy);
+
+        // 13 books elsewhere in the store; one is the store's best seller.
+        $store = array_map(fn () => $this->book([], 10, $history), range(1, 13));
+        $storeBest = $store[0];
+
+        $order = Order::factory()->create(['status' => OrderStatus::Delivered]);
+        OrderItem::factory()->create(['order_id' => $order->id, 'book_variant_id' => $bestSibling->variants()->value('id'), 'quantity' => 2]);
+        OrderItem::factory()->create(['order_id' => $order->id, 'book_variant_id' => $storeBest->variants()->value('id'), 'quantity' => 5]);
+
+        $ids = $this->ids("/api/v1/books/{$target->id}/related?limit=12");
+
+        // Same category first (its best seller first), even though the store best seller sold more.
+        $this->assertSame([$bestSibling->id, $sibling->id, $storeBest->id], array_slice($ids, 0, 3));
+        // Then store books, newest first (no sales, no ratings), until the row is full.
+        $rest = collect($store)->slice(1)->pluck('id')->sortDesc()->values()->take(9)->all();
+        $this->assertSame($rest, array_slice($ids, 3));
+        $this->assertCount(12, $ids);
+        $this->assertNotContains($target->id, $ids);
+        $this->assertNotContains($soldOutSibling->id, $ids);
+        $this->assertSame(array_values(array_unique($ids)), $ids);
+    }
+
+    public function test_book_page_order_is_series_then_category_then_author_then_store(): void
+    {
+        $category = Category::factory()->create();
+        $author = Author::factory()->create();
+
+        $storeBook = $this->book();
+        $sameAuthor = $this->book();
+        $sameAuthor->authors()->attach($author->id);
+        $sameCategory = $this->book([], 10, $category);
+        $categoryAndAuthor = $this->book([], 10, $category);
+        $categoryAndAuthor->authors()->attach($author->id);
+        [$one, $two] = $this->series(2);
+
+        $one->categories()->attach($category->id);
+        $one->authors()->attach($author->id);
+
+        $ids = $this->ids("/api/v1/books/{$one->id}/related?limit=12");
+
+        $this->assertSame([$two->id, $categoryAndAuthor->id, $sameCategory->id, $sameAuthor->id, $storeBook->id], $ids);
     }
 
     public function test_cart_suggests_the_next_book_of_the_series_first_and_never_a_cart_book(): void

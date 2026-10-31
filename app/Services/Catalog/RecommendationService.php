@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\DB;
 class RecommendationService
 {
     /**
-     * Retrieve recommended books for a specific book.
-     * Combines co-purchases (also-bought), category affinity, author affinity,
-     * and store best-sellers/top-rated titles into a ranked recommendation list.
+     * Retrieve recommended books for a specific book, filled up to $limit in this order: same series (next books
+     * first), bought together, same category + author, same categories (best sellers first), same authors, store
+     * best sellers. Never the book itself, no duplicates, in-stock and visible only.
      *
      * @return list<int> Book IDs in order of relevance.
      */
@@ -85,6 +85,14 @@ class RecommendationService
                     ->all();
 
                 $collected = $collected->concat($sameAuthor)->unique()->values();
+                $excludeIds = array_merge([$targetBook->id], $collected->all());
+                $needed = $limit - $collected->count();
+            }
+
+            // 5. Still short (few books, brand-new book): store best sellers fill the row up to the limit.
+            //    Same-category best sellers already came in step 3, which is sorted by units sold.
+            if ($needed > 0) {
+                $collected = $collected->concat($this->queryPopularBookIds($excludeIds, $needed))->unique()->values();
             }
 
             return $collected->take($limit)->all();
