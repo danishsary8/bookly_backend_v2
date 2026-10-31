@@ -29,6 +29,7 @@ class OrderResource extends JsonResource
                 'quantity' => $item->quantity,
                 'unit_price_usd' => $item->unit_price,
                 'subtotal_usd' => $item->subtotal,
+                'discount_usd' => $item->discount_amount ?? '0.00', // this line's share of the order discount
             ])->values()),
             'subtotal_usd' => $this->subtotal,
             'discount_usd' => $this->discount_amount,
@@ -37,6 +38,13 @@ class OrderResource extends JsonResource
             'total_usd' => $this->total_amount,
             'total_khr' => app(CurrencyService::class)->usdToKhr($this->total_amount),
             'coupon_code' => $this->whenLoaded('coupon', fn () => $this->coupon?->code),
+            // The automatic offer used, from the copy saved at order time (stays when the offer is edited or deleted).
+            'offer' => $this->offer_name === null ? null : [
+                'id' => $this->offer_id,
+                'name' => $this->offer_name,
+                'min_quantity' => $this->offer_min_quantity,
+                'percent_off' => $this->offer_percent_off,
+            ],
             'shipping_address' => [
                 'recipient_name' => $this->shipping_recipient_name,
                 'phone' => $this->shipping_phone,

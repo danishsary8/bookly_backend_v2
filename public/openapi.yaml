@@ -480,6 +480,7 @@ components:
               quantity: { type: integer }
               unit_price_usd: { $ref: '#/components/schemas/Money' }
               subtotal_usd: { $ref: '#/components/schemas/Money' }
+              discount_usd: { allOf: [ { $ref: '#/components/schemas/Money' } ], description: "This line's share of the order discount; the lines add up to the order's discount_usd (0.00 on older orders)." }
         subtotal_usd: { $ref: '#/components/schemas/Money' }
         discount_usd: { $ref: '#/components/schemas/Money' }
         shipping_fee_usd: { $ref: '#/components/schemas/Money' }
@@ -487,6 +488,15 @@ components:
         total_usd: { $ref: '#/components/schemas/Money' }
         total_khr: { $ref: '#/components/schemas/Riel' }
         coupon_code: { type: string, nullable: true }
+        offer:
+          type: object
+          nullable: true
+          description: The automatic offer used, copied at order time (id becomes null if the offer is deleted later).
+          properties:
+            id: { type: integer, nullable: true }
+            name: { type: string, example: Buy 2 Sherlock Holmes }
+            min_quantity: { type: integer, example: 2 }
+            percent_off: { type: string, example: '15.00' }
         shipping_address: { $ref: '#/components/schemas/AddressInput' }
         can_cancel: { type: boolean }
         delivery_note: { type: string, maxLength: 300, nullable: true }
@@ -1444,8 +1454,9 @@ paths:
       tags:
       - Checkout & orders
       summary: Place a cash-on-delivery order from the cart
-      description: Prices are re-checked at today's price, stock is taken out of stock, the coupon is applied and the cart is emptied. Repeating
-        a request with the same Idempotency-Key returns the same order.
+      description: Prices are re-checked at today's price, stock is taken out of stock, the better of the coupon and the
+        automatic offer is applied (never both) and the cart is emptied. Repeating a request with the same Idempotency-Key
+        returns the same order (uses are not counted twice).
       parameters:
       - name: Idempotency-Key
         in: header
@@ -1476,6 +1487,9 @@ paths:
                 delivery_note:
                   type: string
                   maxLength: 300
+                offer_id:
+                  type: integer
+                  description: The offer shown in the preview. If it no longer applies, 422 on offer_id and nothing is placed. Leave it out to accept whatever wins now.
             example:
               address_id: 1
               payment_method: cod
@@ -1493,13 +1507,13 @@ paths:
         '200':
           description: Same key repeated — the existing order (header Idempotent-Replayed true)
         '422':
-          description: Cart empty or has issues, bad address, coupon or key
+          description: Cart empty or has issues, bad address, coupon or key, or offer_id sent and that offer no longer applies (nothing placed)
   /orders:
     get: { tags: [Checkout & orders], summary: 'Your orders (status filter)', responses: { '200': { description: 'Orders (without status_history)', content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Order' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /orders/{id}:
     get: { tags: [Checkout & orders], summary: 'One order with status history', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order }, '404': { $ref: '#/components/responses/NotFound' } } }
   /orders/{id}/cancel:
-    post: { tags: [Checkout & orders], summary: 'Cancel while pending (stock and coupon use are given back)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cancelled }, '422': { description: No longer cancellable } } }
+    post: { tags: [Checkout & orders], summary: 'Cancel while pending (stock, the coupon use and the offer use are given back)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cancelled }, '422': { description: No longer cancellable } } }
   /orders/{id}/reorder:
     post:
       tags:

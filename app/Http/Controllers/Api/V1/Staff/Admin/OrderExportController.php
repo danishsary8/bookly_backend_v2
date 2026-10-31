@@ -16,7 +16,7 @@ class OrderExportController extends Controller
     private const COLUMNS = [
         'order_number', 'placed_at', 'status', 'customer_name', 'customer_email', 'items', 'subtotal_usd',
         'discount_usd', 'shipping_fee_usd', 'tax_usd', 'total_usd', 'coupon_code', 'payment_method', 'payment_status',
-        'shipping_city', 'shipping_country',
+        'shipping_city', 'shipping_country', 'offer_name',
     ];
 
     public function __invoke(Request $request): StreamedResponse
@@ -62,6 +62,7 @@ class OrderExportController extends Controller
                             $order->payments->sortByDesc('id')->first()?->status->value,
                             $order->shipping_city,
                             $order->shipping_country,
+                            $order->offer_name,
                         ]));
                     }
                 });

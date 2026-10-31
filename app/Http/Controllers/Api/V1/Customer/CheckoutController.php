@@ -78,6 +78,8 @@ class CheckoutController extends Controller
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'delivery_note' => ['nullable', 'string', 'max:300'],
+            // The offer the customer saw in the preview; 422 if it no longer applies (spec 4.9, O1 = A).
+            'offer_id' => ['nullable', 'integer'],
         ]);
 
         if ($data['payment_method'] !== PaymentMethod::Cod->value) {
@@ -91,6 +93,7 @@ class CheckoutController extends Controller
 
         ['order' => $order, 'created' => $created] = $this->checkout->place(
             $request->user(), $data['address_id'], $data['coupon_code'] ?? null, $key, $deliveryNote,
+            isset($data['offer_id']) ? (int) $data['offer_id'] : null,
         );
 
         $order->load(['items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon', 'statusHistory']);

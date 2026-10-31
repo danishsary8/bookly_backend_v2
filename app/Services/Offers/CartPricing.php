@@ -37,10 +37,14 @@ class CartPricing
         return $this->shape($summary, $offer, $nudge);
     }
 
-    /** The live offer that saves the most on this cart, or null (spec 4.4 step 1). Used by checkout totals. */
-    public function bestOffer(array $summary): ?OfferResult
+    /**
+     * The live offer that saves the most on this cart, or null (spec 4.4 step 1). Used by checkout totals.
+     *
+     * @param  list<LiveOffer>|null  $live  checkout passes the offers it read and locked; otherwise the cached list
+     */
+    public function bestOffer(array $summary, ?array $live = null): ?OfferResult
     {
-        $live = $this->offers->live();
+        $live ??= $this->offers->live();
 
         return $live === [] ? null : $this->calculator->best($live, $this->offerLines($summary['lines']));
     }

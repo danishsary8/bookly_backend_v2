@@ -20,6 +20,7 @@ class Order extends Model
         'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',
         'coupon_id', 'status', 'subtotal', 'discount_amount', 'shipping_fee', 'tax_amount', 'total_amount',
         'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note',
+        'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
     ];
 
     protected function casts(): array
@@ -33,6 +34,8 @@ class Order extends Model
             'tax_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'placed_at' => 'datetime',
+            'offer_min_quantity' => 'integer',
+            'offer_percent_off' => 'decimal:2',
         ];
     }
 
@@ -55,6 +58,12 @@ class Order extends Model
     public function coupon(): BelongsTo
     {
         return $this->belongsTo(Coupon::class);
+    }
+
+    /** The automatic offer used (null when none, or when it was deleted: the offer_* copy stays). */
+    public function offer(): BelongsTo
+    {
+        return $this->belongsTo(Offer::class);
     }
 
     public function items(): HasMany

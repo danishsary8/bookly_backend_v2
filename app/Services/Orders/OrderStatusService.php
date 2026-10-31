@@ -4,6 +4,7 @@ namespace App\Services\Orders;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Models\Offer;
 use App\Models\Order;
 use App\Models\StaffUser;
 use App\Notifications\OrderStatusChangedNotification;
@@ -118,6 +119,11 @@ class OrderStatusService
 
         if ($order->coupon_id) {
             $order->coupon()->lockForUpdate()->first()?->decrement('used_count');
+        }
+        // The offer use goes back too. offer_id is null when there was no offer or the offer was deleted; never below 0.
+        if ($order->offer_id) {
+            Offer::whereKey($order->offer_id)->lockForUpdate()->first();
+            Offer::whereKey($order->offer_id)->where('used_count', '>', 0)->decrement('used_count');
         }
 
         $order->payments()->where('status', PaymentStatus::Pending)->update(['status' => PaymentStatus::Failed]);

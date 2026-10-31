@@ -14,12 +14,12 @@ class OrderItem extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['book_variant_id', 'quantity', 'unit_price', 'subtotal', 'title', 'format', 'sku', 'isbn', 'authors'];
+    protected $fillable = ['book_variant_id', 'quantity', 'unit_price', 'subtotal', 'discount_amount', 'title', 'format', 'sku', 'isbn', 'authors'];
 
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer', 'unit_price' => 'decimal:2', 'subtotal' => 'decimal:2',
+            'quantity' => 'integer', 'unit_price' => 'decimal:2', 'subtotal' => 'decimal:2', 'discount_amount' => 'decimal:2',
             'format' => BookFormat::class, 'authors' => 'array',
         ];
     }

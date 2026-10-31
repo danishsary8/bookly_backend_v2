@@ -27,6 +27,19 @@ class OfferService
         return array_values(array_filter($this->cached(), fn (LiveOffer $offer) => $offer->isLiveAt($now)));
     }
 
+    /**
+     * Same as live(), but read from the database now (no cache, the cache is not touched). Checkout uses it inside its
+     * transaction so a use limit reached a second ago is already seen.
+     *
+     * @return list<LiveOffer>
+     */
+    public function liveFresh(): array
+    {
+        $now = now()->getTimestamp();
+
+        return array_values(array_filter($this->load(), fn (LiveOffer $offer) => $offer->isLiveAt($now)));
+    }
+
     public function forget(): void
     {
         Cache::forget(self::CACHE_KEY);
