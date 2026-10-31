@@ -79,10 +79,11 @@ Account → Profile is only a courier contact and is not confirmed, so people (t
 
 ---
 ## 2026-10-31 · Task A: "You may also like" (similar books), PRODUCTION_CHECKLIST.md 4.1
-**Branches (planned, not created yet)**
-- Backend `feature/better-similar-books`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books
-- Frontend `feature/better-similar-books`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
-**Status:** partly done. Step 1 (read-only audit) finished; the owner chose the fixes. No code changed yet.
+**Branches**
+- Backend `feature/better-similar-books` (pushed): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books
+- Frontend `feature/better-similar-books` (not created yet): https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
+**Status:** partly done. Backend fixes 1, 3, 4 + the owner's order-status rule are pushed and green; backend
+WORKLOG entry and the frontend fix 2 are still to do. (Progress details at the end of this section.)
 
 **What already exists (do not rebuild)**
 - Routes (`routes/api.php`): `GET /books/{id}/related` and `GET /books/{id}/also-bought` (same method,
@@ -143,9 +144,42 @@ Account → Profile is only a courier contact and is not confirmed, so people (t
   390 px; English + Khmer. WORKLOG entry; push.
 - Finally: update this section and `docs/OWNER_TODO.md` (merge links, live check).
 
-**Not verified yet:** everything after step 1. 390 px layout of the row in a browser.
+**Later decisions the owner made (during steps 2 to 4)**
+- Series-first matters most in the CART; keep the book page part simple. Cart: never a cart book; with 2 series,
+  the next book of each first; out-of-stock rule still applies.
+- 3A order fixed as: series > bought together > category+author > same categories > same authors > same-category
+  best sellers > store best sellers, filled up to `limit` (frontend will ask 12). Note: "same categories" is
+  already sorted by units sold, so it IS the same-category best-seller step; no duplicate step was added.
+- 4B changed: ONE catalogue-wide version number in the cache key (not per book), bumped when staff create, edit,
+  delete or restore a book or change its authors/categories/series, so other books' lists update too.
+- Sales rule = option B: rankings ("best sellers", "bought together") leave out pending, cancelled, **returned**
+  and deleted orders; processing and shipped (cash on delivery, not paid yet) still count.
+- The "within 1 hour" limits below are accepted; no fix now.
+
+**Backend progress (branch `feature/better-similar-books`)**
+| Commit | What |
+|---|---|
+| `eb682dd` | Series first: book page step 0 (next books, then earlier, then unnumbered); cart: per series after the furthest cart book, series take turns; category+author step sorted by units sold. Tests: `tests/Feature/Catalog/SeriesRecommendationsTest.php` |
+| `ff52d01` | Store best sellers fill the book-page list up to `limit`. Pushed with one old test failing (my mistake: commit ran in the same command as the tests). |
+| `8a62bd0` | Fixes that test: `AlsoBoughtTest` now checks the exact order (B bought together first, D with only cancelled/pending co-orders last as a filler). |
+| `73d891a` | Cache: 12 ids per book under `catalog:recommendations-version`; `RecommendationService::catalogChanged()` bumps it after commit (Book `created/updated/deleted/restored` events + explicit calls after author/category sync in staff `BookController::update`, `BookBulkController`, `BookCsvImport::apply`); stock + visibility re-checked on every read, then cut to `limit`. One `unitsSoldSubquery()` helper for all rankings. Tests: `tests/Feature/Catalog/RecommendationCacheTest.php` |
+| `9e5b041` | `docs/API.md` (+ new row for `/catalog/recommendations`) and `public/openapi.yaml`: final order, caching, stock rule |
+| `f6e26e9` | Returned orders left out of rankings (`notSales()`); test + docs line updated |
+- Checks on `f6e26e9`: `php artisan test` 642 passed, `vendor/bin/pint --test` clean. Each new rule test was run
+  against the old code first and failed there (proves it tests something).
+- Demo data (local API): *Sign of the Four* → 6, 4, 1, 2, 3, 16; *Meditations* `limit=12` → 12 books (was 1);
+  cart with Holmes #1 → 5, 6, … (next book first).
+
+**Known limits (accepted by the owner, no fix now)**
+These do not bump the catalogue version, so the change reaches cached lists within 1 hour instead of at once.
+None of them can show a wrong book (stock and visibility are re-checked on every read); a book only joins late.
+- A book comes back into stock, or a new format (variant) is added or re-activated.
+- A scheduled book goes live at its publish time (no save happens then).
+- A category or author is deleted (pivot rows go without a book event).
+- After a re-check removes sold-out or hidden books, a cached list can be shorter than `limit` until it is rebuilt.
+
+**Not verified yet:** the frontend part (fix 2) and its browser check. Live API (Render) not called.
 **Open questions:** none.
 **Where I stopped / next step**
-- Step 1 done and decisions recorded. Next: step 2, create backend `feature/better-similar-books` from fresh
-  `origin/main` and add "series first" to `RecommendationService` with its tests. Local API was started on :8000
-  (`php artisan serve`) for the audit.
+- Backend code, tests and docs are pushed (`f6e26e9`). Next: step 5, backend `docs/WORKLOG.md` entry on
+  `feature/better-similar-books` (checks first, push). Then the frontend branch, fix 2.
