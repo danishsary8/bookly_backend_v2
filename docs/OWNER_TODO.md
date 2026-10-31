@@ -9,7 +9,7 @@ working with today's settings.
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
-609 backend tests. For each link: **Create pull request** → wait for green CI → **Merge**.
+613 backend tests. For each link: **Create pull request** → wait for green CI → **Merge**.
 
 **Backend** (`bookly_backend_v2`)
 - [ ] `feature/r2-media-storage` — book covers can be stored on Cloudflare R2 (stays on today's disk until you do step 3)
@@ -25,11 +25,15 @@ All branches start from `main` and were checked together: every order merges cle
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/docs-small-followups
 - [ ] `fix/docs-stale-demo-token` — the docs page checks a saved demo token, so an expired one never shows "Signed in"
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/docs-stale-demo-token
+- [ ] `feature/typo-tolerant-search` — search finds books despite typos ("frankenstien", "sherlok", "jane austin");
+  no migration needed (pg_trgm is already on)
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/typo-tolerant-search
 - [ ] `docs/overnight-notes` — this file and the work log
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/overnight-notes
 
 **Frontend** (`bookly_frontend`)
-- [ ] `chore/dependency-audit` — security fixes for packages (14 advisories → 6, all 6 in developer tools only)
+- [ ] `chore/dependency-audit` — package security fixes + Vitest 5 (shipped code: 0 vulnerabilities; 22 left, all in
+  developer/build tools, each needing its own major upgrade)
   https://github.com/danishsary8/bookly_frontend/pull/new/chore/dependency-audit
 
 After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** on Render (Events tab).
@@ -93,9 +97,8 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
   the book (today) or add what is left?
 - [ ] **Download my data:** it leaves out staff-only notes and tags about the customer (internal remarks). Keep it that
   way, or include them?
-- [ ] **Typo-tolerant search** (`frankenstien` finds nothing today): OK to add a small migration that turns on
-  PostgreSQL's `pg_trgm` extension + an index? (No new service, no cost.)
-- [ ] **Vitest 3 → 5 upgrade** (frontend, developer tool only; clears the last critical advisory): go ahead?
+- [x] Typo-tolerant search: approved and built (no migration was needed after all).
+- [x] Vitest 5: approved and done (in `chore/dependency-audit`).
 - [ ] **Email worker:** keep sending emails inside the request (free), or a paid Render worker (~$7/month)?
 - [ ] **Old Neon project `bookly`:** after its quota resets, copy anything you need, then delete it (or keep it).
 

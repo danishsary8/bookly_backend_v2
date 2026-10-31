@@ -189,11 +189,18 @@ branch never conflicts with the R2 branch's own entry at the end.
   rule, stock and coupon restored) so the history reads "Cancelled automatically: hourly demo reset". Test added.
 - [x] `fix/docs-stale-demo-token`: on load, `/docs` checks a saved demo token with `GET /me`; on 401 it clears it and
   says "Your demo session ended. Sign in again." Browser-checked: valid, expired and no token.
-- [x] Safety check: all 7 open backend branches merged together in two orders → clean; combined suite 609/609, pint
+- [x] Safety check: all 8 open backend branches merged together in two orders → clean; combined suite 613/613, pint
   clean, `composer audit` clean.
 - [x] Frontend `chore/dependency-audit`: `npm audit fix` (no majors), 14 → 6 advisories, shipped code 0 (details in
   the frontend worklog).
-- Not done (needs the owner): typo-tolerant search (migration for `pg_trgm`), Vitest 5, payments, domain, email worker.
+- [x] `feature/typo-tolerant-search` (owner approved 2026-10-31): when the normal search finds nothing, `GET /books`
+  retries with pg_trgm word similarity (>= 0.4) on title, authors and series; every word of 3+ letters must match (same
+  rule as the normal search); code-like searches (digit, - or _) are never guessed; Khmer words keep their own search;
+  filters still apply; answer has `search.typo_tolerant`. No migration (pg_trgm + trigram indexes exist since the Khmer
+  search). Two existing tests caught a too-loose first version ("austen dragon", "DRAC-OLD"); fixed. 4 new tests; demo
+  data: frankenstien, sherlok, jane austin, pride prejudise, moby dik found; the hobbit, xqzvwk, DRAC-OLD find nothing.
+- [x] Frontend Vitest 5 (owner approved): see the frontend worklog (`chore/dependency-audit`).
+- Not done (needs the owner): payments, domain, email worker.
 
 ## How to run locally
 ```
