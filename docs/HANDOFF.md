@@ -219,3 +219,39 @@ eyebrow by a native speaker.
   Frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
 - Next: the owner merges both and does the live check in `OWNER_TODO.md` section 0 (Task A). Next task prompt:
   `docs/prompts/03-offers-and-reports.md`.
+
+---
+
+## 2026-10-31 · Task B+D: offers + offer reports, PRODUCTION_CHECKLIST.md 4.1
+
+**Status:** partly done (design stage). No code, no task branch yet.
+- Step 1 (read only, done): audit of coupons, cart, checkout totals, free delivery and reports. Findings: one discount
+  kind today (coupon, on the whole subtotal, cents, `CheckoutService::totals()` is the one place preview and checkout
+  share); `GET /cart` has no pricing or free-delivery numbers; `/cart/coupon/check` works on the plain subtotal; the
+  order keeps `coupon_id` + `discount_amount` but nothing would say which offer gave a discount; the refund share in
+  `ReturnService::refundCents` and the sales report "Discounts" already use `discount_amount`.
+- Step 2 (design proposal): sent to the owner, waiting for answers. Spec file not written yet (written once agreed).
+
+**Owner decisions so far (2026-10-31)**
+- v1 small: "Buy N, get X% off" first; asked whether "complete the series" is cheap enough to add.
+- No stacking: the customer automatically gets the better of offer vs coupon; cart and checkout say which one was
+  used; `/cart/coupon/check` uses the same comparison.
+- The offer discount counts like a coupon for free delivery (subtotal minus discount), with a test.
+- `GET /cart` gains one pricing block (discount, applied offer, nudge, free-delivery threshold + amount needed from the
+  API), so the cart stops using the fixed $50 from `src/content/shop.ts`.
+- Data: smallest change, NEW migration only: `offers` + nullable `orders.offer_id` + a small snapshot on the order.
+  Exact migration to be shown before writing it.
+- Only admins create/edit/pause offers; staff can view.
+- Reports: per offer orders, units, revenue, discount given, AOV vs orders without offer, date range, CSV, new tab.
+
+**Separate tiny task (not part of offers v1): free-delivery bar gaps found in Step 1**
+1. Cart page and cart drawer use the fixed $50 from `src/content/shop.ts` (`GET /cart` sends no threshold); only
+   checkout uses the API's `free_shipping_threshold`. **Offers v1 fixes this one** (pricing block on `GET /cart`).
+2. The cart drawer (`CartDrawer.tsx:78`) passes the subtotal before the coupon; the cart page and checkout pass the
+   amount after the discount.
+3. `FreeShippingBar.tsx` English and Khmer texts are written inside the component, not in `src/i18n/en.ts` / `km.ts`.
+4. Not checked: whether the bar shows for an ebook-only cart (ebook-only orders have no delivery fee, so it should not).
+
+**Where I stopped / next step**
+- Waiting for the owner's answers on the Step 2 proposal (offer types, store credit, targets table, nudge, reports).
+- Next: write `docs/superpowers/specs/2026-10-31-offers-design.md` with the agreed design and ask the owner to review it.
