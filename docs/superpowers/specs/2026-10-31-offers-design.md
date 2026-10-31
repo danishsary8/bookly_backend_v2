@@ -1,6 +1,6 @@
 # Offers v1 + offer reports: design
 
-Date: 2026-10-31 · Task B+D · PRODUCTION_CHECKLIST.md 4.1 · Status: **draft, waiting for the owner's review**
+Date: 2026-10-31 · Task B+D · PRODUCTION_CHECKLIST.md 4.1 · Status: **approved by the owner with changes (review `8437ee5` on `docs/handoff-notes`), O1 = A**
 
 ## 1. Goal
 
@@ -145,6 +145,12 @@ depends on which book is added).
 - **The order has a line with `discount_amount > 0`** (new orders with a discount): each returned line refunds
   `unit_price × returned_qty - floor(line_discount × returned_qty / line_qty)`.
 - **Otherwise** (old orders, and orders with no discount): today's whole-order proportional rule, unchanged.
+- **Partial return of offer books: no claw-back.** Each line keeps its own discount even when the books the customer
+  keeps fall under N. Example 1: return Holmes A only, refund $8.50; the customer keeps Holmes B at $8.50, although
+  one Holmes book alone would not reach "buy 2".
+- **Rounding:** the per-unit share `floor(line_discount × returned_qty / line_qty)` rounds the *discount taken back*
+  down, so the refund favours the customer by at most 1 cent per returned line. Example: a line of 3 with a 100-cent
+  discount, 1 returned: share floor(33.33) = 33, refund = price − $0.33.
 
 ### 4.9 Uses, locks and cancel
 
@@ -153,7 +159,12 @@ depends on which book is added).
   `increment('used_count')`.
 - Cancelling an order (customer, staff or automatic) gives the use back: `decrement('used_count')` on the locked
   offer row, like coupons today. A returned order keeps its use (like coupons).
-- See open question O1 for what happens when the offer ran out between the preview and "Place order".
+- When `orders.offer_id` is null (no offer, or the offer was deleted and the FK set it to null), the decrement is
+  skipped; the order's copy (`offer_name`, …) stays for reports.
+- Offer ran out or ended between the preview and "Place order" (O1 = A): checkout accepts an optional `offer_id`
+  (the offer the customer saw). If it was sent and that offer is no longer the winner (not live, used up, or no longer
+  covering the cart), answer 422 on `offer_id` ("This offer has just ended; check your new total") and place nothing.
+  Without `offer_id` (today's frontend), the order is placed with whatever wins at that moment.
 
 ### 4.10 Admin rules
 
@@ -226,7 +237,7 @@ shown). New: `applied` (`"offer"`, `"coupon"` or null), `offer` (6.1 shape or nu
 
 ### 6.4 `POST /checkout`
 
-Same request as today (plus `offer_id` if O1 = A). The order is saved as in 4.4, 4.7, 4.9.
+Same request as today, plus an optional `offer_id` (integer; O1 = A, see 4.9). The order is saved as in 4.4, 4.7, 4.9.
 
 ### 6.5 Order responses (`OrderResource`, customer and staff)
 
@@ -239,6 +250,9 @@ New: `offer` (`{ "id", "name", "min_quantity", "percent_off" }` from the order's
 `{ "id", "min_quantity", "percent_off", "ends_at", "target_label" }`, or null. Live offers + targets are read once
 and cached 60 seconds; the cache is cleared after an admin saves, pauses or deletes an offer. Dates and limits are
 checked on every read; a cached `used_count` can be up to 60 seconds old (checkout re-checks with the lock).
+**No N+1 queries:** the matching runs in memory on the cached offers, using the page's books with their categories
+eager-loaded (`series_id` is a column on `books`). A query-count test proves a page of 24 books makes the same number
+of queries with 0 offers and with several offers.
 
 ### 6.7 Staff endpoints
 
@@ -253,6 +267,15 @@ checked on every read; a cached `used_count` can be up to 60 seconds old (checko
 
 Offer response: all columns, `status` (4.10), `targets` (`[{ "type": "book"|"category"|"series", "id", "label" }]`),
 `orders_count`.
+
+### 6.8 Demo data and rollout
+
+- `DemoSeeder` creates one sample offer ("Buy 2 Sherlock Holmes, get 15%") **paused** (`is_active = false`), so
+  seeding never starts a live discount on the real shop.
+- Until an admin creates (or resumes) a live offer, nothing changes for customers.
+- Owner step (OWNER_TODO): merge frontend `feature/offers-storefront` **before** creating the first live offer.
+  Reason: today's checkout page does not know about offers, so a coupon that lost to an offer would just disappear
+  from the summary without a word.
 
 ## 7. Reports (Task D)
 
@@ -279,8 +302,8 @@ discount, average order value, books per order. Admin page: a new **Offers** tab
 ## 9. Branches (each works alone; none is merged by me)
 
 1. Backend `feature/offers-engine`: this spec, migrations, model, rules (`OfferService`), cart, coupon check,
-   preview, checkout, cancel, returns, book `offer` field, staff CRUD, order resource + CSV, demo offer in
-   `DemoSeeder`, docs, tests.
+   preview, checkout, cancel, returns, book `offer` field, staff CRUD, order resource + CSV, paused demo offer
+   in `DemoSeeder`, docs, tests.
 2. Frontend `feature/offers-storefront`: badge, book line, cart, checkout, order page.
 3. Frontend `feature/offers-admin`: `/admin/offers` list + form; "not available yet" on a 404.
 4. Backend + frontend `feature/offer-reports`: report endpoint + CSV, Offers tab.
@@ -292,9 +315,12 @@ discount, average order value, books per order. Admin page: a new **Offers** tab
 - Paused, scheduled, ended, used-up and "No books" offers are ignored; blocked cart lines don't count.
 - Free delivery with an offer: the $52 cart with a 10% offer ($46.80) pays delivery, amount needed $3.20.
 - Stock and totals: stock goes down exactly as today; `total = subtotal - discount + shipping`.
-- Race: `max_orders = 1`, two customers check out at the same time: only one order gets the offer (O1 decides what
-  the other gets).
-- Cancel gives the offer use back; a returned order does not.
+- Race: `max_orders = 1`, two customers check out at the same time: only one order gets the offer; the other
+  (sent with `offer_id`) gets 422 and no order; sent without `offer_id`, it is placed at full price.
+- Cancel gives the offer use back; a returned order does not; cancel with the offer deleted (`offer_id` null) works.
+- O1: checkout with an `offer_id` that no longer applies -> 422, nothing placed, cart kept.
+- Book list query count is the same with 0 and with several offers.
+- `DemoSeeder` offer is paused.
 - Returns: Example 1 cookbook $30.00, Holmes A $8.50; Example 2 cookbook $27.00; an old order (all lines 0) still
   uses the proportional rule.
 - Coupon check and preview report `applied`, `coupon_not_used`, the tie rule.
@@ -302,12 +328,7 @@ discount, average order value, books per order. Admin page: a new **Offers** tab
   validation limits (N 2-20, X <= 50, dates).
 - `OpenApiSpecTest` passes (every new route documented).
 
-## 11. Open questions for the owner
+## 11. Decided questions
 
-**O1. The offer runs out (or ends) between the preview and "Place order".** The customer saw $48.50; now there is
-no offer, so the true total is $51.50.
-- **A (recommended):** checkout accepts an optional `offer_id` (the one the customer saw). If it was sent and that
-  offer no longer applies, answer 422 "This offer has just ended; check your new total" and place nothing. Without
-  `offer_id` (today's frontend), the order is placed with whatever is live at that moment.
-- B: place the order without the offer, silently (the customer pays more than they saw).
-- C: honour the offer anyway (the limit becomes "about N orders").
+**O1 = A (owner, 2026-10-31).** The offer runs out between the preview and "Place order": checkout accepts an
+optional `offer_id`; if it no longer applies, 422 and nothing is placed (rule in 4.9).
