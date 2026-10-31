@@ -439,3 +439,10 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 - [x] Production checklist (2026-10-30, branch `feature/production-checklist`): `docs/PRODUCTION_CHECKLIST.md`. Evidence: REA 6.7.0 `analyze-javascript-application` on Bagisto's shipped storefront (5 files) and admin (49 files) bundles, plus a source check here. Top gap found: uploaded covers are stored on the local disk, which Render wipes on deploy. Verified claims (typo search returns 0; load test was single-threaded dev server only).
 
 - [x] Cover images on Cloudflare R2 (2026-10-30, branch `feature/r2-media-storage`): new `r2` disk (S3 driver, region `auto`, no per-file ACL since R2 has none) and `filesystems.media_disk` (`MEDIA_DISK`, default `public`); `MediaUploadController` stores on that disk and returns its public URL. Added `league/flysystem-aws-s3-v3` (installed with `--ignore-platform-req=php` because the sandbox has PHP 8.3; production is 8.4). Owner steps in DEPLOYMENT.md → F6b. Tests: 2 new in `MediaUploadTest` (upload lands on r2 not public; r2 disk config). Not tested against real R2 (no network here): first real upload is the owner check. Pre-existing `composer audit` advisory on symfony/mime (CVE-2026-45070) noted, not part of this change.
+
+- [x] Task prompts and handover notes (2026-10-31, branch `docs/work-prompts`): `docs/prompts/` (start prompt + four task
+  prompts: phone-code hint, similar books audit, offers + reports, BI dashboard; owner guide with reviewer checklist) and
+  the always-on rules file `.kiro/steering/bookly.md` (step-by-step with "confirm", git rules, checks, notes in
+  `docs/HANDOFF.md` + `docs/OWNER_TODO.md` on `docs/handoff-notes`). Found while writing: similar books (`/books/{id}/related`,
+  cart recommendations) and the free-delivery bar already exist, so prompt 2 audits and fills gaps instead of rebuilding.
+  `docs/OWNER_TODO.md`: today's progress ticked, phone-code step paused with the fix (confirm the phone in Sign-in & security).
