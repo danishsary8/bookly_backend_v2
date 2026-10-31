@@ -74,7 +74,7 @@ Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP
 ## Public catalog (no login)
 | Method | Path | Query / notes |
 | --- | --- | --- |
-| GET | /books | `q` (search as you type...), `ids` (comma-separated IDs or array, max 12; preserves order; drops missing/hidden), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
+| GET | /books | `q` (search as you type...; when nothing matches it retries tolerating typos and the answer has `search.typo_tolerant: true`), `ids` (comma-separated IDs or array, max 12; preserves order; drops missing/hidden), `category_id`, `author_id`, `series_id`, `publisher_id`, `format` (hardcover\|paperback\|ebook\|audiobook), `language`, `min_price`, `max_price`, `in_stock=1`, `sort` (relevance\|newest\|price_asc\|price_desc\|title\|rating; default relevance when `q`, else newest), `per_page` (20, max 100) |
 | GET | /books/{id} | detail: description, page_count, categories, publisher, series {id,name,order}, active variants |
 | GET | /books/{id}/also-bought | up to 6 recommended book cards that appeared in >= 2 orders together with this book (excluding pending/cancelled), fallback to category best sellers. Cached 1 hour. |
 | GET | /authors | `q`, `per_page` — each with `books_count` |

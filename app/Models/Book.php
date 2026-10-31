@@ -227,6 +227,60 @@ class Book extends Model
         return ['sku' => strtoupper($term), 'isbn' => $isbn];
     }
 
+    /** Minimum pg_trgm word similarity per word for the typo fallback ("frankenstien" ~ 0.69, unrelated words ~ 0). */
+    public const TYPO_SIMILARITY = 0.4;
+
+    /**
+     * The words worth a typo fallback: Latin words of 3+ letters (Khmer has its own search; "of", "a" are noise).
+     *
+     * @return list<string>
+     */
+    public static function typoSearchWords(string $term): array
+    {
+        // A code-like search (has a digit, - or _: an ISBN or SKU such as "DRAC-OLD") is matched exactly, never guessed.
+        if (preg_match('/[\d_-]/', $term)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            self::searchWords($term),
+            fn (string $word) => ! self::isKhmerWord($word) && mb_strlen($word) >= 3,
+        ));
+    }
+
+    /**
+     * Typo-tolerant match for when the normal search finds nothing. Like the normal search, every word must match:
+     * each one needs a pg_trgm word similarity of at least TYPO_SIMILARITY with the title, an author or the series.
+     *
+     * @param  list<string>  $words
+     */
+    public function scopeTypoSearch(Builder $query, array $words): Builder
+    {
+        foreach ($words as $word) {
+            $query->whereRaw(self::typoScoreSql().' >= ?', [$word, $word, $word, self::TYPO_SIMILARITY]);
+        }
+
+        return $query;
+    }
+
+    /** @param  list<string>  $words */
+    public function scopeOrderByTypoSimilarity(Builder $query, array $words): Builder
+    {
+        $sum = implode(' + ', array_fill(0, count($words), self::typoScoreSql()));
+        $bindings = array_merge(...array_map(fn ($word) => [$word, $word, $word], $words));
+
+        return $query->orderByRaw("({$sum}) DESC", $bindings);
+    }
+
+    /** Best pg_trgm word similarity of one word with the title, an author or the series (indexes: Khmer search migration). */
+    private static function typoScoreSql(): string
+    {
+        return 'GREATEST('
+            .'word_similarity(?, books.title), '
+            .'coalesce((select max(word_similarity(?, authors.name)) from authors join book_authors on book_authors.author_id = authors.id where book_authors.book_id = books.id), 0), '
+            .'coalesce((select word_similarity(?, series.name) from series where series.id = books.series_id), 0))';
+    }
+
     /** Title matches first, then author, series and category name matches; text rank breaks ties. */
     public function scopeOrderByRelevance(Builder $query, string $term): Builder
     {
