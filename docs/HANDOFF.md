@@ -310,7 +310,23 @@ Migrations reviewed by the project lead (all 4 files read): approved.
 - Rule choice inside the spec's wording (4.6, for the reviewer): when an offer already applies, the nudge only shows an
   offer with a **higher percent** (a higher tier); an offer with fewer books needed but a lower percent is not shown.
 
+Calculator reviewed by the project lead: approved. Nudge rule agreed by the owner (only a HIGHER percent once an offer
+applies) and written as final in spec 4.6 (`0444105`).
+
+| Commit | What |
+|---|---|
+| `8654deb` | `GET /cart` (and every cart endpoint, the `cart` in reorder and data export): new `pricing` block (subtotal, discount, total before shipping, `offer`, `nudge`, `free_shipping`) + `in_offer` on each item. New `app/Services/Offers/CartPricing.php`; `CartResource` keeps every old field with the same meaning (`subtotal_usd` is still before any discount). Free delivery from `FREE_SHIPPING_THRESHOLD` via `DeliveryArea::freeShippingThreshold()`, judged on subtotal minus discount like checkout; null for ebook/audiobook-only carts or when switched off. Categories for the cart's books: one query, and none when there is no live offer. `docs/API.md` (cart shape) + `public/openapi.yaml` (`CartPricing` schema, `in_offer`, example). |
+- Tests: `tests/Feature/Offers/CartPricingTest.php` (10): Example 1 (discount 3.00, total 47.00, amount needed 3.00,
+  `in_offer` true/true/false, old fields unchanged); Example 5 nudge; no live offer (paused only) -> offer/nudge null,
+  discount 0.00; empty cart; $52 with 10% -> $46.80, amount needed $3.20; threshold from config (40 -> free, null -> no
+  block); ebook + audiobook only -> no free-delivery block but they count for the offer (2.68); out-of-stock line does not
+  count (nudge instead); POST /cart/items returns the same block; guest 401; query count identical with 1 and 12 offers.
+- Checks on `8654deb`: `php artisan test` 677 passed (old `CartTest`, reorder and data-export tests unchanged and green);
+  `vendor/bin/pint --test` clean; `openapi.yaml` parses.
+- Note for the owner: the API has **no guest cart** (`GET /cart` needs a signed-in, verified customer, `routes/api.php`
+  line 153), so "guest" is tested as "still 401". A guest's cart lives in the browser until sign-in, so it shows no offer.
+
 **Where I stopped / next step**
-- Models + offer math done and pushed. Waiting for the owner's `confirm`.
-- Next step: cart side: `GET /cart` `pricing` block + `in_offer` on lines (spec 6.1), using `OfferService` with the
-  cart's books and categories loaded in one go; free-delivery numbers from the API. No checkout change yet.
+- Cart pricing done and pushed. Waiting for the owner's `confirm`.
+- Next step: `POST /cart/coupon/check` and `POST /checkout/preview` compare offer vs coupon (better one wins, tie ->
+  offer; spec 4.4, 6.2, 6.3), using the same `CartPricing`. Old fields keep their meaning. No order saving yet.
