@@ -385,10 +385,58 @@ components:
               line_total_usd: { $ref: '#/components/schemas/Money' }
               line_total_khr: { $ref: '#/components/schemas/Riel' }
               issues: { type: array, items: { $ref: '#/components/schemas/CartIssue' } }
+              in_offer: { type: boolean, description: 'True when the automatic offer in `pricing.offer` discounts this line.' }
         item_count: { type: integer }
         subtotal_usd: { $ref: '#/components/schemas/Money' }
         subtotal_khr: { $ref: '#/components/schemas/Riel' }
         can_checkout: { type: boolean }
+        pricing: { $ref: '#/components/schemas/CartPricing' }
+    CartPricing:
+      type: object
+      description: |
+        The automatic offer for this cart (no coupon: coupons are compared in POST /cart/coupon/check).
+        `subtotal_usd` is before any discount, like the cart's own `subtotal_usd`.
+      properties:
+        subtotal_usd: { $ref: '#/components/schemas/Money' }
+        subtotal_khr: { $ref: '#/components/schemas/Riel' }
+        discount_usd: { $ref: '#/components/schemas/Money' }
+        discount_khr: { $ref: '#/components/schemas/Riel' }
+        total_before_shipping_usd: { $ref: '#/components/schemas/Money' }
+        total_before_shipping_khr: { $ref: '#/components/schemas/Riel' }
+        offer:
+          type: object
+          nullable: true
+          description: The offer that saves the most (tie -> lower id); null when none applies.
+          properties:
+            id: { type: integer }
+            type: { type: string, enum: [buy_n_percent] }
+            min_quantity: { type: integer, example: 2 }
+            percent_off: { type: string, example: '15.00' }
+            ends_at: { type: string, format: date-time, nullable: true }
+            target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
+            discount_usd: { $ref: '#/components/schemas/Money' }
+            discount_khr: { $ref: '#/components/schemas/Riel' }
+        nudge:
+          type: object
+          nullable: true
+          description: |
+            At most one: an offer the cart has at least 1 covered book for but fewer than `min_quantity`; when an
+            offer already applies, only an offer with a higher percent. Fewest extra books first.
+          properties:
+            offer_id: { type: integer }
+            add_quantity: { type: integer, example: 1 }
+            percent_off: { type: string, example: '15.00' }
+            target_label: { type: string, nullable: true }
+        free_shipping:
+          type: object
+          nullable: true
+          description: Null when free delivery is off (FREE_SHIPPING_THRESHOLD empty or 0) or the cart has only ebooks/audiobooks. Judged on subtotal minus discount, like checkout.
+          properties:
+            threshold_usd: { $ref: '#/components/schemas/Money' }
+            threshold_khr: { $ref: '#/components/schemas/Riel' }
+            amount_needed_usd: { $ref: '#/components/schemas/Money' }
+            amount_needed_khr: { $ref: '#/components/schemas/Riel' }
+            is_free: { type: boolean }
     Order:
       type: object
       properties:
@@ -1218,12 +1266,24 @@ paths:
                     line_total_usd: '12.99'
                     line_total_khr: '53259'
                     issues: []
+                    in_offer: false
                   item_count: 1
                   subtotal_usd: '12.99'
                   subtotal_khr: '53259'
                   can_checkout: true
+                  pricing:
+                    subtotal_usd: '12.99'
+                    subtotal_khr: '53259'
+                    discount_usd: '0.00'
+                    discount_khr: '0'
+                    total_before_shipping_usd: '12.99'
+                    total_before_shipping_khr: '53259'
+                    offer: null
+                    nudge: { offer_id: 3, add_quantity: 1, percent_off: '10.00', target_label: null }
+                    free_shipping: { threshold_usd: '50.00', threshold_khr: '205000', amount_needed_usd: '37.01', amount_needed_khr: '151741', is_free: false }
       description: Needs a verified customer token. Prices are always today's; a line whose price, stock or availability changed since it was added
-        carries an `issues` entry instead of changing silently.
+        carries an `issues` entry instead of changing silently. `pricing` adds the automatic offer (discount, which lines,
+        a nudge such as "add 1 more to save 10%") and the free-delivery numbers from the API.
     delete:
       tags:
       - Customer

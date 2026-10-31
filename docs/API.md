@@ -141,7 +141,15 @@ Every staff create/update/delete is recorded in `admin_audit_logs` (who, action 
 | DELETE | /wishlist/{book_id} | 204 |
 
 Cart rules: max 10 per line; physical formats need stock ("Only N left in stock."); ebooks/audiobooks are quantity 1 and need no stock.
-Cart shape: `{data: {id, items: [{id, book_variant_id, book {id,title}, format, cover_image_url, quantity, unit_price_usd, unit_price_khr, line_total_usd, line_total_khr, issues: [{code, message, ...}]}], item_count, subtotal_usd, subtotal_khr, can_checkout}}`.
+Cart shape: `{data: {id, items: [{id, book_variant_id, book {id,title}, format, cover_image_url, quantity, unit_price_usd, unit_price_khr, line_total_usd, line_total_khr, issues: [{code, message, ...}], in_offer}], item_count, subtotal_usd, subtotal_khr, can_checkout, pricing}}`.
+All cart endpoints (and the `cart` in reorder and data export) return this shape. The older fields keep their meaning: `subtotal_usd` and `line_total_usd` are before any discount.
+`pricing` (automatic offers, spec `docs/superpowers/specs/2026-10-31-offers-design.md`; coupons are not included, they are compared in `POST /cart/coupon/check`):
+- `subtotal_usd/khr`, `discount_usd/khr`, `total_before_shipping_usd/khr` (= subtotal - discount).
+- `offer`: `{id, type: "buy_n_percent", min_quantity, percent_off, ends_at, target_label, discount_usd, discount_khr}` or null. The live offer that saves the most (tie -> lower id). Once the covered books reach `min_quantity`, every covered book gets `percent_off` % off, rounded down to the cent per line; ebooks and audiobooks count; lines with a blocking issue never count. `target_label` = the series or category name when the offer has exactly one such target, else null.
+- `nudge`: `{offer_id, add_quantity, percent_off, target_label}` or null. At most one: an offer the cart has at least 1 covered book for but fewer than needed; when an offer already applies, only one with a higher percent. Fewest extra books first, then higher percent, then lower id.
+- `free_shipping`: `{threshold_usd/khr, amount_needed_usd/khr, is_free}` or null (null when `FREE_SHIPPING_THRESHOLD` is empty or 0, or the cart has only ebooks/audiobooks). Judged on subtotal minus discount, the same rule as checkout.
+- Each item's `in_offer` is true when `pricing.offer` discounts that line.
+Example (the 2 Sherlock Holmes books at $10 + a cookbook at $30, offer "buy 2 Holmes, 15%"): `discount_usd` "3.00", `total_before_shipping_usd` "47.00", `free_shipping.amount_needed_usd` "3.00", `in_offer` true, true, false.
 Issue codes: `unavailable`, `out_of_stock`, `insufficient_stock` (+ `available_quantity`) block checkout; `price_changed` (+ `previous_price_usd`) is information only. `subtotal_usd` counts only lines without blocking issues.
 Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, discount_khr, total_before_shipping_usd, total_before_shipping_khr}}`; errors are 422 on `code` (invalid, inactive, not started, expired, usage limit, minimum subtotal, already used by you).
 
