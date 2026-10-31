@@ -755,7 +755,7 @@ paths:
 
         Never the book itself, no duplicates, only visible books that can be bought (an active format in stock,
         or an ebook/audiobook). Best sellers and "bought together" count only orders that are not pending,
-        cancelled or deleted.
+        cancelled, returned or deleted (processing and shipped count).
 
         Caching: the list (12 ids) is cached for 1 hour per catalogue version. Any staff change to a book
         (create, edit, delete, restore, authors, categories, series, bulk edit, CSV import) starts fresh lists
@@ -788,8 +788,8 @@ paths:
         4. Store best sellers.
 
         Without `cart_ids`: store best sellers. Never a cart book or an `exclude_ids` book, no duplicates, only
-        visible books that can be bought. Best sellers count only orders that are not pending, cancelled or
-        deleted. Not cached.
+        visible books that can be bought. Best sellers count only orders that are not pending, cancelled,
+        returned or deleted (processing and shipped count). Not cached.
       security: []
       parameters:
         - { name: cart_ids, in: query, description: 'Comma-separated book IDs currently in cart', schema: { type: string } }

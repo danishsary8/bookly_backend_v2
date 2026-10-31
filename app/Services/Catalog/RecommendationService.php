@@ -283,14 +283,25 @@ class RecommendationService
         return $picked;
     }
 
-    /** Units sold per book in paid orders (not pending, cancelled or deleted). */
+    /**
+     * Order statuses that are not a sale for rankings ("best sellers", "bought together"): not placed for real yet,
+     * cancelled, or sent back. Deleted orders never count either. Processing and shipped (cash on delivery) do count.
+     *
+     * @return list<string>
+     */
+    private static function notSales(): array
+    {
+        return [OrderStatus::Pending->value, OrderStatus::Cancelled->value, OrderStatus::Returned->value];
+    }
+
+    /** Units sold per book in orders that count as sales (see notSales). */
     private function unitsSoldSubquery(): QueryBuilder
     {
         return DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
             ->whereNull('orders.deleted_at')
-            ->whereNotIn('orders.status', [OrderStatus::Pending->value, OrderStatus::Cancelled->value])
+            ->whereNotIn('orders.status', self::notSales())
             ->groupBy('book_variants.book_id')
             ->selectRaw('book_variants.book_id, SUM(order_items.quantity) AS units_sold');
     }
@@ -311,7 +322,7 @@ class RecommendationService
                     ->join('orders as o', 'o.id', '=', 'oi.order_id')
                     ->where('bv.book_id', $targetBookId)
                     ->whereNull('o.deleted_at')
-                    ->whereNotIn('o.status', [OrderStatus::Pending->value, OrderStatus::Cancelled->value]);
+                    ->whereNotIn('o.status', self::notSales());
             })
             ->where('bv2.book_id', '!=', $targetBookId)
             ->groupBy('bv2.book_id')

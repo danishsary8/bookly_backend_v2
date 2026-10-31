@@ -147,13 +147,14 @@ class RecommendationCacheTest extends TestCase
         $this->assertSame([$x->id], $this->ids($y, 1));
     }
 
-    public function test_best_seller_ranking_counts_only_orders_that_are_not_pending_cancelled_or_deleted(): void
+    public function test_best_seller_ranking_ignores_pending_cancelled_returned_and_deleted_orders(): void
     {
         $category = Category::factory()->create();
         $target = $this->book([], 10, $category);
         $pending = $this->book([], 10, $category);
         $cancelled = $this->book([], 10, $category);
         $deleted = $this->book([], 10, $category);
+        $returned = $this->book([], 10, $category);
         $sold = $this->book([], 10, $category);
         $unsold = $this->book([], 10, $category);
 
@@ -167,10 +168,11 @@ class RecommendationCacheTest extends TestCase
         $sell($pending, OrderStatus::Pending, 50);
         $sell($cancelled, OrderStatus::Cancelled, 50);
         $sell($deleted, OrderStatus::Delivered, 50, softDelete: true);
+        $sell($returned, OrderStatus::Returned, 50);
         $sell($sold, OrderStatus::Delivered, 1);
 
         // Same-category best sellers: only the delivered sale counts; the rest have no sales, newest first.
-        $expected = [$sold->id, $unsold->id, $deleted->id, $cancelled->id, $pending->id];
+        $expected = [$sold->id, $unsold->id, $returned->id, $deleted->id, $cancelled->id, $pending->id];
         $this->assertSame($expected, $this->ids($target));
 
         // Store best sellers (empty cart) follow the same rule.
