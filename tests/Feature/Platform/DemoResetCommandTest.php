@@ -68,6 +68,17 @@ class DemoResetCommandTest extends TestCase
         $this->assertSame(10, $variant->fresh()->stock_quantity);
     }
 
+    public function test_the_order_history_says_it_was_cancelled_automatically_not_by_the_customer(): void
+    {
+        $demo = $this->demo();
+        $order = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 90);
+
+        $this->artisan('demo:reset')->assertExitCode(0);
+
+        $note = $order->fresh()->statusHistory()->reorder('id', 'desc')->value('note');
+        $this->assertSame('Cancelled automatically: hourly demo reset', $note);
+    }
+
     public function test_it_keeps_recent_pending_and_non_pending_orders(): void
     {
         $demo = $this->demo();
@@ -103,12 +114,12 @@ class DemoResetCommandTest extends TestCase
         // The first cancel fails (e.g. staff moved the order on a moment earlier); the second must still be cancelled.
         $real = app(OrderStatusService::class);
         $this->mock(OrderStatusService::class, function ($mock) use ($real, $first) {
-            $mock->shouldReceive('cancelByCustomer')->andReturnUsing(function ($order, $reason) use ($real, $first) {
+            $mock->shouldReceive('cancelAutomatically')->andReturnUsing(function ($order, $reason) use ($real, $first) {
                 if ($order->id === $first->id) {
                     throw new \RuntimeException('Order is no longer pending.');
                 }
 
-                return $real->cancelByCustomer($order, $reason);
+                return $real->cancelAutomatically($order, $reason);
             });
         });
 

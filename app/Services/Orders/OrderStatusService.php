@@ -31,6 +31,15 @@ class OrderStatusService
         return $this->transition($order, OrderStatus::Cancelled, null, $reason ? "Cancelled by customer: {$reason}" : 'Cancelled by customer.', customer: true);
     }
 
+    /**
+     * A cancel done by the system (e.g. the hourly demo reset): the same rule as a customer cancel (pending only, stock
+     * and coupon use given back), but the history says it was automatic, not the customer's choice.
+     */
+    public function cancelAutomatically(Order $order, string $reason): Order
+    {
+        return $this->transition($order, OrderStatus::Cancelled, null, "Cancelled automatically: {$reason}", customer: true);
+    }
+
     public function changeByStaff(Order $order, OrderStatus $to, StaffUser $staff, ?string $note = null): Order
     {
         return $this->transition($order, $to, $staff, $note);
