@@ -595,7 +595,8 @@ paths:
       - name: q
         in: query
         description: 'Search as you type: every word must match the title, description, an author, the series or a category name; words match as
-          prefixes'
+          prefixes. When nothing matches, the search is retried tolerating typos ("frankenstien", "sherlok") and the answer has search.typo_tolerant
+          = true'
         schema:
           type: string
       - name: category_id

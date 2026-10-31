@@ -62,8 +62,7 @@ class BookController extends Controller
         $term = trim($filters['q'] ?? '');
         $sort = $filters['sort'] ?? ($term !== '' ? 'relevance' : 'newest');
 
-        $query = $this->catalogQuery()
-            ->when($term !== '', fn (Builder $q) => $q->search($term))
+        $filter = fn (Builder $q): Builder => $q
             ->when($filters['category_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('categories', fn ($c) => $c->whereKey($id)))
             ->when($filters['author_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('authors', fn ($a) => $a->whereKey($id)))
             ->when($filters['series_id'] ?? null, fn (Builder $q, $id) => $q->where('series_id', $id))
@@ -76,18 +75,37 @@ class BookController extends Controller
                 ->where('stock_quantity', '>', 0)
                 ->orWhereIn('format', [BookFormat::Ebook->value, BookFormat::Audiobook->value]))));
 
-        match ($sort) {
-            'relevance' => $term !== '' ? $query->orderByRelevance($term) : $query->latest(),
-            'price_asc' => $query->orderBy('min_price'),
-            'price_desc' => $query->orderByDesc('min_price'),
-            'title' => $query->orderBy('title'),
-            'rating' => $query->orderByRaw('rating_avg DESC NULLS LAST'),
-            default => $query->latest(),
+        $page = function (Builder $query, callable $byRelevance) use ($sort, $filters) {
+            match ($sort) {
+                'relevance' => $byRelevance($query),
+                'price_asc' => $query->orderBy('min_price'),
+                'price_desc' => $query->orderByDesc('min_price'),
+                'title' => $query->orderBy('title'),
+                'rating' => $query->orderByRaw('rating_avg DESC NULLS LAST'),
+                default => $query->latest(),
+            };
+
+            return $query->orderByDesc('books.id')->paginate($filters['per_page'] ?? 20)->withQueryString();
         };
 
-        return BookResource::collection(
-            $query->orderByDesc('books.id')->paginate($filters['per_page'] ?? 20)->withQueryString()
+        $books = $page(
+            $filter($this->catalogQuery()->when($term !== '', fn (Builder $q) => $q->search($term))),
+            fn (Builder $q) => $term !== '' ? $q->orderByRelevance($term) : $q->latest(),
         );
+
+        // Nothing found for a search: try again tolerating typos ("frankenstien", "sherlok"), same filters.
+        $typo = false;
+        if ($term !== '' && $books->total() === 0 && ($words = Book::typoSearchWords($term)) !== []) {
+            $books = $page(
+                $filter($this->catalogQuery()->typoSearch($words)),
+                fn (Builder $q) => $q->orderByTypoSimilarity($words),
+            );
+            $typo = $books->total() > 0;
+        }
+
+        $collection = BookResource::collection($books);
+
+        return $term !== '' ? $collection->additional(['search' => ['typo_tolerant' => $typo]]) : $collection;
     }
 
     public function show(int $book): BookDetailResource
