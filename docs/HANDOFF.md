@@ -211,4 +211,4 @@ eyebrow by a native speaker.
   Backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books ·
   Frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
 - Next: the owner merges both and does the live check in `OWNER_TODO.md` section 0 (Task A). Next task prompt:
-  `docs/prompts/03-*` (offers + reports), as listed in `docs/prompts/`.
+  `docs/prompts/03-offers-and-reports.md`.
