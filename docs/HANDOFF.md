@@ -326,7 +326,35 @@ applies) and written as final in spec 4.6 (`0444105`).
 - Note for the owner: the API has **no guest cart** (`GET /cart` needs a signed-in, verified customer, `routes/api.php`
   line 153), so "guest" is tested as "still 401". A guest's cart lives in the browser until sign-in, so it shows no offer.
 
+`GET /cart` reviewed by the project lead: approved.
+
+| Commit | What |
+|---|---|
+| `e72b4a9` | Offer vs coupon in ONE place: `app/Services/Offers/DiscountChoice.php` (bigger discount wins, tie -> offer, store credit like any coupon). `CheckoutService::totals()` (the one totals function for preview AND placing an order) now asks `CartPricing::bestOffer()` and `DiscountChoice`. `POST /checkout/preview` + `POST /cart/coupon/check` gain `applied`, `offer`, `coupon_not_used` (coupon check also `best_discount_*`, `best_total_before_shipping_*`, `free_shipping`). Coupon validation and the 5-guess lock run before the comparison and are unchanged. JSON pieces shared in `app/Http/Resources/OfferPayload.php` (cart, coupon check, preview). Docs: `docs/API.md` rows for both endpoints; `openapi.yaml` schemas `CartOffer`, `CartFreeShipping`, `CouponNotUsed` (cart `pricing` now points to them). |
+- Tests: `tests/Feature/Offers/OfferVsCouponTest.php` (7): Example 1 and Example 2 run preview, then the shared function
+  (`quote()`), then a real `POST /checkout`: discount, delivery and total identical in all three (3.00/1.50/48.50 and
+  5.00/1.50/46.50); Example 4 tie -> offer, `coupon_not_used {THREE, offer_better}`, coupon `used_count` stays 0, order
+  `coupon_id` null; store credit $2 loses / $8 wins; unknown, expired, too-small and inactive codes give today's exact 422
+  in both endpoints with an offer live; 5 unknown codes -> 429 with an offer live; no offer -> same numbers as before.
+- Checks on `e72b4a9`: `php artisan test` 684 passed (old `CouponTest`, `CheckoutTest`, free-delivery tests unchanged and
+  green); `vendor/bin/pint --test` clean; `openapi.yaml` parses, every `$ref` resolves.
+
+**Rollout notes (old fields whose meaning changes; only when a live offer exists, otherwise identical to today)**
+- `POST /checkout/preview` `discount` and `total`: now **the winner** (offer or coupon), i.e. the real amount to pay.
+- `POST /checkout/preview` `coupon_code`: now set **only when the coupon won**; before, any valid code was echoed back.
+  Today's checkout page shows "Have a coupon? Add it in the cart" when it is null, so a coupon that lost would vanish
+  without a word: this is why OWNER_TODO says to merge `feature/offers-storefront` before the first live offer.
+- `POST /checkout/preview` `shipping_fee`, `is_free_shipping`, `amount_needed_for_free_shipping`: judged on subtotal minus
+  the winner's discount (same rule as before, the discount can now be an offer).
+- `POST /cart/coupon/check`: no old field changes meaning (they still describe the coupon alone); the winner is in the
+  new `best_*` fields.
+- **Not mergeable yet (mid-task state):** `POST /checkout` already charges the winner's amount (same function), but does not
+  yet save `orders.offer_id` + copy, the per-line `discount_amount`, or count/lock `used_count` / `max_orders`. That is the
+  next step; do not merge `feature/offers-engine` before it.
+
 **Where I stopped / next step**
-- Cart pricing done and pushed. Waiting for the owner's `confirm`.
-- Next step: `POST /cart/coupon/check` and `POST /checkout/preview` compare offer vs coupon (better one wins, tie ->
-  offer; spec 4.4, 6.2, 6.3), using the same `CartPricing`. Old fields keep their meaning. No order saving yet.
+- Offer vs coupon done and pushed. Waiting for the owner's `confirm`.
+- Next step: `POST /checkout` saves the winner (spec 4.4, 4.7, 4.9, O1 = A): `offer_id` + copy on the order, per-line
+  `discount_amount` (offer exact, coupon split with the rest on the last line), lock live offers in id order + `used_count`,
+  optional `offer_id` in the request -> 422 if it no longer applies, race test for the last use, cancel gives the use back
+  (skip when `offer_id` is null). `OrderResource` `offer` + item `discount_usd`.
