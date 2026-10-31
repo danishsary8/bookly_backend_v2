@@ -127,9 +127,10 @@ coupons today). `amount_needed = max(0, threshold - (subtotal - discount))`.
 
 ### 4.6 Nudge (cart only)
 
-At most one nudge: among live offers where the cart already has at least 1 covered unit but fewer than N, or that
-would save more than the offer applied now (a higher tier), pick the one needing the fewest extra units; tie -> the
-higher percent, then the lower id. The nudge says how many more books and the percent, not a dollar amount (that
+At most one nudge (final, owner 2026-10-31). Candidates: live offers where the cart already has at least 1 covered
+unit but fewer than N. **When an offer already applies, only candidates with a HIGHER percent than the applied offer
+count** (a higher tier); an offer that needs fewer books but saves a lower or equal percent is never shown. Pick the
+candidate needing the fewest extra units; tie -> the higher percent, then the lower id. The nudge says how many more books and the percent, not a dollar amount (that
 depends on which book is added).
 
 ### 4.7 Splitting the discount over the lines (filled at checkout)
