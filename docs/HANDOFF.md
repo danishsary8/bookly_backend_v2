@@ -279,3 +279,20 @@ Changes asked before building:
    real shop.
 5. Rollout: until an admin creates a live offer nothing changes for customers. Note in OWNER_TODO: merge
    `offers-storefront` before creating the first live offer (today's checkout page hides a coupon that lost to an offer).
+
+### Build progress (branch `feature/offers-engine`)
+https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine
+| Commit | What |
+|---|---|
+| `933b6dc` | Spec updated with the review: 4.8 no claw-back + rounding (customer gets at most 1 cent more per line), 4.9 skip the decrement when `offer_id` is null + O1 = A rule, 6.6 no N+1 + query-count test, 6.8 demo offer paused + rollout order. OWNER_TODO rollout note: `011afa9` on this branch. |
+| `d1b47f8` | Migrations `2026_10_31_100001` to `100004`: `offers`, `offer_targets`, 4 offer columns + index on `orders`, `order_items.discount_amount` (default 0). Test `tests/Feature/Offers/OfferSchemaTest.php` (6): CHECK limits and edges, one-target rule, unique target, cascade on hard delete of a book and of the offer, SET NULL keeps the order's copy, line discount default 0.00. |
+- Checks on `d1b47f8`: `migrate:fresh` on the test DB, then `migrate:rollback --step=4` and `migrate` again (all
+  DONE); `php artisan test` 648 passed; `vendor/bin/pint --test` clean. No model, service or endpoint yet, so no
+  `docs/API.md` / `openapi.yaml` change in this step.
+- Note: books and series soft delete, so the cascade on `offer_targets` only runs on a hard delete. A target whose book
+  is in the trash simply matches nothing (the book is not for sale). The "No books" status must treat it the same way.
+
+**Where I stopped / next step**
+- Migrations done and pushed. Waiting for the owner's `confirm`.
+- Next step: `Offer` + `OfferTarget` models, `OfferService` with the discount rule (spec 4.1-4.3, 4.6) and unit tests for
+  examples 1, 3, 5 (no cart, checkout or endpoint change yet).
