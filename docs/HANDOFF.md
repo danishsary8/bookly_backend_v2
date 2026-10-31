@@ -252,6 +252,17 @@ eyebrow by a native speaker.
 3. `FreeShippingBar.tsx` English and Khmer texts are written inside the component, not in `src/i18n/en.ts` / `km.ts`.
 4. Not checked: whether the bar shows for an ebook-only cart (ebook-only orders have no delivery fee, so it should not).
 
+**Owner answers on the Step 2 proposal (2026-10-31):** Q1-Q9 all A (see the spec, section 2). Migrations OK with
+additions: `order_items.discount_amount` (line discount for offers and coupons; returns use it, old orders keep the
+proportional rule), offer row lock + use given back on cancel + race test, exact discount rule with worked examples
+(all covered units once quantity >= N, rounded down per line, ebooks count), "No books" status when all targets are gone.
+
+**Spec:** `docs/superpowers/specs/2026-10-31-offers-design.md` on branch `feature/offers-engine` (commit `770e25f`)
+https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine
+- Tests not run: the commit is one Markdown file only.
+- Open question O1 (in the spec): what checkout does when the offer ran out after the preview (recommend A: optional
+  `offer_id` in checkout, 422 if it no longer applies).
+
 **Where I stopped / next step**
-- Waiting for the owner's answers on the Step 2 proposal (offer types, store credit, targets table, nudge, reports).
-- Next: write `docs/superpowers/specs/2026-10-31-offers-design.md` with the agreed design and ask the owner to review it.
+- Waiting for the owner's review of the spec and an answer to O1. No migration or code written yet.
+- Next after OK: build `feature/offers-engine` in small steps (migrations first), each step tested and pushed.
