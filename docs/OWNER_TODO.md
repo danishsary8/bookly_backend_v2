@@ -35,6 +35,9 @@ All branches start from `main` and were checked together: every order merges cle
 - [ ] `chore/dependency-audit` — package security fixes + Vitest 5 (shipped code: 0 vulnerabilities; 22 left, all in
   developer/build tools, each needing its own major upgrade)
   https://github.com/danishsary8/bookly_frontend/pull/new/chore/dependency-audit
+- [ ] `feature/typo-search-notice` — search results say "No exact match for … Showing books with a similar spelling"
+  when the backend used typo matching (shows nothing until `feature/typo-tolerant-search` is merged; safe either order)
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/typo-search-notice
 
 After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** on Render (Events tab).
 
