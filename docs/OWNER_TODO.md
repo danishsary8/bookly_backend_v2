@@ -6,59 +6,71 @@ working with today's settings.
 
 ---
 
+## Progress (2026-10-31)
+
+- Done: all 18 branches merged and deployed; backup points at `bookly-2` (green run); demo data is there; live checks
+  (Download my data, 404 answer, typo search, Download button, admin orders auto-refresh) passed.
+- **Paused, continue here:** section 4c (phone code). What we learned: a number typed in **Profile** is only a courier
+  contact number. Codes are sent only to a **verified** number linked to the bot. Fix: **Account → Sign-in & security →
+  Phone row → Confirm** → share the number in the Bookly bot → then try the phone code again (wait for the
+  "Too many attempts" timer first). The "Telegram order updates" card does not verify the number.
+- Then: section 3 (R2), section 5 (decisions), sections 4b, 6, 7, 8 when ready.
+
+---
+
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
 613 backend tests. For each link: **Create pull request** → wait for green CI → **Merge**.
 
 **Backend** (`bookly_backend_v2`)
-- [ ] `feature/r2-media-storage` — book covers can be stored on Cloudflare R2 (stays on today's disk until you do step 3)
+- [x] `feature/r2-media-storage` — book covers can be stored on Cloudflare R2 (stays on today's disk until you do step 3)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/r2-media-storage
-- [ ] `fix/symfony-mime-advisory` — security update (symfony/mime 7.4.22, CVE-2026-45070)
+- [x] `fix/symfony-mime-advisory` — security update (symfony/mime 7.4.22, CVE-2026-45070)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/symfony-mime-advisory
-- [ ] `fix/demo-reset-keeps-going` — the hourly demo reset no longer stops at one bad order, and the order history
+- [x] `fix/demo-reset-keeps-going` — the hourly demo reset no longer stops at one bad order, and the order history
   says "Cancelled automatically" instead of "Cancelled by customer"
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/demo-reset-keeps-going
-- [ ] `feature/customer-data-export` — new `GET /api/v1/me/export` ("Download my data")
+- [x] `feature/customer-data-export` — new `GET /api/v1/me/export` ("Download my data")
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/customer-data-export
-- [ ] `fix/docs-small-followups` — 404s no longer reveal internal class names; two docs fixes
+- [x] `fix/docs-small-followups` — 404s no longer reveal internal class names; two docs fixes
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/docs-small-followups
-- [ ] `fix/docs-stale-demo-token` — the docs page checks a saved demo token, so an expired one never shows "Signed in"
+- [x] `fix/docs-stale-demo-token` — the docs page checks a saved demo token, so an expired one never shows "Signed in"
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/docs-stale-demo-token
-- [ ] `feature/typo-tolerant-search` — search finds books despite typos ("frankenstien", "sherlok", "jane austin");
+- [x] `feature/typo-tolerant-search` — search finds books despite typos ("frankenstien", "sherlok", "jane austin");
   no migration needed (pg_trgm is already on)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/typo-tolerant-search
-- [ ] `feature/load-test-kit` — `load/live-check.js`: a gentle k6 check of the live API (see section 4)
+- [x] `feature/load-test-kit` — `load/live-check.js`: a gentle k6 check of the live API (see section 4)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/load-test-kit
-- [ ] `feature/send-emails-after-response` — order, status and security emails are sent right after the answer
+- [x] `feature/send-emails-after-response` — order, status and security emails are sent right after the answer
   (faster checkout; a mail outage no longer shows an error after the order is saved). Codes still go out at once.
   Nothing to set up (free, no worker)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/send-emails-after-response
-- [ ] `feature/staging-setup-kit` — the staging guide (`docs/STAGING.md`) and CI on the `staging` branch. Docs only
+- [x] `feature/staging-setup-kit` — the staging guide (`docs/STAGING.md`) and CI on the `staging` branch. Docs only
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/staging-setup-kit
-- [ ] `feature/telegram-phone-code` — sign in with a phone number + a 6-digit code from the Bookly bot (no
+- [x] `feature/telegram-phone-code` — sign in with a phone number + a 6-digit code from the Bookly bot (no
   migration). Merge together with the frontend branch of the same name (either first is safe)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/telegram-phone-code
-- [ ] `docs/overnight-notes` — this file and the work log
+- [x] `docs/overnight-notes` — this file and the work log
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/overnight-notes
 
 **Frontend** (`bookly_frontend`)
-- [ ] `chore/dependency-audit` — package security fixes + Vitest 5 (shipped code: 0 vulnerabilities; 22 left, all in
+- [x] `chore/dependency-audit` — package security fixes + Vitest 5 (shipped code: 0 vulnerabilities; 22 left, all in
   developer/build tools, each needing its own major upgrade)
   https://github.com/danishsary8/bookly_frontend/pull/new/chore/dependency-audit
-- [ ] `feature/typo-search-notice` — search results say "No exact match for … Showing books with a similar spelling"
+- [x] `feature/typo-search-notice` — search results say "No exact match for … Showing books with a similar spelling"
   when the backend used typo matching (shows nothing until `feature/typo-tolerant-search` is merged; safe either order)
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/typo-search-notice
-- [ ] `feature/download-my-data` — "Download my data" button on Account → Sign-in & security (says "not available yet"
+- [x] `feature/download-my-data` — "Download my data" button on Account → Sign-in & security (says "not available yet"
   until `feature/customer-data-export` is merged; safe either order)
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/download-my-data
-- [ ] `feature/admin-orders-auto-refresh` — new orders appear in the admin by themselves (checks every 30 s while
+- [x] `feature/admin-orders-auto-refresh` — new orders appear in the admin by themselves (checks every 30 s while
   the tab is open; a toast, the list reloads, a "New" badge). Frontend only, nothing to set up
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-orders-auto-refresh
-- [ ] `feature/telegram-phone-code` — the phone sign-in asks for the number and the code; Continue with Telegram
+- [x] `feature/telegram-phone-code` — the phone sign-in asks for the number and the code; Continue with Telegram
   stays under it as the backup (before the backend part is live, it says codes aren't available yet)
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/telegram-phone-code
-- [ ] `feature/staging-banner` — a "Staging site: test data only" bar, shown only when `VITE_APP_ENV=staging`
+- [x] `feature/staging-banner` — a "Staging site: test data only" bar, shown only when `VITE_APP_ENV=staging`
   (nothing changes on the live site); CI on the `staging` branch
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/staging-banner
 
@@ -68,11 +80,11 @@ After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** 
 
 ## 2. Urgent (do first)
 
-- [ ] **Point the nightly backup at the new database.** You moved to the Neon project `bookly-2`, but the backup still
+- [x] **Point the nightly backup at the new database.** You moved to the Neon project `bookly-2`, but the backup still
   reads the old address. GitHub → `bookly_backend_v2` → **Settings → Secrets and variables → Actions** →
   `BACKUP_DATABASE_URL` → **Update** → paste the `bookly-2` connection string (Neon → `bookly-2` → **Connect**).
   Then **Actions → Nightly database backup → Run workflow** once and check it turns green.
-- [ ] **Demo data on the new database** (needed by the docs page's demo button), if not done yet: `docs/DEPLOYMENT.md`
+- [x] **Demo data on the new database** (needed by the docs page's demo button), if not done yet: `docs/DEPLOYMENT.md`
   → F6 (run `DemoSeeder` from your computer with the `bookly-2` `DB_URL`). Check: https://bookly-api-zasc.onrender.com/docs
   → **Sign in as demo customer** → no "demo account is not set up" message.
 
@@ -110,9 +122,9 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
 
 ## 4. Quick checks after the deploy
 
-- [ ] **Download my data:** https://bookly-api-zasc.onrender.com/docs → **Sign in as demo customer** → **Customer →
+- [x] **Download my data:** https://bookly-api-zasc.onrender.com/docs → **Sign in as demo customer** → **Customer →
   GET /me/export → Execute** → 200 and a JSON file.
-- [ ] **404 answer:** `GET /books/999999` in the docs → `{"message": "Not found."}` (no `App\Models\…`).
+- [x] **404 answer:** `GET /books/999999` in the docs → `{"message": "Not found."}` (no `App\Models\…`).
 - [ ] **Staff/admin testing** (only you): docs → **Details → Test as staff or admin**.
 - [ ] **Speed check of the live site** (after merging `feature/load-test-kit`, k6 installed: `winget install k6 --source winget`):
   `k6 run -e BASE_URL=https://bookly-api-zasc.onrender.com/api/v1 load/live-check.js` → about 5 minutes → look for
