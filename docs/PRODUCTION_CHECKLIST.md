@@ -58,3 +58,34 @@ platform. Written 2026-10-30.
 ## Suggested order
 
 1 → 3 → 4 → 2 → 7 → 6 → 8 → the rest. Images first (data loss today), then domain and email (trust), then payments.
+
+## 4. Planned features (owner's wishes, 2026-10-31)
+
+Noted for later; nothing is built yet. Each one starts with a short plan and the owner's choices (as before).
+
+### 4.1 Marketing system ("strategy marketing")
+Guided by the skills in https://github.com/coreyhaines31/marketingskills (used as the playbook: `offers`, `pricing`,
+`marketing-psychology`, `cro`, `popups`, `emails`, `referrals`, `analytics`, `ab-testing`, `marketing-plan`).
+- [ ] **"You may also like" on the book page**: similar books when a customer opens one (same author, series,
+  category, close title/description; later "customers who bought this also bought" from real orders). Free, runs in
+  PostgreSQL (no paid AI service needed to start); an AI model can be added later if wanted.
+- [ ] **Offers that make customers buy more**: e.g. "Buy 2, get 10% off", bundle deals ("complete the series"),
+  "spend $X more for free delivery" in the cart, limited-time deals. Built on the coupons the shop already has.
+- [ ] **Seasonal / weather picks** (owner: "match with weather… idk", to settle): e.g. rainy-season reading lists,
+  holiday or exam-season picks shown on the home page. Owner to confirm what is meant.
+- [ ] Marketing reports: which offer sold what (so the owner sees what works).
+
+### 4.2 Business intelligence dashboard (admin)
+Make the admin dashboard look and work like a real bookstore company's, as good as or better than the owner's
+sample https://tour-trip-frontend.vercel.app/admin (screenshot 2026-10-31):
+- [ ] KPI cards with a small trend line, "% vs previous 30 days" (green up / red down) and a "View …" link: books,
+  orders, customers, income.
+- [ ] Income report: this period vs the previous one (solid vs dashed line), switch Income / Orders.
+- [ ] Orders by status as a donut with the total in the middle.
+- [ ] Side menu in groups (Overview, Catalogue, Operations, Insights), "Search or jump to… Ctrl K", notification
+  bell with count, badge counts (e.g. pending orders).
+- [ ] Bookstore extras to beat the sample: best sellers, slow movers / dead stock, stock value, category and author
+  sales, repeat-customer rate, average order value, coupon and offer results, sales by province.
+  (Part of this exists today: `/admin` dashboard, Reports, sales chart; the work is the redesign and the extra numbers.)
+
+More wishes may come; add them here.

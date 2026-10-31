@@ -180,6 +180,40 @@ Owner decision: no paid plan (Railway Free is full with another project) → Ren
 - [x] Phone numbers through the Telegram bot; the paid Telegram Gateway is gone (branch `feature/phone-by-telegram-bot`, on top of `feature/telegram-bot`; owner's choices 2026-10-08: no typing, one tap; "Continue with Telegram" on sign-in; Facebook confirms the phone in Telegram or gives an email). `POST /auth/register` with `verify_by=telegram` needs no phone and sends nothing (422 on `verify_by` while the bot is off); the website continues with `POST /auth/telegram/phone`. Facebook sign-up: the second call sends `verify_by` (`telegram` / `email`) and the email (required with `email`) instead of a phone; `needs: phone` answers `telegram` (bot on). `GET /auth/options` → `{telegram}`. `sign_in_methods` says `telegram` instead of `phone`. Removed: `POST /auth/phone`, `/auth/verify-phone`, `/auth/phone-login`, `/auth/phone-login/verify`, `resend-verification`'s `channel`, `TelegramGateway`, `TelegramGatewayProblem`, `TelegramCodeNotSent`, `TELEGRAM_GATEWAY_TOKEN/URL`, `PHONE_CODES_PER_HOUR/DAY`. The `phone_verify` / `phone_login` code kinds stay in the enum for old rows. No migration. 295 tests.
 - [x] The bot never answered "Start" on the live site (branch `fix/telegram-webhook-check`). The website made the link (so the token works), but Telegram wasn't delivering the bot's messages to the API, and nothing said why: the webhook address was only set at container start from `APP_URL`. Now, when a customer starts a link, the API asks Telegram (`getWebhookInfo`, at most every 10 minutes) where it delivers: a missing or different address is replaced by the address the request came in on (https in production), and a recent delivery error from Telegram (e.g. "404 Not Found", timeouts) is reported to Sentry with a hint. If the check itself fails, the link still works and the problem is reported. Checked with a stand-in Telegram: the first link sets the webhook, the second within 10 minutes doesn't ask again. 299 tests.
 
+## Overnight batch 2026-10-30 (owner asleep; each branch from `main`, independent)
+
+Owner steps and merge links: `docs/OWNER_TODO.md`. These entries live here (not at the end of the file) so this notes
+branch never conflicts with the R2 branch's own entry at the end.
+
+- [x] `fix/symfony-mime-advisory`: symfony/mime 7.4.19 → 7.4.22 (CVE-2026-45070, email header injection); stayed on
+  the 7.4 line on purpose (an unpinned update jumped to 8.1). `composer audit` clean; 600 tests.
+- [x] `fix/demo-reset-keeps-going`: `demo:reset` reports and skips an order that can't be cancelled instead of stopping;
+  counts only real cancels; note text "Hourly demo reset". Test with a cancel that fails on the first order.
+- [x] `feature/customer-data-export`: `GET /api/v1/me/export` (customer token, 5/hour) returns one JSON file
+  (`Content-Disposition: attachment`) with profile, addresses, cart, wishlist, orders + history, returns, reviews,
+  stock alerts, store credits and newsletter status, built from the same resources as the account screens. Excludes
+  password hash, tokens and staff notes/tags (owner to confirm). OpenAPI + API.md. 3 tests; checked on demo data.
+- [x] `fix/docs-small-followups`: a missing record answers `{"message": "Not found."}` instead of
+  "No query results for model [App\Models\Order] 7" (found by testing with `APP_DEBUG=false`); unknown routes unchanged.
+  OpenAPI: `/books/{id}` 404 example moved into the shared `NotFound` response (OpenAPI ignores siblings of `$ref`).
+  Docs status badge says "Busy" on a 429 instead of "Database unavailable". 2 tests; browser check of `/docs`.
+- [x] `fix/demo-reset-keeps-going` (second commit): new `OrderStatusService::cancelAutomatically()` (same pending-only
+  rule, stock and coupon restored) so the history reads "Cancelled automatically: hourly demo reset". Test added.
+- [x] `fix/docs-stale-demo-token`: on load, `/docs` checks a saved demo token with `GET /me`; on 401 it clears it and
+  says "Your demo session ended. Sign in again." Browser-checked: valid, expired and no token.
+- [x] Safety check: all 8 open backend branches merged together in two orders → clean; combined suite 613/613, pint
+  clean, `composer audit` clean.
+- [x] Frontend `chore/dependency-audit`: `npm audit fix` (no majors), 14 → 6 advisories, shipped code 0 (details in
+  the frontend worklog).
+- [x] `feature/typo-tolerant-search` (owner approved 2026-10-31): when the normal search finds nothing, `GET /books`
+  retries with pg_trgm word similarity (>= 0.4) on title, authors and series; every word of 3+ letters must match (same
+  rule as the normal search); code-like searches (digit, - or _) are never guessed; Khmer words keep their own search;
+  filters still apply; answer has `search.typo_tolerant`. No migration (pg_trgm + trigram indexes exist since the Khmer
+  search). Two existing tests caught a too-loose first version ("austen dragon", "DRAC-OLD"); fixed. 4 new tests; demo
+  data: frankenstien, sherlok, jane austin, pride prejudise, moby dik found; the hobbit, xqzvwk, DRAC-OLD find nothing.
+- [x] Frontend Vitest 5 (owner approved): see the frontend worklog (`chore/dependency-audit`).
+- Not done (needs the owner): payments, domain, email worker.
+
 ## How to run locally
 ```
 composer install
