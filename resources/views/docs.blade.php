@@ -320,7 +320,9 @@
             const up = await get('/up');
             if (!up.ok) throw new Error('down');
             const health = await get(API + '/health');
-            health.ok ? setStatus('ok', 'API operational') : setStatus('bad', 'Database unavailable');
+            if (health.ok) setStatus('ok', 'API operational');
+            else if (health.status === 429) setStatus('warn', 'Busy, try again shortly');
+            else setStatus('bad', 'Database unavailable');
         } catch (e) {
             if (retried) { setStatus('bad', 'API not reachable'); return; }
             setStatus('warn', 'Waking up…');

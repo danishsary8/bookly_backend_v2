@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureStaffTwoFactorEnabled;
 use App\Http\Middleware\RunDueMaintenance;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetAppLocaleFromHeader;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,7 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Sentry\Laravel\Integration;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -58,6 +60,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A missing record answers a plain 404 instead of "No query results for model [App\Models\Order] 7", which
+        // would reveal internal class names. Unknown routes keep Laravel's own 404 message.
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($e->getPrevious() instanceof ModelNotFoundException && ($request->is('api/*') || $request->expectsJson())) {
+                return response()->json(['message' => __('Not found.')], 404);
+            }
+        });
 
         // An email that couldn't be sent (mail provider down or refusing) is still reported above,
         // but the customer gets a plain "try again" instead of a 500.

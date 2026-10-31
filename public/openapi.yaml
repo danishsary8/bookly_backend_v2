@@ -95,6 +95,7 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Not found. }
     NoContent:
       description: Done, no body
   schemas:
@@ -719,10 +720,6 @@ paths:
                     $ref: '#/components/schemas/BookDetail'
         '404':
           $ref: '#/components/responses/NotFound'
-          content:
-            application/json:
-              example:
-                message: Not found.
   /books/{id}/also-bought:
     get:
       tags: [Public]
