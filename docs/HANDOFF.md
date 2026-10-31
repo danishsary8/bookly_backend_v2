@@ -292,7 +292,25 @@ https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine
 - Note: books and series soft delete, so the cascade on `offer_targets` only runs on a hard delete. A target whose book
   is in the trash simply matches nothing (the book is not for sale). The "No books" status must treat it the same way.
 
+Migrations reviewed by the project lead (all 4 files read): approved.
+
+| Commit | What |
+|---|---|
+| `13999c0` | Models `Offer`, `OfferTarget`, `OfferFactory`. `app/Services/Offers/`: `OfferCalculator` (pure math, no database: `evaluate`, `best`, `nudge`, `bestForBook`), plain value objects `LiveOffer`, `OfferLine`, `OfferResult`, and `OfferService::live()` (ONE query: offers + targets + the targets' names and trash state, cached 60 s under `offers:live`; dates and use limit re-checked on every read; `forget()` for admin saves). |
+- Tests: `tests/Unit/Offers/OfferCalculatorTest.php` (13): examples 1, 3, 4 (offer side: $3.00, tie -> lower id) and 5 (nudge)
+  in exact cents; 3 units with "buy 2" = all 3; best offer wins; blocked lines never count or get a discount; book /
+  category / series matching; nudge picks the fewest extra books and only a higher tier; book-card best offer; **200
+  seeded random carts** (seed 20261031, 600 offer checks, 170 gave a discount): never negative, never above the floor-sum
+  of X% per covered line, never above X% of the covered subtotal or the subtotal, each line <= its price, lines add up.
+  `tests/Feature/Offers/OfferServiceTest.php` (6): paused, scheduled, ended, used-up and "No books" ignored; targets in the
+  trash (book, series, category) left out and an offer with only those ignored; `target_label` only for exactly one
+  series/category; 1 query for 7 offers with 20 targets, 0 from the cache, 1 again after 61 s and after `forget()`;
+  start/end times honoured from the cache.
+- Checks on `13999c0`: `php artisan test` 667 passed; `vendor/bin/pint --test` clean. No endpoint yet, so no API docs change.
+- Rule choice inside the spec's wording (4.6, for the reviewer): when an offer already applies, the nudge only shows an
+  offer with a **higher percent** (a higher tier); an offer with fewer books needed but a lower percent is not shown.
+
 **Where I stopped / next step**
-- Migrations done and pushed. Waiting for the owner's `confirm`.
-- Next step: `Offer` + `OfferTarget` models, `OfferService` with the discount rule (spec 4.1-4.3, 4.6) and unit tests for
-  examples 1, 3, 5 (no cart, checkout or endpoint change yet).
+- Models + offer math done and pushed. Waiting for the owner's `confirm`.
+- Next step: cart side: `GET /cart` `pricing` block + `in_offer` on lines (spec 6.1), using `OfferService` with the
+  cart's books and categories loaded in one go; free-delivery numbers from the API. No checkout change yet.
