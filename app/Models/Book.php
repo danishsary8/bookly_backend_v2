@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Catalog\RecommendationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class Book extends Model
 {
@@ -22,6 +24,17 @@ class Book extends Model
     ];
 
     protected $hidden = ['search_vector'];
+
+    /** Any saved change to a book (incl. its series) starts fresh "similar books" lists, once the change is committed. */
+    protected static function booted(): void
+    {
+        $changed = fn () => DB::afterCommit(fn () => RecommendationService::catalogChanged());
+
+        static::created($changed);
+        static::updated($changed);
+        static::deleted($changed);
+        static::restored($changed);
+    }
 
     /**
      * The column has no time zone, so a time sent with an offset ("09:00+07:00" from the admin form) is turned into UTC

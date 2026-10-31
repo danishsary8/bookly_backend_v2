@@ -263,6 +263,9 @@ class BookCsvImport
         $newBooks = [];
 
         DB::transaction(function () use ($results, $admin, &$created, &$updated, &$newBooks) {
+            // Rows may change only authors or categories, which fire no book event.
+            DB::afterCommit(fn () => RecommendationService::catalogChanged());
+
             foreach ($results as $result) {
                 if ($result['action'] === 'error') {
                     continue;

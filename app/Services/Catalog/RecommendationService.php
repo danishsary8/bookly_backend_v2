@@ -12,91 +12,124 @@ use Illuminate\Support\Facades\DB;
 
 class RecommendationService
 {
+    /** How many ids a book's cached list keeps (the most any caller can ask for). */
+    public const CACHED_IDS = 12;
+
+    private const VERSION_KEY = 'catalog:recommendations-version';
+
     /**
      * Retrieve recommended books for a specific book, filled up to $limit in this order: same series (next books
      * first), bought together, same category + author, same categories (best sellers first), same authors, store
      * best sellers. Never the book itself, no duplicates, in-stock and visible only.
      *
+     * The full list (CACHED_IDS ids) is cached for an hour under the catalogue version, so any staff change to any
+     * book starts fresh lists for every book. Stock and visibility are checked again on every read, so a book that
+     * sold out or was hidden after the list was cached never shows; the result is then cut to $limit.
+     *
      * @return list<int> Book IDs in order of relevance.
      */
     public function getRecommendedIdsForBook(Book $targetBook, int $limit = 6): array
     {
-        $limit = max(1, min(12, $limit));
+        $limit = max(1, min(self::CACHED_IDS, $limit));
+        $key = 'books:'.$targetBook->id.':recommendations:v'.self::catalogVersion();
 
-        return Cache::remember("books:{$targetBook->id}:recommendations:{$limit}", 3600, function () use ($targetBook, $limit) {
-            // 0. Same series: the next books first, then the earlier ones
-            $collected = collect($targetBook->series_id
-                ? $this->querySeriesBookIds($targetBook->series_id, $targetBook->series_order, [$targetBook->id], $limit)
-                : []);
+        $ids = Cache::remember($key, 3600, fn () => $this->computeIdsForBook($targetBook));
 
-            // 1. Co-purchases in completed orders (>= 2 shared orders)
-            $coBookIds = $this->queryCoPurchasedBookIds($targetBook->id);
-            if (! empty($coBookIds)) {
-                $validCoBooks = $this->filterInStockAndVisibleIds($coBookIds);
-                $collected = $collected->concat($validCoBooks)->unique()->values();
-            }
+        return array_slice($this->filterInStockAndVisibleIds($ids), 0, $limit);
+    }
 
-            if ($collected->count() >= $limit) {
-                return $collected->take($limit)->all();
-            }
+    /** The catalogue version used in the cache keys of the book lists. */
+    public static function catalogVersion(): int
+    {
+        return (int) Cache::get(self::VERSION_KEY, 1);
+    }
 
+    /**
+     * Staff changed a book (created, edited, deleted, restored, authors, categories or series): every cached book
+     * list is now stale. Old entries are not deleted; nobody reads them again and they expire within the hour.
+     */
+    public static function catalogChanged(): void
+    {
+        Cache::forever(self::VERSION_KEY, self::catalogVersion() + 1);
+    }
+
+    /** @return list<int> */
+    private function computeIdsForBook(Book $targetBook): array
+    {
+        $limit = self::CACHED_IDS;
+
+        // 0. Same series: the next books first, then the earlier ones
+        $collected = collect($targetBook->series_id
+            ? $this->querySeriesBookIds($targetBook->series_id, $targetBook->series_order, [$targetBook->id], $limit)
+            : []);
+
+        // 1. Co-purchases in completed orders (>= 2 shared orders)
+        $coBookIds = $this->queryCoPurchasedBookIds($targetBook->id);
+        if (! empty($coBookIds)) {
+            $validCoBooks = $this->filterInStockAndVisibleIds($coBookIds);
+            $collected = $collected->concat($validCoBooks)->unique()->values();
+        }
+
+        if ($collected->count() >= $limit) {
+            return $collected->take($limit)->all();
+        }
+
+        $excludeIds = array_merge([$targetBook->id], $collected->all());
+        $needed = $limit - $collected->count();
+
+        // 2. Same primary category AND same author (highest topical match)
+        $categoryIds = $targetBook->categories()->pluck('categories.id')->all();
+        $authorIds = $targetBook->authors()->pluck('authors.id')->all();
+
+        if (! empty($categoryIds) && ! empty($authorIds)) {
+            $sameCategoryAndAuthor = $this->baseBuyableQuery()
+                ->whereNotIn('books.id', $excludeIds)
+                ->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds))
+                ->whereHas('authors', fn ($a) => $a->whereIn('authors.id', $authorIds))
+                ->leftJoinSub($this->unitsSoldSubquery(), 'ca_sales', 'ca_sales.book_id', '=', 'books.id')
+                ->orderByRaw('ca_sales.units_sold DESC NULLS LAST')
+                ->orderByDesc('books.id')
+                ->limit($needed)
+                ->pluck('books.id')
+                ->all();
+
+            $collected = $collected->concat($sameCategoryAndAuthor)->unique()->values();
             $excludeIds = array_merge([$targetBook->id], $collected->all());
             $needed = $limit - $collected->count();
+        }
 
-            // 2. Same primary category AND same author (highest topical match)
-            $categoryIds = $targetBook->categories()->pluck('categories.id')->all();
-            $authorIds = $targetBook->authors()->pluck('authors.id')->all();
+        // 3. Same categories (ordered by sales volume / rating)
+        if ($needed > 0 && ! empty($categoryIds)) {
+            $sameCategory = $this->queryCategoryBestSellers($categoryIds, $excludeIds, $needed);
+            $collected = $collected->concat($sameCategory)->unique()->values();
+            $excludeIds = array_merge([$targetBook->id], $collected->all());
+            $needed = $limit - $collected->count();
+        }
 
-            if (! empty($categoryIds) && ! empty($authorIds)) {
-                $sameCategoryAndAuthor = $this->baseBuyableQuery()
-                    ->whereNotIn('books.id', $excludeIds)
-                    ->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds))
-                    ->whereHas('authors', fn ($a) => $a->whereIn('authors.id', $authorIds))
-                    ->leftJoinSub($this->unitsSoldSubquery(), 'ca_sales', 'ca_sales.book_id', '=', 'books.id')
-                    ->orderByRaw('ca_sales.units_sold DESC NULLS LAST')
-                    ->orderByDesc('books.id')
-                    ->limit($needed)
-                    ->pluck('books.id')
-                    ->all();
+        // 4. Same author(s) (ordered by rating / recency)
+        if ($needed > 0 && ! empty($authorIds)) {
+            $sameAuthor = $this->baseBuyableQuery()
+                ->whereNotIn('books.id', $excludeIds)
+                ->whereHas('authors', fn ($a) => $a->whereIn('authors.id', $authorIds))
+                ->withAvg('approvedReviews as rating_avg', 'rating')
+                ->orderByRaw('rating_avg DESC NULLS LAST')
+                ->orderByDesc('books.id')
+                ->limit($needed)
+                ->pluck('books.id')
+                ->all();
 
-                $collected = $collected->concat($sameCategoryAndAuthor)->unique()->values();
-                $excludeIds = array_merge([$targetBook->id], $collected->all());
-                $needed = $limit - $collected->count();
-            }
+            $collected = $collected->concat($sameAuthor)->unique()->values();
+            $excludeIds = array_merge([$targetBook->id], $collected->all());
+            $needed = $limit - $collected->count();
+        }
 
-            // 3. Same categories (ordered by sales volume / rating)
-            if ($needed > 0 && ! empty($categoryIds)) {
-                $sameCategory = $this->queryCategoryBestSellers($categoryIds, $excludeIds, $needed);
-                $collected = $collected->concat($sameCategory)->unique()->values();
-                $excludeIds = array_merge([$targetBook->id], $collected->all());
-                $needed = $limit - $collected->count();
-            }
+        // 5. Still short (few books, brand-new book): store best sellers fill the row up to the limit.
+        //    Same-category best sellers already came in step 3, which is sorted by units sold.
+        if ($needed > 0) {
+            $collected = $collected->concat($this->queryPopularBookIds($excludeIds, $needed))->unique()->values();
+        }
 
-            // 4. Same author(s) (ordered by rating / recency)
-            if ($needed > 0 && ! empty($authorIds)) {
-                $sameAuthor = $this->baseBuyableQuery()
-                    ->whereNotIn('books.id', $excludeIds)
-                    ->whereHas('authors', fn ($a) => $a->whereIn('authors.id', $authorIds))
-                    ->withAvg('approvedReviews as rating_avg', 'rating')
-                    ->orderByRaw('rating_avg DESC NULLS LAST')
-                    ->orderByDesc('books.id')
-                    ->limit($needed)
-                    ->pluck('books.id')
-                    ->all();
-
-                $collected = $collected->concat($sameAuthor)->unique()->values();
-                $excludeIds = array_merge([$targetBook->id], $collected->all());
-                $needed = $limit - $collected->count();
-            }
-
-            // 5. Still short (few books, brand-new book): store best sellers fill the row up to the limit.
-            //    Same-category best sellers already came in step 3, which is sorted by units sold.
-            if ($needed > 0) {
-                $collected = $collected->concat($this->queryPopularBookIds($excludeIds, $needed))->unique()->values();
-            }
-
-            return $collected->take($limit)->all();
-        });
+        return $collected->take($limit)->all();
     }
 
     /**
@@ -175,17 +208,9 @@ class RecommendationService
      */
     public function queryPopularBookIds(array $excludeIds = [], int $limit = 6): array
     {
-        $salesSubquery = DB::table('order_items')
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
-            ->whereNull('orders.deleted_at')
-            ->whereNotIn('orders.status', [OrderStatus::Pending->value, OrderStatus::Cancelled->value])
-            ->groupBy('book_variants.book_id')
-            ->selectRaw('book_variants.book_id, SUM(order_items.quantity) AS units_sold');
-
         return $this->baseBuyableQuery()
             ->when(! empty($excludeIds), fn ($q) => $q->whereNotIn('books.id', $excludeIds))
-            ->leftJoinSub($salesSubquery, 'sales', 'sales.book_id', '=', 'books.id')
+            ->leftJoinSub($this->unitsSoldSubquery(), 'sales', 'sales.book_id', '=', 'books.id')
             ->withAvg('approvedReviews as rating_avg', 'rating')
             ->orderByRaw('sales.units_sold DESC NULLS LAST')
             ->orderByRaw('rating_avg DESC NULLS LAST')
@@ -328,18 +353,10 @@ class RecommendationService
      */
     private function queryCategoryBestSellers(array $categoryIds, array $excludeIds, int $limit): array
     {
-        $salesSubquery = DB::table('order_items')
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
-            ->whereNull('orders.deleted_at')
-            ->whereNotIn('orders.status', [OrderStatus::Pending->value, OrderStatus::Cancelled->value])
-            ->groupBy('book_variants.book_id')
-            ->selectRaw('book_variants.book_id, SUM(order_items.quantity) AS units_sold');
-
         return $this->baseBuyableQuery()
             ->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds))
             ->whereNotIn('books.id', $excludeIds)
-            ->leftJoinSub($salesSubquery, 'cat_sales', 'cat_sales.book_id', '=', 'books.id')
+            ->leftJoinSub($this->unitsSoldSubquery(), 'cat_sales', 'cat_sales.book_id', '=', 'books.id')
             ->withAvg('approvedReviews as rating_avg', 'rating')
             ->orderByRaw('cat_sales.units_sold DESC NULLS LAST')
             ->orderByRaw('rating_avg DESC NULLS LAST')
