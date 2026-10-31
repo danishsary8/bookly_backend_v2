@@ -24,7 +24,7 @@ platform. Written 2026-10-30.
 
 | # | What | Why it matters | Status |
 |---|------|----------------|--------|
-| 1 | **Keep uploaded images safe** (book covers) | Covers are saved on the server's own disk (`MediaUploadController`, `public` disk). On Render that disk is wiped at every deploy or restart, so **uploaded covers disappear**. Bagisto ships S3 and Cloudflare R2 settings for this. | 🛠 store uploads in Cloudflare R2 (S3-compatible, free 10 GB) · 👤 create the R2 bucket and keys |
+| 1 | **Keep uploaded images safe** (book covers) | Covers are saved on the server's own disk (`MediaUploadController`, `public` disk). On Render that disk is wiped at every deploy or restart, so **uploaded covers disappear**. Bagisto ships S3 and Cloudflare R2 settings for this. | ✅ code ready (`MEDIA_DISK=r2`, branch `feature/r2-media-storage`) · 👤 create the R2 bucket and keys, set the Render variables (DEPLOYMENT.md → F6b), re-upload old covers |
 | 2 | **Online payment** (Bakong KHQR or ABA PayWay) | Today only cash on delivery. The `payments` and `payment_webhook_logs` tables are ready. | 🛠 payment + webhook flow · 👤 open a merchant account and get API keys |
 | 3 | **Your own domain** (e.g. `api.bookly.com`, `bookly.com`) | `*.onrender.com` / `*.vercel.app` look temporary to customers and limit email trust. | 👤 buy the domain, add it in Render and Vercel · 🛠 update `APP_URL`, CORS, links |
 | 4 | **Email from your domain** (SPF, DKIM) | Codes and order emails land in spam without a verified sending domain. | 👤 verify the domain in Brevo/Resend (DNS records) · 🛠 set `MAIL_FROM_ADDRESS` |

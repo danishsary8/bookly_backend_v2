@@ -146,4 +146,30 @@ class MediaUploadTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['image']);
     }
+
+    public function test_uploads_go_to_the_configured_media_disk_and_return_its_public_url(): void
+    {
+        // Production stores covers in Cloudflare R2: Render's own disk is wiped at every deploy.
+        config(['filesystems.media_disk' => 'r2', 'filesystems.disks.r2.url' => 'https://media.bookly.test']);
+        Storage::fake('r2');
+
+        $res = $this->actingAsStaff($this->admin)
+            ->postJson('/api/v1/staff/media/upload', ['image' => $this->makePng('cover.png', 600, 900)])
+            ->assertCreated();
+
+        Storage::disk('r2')->assertExists($res->json('path'));
+        Storage::disk('public')->assertMissing($res->json('path'));
+        $this->assertStringStartsWith('covers/', $res->json('path'));
+    }
+
+    public function test_the_r2_disk_is_an_s3_disk_with_a_public_url(): void
+    {
+        $disk = config('filesystems.disks.r2');
+
+        $this->assertSame('s3', $disk['driver']);
+        $this->assertSame('auto', $disk['region']);
+        $this->assertArrayHasKey('endpoint', $disk);
+        $this->assertArrayHasKey('url', $disk);
+        $this->assertSame('public', config('filesystems.media_disk'), 'local default stays the public disk');
+    }
 }

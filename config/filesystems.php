@@ -28,6 +28,12 @@ return [
     |
     */
 
+    /*
+    | Where uploaded images (book covers, author photos) are stored: `public` (this server's disk, fine locally) or
+    | `r2` in production. Set MEDIA_DISK=r2 on Render together with the R2_* values.
+    */
+    'media_disk' => env('MEDIA_DISK', 'public'),
+
     'disks' => [
 
         'local' => [
@@ -44,6 +50,22 @@ return [
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
+            'report' => false,
+        ],
+
+        // Cloudflare R2 (S3-compatible): where uploaded covers live in production, because the host's own disk is wiped
+        // at every deploy. R2_PUBLIC_URL is the bucket's public address (r2.dev URL or a custom domain).
+        'r2' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_BUCKET'),
+            'url' => env('R2_PUBLIC_URL'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => false,
+            // No per-file visibility: R2 has no object ACLs; the bucket's public access setting decides.
+            'throw' => true,
             'report' => false,
         ],
 

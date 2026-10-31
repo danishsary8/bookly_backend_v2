@@ -154,6 +154,32 @@ php artisan db:seed --class=DemoSeeder --force
 ```
 Save the staff password it prints once. Then close the terminal.
 
+### F6b. Book cover images: Cloudflare R2 (free, 10 GB)
+Render's own disk is wiped at every deploy and restart, so uploaded covers must live elsewhere. R2 is Cloudflare's
+S3-compatible storage: 10 GB free, no download fees.
+1. Sign in at https://dash.cloudflare.com (the same account as Turnstile) → **R2 Object Storage** → **Create bucket**,
+   name `bookly-media`, location **Automatic** → **Create**. (First time: R2 asks you to accept the free plan; it may ask
+   for a card but the free tier is not charged.)
+2. In the bucket → **Settings** → **Public access** → **R2.dev subdomain** → **Allow**. Copy the public URL
+   (looks like `https://pub-xxxxxxxx.r2.dev`). Later you can connect your own domain here instead.
+3. Back on **R2 Object Storage** → **Manage API tokens** → **Create API token**: permission **Object Read & Write**,
+   **Apply to specific buckets only** → `bookly-media` → **Create**. Copy the **Access Key ID**, the **Secret Access Key**
+   (shown once) and the **S3 endpoint** (`https://<account-id>.r2.cloudflarestorage.com`).
+4. Render → your service → **Environment** → add:
+
+| Key | Value |
+| --- | --- |
+| `MEDIA_DISK` | `r2` |
+| `R2_ACCESS_KEY_ID` | the Access Key ID |
+| `R2_SECRET_ACCESS_KEY` | the Secret Access Key |
+| `R2_BUCKET` | `bookly-media` |
+| `R2_ENDPOINT` | the S3 endpoint, without the bucket name |
+| `R2_PUBLIC_URL` | the public URL from step 2, no trailing slash |
+
+5. **Save Changes** (Render redeploys). Check: in the admin, upload a cover for a book; the returned `url` starts with
+   your `R2_PUBLIC_URL` and the picture still shows after the next deploy. Covers uploaded **before** this change were on
+   the wiped disk: upload them again.
+
 ### F7. Backups
 Neon keeps a restore window (point-in-time restore) on the free plan; for your own copy use `pg_dump` with the Neon
 connection string, as in section 10 below.
