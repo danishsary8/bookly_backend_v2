@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Staff\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Admin\DashboardInsightsService;
 use App\Services\Admin\DashboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,20 @@ class DashboardController extends Controller
             'data' => $this->dashboard->dailySales($start, $end),
             'meta' => ['from' => $start->toDateString(), 'to' => $end->subDay()->toDateString(), 'timezone' => $start->timezoneName],
         ]);
+    }
+
+    /** Trends, dead stock, stock value, authors, provinces, promotions, repeat customers (spec 2026-11-01, branch 1). */
+    public function insights(Request $request, DashboardInsightsService $insights): JsonResponse
+    {
+        [$start, $end] = $this->period($request);
+
+        return response()->json(['data' => $insights->insights($start, $end)]);
+    }
+
+    /** Menu badge counts for every staff member: pending orders, open returns, low stock. */
+    public function counts(DashboardInsightsService $insights): JsonResponse
+    {
+        return response()->json(['data' => $insights->counts()]);
     }
 
     private function period(Request $request): array

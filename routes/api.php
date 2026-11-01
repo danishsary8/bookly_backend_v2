@@ -271,6 +271,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/series/{series}', [StaffSeriesController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::get('/coupons', [StaffCouponController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show'])->middleware('ability:catalog:view,admin');
+    // Menu badges (pending orders, open returns, low stock) for every staff member; numbers only.
+    Route::get('/dashboard/counts', [DashboardController::class, 'counts']);
     Route::get('/offers', [StaffOfferController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/offers/{offer}', [StaffOfferController::class, 'show'])->whereNumber('offer')->middleware('ability:catalog:view,admin');
     Route::post('/media/upload', [MediaUploadController::class, 'upload'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
@@ -298,6 +300,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary'])->middleware('throttle:admin-analytics');
         Route::get('/dashboard/sales', [DashboardController::class, 'sales'])->middleware('throttle:admin-analytics');
+        Route::get('/dashboard/insights', [DashboardController::class, 'insights'])->middleware('throttle:admin-analytics');
         Route::get('/orders/export', OrderExportController::class)->middleware('throttle:10,1');
 
         Route::prefix('reports')->middleware('throttle:admin-analytics')->group(function () {
