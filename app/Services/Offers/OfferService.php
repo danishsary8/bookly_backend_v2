@@ -106,10 +106,20 @@ class OfferService
         return false;
     }
 
-    /** @return list<LiveOffer> active, not ended, not used up (still includes scheduled ones and "No books") */
+    /**
+     * @return list<LiveOffer> active, not ended, not used up (still includes scheduled ones and "No books")
+     *
+     * Cached as plain arrays: the cache refuses to unserialize objects (config/cache.php `serializable_classes`
+     * false), so a cached LiveOffer would come back as __PHP_Incomplete_Class on the file or database store.
+     */
     private function cached(): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_SECONDS, fn () => $this->load());
+        $rows = Cache::remember(self::CACHE_KEY, self::CACHE_SECONDS, fn () => array_map(
+            fn (LiveOffer $offer) => get_object_vars($offer),
+            $this->load(),
+        ));
+
+        return array_map(fn (array $row) => new LiveOffer(...$row), $rows);
     }
 
     /** @return list<LiveOffer> */

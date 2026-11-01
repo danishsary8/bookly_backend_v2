@@ -10,6 +10,7 @@ use App\Services\Offers\LiveOffer;
 use App\Services\Offers\OfferService;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -147,5 +148,22 @@ class OfferServiceTest extends TestCase
 
         $this->travel(31)->seconds();
         $this->assertSame(0, $this->queries(fn () => $this->assertSame([$starts->id], $this->liveIds())));
+    }
+
+    /** Production caches on files, which refuse to unserialize objects (cache.serializable_classes = false). */
+    public function test_live_offers_survive_the_file_cache(): void
+    {
+        config(['cache.default' => 'file']);
+        Cache::forget(OfferService::CACHE_KEY);
+        $offer = Offer::factory()->create(['percent_off' => '15.00']);
+
+        $first = app(OfferService::class)->live();  // reads the database and writes the cache
+        $second = app(OfferService::class)->live(); // reads the cache back
+
+        $this->assertInstanceOf(LiveOffer::class, $second[0]);
+        $this->assertEquals($first, $second);
+        $this->assertSame($offer->id, $second[0]->id);
+        $this->assertSame(1500, $second[0]->percentBasisPoints);
+        Cache::forget(OfferService::CACHE_KEY);
     }
 }
