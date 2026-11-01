@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Book;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +24,7 @@ class FileCacheRoundTripTest extends TestCase
         config(['cache.default' => 'file']);
         Cache::flush();
         $admin = $this->staffToken(admin: true);
+        $book = Book::where('title', 'The Sign of the Four')->value('id'); // ids differ between test runs
         $range = 'from='.now()->subDays(40)->toDateString().'&to='.now()->toDateString();
 
         $urls = [
@@ -34,8 +36,8 @@ class FileCacheRoundTripTest extends TestCase
             "/api/v1/staff/reports/customers?{$range}",
             "/api/v1/staff/reports/funnel?{$range}",
             "/api/v1/staff/reports/coupons?{$range}",
-            '/api/v1/books/5/related?limit=12',
-            '/api/v1/books/5',
+            "/api/v1/books/{$book}/related?limit=12",
+            "/api/v1/books/{$book}",
             '/api/v1/books',
         ];
 
