@@ -223,6 +223,36 @@ class ReportsController extends Controller
         return response()->json(['data' => $report]);
     }
 
+    /** Offers report (offers spec section 7): per offer and "orders without an offer"; CSV with the same rows. */
+    public function offers(Request $request): Response
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'format' => ['nullable', Rule::in(['json', 'csv'])],
+        ]);
+
+        [$start, $end] = $this->reports->range($data['from'], $data['to']);
+        $report = $this->reports->offers($start, $end);
+
+        if (($data['format'] ?? 'json') === 'csv') {
+            return $this->streamCsv("report-offers-{$data['from']}-to-{$data['to']}.csv", function ($out) use ($report) {
+                fputcsv($out, ['Offer', 'Rule', 'Orders', 'Books', 'Books with the offer', 'Revenue (USD)', 'Discount (USD)', 'Average order (USD)', 'Books per order']);
+                $line = fn (string $name, string $rule, array $row) => fputcsv($out, array_map([OrderExportController::class, 'cell'], [
+                    $name, $rule, $row['orders'], $row['units'], $row['units_with_offer'], $row['revenue_usd'], $row['discount_usd'],
+                    $row['average_order_usd'], $row['books_per_order'],
+                ]));
+                foreach ($report['offers'] as $offer) {
+                    $rule = $offer['min_quantity'] ? "Buy {$offer['min_quantity']}, save ".rtrim(rtrim((string) $offer['percent_off'], '0'), '.').'%' : '';
+                    $line((string) $offer['name'], $rule, $offer);
+                }
+                $line('Orders without an offer', '', $report['without_offer']);
+            });
+        }
+
+        return response()->json(['data' => $report]);
+    }
+
     private function streamCsv(string $filename, callable $writer): StreamedResponse
     {
         return response()->streamDownload(function () use ($writer) {

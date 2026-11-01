@@ -365,6 +365,88 @@ class ReportsService
         });
     }
 
+    /**
+     * Offers report (offers spec section 7): what each automatic offer sold, next to the orders without an offer.
+     * Same basis as the coupons report: orders placed in the range, not cancelled, not deleted, shop time zone.
+     * Units = every book in those orders; units with the offer = books on lines that got a discount.
+     */
+    public function offers(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $cacheKey = "report:offers:{$start->toDateString()}:{$end->toDateString()}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($start, $end) {
+            [$from, $to] = $this->utc($start, $end);
+
+            $units = DB::table('order_items')
+                ->groupBy('order_id')
+                ->selectRaw('order_id, SUM(quantity) AS units, SUM(CASE WHEN discount_amount > 0 THEN quantity ELSE 0 END) AS discounted_units');
+
+            $base = fn () => DB::table('orders')
+                ->leftJoinSub($units, 'u', 'u.order_id', '=', 'orders.id')
+                ->whereNull('orders.deleted_at')
+                ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+                ->whereBetween('orders.placed_at', [$from, $to->subSecond()]);
+
+            $totals = 'COUNT(orders.id) AS orders, COALESCE(SUM(u.units), 0) AS units, COALESCE(SUM(u.discounted_units), 0) AS discounted_units, '
+                .'COALESCE(SUM(orders.total_amount), 0) AS revenue, COALESCE(SUM(orders.discount_amount), 0) AS discount';
+
+            // An order keeps a copy of its offer, so an offer edited later still reports under the copy it was sold with.
+            $offers = $base()
+                ->leftJoin('offers', 'offers.id', '=', 'orders.offer_id')
+                ->where(fn ($q) => $q->whereNotNull('orders.offer_id')->orWhereNotNull('orders.offer_name'))
+                ->groupBy('orders.offer_id')
+                ->selectRaw("orders.offer_id, MAX(COALESCE(offers.name, orders.offer_name)) AS name, MAX(orders.offer_min_quantity) AS min_quantity, MAX(orders.offer_percent_off) AS percent_off, {$totals}")
+                ->orderByDesc('revenue')
+                ->get()
+                ->map(fn ($r) => [
+                    'offer_id' => $r->offer_id !== null ? (int) $r->offer_id : null,
+                    'name' => $r->name,
+                    'min_quantity' => $r->min_quantity !== null ? (int) $r->min_quantity : null,
+                    'percent_off' => $r->percent_off !== null ? Money::format(Money::toCents($r->percent_off)) : null,
+                    ...$this->offerRow($r),
+                ])
+                ->all();
+
+            $without = $base()
+                ->whereNull('orders.offer_id')
+                ->whereNull('orders.offer_name')
+                ->selectRaw($totals)
+                ->first();
+
+            return [
+                'period' => [
+                    'from' => $start->toDateString(),
+                    'to' => $end->subDay()->toDateString(),
+                    'timezone' => $start->timezoneName,
+                ],
+                'offers' => $offers,
+                'without_offer' => $this->offerRow($without),
+            ];
+        });
+    }
+
+    /** Orders, units, revenue, discount, average order value and books per order for one row of the offers report. */
+    private function offerRow(object $r): array
+    {
+        $orders = (int) $r->orders;
+        $revenue = Money::toCents($r->revenue);
+        $discount = Money::toCents($r->discount);
+        $average = $orders > 0 ? intdiv($revenue + intdiv($orders, 2), $orders) : 0;
+
+        return [
+            'orders' => $orders,
+            'units' => (int) $r->units,
+            'units_with_offer' => (int) $r->discounted_units,
+            'revenue_usd' => Money::format($revenue),
+            'revenue_khr' => $this->khr($revenue),
+            'discount_usd' => Money::format($discount),
+            'discount_khr' => $this->khr($discount),
+            'average_order_usd' => Money::format($average),
+            'average_order_khr' => $this->khr($average),
+            'books_per_order' => $orders > 0 ? number_format((int) $r->units / $orders, 2, '.', '') : '0.00',
+        ];
+    }
+
     // -------------------------------------------------------------------------
     // Private Helpers
     // -------------------------------------------------------------------------
