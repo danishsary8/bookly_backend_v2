@@ -8,6 +8,7 @@ use App\Http\Resources\StaffBookResource;
 use App\Models\Book;
 use App\Services\Admin\AuditLogger;
 use App\Services\Admin\StrictDeleteService;
+use App\Services\Catalog\RecommendationService;
 use App\Services\Telegram\OpsAlerts;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -141,6 +142,8 @@ class BookController extends Controller
             if (array_key_exists('category_ids', $data)) {
                 $book->categories()->sync($data['category_ids']);
             }
+            // Author/category changes alone do not fire the book's "updated" event.
+            DB::afterCommit(fn () => RecommendationService::catalogChanged());
 
             $after = $this->snapshot($book->fresh());
             $changed = array_keys(array_filter($after, fn ($value, $key) => $before[$key] != $value, ARRAY_FILTER_USE_BOTH));

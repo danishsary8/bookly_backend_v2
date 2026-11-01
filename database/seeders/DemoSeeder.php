@@ -13,6 +13,7 @@ use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\Customer;
 use App\Models\ExchangeRate;
+use App\Models\Offer;
 use App\Models\Order;
 use App\Models\Publisher;
 use App\Models\Series;
@@ -89,6 +90,12 @@ class DemoSeeder extends Seeder
 
         $holmes = Series::create(['name' => 'Sherlock Holmes', 'description' => 'The detective novels of Arthur Conan Doyle.']);
         $verne = Series::create(['name' => 'Extraordinary Voyages', 'description' => 'Jules Verne\'s adventure novels.']);
+
+        // A sample automatic offer, PAUSED on purpose: seeding must never start a real discount (offers spec 6.8).
+        // An admin can resume it in the admin's Offers page to try it.
+        $offer = Offer::create(['name' => 'Buy 2 Sherlock Holmes, save 15%', 'applies_to' => Offer::APPLIES_TO_SELECTED,
+            'min_quantity' => 2, 'percent_off' => '15.00', 'is_active' => false]);
+        $offer->targets()->create(['series_id' => $holmes->id]);
 
         // [title, author, categories, publisher, year, pages, series, series order, paperback price, stock, extra formats]
         $books = [

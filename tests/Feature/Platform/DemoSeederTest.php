@@ -5,6 +5,7 @@ namespace Tests\Feature\Platform;
 use App\Enums\OrderStatus;
 use App\Models\Book;
 use App\Models\Customer;
+use App\Models\Offer;
 use App\Models\Order;
 use App\Models\StaffUser;
 use Database\Seeders\DemoSeeder;
@@ -25,6 +26,12 @@ class DemoSeederTest extends TestCase
         $this->assertSame(2, StaffUser::count());
         $this->assertSame(5, Customer::count());
 
+        // One sample offer, paused: seeding never starts a live discount, and no demo order used it.
+        $offer = Offer::sole();
+        $this->assertFalse($offer->is_active);
+        $this->assertSame('paused', $offer->load('targets.series')->status());
+        $this->assertSame(0, Order::whereNotNull('offer_id')->count());
+
         // Orders went through the real checkout: stock was taken and the history is spread over the month.
         $this->assertDatabaseCount('inventory_movements', 21);
         $this->assertTrue(Order::min('placed_at') < now()->subDays(25));
@@ -38,6 +45,7 @@ class DemoSeederTest extends TestCase
         $this->seed(DemoSeeder::class);
         $this->assertSame(13, Order::count());
         $this->assertSame(20, Book::count());
+        $this->assertSame(1, Offer::count());
     }
 
     public function test_production_refuses_unless_explicitly_allowed_and_then_hides_staff_passwords(): void

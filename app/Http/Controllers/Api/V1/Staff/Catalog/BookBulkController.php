@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\BookVariant;
 use App\Services\Admin\AuditLogger;
+use App\Services\Catalog\RecommendationService;
 use App\Services\Inventory\InventoryService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +70,9 @@ class BookBulkController extends Controller
                 }
                 if (! empty($data['remove_category_ids'])) {
                     $book->categories()->detach($data['remove_category_ids']);
+                }
+                if (! empty($data['add_category_ids']) || ! empty($data['remove_category_ids'])) {
+                    DB::afterCommit(fn () => RecommendationService::catalogChanged());
                 }
                 if (array_key_exists('status', $data) && $data['status'] !== null) {
                     $book->status = $data['status'];

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Services\CurrencyService;
+use App\Services\Offers\OfferService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,6 +28,8 @@ class BookResource extends JsonResource
             'in_stock' => $variants->contains(fn ($v) => $v->isAvailable()),
             'rating_avg' => $this->rating_avg !== null ? round((float) $this->rating_avg, 1) : null,
             'review_count' => (int) ($this->review_count ?? 0),
+            // The best live automatic offer for this book ("Buy 2, save 15%"), or null.
+            'offer' => app(OfferService::class)->forBook($this->resource),
             'wishlist_status' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->status ?? 'want_to_read'),
             'wishlist_saved_at' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->created_at?->toIso8601String()),
         ];

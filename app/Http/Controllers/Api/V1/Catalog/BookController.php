@@ -8,6 +8,7 @@ use App\Http\Resources\BookDetailResource;
 use App\Http\Resources\BookResource;
 use App\Models\Book;
 use App\Services\Catalog\RecommendationService;
+use App\Services\Offers\OfferService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -156,7 +157,7 @@ class BookController extends Controller
     {
         return Book::query()
             ->visible()
-            ->with(['authors', 'activeVariants'])
+            ->with(['authors', 'activeVariants', ...app(OfferService::class)->bookEagerLoads()])
             ->withMin('activeVariants as min_price', 'price_usd')
             ->withAvg('approvedReviews as rating_avg', 'rating')
             ->withCount('approvedReviews as review_count');

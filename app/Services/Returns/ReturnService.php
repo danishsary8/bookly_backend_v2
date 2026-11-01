@@ -216,10 +216,29 @@ class ReturnService
         ]);
     }
 
-    /** Refund for a set of return items: their price minus their share of the order's coupon discount, in cents. */
+    /**
+     * Refund for a set of return items, in cents (spec 4.8).
+     * - Orders that saved a discount per line (new orders with an offer or coupon): each returned line gives back its
+     *   price minus its OWN discount share, floor(line discount × returned / line quantity). No claw-back: books kept
+     *   keep their discount even if they fall under the offer's N. The floor favours the customer by at most 1 cent per line.
+     * - Other orders (older orders, all lines 0): the old rule, a share of the whole-order discount.
+     */
     public function refundCents(Order $order, Collection $returnItems): int
     {
         $goods = $returnItems->sum(fn ($ri) => Money::toCents($ri->orderItem->unit_price) * $ri->quantity);
+
+        if ($order->items()->where('discount_amount', '>', 0)->exists()) {
+            // Grouped by order line, so a line returned in several parts adds up exactly to its full discount.
+            $taken = $returnItems->groupBy(fn ($ri) => $ri->order_item_id)->sum(function ($group) {
+                $line = $group->first()->orderItem;
+                $returned = $group->sum('quantity');
+
+                return $line->quantity > 0 ? intdiv(Money::toCents($line->discount_amount) * $returned, $line->quantity) : 0;
+            });
+
+            return $goods - $taken;
+        }
+
         $subtotal = Money::toCents($order->subtotal);
         $discount = Money::toCents($order->discount_amount);
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Catalog;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SeriesResource;
 use App\Models\Series;
+use App\Services\Offers\OfferService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -28,7 +29,7 @@ class SeriesController extends Controller
     {
         return new SeriesResource($series->load(['books' => fn ($q) => $q
             ->visible()
-            ->with(['authors', 'activeVariants'])
+            ->with(['authors', 'activeVariants', ...app(OfferService::class)->bookEagerLoads()])
             ->withMin('activeVariants as min_price', 'price_usd')
             ->withAvg('approvedReviews as rating_avg', 'rating')
             ->withCount('approvedReviews as review_count'),

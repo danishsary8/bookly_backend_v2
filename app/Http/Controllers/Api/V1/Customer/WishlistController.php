@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Customer;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BookResource;
 use App\Models\Wishlist;
+use App\Services\Offers\OfferService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -27,7 +28,7 @@ class WishlistController extends Controller
                 $q->where('books.status', 'live')
                     ->orWhere(fn ($sub) => $sub->where('books.status', 'scheduled')->where('books.publish_at', '<=', now()));
             })
-            ->with(['authors', 'activeVariants'])
+            ->with(['authors', 'activeVariants', ...app(OfferService::class)->bookEagerLoads()])
             ->withMin('activeVariants as min_price', 'price_usd')
             ->withAvg('approvedReviews as rating_avg', 'rating')
             ->withCount('approvedReviews as review_count')
