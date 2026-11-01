@@ -88,6 +88,18 @@ each branch works alone)
 
 ---
 
+**Task E: BI dashboard (part 1) + a live bug fix** (merge in any order)
+- [ ] 🔴 **Merge first, it fixes your live dashboard:** backend `fix/dashboard-status-cache`
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/dashboard-status-cache
+  (today "Orders placed by status" shows strange text when you reload the dashboard within 5 minutes).
+- [ ] Backend `feature/dashboard-insights`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-insights
+- [ ] Frontend `feature/admin-dashboard-redesign`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-dashboard-redesign
+- [ ] Check after deploy: Admin → **Dashboard** → 30 days → each top card has a small line and a "View …" link; the
+  "Income report" chart has a solid line (this period) and a dashed one (the month before), and an Income / Orders
+  switch; "Orders placed by status" is a ring with the total in the middle. Reload twice: still correct.
+
+---
+
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all

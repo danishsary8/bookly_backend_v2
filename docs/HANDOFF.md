@@ -480,8 +480,25 @@ merging `main` into them (kept every entry, re-ran all checks: 462 / 456 tests, 
   backend; the endpoint is ignored by an old frontend).
 - **Offers work (task B+D) is complete.** Not verified: the live site (owner steps); KM strings by a native speaker.
 
+## 2026-11-01 · Task E: BI dashboard (branches 1-2 of 4) + a live bug fix
+
+Owner choices 1A-6A (spec `docs/superpowers/specs/2026-11-01-bi-dashboard-design.md`, on `feature/dashboard-insights`).
+
+| Commit | What |
+|---|---|
+| `125588e`, `1732637` (backend `feature/dashboard-insights`) | insights + counts endpoints, 7 tests, docs. 729 tests. |
+| `571992f`, `3bf7e7e` (backend `fix/dashboard-status-cache`) | live bug: status counts broken after a cached read; round-trip test for every cached endpoint. 723 tests. **Mistake:** `571992f` was pushed with my new test failing (a hard-coded book id); fixed at once in `3bf7e7e`. |
+| `f61ee52` (frontend `feature/admin-dashboard-redesign`) | KPI sparklines + View links, income vs previous period with Income/Orders switch, status donut. 469 tests. |
+- Browser: frontend work log. All three branches merge cleanly into `main`, any order; each works alone.
+- Not verified: the live site (owner steps). The sample site could not be opened from the sandbox (network blocked);
+  compared with the owner's description in PRODUCTION_CHECKLIST 4.2.
+- Small note: the donut's "processing" colour is close to "delivered" green; every slice has its text label and count,
+  so it is readable; can be tuned later.
+
 **Where I stopped / next step**
-- Offers done. Next big task: E, the BI admin dashboard (`docs/prompts/04-bi-dashboard.md`), starting with an audit and
+- Branches 1-2 done. Next: branch 3 `feature/admin-quick-jump` (Ctrl K + menu badges), then branch 4
+  `feature/admin-insights-widgets` (dead stock, stock value, authors, provinces, promotions, repeat rate).
+- Earlier plan line kept for history: Offers done. Next big task: E, the BI admin dashboard (`docs/prompts/04-bi-dashboard.md`), starting with an audit and
   design choices for the owner. Small follow-ups waiting: Khmer account tab row cut at 390 px; unused
   `catalogApi.alsoBought`; free-delivery bar texts into `en.ts`/`km.ts`.
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD

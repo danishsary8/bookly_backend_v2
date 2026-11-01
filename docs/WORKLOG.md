@@ -499,3 +499,15 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     checkouts: example 1 + a 2-book order -> 2 orders, 5 books (4), $67.00, $6.00, average $33.50, 2.50 per order; without:
     1 order, $31.50, 1.00; cancelled orders left out; empty range; an edited offer keeps its orders and shows the current
     name; staff 403; CSV rows). `php artisan test` 722 passed; pint clean.
+
+- [x] Dashboard insights (2026-11-01, branch `feature/dashboard-insights`; spec
+  `docs/superpowers/specs/2026-11-01-bi-dashboard-design.md`, branch 1): `GET /staff/dashboard/insights` (admin; trend per
+  day with the previous period, dead stock (60 days), stock value at selling price, top authors, top provinces from the
+  order address, promotions, repeat customers) and `GET /staff/dashboard/counts` (all staff; pending orders, open returns,
+  low stock). `DashboardInsightsService`, arrays only in the cache. Tests `DashboardInsightsTest` (7, incl. query count
+  and the file cache). 729 tests, pint clean. Docs: API.md, openapi.yaml.
+- [x] Fix: dashboard "Orders placed by status" after a cached read (2026-11-01, branch `fix/dashboard-status-cache`):
+  `orders_by_status` was cached as a Collection; the file cache refuses objects, so on Render every reload within 5 minutes
+  answered `{"__PHP_Incomplete_Class_Name": "Illuminate\\Support\\Collection"}` (found by the dashboard browser check).
+  `->all()`. New `FileCacheRoundTripTest`: demo shop, file cache, every cached admin report + dashboard + similar books +
+  book lists answered twice -> identical JSON (only this one was broken). 723 tests, pint clean.
