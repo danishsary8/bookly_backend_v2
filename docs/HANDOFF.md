@@ -389,8 +389,24 @@ Coupon check + preview reviewed by the project lead: approved.
   coupon limit already uses. A manual check would need two terminals against a real database (not done).
 - Khmer text for `messages.offer_ended` ("ការផ្តល់ជូននេះទើបតែបញ្ចប់។ …") should be read by a native speaker (owner step).
 
+**Review of `f09ade1`** (project lead, 2026-11-01): 702 tests + pint re-run on a clean checkout, approved. The race
+note above is honest and enough for v1 (same `FOR UPDATE` mechanism as the coupon limit).
+
+**2026-11-01: work continues in the main project chat (the Kiro plan ended).** Same rules, same notes.
+
+| Commit | What |
+|---|---|
+| `5904592` | Book cards and book pages show `offer` (spec 6.6): `OfferService::forBook()` (best live offer: biggest percent, tie -> lower N, then lower id; shape `{id, min_quantity, percent_off, ends_at, target_label}`), `bookEagerLoads()` loads only the category ids, and only while a live offer targets a category. Used by `GET /books`, `/books/{id}`, `/related`, `/also-bought`, `/catalog/recommendations`, `/series/{id}`, `/wishlist`. Docs: API.md book card fields, openapi `BookCard.offer` + `BookOffer`. |
+- Tests: `tests/Feature/Offers/BookOfferFieldTest.php` (7): none/paused -> null; series offer on its books only (list +
+  detail, exact shape); category offer + biggest percent wins over an all-books offer; scheduled and used-up not shown;
+  series page and wishlist; **query count the same for 3 books + 1 offer and 15 books + 13 offers**; no category offer
+  -> no extra query, a category offer -> exactly one extra query per list.
+- `PublicCatalogTest::test_listing_query_count_does_not_grow_with_number_of_books`: one warm-up request added before
+  counting (the live-offers read is cached for a minute, so a cold cache adds one query to the first request only).
+- Checks on `5904592`: `php artisan test` **709 passed**; `vendor/bin/pint --test` clean; `openapi.yaml` parses.
+
 **Where I stopped / next step**
-- Checkout saving the offer done and pushed. Waiting for the owner's `confirm`.
+- Book `offer` field done and pushed. Waiting for the owner's `confirm`.
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
