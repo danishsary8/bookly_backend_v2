@@ -519,3 +519,11 @@ Owner merged branches 1-2 and the fix (2026-11-01).
 (merged): every PR's "Money path end-to-end" job failed (5 tests, one cause). Fixed in frontend `fix/dashboard-donut-focus`
 (`15332be`), verified with axe locally on every page changed today (all 0). My miss: the browser checks did not run axe;
 the steering file now requires it.
+
+**2026-11-01 · Small fixes** frontend `fix/small-cleanups` (`f973aea`): account strip edge fade, free-delivery texts in
+en/km, unused `catalogApi.alsoBought` removed, donut colours. 475 tests; browser + axe in the frontend work log.
+PR #107 was still open with the old red check: merged `main` into `feature/admin-insights-widgets` (`16001b5`), 475 tests,
+axe 0 on `/admin`; checks re-run on push.
+**Where I stopped / next step:** waiting for merges. Open items: seasonal/weather picks (owner to explain); owner list
+(R2, phone code, Khmer review).
+

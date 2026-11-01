@@ -116,6 +116,16 @@ each branch works alone)
 
 ---
 
+**Small fixes + PR #107 (2026-11-01)**
+- [ ] PR #107 (dashboard extras) was still open: I updated it with `main` (incl. the donut fix). Wait for all checks green,
+  then **Merge**: https://github.com/danishsary8/bookly_frontend/pull/107
+- [ ] Small fixes (account strip fade, free-delivery texts EN/KM, donut colours):
+  https://github.com/danishsary8/bookly_frontend/pull/new/fix/small-cleanups
+- [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
+
+---
+
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
