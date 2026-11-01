@@ -2,6 +2,7 @@
 
 namespace App\Services\Offers;
 
+use App\Models\Book;
 use App\Models\Offer;
 use App\Support\Money;
 use Illuminate\Support\Facades\Cache;
@@ -40,9 +41,69 @@ class OfferService
         return array_values(array_filter($this->load(), fn (LiveOffer $offer) => $offer->isLiveAt($now)));
     }
 
+    /**
+     * Eager loads for book lists (spec 6.6): each book's category ids, only while a live offer targets a category,
+     * so a list needs one extra query at most and none when no such offer is live.
+     *
+     * @return array<string, \Closure>
+     */
+    public function bookEagerLoads(): array
+    {
+        return $this->targetsCategories($this->live())
+            ? ['categories' => fn ($q) => $q->select('categories.id')]
+            : [];
+    }
+
+    /**
+     * Spec 6.6: the best live offer covering this book (biggest percent; tie -> lower N, then lower id), as the API
+     * shape, or null. Lists eager-load the categories (bookEagerLoads()); a lone book loads them itself.
+     *
+     * @return array{id: int, min_quantity: int, percent_off: string, ends_at: ?string, target_label: ?string}|null
+     */
+    public function forBook(Book $book): ?array
+    {
+        $offers = $this->live();
+        if ($offers === []) {
+            return null;
+        }
+
+        $categoryIds = [];
+        if ($this->targetsCategories($offers)) {
+            $book->loadMissing(['categories' => fn ($q) => $q->select('categories.id')]);
+            $categoryIds = $book->categories->map(fn ($category) => (int) $category->id)->all();
+        }
+
+        $best = app(OfferCalculator::class)->bestForBook(
+            $offers,
+            (int) $book->id,
+            $categoryIds,
+            $book->series_id !== null ? (int) $book->series_id : null,
+        );
+
+        return $best === null ? null : [
+            'id' => $best->id,
+            'min_quantity' => $best->minQuantity,
+            'percent_off' => $best->percentOff,
+            'ends_at' => $best->endsAtIso,
+            'target_label' => $best->targetLabel,
+        ];
+    }
+
     public function forget(): void
     {
         Cache::forget(self::CACHE_KEY);
+    }
+
+    /** @param  list<LiveOffer>  $offers */
+    private function targetsCategories(array $offers): bool
+    {
+        foreach ($offers as $offer) {
+            if ($offer->categoryIds !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return list<LiveOffer> active, not ended, not used up (still includes scheduled ones and "No books") */

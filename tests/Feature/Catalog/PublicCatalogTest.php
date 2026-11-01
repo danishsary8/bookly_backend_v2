@@ -233,6 +233,7 @@ class PublicCatalogTest extends TestCase
         };
 
         $this->book()->authors()->attach(Author::factory()->create());
+        $this->getJson('/api/v1/books')->assertOk(); // warm the live-offers cache (one query a minute, not per list)
         $few = $count();
         foreach (range(1, 15) as $i) {
             $this->book()->authors()->attach(Author::factory()->create());

@@ -350,6 +350,17 @@ components:
         in_stock: { type: boolean }
         rating_avg: { type: number, nullable: true }
         review_count: { type: integer }
+        offer: { $ref: '#/components/schemas/BookOffer' }
+    BookOffer:
+      type: object
+      nullable: true
+      description: 'The best live automatic offer covering this book (biggest percent; tie -> lower min_quantity, then lower id), or null. Live offers are cached 60 seconds; checkout always re-checks.'
+      properties:
+        id: { type: integer }
+        min_quantity: { type: integer, example: 2 }
+        percent_off: { type: string, example: '15.00' }
+        ends_at: { type: string, format: date-time, nullable: true }
+        target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
     Variant:
       type: object
       properties:
