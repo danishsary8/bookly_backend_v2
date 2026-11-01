@@ -68,7 +68,14 @@ each branch works alone)
   **Merge**. Vercel deploys by itself. Nothing shows until an offer is live.
 - [x] Decided 2026-11-01: free delivery starts at **$50**. Fix for the announcement bar (it said $25), frontend only:
 - [ ] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (any order).
-- Merge links for the admin pages and the report come here when they are finished.
+- [ ] **Merge the frontend `feature/offers-admin`** (any order; it says "not available yet" until the backend is live):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-admin
+- [ ] **Your first offer** (only after `offers-engine`, `offers-storefront` and `offers-admin` are all merged and deployed):
+  Admin → **Offers** → **New offer** → e.g. name "Buy 2 Holmes", 2 books, 15%, search "Holmes" → pick the series → check
+  the preview → **Create offer** (it starts paused) → switch it **On** in the list → confirm. Then open the shop: the Holmes
+  books show "Buy 2, save 15%"; put 2 in the cart → "Offer: buy 2, save 15%". Pause it again with the switch if you only
+  wanted to test.
+- Merge link for the report comes here when it is finished.
 
 ---
 

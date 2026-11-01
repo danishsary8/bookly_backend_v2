@@ -446,6 +446,23 @@ link · 4A note when a coupon lost · 5A drawer shows the offer line only.
 - Storefront done and pushed. Merge order: backend `feature/offers-engine` first, then frontend
   `feature/offers-storefront` (either order is safe; offers only appear once both are live AND an admin starts one).
 - Next: frontend `feature/offers-admin` (admin pages), then `feature/offer-reports`.
+
+## 2026-11-01 · Task B (admin): offers admin page
+
+Owner choices: 1A table + dialog like Coupons · 2A one search box (books, categories, series) with chips · 3A live preview ·
+4A on/off switch per row, confirm before ON · 5A next to Coupons.
+
+| Commit | What |
+|---|---|
+| `fcb7623` (frontend `fix/announcement-free-delivery`) | Announcement bar "$25" -> "$50" (owner: free delivery starts at $50), en + km. |
+| `c8a7c77` (frontend `feature/offers-admin`) | `/admin/offers` page, menu item, API helpers, 6 tests. New offers start paused. 404 -> "not available yet". |
+- Checks: lint 0, typecheck clean, `npm test` 450 passed / 3 skipped, build ok; browser run in the frontend WORKLOG entry
+  (create -> ON with confirm -> shop API shows the offer at once -> pause -> delete; 390 px no overflow; no errors).
+- Not verified: the live site (owner step). The preview sentence is written in the admin page too (same words as the
+  shop's `offers.bookLine`), because this branch must work without `feature/offers-storefront`; keep them in step.
+
+**Where I stopped / next step**
+- Admin page done and pushed. Next: `feature/offer-reports` (backend report endpoint + CSV, then the Offers tab).
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
