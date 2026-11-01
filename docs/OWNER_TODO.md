@@ -66,8 +66,8 @@ each branch works alone)
 - [ ] **Merge the frontend `feature/offers-storefront`** (after the backend one; reviewed and browser-checked 2026-11-01):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-storefront → **Create pull request** → green CI →
   **Merge**. Vercel deploys by itself. Nothing shows until an offer is live.
-- [ ] **Decide:** the top announcement bar says "Free delivery on orders over **$25**", but the shop's real rule is **$50**.
-  Which is right? (If $25, the backend setting `FREE_SHIPPING_THRESHOLD` on Render changes too.)
+- [x] Decided 2026-11-01: free delivery starts at **$50**. Fix for the announcement bar (it said $25), frontend only:
+- [ ] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (any order).
 - Merge links for the admin pages and the report come here when they are finished.
 
 ---
