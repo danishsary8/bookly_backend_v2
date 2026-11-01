@@ -351,6 +351,19 @@ components:
         rating_avg: { type: number, nullable: true }
         review_count: { type: integer }
         offer: { $ref: '#/components/schemas/BookOffer' }
+    OfferReportRow:
+      type: object
+      properties:
+        orders: { type: integer }
+        units: { type: integer, description: All books in those orders }
+        units_with_offer: { type: integer, description: Books on lines that got a discount }
+        revenue_usd: { $ref: '#/components/schemas/Money' }
+        revenue_khr: { $ref: '#/components/schemas/Riel' }
+        discount_usd: { $ref: '#/components/schemas/Money' }
+        discount_khr: { $ref: '#/components/schemas/Riel' }
+        average_order_usd: { $ref: '#/components/schemas/Money' }
+        average_order_khr: { $ref: '#/components/schemas/Riel' }
+        books_per_order: { type: string, example: '2.50' }
     BookOffer:
       type: object
       nullable: true
@@ -2120,6 +2133,41 @@ paths:
         - { $ref: '#/components/parameters/To' }
         - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
       responses: { '200': { description: Coupons and refunds report data or CSV stream } }
+  /staff/reports/offers:
+    get:
+      tags: [Admin]
+      summary: (admin) What each automatic offer sold, next to the orders without an offer
+      description: 'Orders placed in the range (shop time zone), not cancelled, not deleted; 5-minute cache. Per offer (grouped by orders.offer_id; current name, or the order copy): orders, units (all books in those orders), units_with_offer (books on discounted lines), revenue (sum of order totals), discount, average_order, books_per_order. without_offer: the same numbers for orders with no offer (coupon orders included). format=csv: one row per offer + "Orders without an offer", UTF-8 BOM.'
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses:
+        '200':
+          description: Offers report data or CSV stream
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      period: { type: object, properties: { from: { type: string, format: date }, to: { type: string, format: date }, timezone: { type: string } } }
+                      offers:
+                        type: array
+                        items:
+                          allOf:
+                            - type: object
+                              properties:
+                                offer_id: { type: integer, nullable: true }
+                                name: { type: string }
+                                min_quantity: { type: integer, nullable: true }
+                                percent_off: { type: string, nullable: true, example: '15.00' }
+                            - $ref: '#/components/schemas/OfferReportRow'
+                      without_offer: { $ref: '#/components/schemas/OfferReportRow' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
   /newsletter/subscribe:
     post:
       tags: [Newsletter]
