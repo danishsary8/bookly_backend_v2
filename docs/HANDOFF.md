@@ -468,8 +468,22 @@ merging `main` into them (kept every entry, re-ran all checks: 462 / 456 tests, 
 **New rule (owner):** "notes only": work-log entries go on `docs/handoff-notes` (backend) and `docs/worklog-notes`
 (frontend), never on feature branches. Steering file updated.
 
+## 2026-11-01 · Task D: offers report
+
+| Commit | What |
+|---|---|
+| `5298e88` (backend `feature/offer-reports`) | `GET /staff/reports/offers` + CSV, 4 tests, docs. 722 tests, pint clean. |
+| `50c95ab` (frontend `feature/offer-reports`) | Reports → **Offers** tab (4 tiles + table + CSV), 2 tests; 404 -> "not available yet". 464 tests, lint, typecheck, build. |
+- Browser: see the frontend work log (`docs/worklog-notes`): 3 real checkouts on the local API, numbers match by hand
+  (37.79 + 16.80 = 54.59; 2 × 2.68 = 5.36; average 27.30; 2.50 vs 1.83 books per order); CSV same rows.
+- Both branches merge cleanly into `main`, in any order (each works alone: the tab says "not available yet" without the
+  backend; the endpoint is ignored by an old frontend).
+- **Offers work (task B+D) is complete.** Not verified: the live site (owner steps); KM strings by a native speaker.
+
 **Where I stopped / next step**
-- Admin page done and merged. Next: `feature/offer-reports` (backend report endpoint + CSV, then the Offers tab).
+- Offers done. Next big task: E, the BI admin dashboard (`docs/prompts/04-bi-dashboard.md`), starting with an audit and
+  design choices for the owner. Small follow-ups waiting: Khmer account tab row cut at 390 px; unused
+  `catalogApi.alsoBought`; free-delivery bar texts into `en.ts`/`km.ts`.
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.

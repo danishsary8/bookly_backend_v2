@@ -488,3 +488,14 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     `docs/HANDOFF.md` on `docs/handoff-notes`.
   - Rollout: nothing changes for customers until an admin resumes or creates an offer. Merge `feature/offers-storefront`
     before the first live offer (today's checkout page hides a coupon that lost to an offer).
+
+- [x] Offers report (2026-11-01, branch `feature/offer-reports`; spec section 7): `GET /staff/reports/offers?from&to[&format=csv]`
+  (admin, `throttle:admin-analytics`), `ReportsService::offers()` (5-minute cache, arrays only). Same basis as the coupons
+  report: orders placed in the range, not cancelled, not deleted, shop time zone. Per offer (grouped by `orders.offer_id`,
+  current name or the order copy; the rule the orders were sold with): orders, units (all books in those orders),
+  units_with_offer (books on discounted lines), revenue, discount, average order (rounded to the cent), books per order;
+  `without_offer` with the same numbers. CSV: one row per offer + "Orders without an offer", UTF-8 BOM.
+  - Docs: `docs/API.md`, `public/openapi.yaml` (`OfferReportRow`). Tests: `tests/Feature/Offers/OfferReportTest.php` (4, real
+    checkouts: example 1 + a 2-book order -> 2 orders, 5 books (4), $67.00, $6.00, average $33.50, 2.50 per order; without:
+    1 order, $31.50, 1.00; cancelled orders left out; empty range; an edited offer keeps its orders and shows the current
+    name; staff 403; CSV rows). `php artisan test` 722 passed; pint clean.

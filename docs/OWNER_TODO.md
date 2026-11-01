@@ -80,7 +80,11 @@ each branch works alone)
   the preview → **Create offer** (it starts paused) → switch it **On** in the list → confirm. Then open the shop: the Holmes
   books show "Buy 2, save 15%"; put 2 in the cart → "Offer: buy 2, save 15%". Pause it again with the switch if you only
   wanted to test.
-- Merge link for the report comes here when it is finished.
+- [ ] **Merge the offers report** (both, any order):
+  backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offer-reports ·
+  frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/offer-reports
+  Check: Admin → **Reports** → **Offers** tab → choose **30 days** → after your first offer orders you see "Books per order
+  with an offer" vs "Without an offer". **Export CSV** downloads the same table.
 
 ---
 
