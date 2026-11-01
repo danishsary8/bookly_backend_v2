@@ -43,6 +43,24 @@ class Offer extends Model
         ];
     }
 
+    public const STATUSES = ['live', 'scheduled', 'paused', 'ended', 'used_up', 'no_books'];
+
+    /**
+     * Spec 4.10, for the admin list: paused, ended, used up, no books (a "selected" offer whose targets are all gone
+     * or in the trash), scheduled (starts later) or live. Needs `targets` with their book/category/series loaded.
+     */
+    public function status(): string
+    {
+        return match (true) {
+            ! $this->is_active => 'paused',
+            $this->ends_at !== null && $this->ends_at->lte(now()) => 'ended',
+            $this->max_orders !== null && $this->used_count >= $this->max_orders => 'used_up',
+            $this->applies_to === self::APPLIES_TO_SELECTED && ! $this->targets->contains(fn (OfferTarget $t) => ! $t->inTrash()) => 'no_books',
+            $this->starts_at !== null && $this->starts_at->gt(now()) => 'scheduled',
+            default => 'live',
+        };
+    }
+
     public function targets(): HasMany
     {
         return $this->hasMany(OfferTarget::class);

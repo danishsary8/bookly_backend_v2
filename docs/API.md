@@ -161,6 +161,11 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 | POST | /staff/coupons | **admin** (owner 2026-10-15). code (stored uppercase), type (percentage\|fixed), value (percentage max 100), min_order_amount?, max_uses?, starts_at?, expires_at?, is_active? |
 | PATCH | /staff/coupons/{id} | **admin**. any of the above (`used_count` is read-only) |
 | DELETE | /staff/coupons/{id} | 409 once used — set `is_active=false` instead |
+| GET | /staff/offers | Automatic offers. `q` (name), `status` (`live`, `scheduled`, `paused`, `ended`, `used_up`, `no_books`), `per_page`. Each offer: all columns, `status`, `targets[{type, id, label, in_trash}]`, `orders_count` |
+| GET | /staff/offers/{id} | |
+| POST | /staff/offers | **admin** (owner 2026-10-31). name (1-100, internal), applies_to (`all`\|`selected`), min_quantity (2-20), percent_off (0.01-50), starts_at?, ends_at? (after starts_at), max_orders?, is_active?, targets (`selected` only: 1-200 of `{type: book\|category\|series, id}`, duplicates saved once, each must exist and not be in the trash). Audited; clears the live-offers cache so the shop sees it at once |
+| PATCH | /staff/offers/{id} | **admin**. any of the above; `is_active=false` pauses. `targets` replaces the list when sent; `applies_to=all` drops the targets; `selected` needs targets. `used_count` is read-only. A PATCH that changes nothing writes no audit row |
+| DELETE | /staff/offers/{id} | **admin**. 409 once used: pause it instead |
 
 ## Checkout and orders (customer token + verified email)
 | Method | Path | Body / notes |

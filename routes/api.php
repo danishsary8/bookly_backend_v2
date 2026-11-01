@@ -56,6 +56,7 @@ use App\Http\Controllers\Api\V1\Staff\Orders\OrderBulkStatusController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderDocumentController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\OfferController as StaffOfferController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Staff\StaffNewsletterController;
@@ -270,6 +271,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/series/{series}', [StaffSeriesController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::get('/coupons', [StaffCouponController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show'])->middleware('ability:catalog:view,admin');
+    Route::get('/offers', [StaffOfferController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/offers/{offer}', [StaffOfferController::class, 'show'])->whereNumber('offer')->middleware('ability:catalog:view,admin');
     Route::post('/media/upload', [MediaUploadController::class, 'upload'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
 
     Route::middleware('abilities:admin')->group(function () {
@@ -320,6 +323,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         // Owner 2026-10-15 (security review): a coupon gives money away, so only admins make or change them.
         Route::post('/coupons', [StaffCouponController::class, 'store']);
         Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
+        // Owner 2026-10-31 (offers design): an offer gives money away too, so only admins make, change or delete them.
+        Route::post('/offers', [StaffOfferController::class, 'store']);
+        Route::patch('/offers/{offer}', [StaffOfferController::class, 'update'])->whereNumber('offer');
+        Route::delete('/offers/{offer}', [StaffOfferController::class, 'destroy'])->whereNumber('offer');
 
         Route::get('/newsletter/summary', [StaffNewsletterController::class, 'summary']);
         Route::get('/newsletter/campaigns', [StaffNewsletterController::class, 'indexCampaigns']);

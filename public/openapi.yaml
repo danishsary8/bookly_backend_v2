@@ -1812,6 +1812,13 @@ paths:
     get: { tags: [Staff operations], summary: 'One coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Coupon } } }
     patch: { tags: [Staff operations], summary: '(admin) Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' } } }
     delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/offers:
+    get: { tags: [Staff operations], summary: 'List automatic offers (q = name, status = live|scheduled|paused|ended|used_up|no_books, per_page). Staff with catalog:view and admins', responses: { '200': { description: 'Offers: all columns, status, targets [{type, id, label, in_trash}], orders_count' } } }
+    post: { tags: [Staff operations], summary: '(admin) Create (name, applies_to all|selected, min_quantity 2-20, percent_off 0.01-50, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all). Audited; the live-offers cache is cleared', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/offers/{id}:
+    get: { tags: [Staff operations], summary: 'One offer', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Offer } } }
+    patch: { tags: [Staff operations], summary: '(admin) Update any field; pause/resume with is_active; targets replace the list when sent; switching to all drops them. used_count is read-only', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Staff operations], summary: '(admin) Delete if never used, else 409 (pause it instead)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '409': { description: Used on an order } } }
   /staff/media/upload:
     post:
       tags: [Staff catalog]
