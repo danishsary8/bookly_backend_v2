@@ -29,7 +29,9 @@ You work for the owner, a software development student. Explain in simple Englis
    `public/openapi.yaml` updated for any endpoint change.
 7. **Frontend done =** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` all pass, and a browser check
    of every changed page (`npm run dev` on :5173 against the local API on :8000 or the live API). Say exactly what you
-   clicked and saw. If something was not checked, write "not yet verified".
+   clicked and saw. Also run axe (`@axe-core/playwright`, tags wcag2a/wcag2aa/wcag21a/wcag21aa, like `e2e/a11y.spec.ts`)
+   on every changed page, light + dark, desktop + phone: the CI "Money path end-to-end" job fails on any violation.
+   If something was not checked, write "not yet verified".
 8. **Secrets:** never paste keys, passwords or connection strings in code, docs, commits or chat.
 9. Do not run `composer require laravel/boost`.
 

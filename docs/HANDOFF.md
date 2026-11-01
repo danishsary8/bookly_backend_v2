@@ -514,3 +514,8 @@ Owner merged branches 1-2 and the fix (2026-11-01).
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
+
+**2026-11-01 · E2E failure on PR #107:** axe `aria-hidden-focus` on the donut from `feature/admin-dashboard-redesign`
+(merged): every PR's "Money path end-to-end" job failed (5 tests, one cause). Fixed in frontend `fix/dashboard-donut-focus`
+(`15332be`), verified with axe locally on every page changed today (all 0). My miss: the browser checks did not run axe;
+the steering file now requires it.

@@ -109,6 +109,13 @@ each branch works alone)
 
 ---
 
+**🔴 E2E check failing on PRs (2026-11-01)** — caused by the dashboard donut (already on `main`), not by your new PRs.
+- [ ] **Merge first:** https://github.com/danishsary8/bookly_frontend/pull/new/fix/dashboard-donut-focus
+- [ ] Then on PR #107 (`feature/admin-insights-widgets`) click **Update branch** (it re-runs the checks with the fix) →
+  wait for all green → **Merge**.
+
+---
+
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
