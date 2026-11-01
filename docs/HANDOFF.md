@@ -405,8 +405,16 @@ note above is honest and enough for v1 (same `FOR UPDATE` mechanism as the coupo
   counting (the live-offers read is cached for a minute, so a cold cache adds one query to the first request only).
 - Checks on `5904592`: `php artisan test` **709 passed**; `vendor/bin/pint --test` clean; `openapi.yaml` parses.
 
+| `d2680f4` | Staff offer endpoints (spec 4.10, 6.7): `GET /staff/offers` (q, status filter in SQL with the same rules as `Offer::status()`), `GET /staff/offers/{id}` for `catalog:view` + admin; `POST`, `PATCH`, `DELETE` admin only. Targets validated (type, exists, not in the trash, duplicates once, 1-200, refused for `all`); `applies_to=all` drops targets; dates checked against saved values; delete 409 once used; every create/update/delete audited with the target list; no audit row when nothing changed; every save clears the live-offers cache. `OfferResource`: all columns, `status`, `targets[{type,id,label,in_trash}]`, `orders_count`. Docs: API.md rows + openapi paths. |
+- Tests: `tests/Feature/Offers/StaffOfferTest.php` (8): create with mixed targets + audit; all-books offer; validation limits
+  (N, X, dates, missing/trashed/unknown targets); staff view only, customers 403; pause hides the offer from the shop at
+  once (cache cleared) + resume + target change audited (before/after lists); switch to all drops targets; delete 409 vs
+  204 with cascade; every status shown and filtered (`live, scheduled, paused, ended, used_up, no_books`).
+- Checks on `d2680f4`: `php artisan test` **717 passed**; pint clean; `openapi.yaml` parses.
+
 **Where I stopped / next step**
-- Book `offer` field done and pushed. Waiting for the owner's `confirm`.
+- Staff offer endpoints done and pushed. Next: the paused demo offer in `DemoSeeder` + backend `WORKLOG.md` entry, then
+  `feature/offers-engine` is complete (waiting for the owner's `confirm`).
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
