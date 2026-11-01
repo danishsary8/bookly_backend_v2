@@ -63,7 +63,12 @@ each branch works alone)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine → **Create pull request** → green CI →
   **Merge**. After Render shows **Deploy live**: open the shop → books, cart and checkout still work as before.
   Do **not** create or resume an offer yet.
-- Merge links for the frontend branches come here when they are finished.
+- [ ] **Merge the frontend `feature/offers-storefront`** (after the backend one; reviewed and browser-checked 2026-11-01):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-storefront → **Create pull request** → green CI →
+  **Merge**. Vercel deploys by itself. Nothing shows until an offer is live.
+- [ ] **Decide:** the top announcement bar says "Free delivery on orders over **$25**", but the shop's real rule is **$50**.
+  Which is right? (If $25, the backend setting `FREE_SHIPPING_THRESHOLD` on Render changes too.)
+- Merge links for the admin pages and the report come here when they are finished.
 
 ---
 

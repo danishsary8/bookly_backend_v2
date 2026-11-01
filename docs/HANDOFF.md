@@ -421,9 +421,31 @@ note above is honest and enough for v1 (same `FOR UPDATE` mechanism as the coupo
 every endpoint documented (OpenApiSpecTest), customers see no change while no offer is live. Not proven: two checkouts at
 the same moment (see above). Khmer text `messages.offer_ended` for the native-speaker review.
 
+**Fix found by the storefront browser check** | `1373f5f` on `feature/offers-engine`: live offers were cached as `LiveOffer`
+objects; `config/cache.php` `serializable_classes => false` makes the file/database store return
+`__PHP_Incomplete_Class`, so every page with offers would have answered 500 on Render (tests use the array store and
+missed it). Now cached as plain arrays and rebuilt on read; new test `test_live_offers_survive_the_file_cache` uses the
+real file store and fails on the old code. 718 tests, pint clean. Branch was not merged yet, so production never had it.
+Lesson for later caches: never cache objects; cache arrays or scalars.
+
+## 2026-11-01 · Task B (shop): offers on the storefront
+
+Owner choices: 1A badge "Buy 2, save 15%" · 2A line under the price with end date · 3A nudge above the summary with a
+link · 4A note when a coupon lost · 5A drawer shows the offer line only.
+
+| Commit | What |
+|---|---|
+| `685cbfa` (frontend `feature/offers-storefront`) | Book card badge (bottom-left of the cover, moved there after the browser check showed the heart covering it at the top), book page line, cart "In offer" tags + offer line + nudge + coupon note + free-delivery bar from the API, drawer offer line, checkout offer line + coupon note + `offer_id` (O1), order pages offer line. `src/features/offers/*`. Types regenerated from the backend branch's openapi. |
+- Checks: lint 0, typecheck clean, `npm test` 456 passed / 3 skipped (12 new), build ok. Browser: see the frontend WORKLOG
+  entry (EN 1280 + KM 390; −$2.68 and $37.79 match the backend's per-line rounding; no overflow; no app errors).
+- Works alone: on an API without offers every piece renders nothing (tests "works exactly as before", "sends no offer_id").
+- Not verified: the live site (owner step after merging); KM strings by a native speaker.
+- Follow-up found: announcement bar says free delivery over **$25**, the shop's rule is **$50** (owner to choose).
+
 **Where I stopped / next step**
-- `feature/offers-engine` is complete; merge link in `OWNER_TODO.md` §0. Next: frontend `feature/offers-storefront`
-  (design choices first).
+- Storefront done and pushed. Merge order: backend `feature/offers-engine` first, then frontend
+  `feature/offers-storefront` (either order is safe; offers only appear once both are live AND an admin starts one).
+- Next: frontend `feature/offers-admin` (admin pages), then `feature/offer-reports`.
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
