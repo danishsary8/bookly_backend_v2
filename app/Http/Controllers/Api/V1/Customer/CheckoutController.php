@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OfferPayload;
 use App\Http\Resources\OrderResource;
 use App\Services\CurrencyService;
 use App\Services\Orders\CheckoutService;
@@ -38,7 +39,11 @@ class CheckoutController extends Controller
             'shipping_fee' => $money($totals['shipping_cents']),
             'tax' => $money($totals['tax_cents']),
             'total' => $money($totals['total_cents']),
+            // Only when the coupon won; a valid coupon that lost to an offer is in coupon_not_used.
             'coupon_code' => $totals['coupon']?->code,
+            'applied' => $totals['choice']->applied,
+            'offer' => OfferPayload::offer($totals['choice']->offer, $currency),
+            'coupon_not_used' => $totals['choice']->couponNotUsedPayload(),
             'requires_shipping' => $totals['requires_shipping'],
             'delivery_area' => $totals['delivery_area'],
             'can_checkout' => $totals['can_checkout'],
@@ -73,6 +78,8 @@ class CheckoutController extends Controller
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'delivery_note' => ['nullable', 'string', 'max:300'],
+            // The offer the customer saw in the preview; 422 if it no longer applies (spec 4.9, O1 = A).
+            'offer_id' => ['nullable', 'integer'],
         ]);
 
         if ($data['payment_method'] !== PaymentMethod::Cod->value) {
@@ -86,6 +93,7 @@ class CheckoutController extends Controller
 
         ['order' => $order, 'created' => $created] = $this->checkout->place(
             $request->user(), $data['address_id'], $data['coupon_code'] ?? null, $key, $deliveryNote,
+            isset($data['offer_id']) ? (int) $data['offer_id'] : null,
         );
 
         $order->load(['items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon', 'statusHistory']);

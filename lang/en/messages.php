@@ -33,6 +33,7 @@ return [
     'checkout_choose_address' => 'Choose one of your saved addresses.',
     'checkout_cart_empty' => 'Your cart is empty.',
     'checkout_cart_problems' => 'Some items in your cart are unavailable or do not have enough stock. Please review your cart.',
+    'offer_ended' => 'This offer has just ended. Please check your new total and place the order again.',
     'coupon_locked' => 'Too many wrong coupon codes. Please try again in :minutes minutes.',
     'email_send_failed' => 'We couldn\'t send the email just now. Please try again in a few minutes.',
 ];

@@ -467,3 +467,24 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - Verified on the local API with the demo data: *Sign of the Four* → 6, 4, 1, 2, 3, 16; *Meditations* `limit=12` → 12 books;
     cart with Holmes #1 → 5 first. Not verified: the live API (Render).
   - Frontend part (separate branch): hide repeats, ask `limit=12`, "You may also like" title, loading skeleton.
+
+- [x] Automatic offers, backend (2026-10-31 to 2026-11-01, branch `feature/offers-engine`; spec
+  `docs/superpowers/specs/2026-10-31-offers-design.md`, owner decisions Q1-Q9 and O1 all "A" plus the review changes):
+  - Data (4 new migrations, no old one changed): `offers`, `offer_targets` (one of book / category / series per row, CHECK),
+    `orders.offer_id` + copy (`offer_name`, `offer_min_quantity`, `offer_percent_off`), `order_items.discount_amount`.
+  - Rule "buy N, get X% off every covered book" (N 2-20, X up to 50): integer cents, each covered line rounded down; one
+    offer per order (the biggest discount, tie -> lower id); never stacked with a coupon (the better one wins, tie -> offer).
+    Free delivery uses subtotal minus the winning discount. Live offers: one cached query (60 s), checkout re-reads fresh
+    under a row lock; `max_orders`, cancel gives the use back, retries never count twice; O1: a sent `offer_id` that no
+    longer applies -> 422, nothing placed.
+  - API: `GET /cart` `pricing` (discount, offer, nudge, free-delivery numbers from config) + `in_offer`; coupon check and
+    checkout preview report the winner and `coupon_not_used`; orders keep the offer copy and each line's discount; returns
+    refund each line's own discount (old orders keep the proportional rule); order `offer` + item `discount_usd`, CSV
+    `offer_name`; book cards / book page / series / wishlist `offer`; staff `GET/POST/PATCH/DELETE /staff/offers`
+    (admin-only changes, audited, cache cleared on save, 409 delete once used, status live/scheduled/paused/ended/
+    used_up/no_books). Demo data: one PAUSED sample offer ("Buy 2 Sherlock Holmes, save 15%").
+  - Docs: `docs/API.md`, `public/openapi.yaml`. Tests: `tests/Feature/Offers/*`, `tests/Unit/Offers/*`, worked examples to
+    the cent, 200-cart random checks, query-count tests. Notes and what was not proven (true parallel checkouts):
+    `docs/HANDOFF.md` on `docs/handoff-notes`.
+  - Rollout: nothing changes for customers until an admin resumes or creates an offer. Merge `feature/offers-storefront`
+    before the first live offer (today's checkout page hides a coupon that lost to an offer).
