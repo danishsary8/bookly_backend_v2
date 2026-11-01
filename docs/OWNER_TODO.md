@@ -136,7 +136,7 @@ each branch works alone)
      a Khmer title, add 4+ books, move one with ↑ → **Create collection**. It is **Off** (new ones start off).
   2. Switch it **On** in the list → open the home page → a "Seasonal pick" row is above New arrivals, books in your order.
   3. Click **See all** → its own page with the description and the end date. Switch the language to Khmer → Khmer title.
-  4. Switch it **Off** → the row leaves the home page (up to a minute) and the page link says "not found".
+  4. Switch it **Off** → reload the home page: the row is gone (a tab left open may show it up to 5 minutes) and the page link says "not found".
 - [ ] Khmer wording: the eyebrow **Seasonal pick** and "See all" in Khmer (`collections` group in `src/i18n/km.ts`).
 
 ---
