@@ -68,8 +68,10 @@ class DashboardService
                 'average_order_value_usd' => Money::format($now['average_order_value']),
                 'average_order_value_khr' => $this->khr($now['average_order_value']),
                 'orders_placed' => $now['orders_placed'],
+                // ->all(): the cache refuses to read objects back (cache.serializable_classes false), so cache arrays only.
                 'orders_by_status' => collect(OrderStatus::cases())->mapWithKeys(fn ($s) => [$s->value => 0])
-                    ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n)),
+                    ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n))
+                    ->all(),
                 'new_customers' => $now['new_customers'],
                 'best_sellers' => $this->bestSellers($from, $to),
                 'top_categories' => $this->topCategories($from, $to),
