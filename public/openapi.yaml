@@ -2071,6 +2071,18 @@ paths:
       summary: (admin) One row per day for charts
       parameters: [ { $ref: '#/components/parameters/Period' }, { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
       responses: { '200': { description: Daily rows } }
+  /staff/dashboard/insights:
+    get:
+      tags: [Admin]
+      summary: (admin) Dashboard extras - daily trends with the previous period, dead stock, stock value, top authors, provinces, promotions, repeat customers
+      description: 'trend: one row per day of the period with the same day index of the previous period (net revenue, orders placed, average delivered order, new verified customers). dead_stock: printed formats in stock with no copy in a non-cancelled order in the last 60 days (count, copies, value at selling price, top 10 by value with last_sold_at). stock_value: printed active copies in stock at selling price (no cost price exists). top_authors: top 10 by copies in orders placed. provinces: top 10 by orders placed, province detected from the order address ("Unknown" when not found). promotions: orders with an offer / a coupon / neither. repeat_customer_rate: customers who ordered in the period and before it. Cancelled and deleted orders never count. 5-minute cache.'
+      parameters: [ { $ref: '#/components/parameters/Period' }, { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
+      responses: { '200': { description: Insights }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /staff/dashboard/counts:
+    get:
+      tags: [Staff operations]
+      summary: 'Menu badge counts for every staff member: pending_orders, open_returns, low_stock (printed formats at or below their threshold). 60-second cache'
+      responses: { '200': { description: 'Counts', content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { pending_orders: { type: integer }, open_returns: { type: integer }, low_stock: { type: integer } } } } } } } } }
   /staff/orders/export:
     get:
       tags: [Admin]
