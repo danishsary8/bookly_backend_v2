@@ -185,4 +185,23 @@ class DashboardInsightsTest extends TestCase
         $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/insights?period=custom&from=2026-10-10&to=2026-10-01')
             ->assertUnprocessable();
     }
+
+    /** Production caches on files, which refuse to read objects back: both answers must be plain arrays. */
+    public function test_insights_and_counts_survive_the_file_cache(): void
+    {
+        config(['cache.default' => 'file']);
+        Cache::flush();
+        $customer = Customer::factory()->create();
+        $variant = $this->physical('10.00');
+        $variant->book->authors()->attach(Author::factory()->create());
+        $this->deliveredOrder($customer, [[$variant, 1]]);
+
+        foreach (['/api/v1/staff/dashboard/insights?period=30d', '/api/v1/staff/dashboard/counts'] as $url) {
+            $first = $this->asToken($this->admin)->getJson($url)->assertOk()->json();
+            $second = $this->asToken($this->admin)->getJson($url)->assertOk();
+            $this->assertStringNotContainsString('__PHP_Incomplete_Class', $second->getContent(), $url);
+            $this->assertSame($first, $second->json(), $url);
+        }
+        Cache::flush();
+    }
 }
