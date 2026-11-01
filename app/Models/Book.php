@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Catalog\RecommendationService;
+use App\Services\Offers\OfferService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -113,6 +114,16 @@ class Book extends Model
     }
 
     /** Books customers can see: live or reached scheduled publish time, and at least one active format. */
+    /** Visible books with everything a book card needs (BookResource), in a fixed number of queries. */
+    public function scopeForCards(Builder $query): Builder
+    {
+        return $query->visible()
+            ->with(['authors', 'activeVariants', ...app(OfferService::class)->bookEagerLoads()])
+            ->withMin('activeVariants as min_price', 'price_usd')
+            ->withAvg('approvedReviews as rating_avg', 'rating')
+            ->withCount('approvedReviews as review_count');
+    }
+
     public function scopeVisible(Builder $query): Builder
     {
         return $query->where(function (Builder $q) {

@@ -86,6 +86,8 @@ Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP
 | GET | /authors/{id} | author profile; books via `/books?author_id={id}` |
 | GET | /categories | all categories (not paginated), with `books_count` |
 | GET | /publishers | `q`, `per_page` |
+| GET | /collections/live | Seasonal collections for the home page (owner 2026-11-01): up to 2 live ones (switched on, started, not ended, at least one visible book), by `position` then id; each `{id, slug, title_en, title_km, description_en, description_km, ends_at, books_count, books[]}` with up to 12 book cards in the admin's order. Hidden books are left out |
+| GET | /collections/{slug} | One live collection with all its visible books (up to 60); 404 when hidden, scheduled, ended or empty |
 | GET | /series | `per_page` |
 | GET | /series/{id} | series with its books in reading order |
 | GET | /delivery/options | Public delivery policy: free delivery threshold, area base fees, and all 25 Cambodia provinces with fees, delivery days, and English/Khmer labels |
@@ -161,6 +163,11 @@ Coupon check response: `{data: {code, type, value, subtotal_usd, discount_usd, d
 | POST | /staff/coupons | **admin** (owner 2026-10-15). code (stored uppercase), type (percentage\|fixed), value (percentage max 100), min_order_amount?, max_uses?, starts_at?, expires_at?, is_active? |
 | PATCH | /staff/coupons/{id} | **admin**. any of the above (`used_count` is read-only) |
 | DELETE | /staff/coupons/{id} | 409 once used — set `is_active=false` instead |
+| GET | /staff/collections | Seasonal collections, `q` (title), `per_page`. Each: all fields, `status` (`live`, `scheduled`, `ended`, `hidden`), `books[{id, title, in_trash}]` in order |
+| GET | /staff/collections/{id} | |
+| POST | /staff/collections | **admin**. `title_en` (1-120), `slug`? (made from `title_en`; lowercase words joined by `-`; unique; `live` is reserved), `title_km`?, `description_en`/`description_km`? (max 300), `starts_at`?, `ends_at`? (after starts_at), `is_active`? (default **false**), `position`? (home order), `books`? (ordered book ids, max 60, each existing and not in the trash). Audited |
+| PATCH | /staff/collections/{id} | **admin**. any of the above; `books` replaces the ordered list when sent. No audit row when nothing changed |
+| DELETE | /staff/collections/{id} | **admin**. Its book list goes with it. Audited |
 | GET | /staff/offers | Automatic offers. `q` (name), `status` (`live`, `scheduled`, `paused`, `ended`, `used_up`, `no_books`), `per_page`. Each offer: all columns, `status`, `targets[{type, id, label, in_trash}]`, `orders_count` |
 | GET | /staff/offers/{id} | |
 | POST | /staff/offers | **admin** (owner 2026-10-31). name (1-100, internal), applies_to (`all`\|`selected`), min_quantity (2-20), percent_off (0.01-50), starts_at?, ends_at? (after starts_at), max_orders?, is_active?, targets (`selected` only: 1-200 of `{type: book\|category\|series, id}`, duplicates saved once, each must exist and not be in the trash). Audited; clears the live-offers cache so the shop sees it at once |

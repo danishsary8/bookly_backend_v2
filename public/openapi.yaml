@@ -364,6 +364,18 @@ components:
         average_order_usd: { $ref: '#/components/schemas/Money' }
         average_order_khr: { $ref: '#/components/schemas/Riel' }
         books_per_order: { type: string, example: '2.50' }
+    SeasonalCollection:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string, example: rainy-season-reads }
+        title_en: { type: string }
+        title_km: { type: string, nullable: true, description: 'Null: the shop shows title_en in Khmer too' }
+        description_en: { type: string, nullable: true }
+        description_km: { type: string, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        books_count: { type: integer, description: Visible books in the collection }
+        books: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
     BookOffer:
       type: object
       nullable: true
@@ -934,6 +946,28 @@ paths:
     get: { tags: [Public], summary: 'All categories with books_count (not paginated)', security: [], responses: { '200': { description: Categories, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } } } } }
   /publishers:
     get: { tags: [Public], summary: 'List publishers', security: [], responses: { '200': { description: Publishers, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Publisher' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
+  /collections/live:
+    get:
+      tags: [Catalog]
+      summary: 'Up to 2 live seasonal collections for the home page (switched on, started, not ended, with a visible book), by position then id; each with up to 12 book cards in the admin''s order'
+      responses:
+        '200':
+          description: Live collections
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/SeasonalCollection' } } } }
+  /collections/{slug}:
+    get:
+      tags: [Catalog]
+      summary: 'One live seasonal collection by its web address, with all its visible books (up to 60); 404 when hidden, scheduled, ended or empty'
+      parameters: [ { name: slug, in: path, required: true, schema: { type: string, example: rainy-season-reads } } ]
+      responses:
+        '200':
+          description: Collection
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/SeasonalCollection' } } }
+        '404': { description: Not live or not found }
   /series:
     get: { tags: [Public], summary: 'List series', security: [], responses: { '200': { description: Series, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Series' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /series/{id}:
@@ -1825,6 +1859,13 @@ paths:
     get: { tags: [Staff operations], summary: 'One coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Coupon } } }
     patch: { tags: [Staff operations], summary: '(admin) Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' } } }
     delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/collections:
+    get: { tags: [Staff operations], summary: 'Seasonal collections (q = title, per_page). Staff with catalog:view and admins. Each: all fields, status (live|scheduled|ended|hidden), books [{id, title, in_trash}] in order', responses: { '200': { description: Collections } } }
+    post: { tags: [Staff operations], summary: '(admin) Create (title_en, slug? made from title_en, title_km?, description_en/km? max 300, starts_at?, ends_at? after starts_at, is_active? default false, position?, books? ordered book ids max 60, each existing and not in the trash). "live" is reserved. Audited', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/collections/{id}:
+    get: { tags: [Staff operations], summary: 'One collection', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Collection } } }
+    patch: { tags: [Staff operations], summary: '(admin) Update any field; books replaces the ordered list when sent. Audited (no row when nothing changed)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Staff operations], summary: '(admin) Delete (its book list goes with it). Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /staff/offers:
     get: { tags: [Staff operations], summary: 'List automatic offers (q = name, status = live|scheduled|paused|ended|used_up|no_books, per_page). Staff with catalog:view and admins', responses: { '200': { description: 'Offers: all columns, status, targets [{type, id, label, in_trash}], orders_count' } } }
     post: { tags: [Staff operations], summary: '(admin) Create (name, applies_to all|selected, min_quantity 2-20, percent_off 0.01-50, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all). Audited; the live-offers cache is cleared', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
