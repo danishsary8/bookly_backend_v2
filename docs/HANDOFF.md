@@ -495,9 +495,19 @@ Owner choices 1A-6A (spec `docs/superpowers/specs/2026-11-01-bi-dashboard-design
 - Small note: the donut's "processing" colour is close to "delivered" green; every slice has its text label and count,
   so it is readable; can be tuned later.
 
+Owner merged branches 1-2 and the fix (2026-11-01).
+
+| Commit | What |
+|---|---|
+| `9565045` (frontend `feature/admin-quick-jump`) | Ctrl K quick jump (pages, orders, books, customers) + menu badges (pending, returns, low stock). 473 tests. |
+| `c158da2` (frontend `feature/admin-insights-widgets`) | Dashboard extras: stock value, dead stock, repeat customers, slow movers, top authors, provinces, offers vs coupons. 471 tests. |
+- Browser runs: frontend work log. Both merge cleanly into `main` and with each other; each works alone.
+- **Task E (BI dashboard) is complete** with these two merges. Not verified: the live site (owner check in OWNER_TODO).
+
 **Where I stopped / next step**
-- Branches 1-2 done. Next: branch 3 `feature/admin-quick-jump` (Ctrl K + menu badges), then branch 4
-  `feature/admin-insights-widgets` (dead stock, stock value, authors, provinces, promotions, repeat rate).
+- All four BI branches done. Waiting for the owner's merges and the next task. Small follow-ups still open: Khmer account
+  tab row cut at 390 px; unused `catalogApi.alsoBought`; free-delivery bar texts into `en.ts`/`km.ts`; donut colour for
+  "processing"; seasonal/weather picks (owner to explain what is meant).
 - Earlier plan line kept for history: Offers done. Next big task: E, the BI admin dashboard (`docs/prompts/04-bi-dashboard.md`), starting with an audit and
   design choices for the owner. Small follow-ups waiting: Khmer account tab row cut at 390 px; unused
   `catalogApi.alsoBought`; free-delivery bar texts into `en.ts`/`km.ts`.

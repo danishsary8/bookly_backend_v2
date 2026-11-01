@@ -100,6 +100,15 @@ each branch works alone)
 
 ---
 
+**Task E: BI dashboard (part 2)** (frontend, any order)
+- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-quick-jump
+- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-insights-widgets
+- [ ] Check after deploy: the menu shows red numbers beside Orders / Returns / Stock; press **Ctrl K** (Mac: Cmd K) →
+  type part of an order number or a book title → Enter opens it; scroll down the dashboard: Stock value, Dead stock,
+  Repeat customers, Slow movers, Top authors, Orders by province, Offers and coupons.
+
+---
+
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
