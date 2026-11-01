@@ -124,6 +124,21 @@ each branch works alone)
 - [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
+**Seasonal collections (2026-11-01)** (merge in any order; backend first is nicest; each works alone)
+- [ ] Backend (adds 2 tables; Render runs the migration by itself on deploy):
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/seasonal-collections
+- [ ] Frontend shop (home rows + collection page):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-shop
+- [ ] Frontend admin (`/admin/collections`):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-admin
+- [ ] Live check when all 3 are deployed:
+  1. https://bookly-frontend-five.vercel.app/admin/collections → **New collection** → English title "Rainy season reads",
+     a Khmer title, add 4+ books, move one with ↑ → **Create collection**. It is **Off** (new ones start off).
+  2. Switch it **On** in the list → open the home page → a "Seasonal pick" row is above New arrivals, books in your order.
+  3. Click **See all** → its own page with the description and the end date. Switch the language to Khmer → Khmer title.
+  4. Switch it **Off** → the row leaves the home page (up to a minute) and the page link says "not found".
+- [ ] Khmer wording: the eyebrow **Seasonal pick** and "See all" in Khmer (`collections` group in `src/i18n/km.ts`).
+
 ---
 
 ## 1. Merge (any order is fine)

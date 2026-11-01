@@ -527,3 +527,22 @@ axe 0 on `/admin`; checks re-run on push.
 **Where I stopped / next step:** waiting for merges. Open items: seasonal/weather picks (owner to explain); owner list
 (R2, phone code, Khmer review).
 
+## 2026-11-01 · Seasonal collections (owner: A, home row + own page, up to 2 live, books by hand, EN + KM)
+
+| Commit | Branch | What |
+|---|---|---|
+| `96580ad` | backend `feature/seasonal-collections` | 2 tables (owner approved), public live/slug endpoints, admin CRUD with audit. 737 tests. |
+| `f8622ab` | frontend `feature/seasonal-collections-shop` | Home rows above New arrivals + `/collections/:slug` page, EN/KM. 482 tests. |
+| `1321156` | frontend `feature/seasonal-collections-admin` | `/admin/collections` next to Offers: table + dialog, book search, ↑/↓ order, on/off switch. 483 tests. |
+
+- Each branch works alone: without the backend, the home page shows no collection row, the collection page says "not
+  found", and the admin page says "Collections are not available yet". Merge order: any (backend first is nicest).
+- Browser runs (local API, demo data): shop at 1280 light EN and 390 dark KM (home rows, collection page, unknown slug);
+  admin at 1280 light and 390 dark (list, dialog, reorder + save reaches the shop order, switch off/on, create + delete).
+  axe 0 on every page and the dialog; no sideways scroll. Fixed before push: the admin dialog was too wide on phones
+  (long book titles) and the date boxes overlapped on desktop.
+- Not verified: the live site (owner check in OWNER_TODO), real Khmer wording by a native speaker.
+- Choice I made (tell me if you want it different): turning a collection on uses the row switch with no confirm box
+  (offers have one because they change prices; collections do not).
+
+**Where I stopped / next step:** waiting for the 3 merges. Open: owner list (R2, phone code, Khmer review).

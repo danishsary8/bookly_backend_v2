@@ -511,3 +511,12 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   answered `{"__PHP_Incomplete_Class_Name": "Illuminate\\Support\\Collection"}` (found by the dashboard browser check).
   `->all()`. New `FileCacheRoundTripTest`: demo shop, file cache, every cached admin report + dashboard + similar books +
   book lists answered twice -> identical JSON (only this one was broken). 723 tests, pint clean.
+- [x] Seasonal collections (2026-11-01, branch `feature/seasonal-collections`; owner choices: home row + own page, up to 2
+  live, books picked by hand, English + Khmer fields; 2 new migrations approved by the owner): tables `collections` and
+  `collection_books`, model `BookCollection` (the name "Collection" clashes with Laravel's), `Book::scopeForCards()`
+  (shared card eager loads, also used by the book list). Public `GET /collections/live` (up to 2 live by position, 12
+  books each, only collections with a book on sale) and `GET /collections/{slug}` (live only, up to 60 books, else 404).
+  Staff `GET /staff/collections[/{id}]` (catalog:view), admin `POST/PATCH/DELETE` (slug from the English title, `live`
+  reserved, ordered `books` id list, max 60, no trashed books, audit `book_collection.*`). Tests
+  `SeasonalCollectionsTest` (7, incl. query count). 737 tests, pint clean, migrate/rollback/migrate OK. Docs: API.md,
+  openapi.yaml.
