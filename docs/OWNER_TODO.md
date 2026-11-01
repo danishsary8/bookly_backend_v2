@@ -58,7 +58,12 @@ each branch works alone)
   the first live offer in the admin. Why: today's checkout page does not know about offers, so a coupon that lost to
   an offer would vanish from the summary without an explanation. Until a live offer exists, nothing changes for
   customers (the demo offer from the seeder is created **paused**).
-- Merge links and live checks for each branch will be added here when the branches are finished.
+- [ ] **Merge the backend `feature/offers-engine`** (done and reviewed 2026-11-01; its 4 new migrations run by themselves on
+  deploy; nothing changes for customers while no offer is live; the demo offer is paused):
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine → **Create pull request** → green CI →
+  **Merge**. After Render shows **Deploy live**: open the shop → books, cart and checkout still work as before.
+  Do **not** create or resume an offer yet.
+- Merge links for the frontend branches come here when they are finished.
 
 ---
 

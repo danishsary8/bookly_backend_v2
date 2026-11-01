@@ -412,9 +412,18 @@ note above is honest and enough for v1 (same `FOR UPDATE` mechanism as the coupo
   204 with cascade; every status shown and filtered (`live, scheduled, paused, ended, used_up, no_books`).
 - Checks on `d2680f4`: `php artisan test` **717 passed**; pint clean; `openapi.yaml` parses.
 
+| `1d74682` | `DemoSeeder`: one sample offer "Buy 2 Sherlock Holmes, save 15%", **paused** (test: paused, no demo order used it, seeding twice keeps 1). Backend `docs/WORKLOG.md` entry for the whole offers backend. |
+- Checks on `1d74682`: `php artisan test` **717 passed**; pint clean. Migrations: rollback of the 4 + migrate again OK; and a
+  production-like run: `main` schema + demo data (13 orders), then this branch's migrations -> all orders kept, every old
+  line `discount_amount` 0, no error.
+
+**Review of the whole branch** (project lead, 2026-11-01; verdict: **complete, OK to merge**): 51 files, migrations new only,
+every endpoint documented (OpenApiSpecTest), customers see no change while no offer is live. Not proven: two checkouts at
+the same moment (see above). Khmer text `messages.offer_ended` for the native-speaker review.
+
 **Where I stopped / next step**
-- Staff offer endpoints done and pushed. Next: the paused demo offer in `DemoSeeder` + backend `WORKLOG.md` entry, then
-  `feature/offers-engine` is complete (waiting for the owner's `confirm`).
+- `feature/offers-engine` is complete; merge link in `OWNER_TODO.md` §0. Next: frontend `feature/offers-storefront`
+  (design choices first).
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
