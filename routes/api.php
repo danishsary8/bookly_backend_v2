@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
+use App\Http\Controllers\Api\V1\Catalog\CollectionController;
 use App\Http\Controllers\Api\V1\Catalog\PublisherController;
 use App\Http\Controllers\Api\V1\Catalog\ReviewController as BookReviewController;
 use App\Http\Controllers\Api\V1\Catalog\SeriesController;
@@ -55,6 +56,7 @@ use App\Http\Controllers\Api\V1\Staff\NotificationController as StaffNotificatio
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderBulkStatusController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderDocumentController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\CollectionController as StaffCollectionController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\OfferController as StaffOfferController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
@@ -85,6 +87,9 @@ Route::get('/authors', [AuthorController::class, 'index']);
 Route::get('/authors/{author}', [AuthorController::class, 'show'])->whereNumber('author');
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/publishers', [PublisherController::class, 'index']);
+// Seasonal collections (owner 2026-11-01): up to 2 live ones for the home page, and one by its web address.
+Route::get('/collections/live', [CollectionController::class, 'live'])->middleware('throttle:catalog');
+Route::get('/collections/{slug}', [CollectionController::class, 'show'])->where('slug', '[a-z0-9-]+')->middleware('throttle:catalog');
 Route::get('/series', [SeriesController::class, 'index']);
 Route::get('/series/{series}', [SeriesController::class, 'show'])->whereNumber('series');
 Route::get('/delivery/options', [DeliveryController::class, 'options']);
@@ -273,6 +278,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show'])->middleware('ability:catalog:view,admin');
     // Menu badges (pending orders, open returns, low stock) for every staff member; numbers only.
     Route::get('/dashboard/counts', [DashboardController::class, 'counts']);
+    Route::get('/collections', [StaffCollectionController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/collections/{collection}', [StaffCollectionController::class, 'show'])->whereNumber('collection')->middleware('ability:catalog:view,admin');
     Route::get('/offers', [StaffOfferController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/offers/{offer}', [StaffOfferController::class, 'show'])->whereNumber('offer')->middleware('ability:catalog:view,admin');
     Route::post('/media/upload', [MediaUploadController::class, 'upload'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
@@ -328,6 +335,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::post('/coupons', [StaffCouponController::class, 'store']);
         Route::patch('/coupons/{coupon}', [StaffCouponController::class, 'update']);
         // Owner 2026-10-31 (offers design): an offer gives money away too, so only admins make, change or delete them.
+        // Owner 2026-11-01: seasonal collections are changed by admins only (like offers).
+        Route::post('/collections', [StaffCollectionController::class, 'store']);
+        Route::patch('/collections/{collection}', [StaffCollectionController::class, 'update'])->whereNumber('collection');
+        Route::delete('/collections/{collection}', [StaffCollectionController::class, 'destroy'])->whereNumber('collection');
         Route::post('/offers', [StaffOfferController::class, 'store']);
         Route::patch('/offers/{offer}', [StaffOfferController::class, 'update'])->whereNumber('offer');
         Route::delete('/offers/{offer}', [StaffOfferController::class, 'destroy'])->whereNumber('offer');
