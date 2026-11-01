@@ -34,8 +34,9 @@ You work for the owner, a software development student. Explain in simple Englis
 9. Do not run `composer require laravel/boost`.
 
 ## Notes you must leave (every task)
-- **Work log:** add a finished entry to that repo's `docs/WORKLOG.md` on the task branch (what, branch, tests, what was
-  verified).
+- **Work log (owner, 2026-11-01: notes only):** feature branches never edit `docs/WORKLOG.md`. Write the entry (what,
+  branch, tests, what was verified) on the long-lived notes branch of that repo: backend `docs/handoff-notes`, frontend
+  `docs/worklog-notes` (switch to it, add, commit, push). This keeps feature branches from conflicting with each other.
 - **Hand-over note for the reviewer:** keep ONE running file, `docs/HANDOFF.md`, on the backend branch
   `docs/handoff-notes` (create it from `origin/main` the first time; later just switch to it, add, commit, push).
   For each task write: date, task, branches + links `https://github.com/danishsary8/<repo>/pull/new/<branch>`,

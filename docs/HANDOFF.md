@@ -461,8 +461,15 @@ Owner choices: 1A table + dialog like Coupons · 2A one search box (books, categ
 - Not verified: the live site (owner step). The preview sentence is written in the admin page too (same words as the
   shop's `offers.bookLine`), because this branch must work without `feature/offers-storefront`; keep them in step.
 
+**Merge conflicts (2026-11-01):** after the owner merged `offers-storefront`, `offers-admin` and
+`fix/announcement-free-delivery` conflicted only in `docs/WORKLOG.md` (every branch appended at the end). Resolved by
+merging `main` into them (kept every entry, re-ran all checks: 462 / 456 tests, lint, typecheck, build). Owner merged
+`offers-admin`; the banner branch no longer touches `WORKLOG.md` at all.
+**New rule (owner):** "notes only": work-log entries go on `docs/handoff-notes` (backend) and `docs/worklog-notes`
+(frontend), never on feature branches. Steering file updated.
+
 **Where I stopped / next step**
-- Admin page done and pushed. Next: `feature/offer-reports` (backend report endpoint + CSV, then the Offers tab).
+- Admin page done and merged. Next: `feature/offer-reports` (backend report endpoint + CSV, then the Offers tab).
 - Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
   (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
   `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.

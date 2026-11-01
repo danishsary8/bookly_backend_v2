@@ -67,7 +67,12 @@ each branch works alone)
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-storefront → **Create pull request** → green CI →
   **Merge**. Vercel deploys by itself. Nothing shows until an offer is live.
 - [x] Decided 2026-11-01: free delivery starts at **$50**. Fix for the announcement bar (it said $25), frontend only:
-- [ ] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (any order).
+- [ ] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (fixed 2026-11-01:
+  it no longer touches the work log, so it merges cleanly).
+- **Notes rule (you chose "notes only", 2026-11-01):** feature branches no longer edit `WORKLOG.md`. Notes live on two
+  long-lived branches: backend `docs/handoff-notes` and frontend `docs/worklog-notes`
+  (https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes). Merge them whenever you like, as often as
+  you like; after a merge I keep using the same branch names.
 - [ ] **Merge the frontend `feature/offers-admin`** (any order; it says "not available yet" until the backend is live):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-admin
 - [ ] **Your first offer** (only after `offers-engine`, `offers-storefront` and `offers-admin` are all merged and deployed):
