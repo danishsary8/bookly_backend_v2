@@ -546,3 +546,17 @@ axe 0 on `/admin`; checks re-run on push.
   (offers have one because they change prices; collections do not).
 
 **Where I stopped / next step:** waiting for the 3 merges. Open: owner list (R2, phone code, Khmer review).
+
+## 2026-11-02 · Owner answers + Buy again with low stock
+
+- Answers: Buy again on cancelled orders **yes** (unchanged); lower stock **add what is left** (built); Download my data
+  **keeps staff notes out** (unchanged).
+- Owner found on the live site: tall dialogs could not scroll (collections form). Fixed in frontend `fix/dialog-scroll`
+  (`c817745`, merged). My browser checks now scroll tall dialogs to the end on a short screen.
+- `feature/buy-again-partial-stock`: backend `425ed18` (739 tests), frontend `be101ac` (489 tests). Browser run (local
+  API, real order of 3, stock lowered to 2): cart got 2, note "Pride and Prejudice: 2 of 3 added"; EN 1280 light and KM
+  390 dark; axe 0, no sideways scroll. Each branch works alone (old frontend: the cart shows 2, no note; old backend: no
+  `requested_quantity`, no note).
+
+**Where I stopped / next step:** waiting for the 2 merges. Next big task proposed: online payments (Bakong KHQR first),
+owner to say "payments" or name another idea.

@@ -124,6 +124,16 @@ each branch works alone)
 - [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
+**Dialog scroll fix + Buy again with low stock (2026-11-02)**
+- [x] Dialog scroll fix merged (tall forms could not scroll).
+- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/buy-again-partial-stock
+- [ ] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/buy-again-partial-stock
+  (any order; each works alone)
+- [ ] Live check after both deploy: sign in as a customer with a delivered order of 2+ copies of one book → in the admin
+  lower that book's stock to 1 → **Account → Orders → the order → Buy again** → the cart has 1 copy and a note says
+  "<title>: 1 of 2 added". Put the stock back afterwards.
+- [ ] Khmer wording: "ស្តុកមិនគ្រប់សម្រាប់សៀវភៅ N មុខ" and "បានបន្ថែម 2 ក្នុងចំណោម 3" (`orders` group in `km.ts`).
+
 **Seasonal collections (2026-11-01)** (merge in any order; backend first is nicest; each works alone)
 - [ ] Backend (adds 2 tables; Render runs the migration by itself on deploy):
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/seasonal-collections
@@ -275,10 +285,9 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
 
 ## 5. Decisions only you can make (reply with your choice)
 
-- [ ] **Buy again:** may customers reorder a *cancelled* order? (today: yes) · When stock is lower than ordered, skip
-  the book (today) or add what is left?
-- [ ] **Download my data:** it leaves out staff-only notes and tags about the customer (internal remarks). Keep it that
-  way, or include them?
+- [x] **Buy again** (answered 2026-11-02): cancelled orders: yes (unchanged). Lower stock: **add what is left** (built:
+  `feature/buy-again-partial-stock`, see section 0).
+- [x] **Download my data** (answered 2026-11-02): keep staff-only notes and tags out (unchanged).
 - [x] Typo-tolerant search: approved and built (no migration was needed after all).
 - [x] Vitest 5: approved and done (in `chore/dependency-audit`).
 - [x] Email worker: you chose the free way (emails after the answer, `feature/send-emails-after-response`). A paid

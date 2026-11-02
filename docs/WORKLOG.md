@@ -520,3 +520,7 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   reserved, ordered `books` id list, max 60, no trashed books, audit `book_collection.*`). Tests
   `SeasonalCollectionsTest` (7, incl. query count). 737 tests, pint clean, migrate/rollback/migrate OK. Docs: API.md,
   openapi.yaml.
+- [x] Buy again with low stock (2026-11-02, branch `feature/buy-again-partial-stock`; owner: add what is left):
+  `CartService::addUpTo()` adds min(ordered, stock and line limit minus what is already in the cart); `reorder` lines now
+  carry `requested_quantity` and `note` ("Only N left in stock.", else null); nothing left -> skipped with the usual
+  reason. Tests in `ReorderTest` (2 new). 739 tests, pint clean. Docs: API.md, openapi.yaml.
