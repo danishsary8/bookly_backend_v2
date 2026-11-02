@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CartResource;
 use App\Http\Resources\OrderDocumentResource;
 use App\Http\Resources\OrderResource;
+use App\Models\BookVariant;
 use App\Models\Order;
 use App\Services\Cart\CartService;
 use App\Services\Orders\OrderStatusService;
@@ -52,7 +53,8 @@ class OrderController extends Controller
 
     /**
      * "Buy again": adds each item of a past order to the cart with the same rules as adding it by hand.
-     * Items that cannot be bought now (out of stock, no longer sold) are skipped and listed with the reason.
+     * Items that cannot be bought now (out of stock, no longer sold) are skipped and listed with the reason. When fewer
+     * copies are in stock than the order had, what is left is added (owner 2026-11-02) and the line carries a `note`.
      */
     public function reorder(Request $request, int $order, CartService $carts): JsonResponse
     {
@@ -68,8 +70,17 @@ class OrderController extends Controller
             }
 
             try {
-                $carts->add($request->user(), $item->book_variant_id, $item->quantity);
-                $added[] = ['book_variant_id' => $item->book_variant_id, 'title' => $item->title, 'quantity' => $item->quantity];
+                $taken = $carts->addUpTo($request->user(), $item->book_variant_id, $item->quantity);
+                $added[] = [
+                    'book_variant_id' => $item->book_variant_id,
+                    'title' => $item->title,
+                    'quantity' => $taken,
+                    'requested_quantity' => $item->quantity,
+                    // Set only when fewer copies were added than the order had.
+                    'note' => $taken < $item->quantity
+                        ? __('messages.insufficient_stock_simple', ['count' => BookVariant::whereKey($item->book_variant_id)->value('stock_quantity')])
+                        : null,
+                ];
             } catch (ValidationException $e) {
                 $skipped[] = ['book_variant_id' => $item->book_variant_id, 'title' => $item->title, 'reason' => collect($e->errors())->flatten()->first()];
             }
