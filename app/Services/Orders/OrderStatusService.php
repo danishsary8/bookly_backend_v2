@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 /** Every order status change goes through here so stock, coupons, payments and history stay consistent. */
 class OrderStatusService
 {
-    /** Statuses staff can set by hand. `paid` comes from card payments later; `returned` from the returns flow. */
+    /** Statuses staff can set by hand. `paid` comes from online payments (markPaid); `returned` from the returns flow. */
     public const STAFF_TARGETS = [OrderStatus::Processing, OrderStatus::Shipped, OrderStatus::Delivered, OrderStatus::Cancelled];
 
     public function __construct(
@@ -39,6 +39,16 @@ class OrderStatusService
     public function cancelAutomatically(Order $order, string $reason): Order
     {
         return $this->transition($order, OrderStatus::Cancelled, null, "Cancelled automatically: {$reason}", customer: true);
+    }
+
+    /**
+     * An online payment arrived (KHQR payments design 3.2): pending -> paid, once. `$during` runs inside the same
+     * transaction with the order locked (it marks the payment row). Throws ValidationException when the order is no
+     * longer pending (already paid, or cancelled), so a payment can never be counted twice.
+     */
+    public function markPaid(Order $order, string $note, ?StaffUser $staff = null, ?\Closure $during = null): Order
+    {
+        return $this->transition($order, OrderStatus::Paid, $staff, $note, during: $during, system: true);
     }
 
     public function changeByStaff(Order $order, OrderStatus $to, StaffUser $staff, ?string $note = null): Order
@@ -63,16 +73,16 @@ class OrderStatusService
         $this->audit->custom($staff, 'status_changed', $lockedOrder, ['status' => $from->value], ['status' => OrderStatus::Returned->value, 'note' => $note]);
     }
 
-    private function transition(Order $order, OrderStatus $to, ?StaffUser $staff, ?string $note, bool $customer = false): Order
+    private function transition(Order $order, OrderStatus $to, ?StaffUser $staff, ?string $note, bool $customer = false, ?\Closure $during = null, bool $system = false): Order
     {
-        $updated = DB::transaction(function () use ($order, $to, $staff, $note, $customer) {
+        $updated = DB::transaction(function () use ($order, $to, $staff, $note, $customer, $during, $system) {
             $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
             $from = $locked->status;
 
             if ($customer && $from !== OrderStatus::Pending) {
                 throw ValidationException::withMessages(['status' => 'This order can no longer be cancelled. Please contact support.']);
             }
-            if ($staff && ! in_array($to, self::STAFF_TARGETS, true)) {
+            if ($staff && ! $system && ! in_array($to, self::STAFF_TARGETS, true)) {
                 throw ValidationException::withMessages(['status' => "Staff cannot set an order to {$to->value}."]);
             }
             if (! $from->canTransitionTo($to)) {
@@ -81,6 +91,9 @@ class OrderStatusService
 
             if ($to === OrderStatus::Cancelled) {
                 $this->undoOrder($locked, $staff);
+            }
+            if ($during !== null) {
+                $during($locked);
             }
             if ($to === OrderStatus::Delivered && $locked->payment_method->value === 'cod') {
                 // Cash on delivery: the courier collects the money on delivery.

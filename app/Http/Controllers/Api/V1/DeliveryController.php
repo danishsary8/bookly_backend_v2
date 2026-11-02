@@ -50,6 +50,11 @@ class DeliveryController extends Controller
                     'provinces_khr' => $currency->usdToKhr(DeliveryArea::fee(DeliveryArea::PROVINCES)),
                 ],
                 'provinces' => $provinces,
+                // Ways to pay (KHQR payments design 3.3); the shop shows KHQR only when it is listed here.
+                'payment_methods' => array_values(array_filter([
+                    ['code' => 'cod'],
+                    config('payments.khqr.enabled') ? ['code' => 'khqr', 'mode' => config('payments.khqr.mode'), 'pay_minutes' => (int) config('payments.khqr.pay_minutes')] : null,
+                ])),
             ],
         ]);
     }

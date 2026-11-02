@@ -2,6 +2,8 @@
 
 namespace App\Services\Health;
 
+use App\Services\Payments\Khqr\BakongClient;
+use App\Services\Payments\KhqrPaymentService;
 use App\Services\Telegram\TelegramBot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -105,8 +107,10 @@ class HealthService
         $database = ['status' => 'ok'];
         $queue = $this->checkQueue();
         $telegram = $this->checkTelegram();
+        $payments = $this->checkPayments();
 
-        $status = $queue['status'] === 'degraded' || $telegram['status'] === 'degraded' ? 'degraded' : 'ok';
+        $status = $queue['status'] === 'degraded' || $telegram['status'] === 'degraded' || $payments['degraded'] ? 'degraded' : 'ok';
+        unset($payments['degraded']);
 
         return response()->json([
             'status' => $status,
@@ -114,8 +118,41 @@ class HealthService
                 'database' => $database,
                 'queue' => $queue,
                 'telegram_bot' => $telegram,
+                'payments' => $payments,
             ],
         ]);
+    }
+
+    /**
+     * KHQR (design 3.3): test mode, or Bakong's last answer (ok / blocked / token_invalid / unreachable / error) and the
+     * token's expiry. Never calls Bakong itself and never shows the token.
+     *
+     * @return array{mode: string, status: string, token_expires_at: ?string, last_check_at: ?string, degraded: bool}
+     */
+    public function checkPayments(): array
+    {
+        if (config('payments.khqr.mode') !== 'bakong') {
+            return ['mode' => 'test', 'status' => 'test', 'token_expires_at' => null, 'last_check_at' => null, 'degraded' => false];
+        }
+
+        $expires = app(BakongClient::class)->tokenExpiresAt();
+        $last = Cache::get(KhqrPaymentService::HEALTH_KEY);
+        $status = match (true) {
+            (string) config('payments.bakong.token') === '' => 'token_missing',
+            $expires !== null && $expires->getTimestamp() <= time() => 'token_expired',
+            is_array($last) && $last['status'] !== 'ok' => $last['status'],
+            $expires !== null && $expires->getTimestamp() <= time() + 7 * 86400 => 'token_expiring',
+            is_array($last) => 'ok',
+            default => 'unknown', // no payment checked yet
+        };
+
+        return [
+            'mode' => 'bakong',
+            'status' => $status,
+            'token_expires_at' => $expires?->format(DATE_ATOM),
+            'last_check_at' => is_array($last) ? $last['at'] : null,
+            'degraded' => ! in_array($status, ['ok', 'unknown', 'token_expiring'], true),
+        ];
     }
 
     private function repairWebhook(TelegramBot $bot, string $base, string $healthCacheKey): array

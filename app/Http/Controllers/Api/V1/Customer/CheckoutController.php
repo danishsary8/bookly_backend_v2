@@ -61,7 +61,7 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Places a cash-on-delivery order. The `Idempotency-Key` header is required: repeating a request
+     * Places an order paid by cash on delivery or KHQR (a KHQR order then waits for payment: GET /orders/{id}/payment). The `Idempotency-Key` header is required: repeating a request
      * with the same key returns the order that was already placed instead of creating a second one.
      */
     public function store(Request $request): JsonResponse
@@ -82,8 +82,9 @@ class CheckoutController extends Controller
             'offer_id' => ['nullable', 'integer'],
         ]);
 
-        if ($data['payment_method'] !== PaymentMethod::Cod->value) {
-            throw ValidationException::withMessages(['payment_method' => 'Only cash on delivery is available right now.']);
+        $method = PaymentMethod::from($data['payment_method']);
+        if (! ($method === PaymentMethod::Cod || ($method === PaymentMethod::Khqr && config('payments.khqr.enabled')))) {
+            throw ValidationException::withMessages(['payment_method' => 'This payment method is not available. Choose cash on delivery or KHQR.']);
         }
 
         $deliveryNote = isset($data['delivery_note']) ? trim((string) $data['delivery_note']) : null;
@@ -94,6 +95,7 @@ class CheckoutController extends Controller
         ['order' => $order, 'created' => $created] = $this->checkout->place(
             $request->user(), $data['address_id'], $data['coupon_code'] ?? null, $key, $deliveryNote,
             isset($data['offer_id']) ? (int) $data['offer_id'] : null,
+            $method,
         );
 
         $order->load(['items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon', 'statusHistory']);

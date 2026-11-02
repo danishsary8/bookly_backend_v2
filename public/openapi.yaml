@@ -239,6 +239,42 @@ components:
         provinces:
           type: array
           items: { $ref: '#/components/schemas/DeliveryProvince' }
+        payment_methods:
+          type: array
+          description: Ways to pay. The shop shows KHQR only when it is listed (KHQR payments design 3.3).
+          items:
+            type: object
+            properties:
+              code: { type: string, enum: [cod, khqr] }
+              mode: { type: string, enum: [test, bakong], description: 'khqr only: test = Simulate button, no real money' }
+              pay_minutes: { type: integer, example: 15, description: khqr only }
+    KhqrPayment:
+      type: object
+      properties:
+        order_id: { type: integer }
+        order_number: { type: string }
+        status: { type: string, enum: [awaiting_payment, paid, expired, cancelled] }
+        mode: { type: string, enum: [test, bakong] }
+        expires_at: { type: string, format: date-time }
+        seconds_left: { type: integer }
+        total_usd: { $ref: '#/components/schemas/Money' }
+        paid:
+          type: object
+          nullable: true
+          properties:
+            currency: { type: string, enum: [USD, KHR] }
+            amount: { type: string }
+            paid_at: { type: string, format: date-time, nullable: true }
+        qrs:
+          type: array
+          description: The waiting QR codes (USD first, KHR once asked); empty unless awaiting_payment.
+          items:
+            type: object
+            properties:
+              currency: { type: string, enum: [USD, KHR] }
+              amount: { type: string, example: '26.50', description: 'USD with 2 decimals; KHR whole riel' }
+              qr: { type: string, description: KHQR string (EMVCo); draw it as a QR code }
+              md5: { type: string, description: Bakong's lookup key (md5 of qr) }
     CheckoutPreview:
       type: object
       properties:
@@ -501,6 +537,7 @@ components:
         status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
         payment_method: { type: string, enum: [card, cod, khqr] }
         payment_status: { type: string, enum: [pending, succeeded, failed, refunded] }
+        payment_due_at: { type: string, format: date-time, nullable: true, description: 'KHQR order waiting for payment: when the time to pay ends; else null' }
         placed_at: { type: string, format: date-time }
         item_count: { type: integer }
         items:
@@ -1572,6 +1609,33 @@ paths:
     get: { tags: [Checkout & orders], summary: 'One order with status history', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order }, '404': { $ref: '#/components/responses/NotFound' } } }
   /orders/{id}/cancel:
     post: { tags: [Checkout & orders], summary: 'Cancel while pending (stock, the coupon use and the offer use are given back)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cancelled }, '422': { description: No longer cancellable } } }
+  /orders/{id}/payment:
+    get:
+      tags: [Checkout & orders]
+      summary: 'KHQR payment page: QR codes, time left and status. Each call also checks Bakong (bakong mode, at most every 3 s) and cancels the order when the time is over; 60/min (own counter)'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: 'Payment state', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/KhqrPayment' } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /orders/{id}/payment/qr:
+    post:
+      tags: [Checkout & orders]
+      summary: 'The KHQR in USD or KHR (made on first ask; the KHR amount is fixed at that time); 10/min'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [currency], properties: { currency: { type: string, enum: [USD, KHR] } } } } } }
+      responses:
+        '200': { description: Payment state (KhqrPayment) }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: 'Not waiting for payment, or no exchange rate for KHR' }
+  /orders/{id}/payment/simulate:
+    post:
+      tags: [Checkout & orders]
+      summary: 'Test mode only: pays the waiting QR with no real money (404 in bakong mode); 10/min'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: 'Payment state (KhqrPayment), status paid' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Not waiting for payment }
   /orders/{id}/reorder:
     post:
       tags:
@@ -1898,7 +1962,7 @@ paths:
                 $ref: '#/components/schemas/UploadedMedia'
         '422': { $ref: '#/components/responses/Validation' }
   /staff/orders:
-    get: { tags: [Staff operations], summary: 'Orders (status, q = order number/customer, from, to)', responses: { '200': { description: Orders } } }
+    get: { tags: [Staff operations], summary: 'Orders (status, payment_method = cod|khqr, q = order number/customer, from, to); each order lists its payments (provider, status, amount, currency, reference, paid_at, how = bakong|test|staff, paid_after_cancel)', responses: { '200': { description: Orders } } }
   /staff/orders/bulk-status:
     post:
       tags: [Staff operations]
@@ -1929,6 +1993,16 @@ paths:
     get: { tags: [Staff operations], summary: 'Order with customer and allowed_next_statuses', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Order } } }
   /staff/orders/{id}/status:
     post: { tags: [Staff operations], summary: 'Move to processing, shipped, delivered or cancelled (with note)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '422': { description: Not allowed by the flow } } }
+  /staff/orders/{id}/mark-paid:
+    post:
+      tags: [Staff operations]
+      summary: '(admin) Mark a KHQR order waiting for payment as paid, e.g. after seeing the money in the bank app. Note required; audit log'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [note], properties: { note: { type: string, minLength: 3, maxLength: 500 } } } } } }
+      responses:
+        '200': { description: 'Updated order (status paid, payments[].how = staff)' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: 'Not a KHQR order waiting for payment, or no note' }
   /staff/orders/{id}/staff-note:
     patch:
       tags: [Staff operations]
@@ -2391,8 +2465,8 @@ paths:
   /staff/health:
     get:
       tags: [Admin]
-      summary: (admin) Detailed system health (database, queue, telegram bot)
+      summary: (admin) Detailed system health (database, queue, telegram bot, payments)
       responses:
-        '200': { description: 'status ok or degraded; checks include database, queue and telegram_bot' }
+        '200': { description: 'status ok or degraded; checks include database, queue, telegram_bot and payments ({mode: test|bakong, status: test|ok|unknown|token_missing|token_expired|token_expiring|token_invalid|blocked|unreachable|error, token_expires_at, last_check_at}; the token itself is never shown)' }
         '503': { description: 'status down (database unreachable)' }
 

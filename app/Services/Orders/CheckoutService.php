@@ -25,6 +25,7 @@ use App\Services\Offers\DiscountChoice;
 use App\Services\Offers\LineDiscounts;
 use App\Services\Offers\LiveOffer;
 use App\Services\Offers\OfferService;
+use App\Services\Payments\KhqrPaymentService;
 use App\Services\Telegram\CustomerOrderUpdates;
 use App\Services\Telegram\OpsAlerts;
 use App\Support\Money;
@@ -61,11 +62,11 @@ class CheckoutService
      *
      * @return array{order: Order, created: bool} created=false when the idempotency key was already used
      */
-    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null): array
+    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod): array
     {
         $crossedLowStock = [];
 
-        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, &$crossedLowStock) {
+        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, &$crossedLowStock) {
             // 1. Lock the cart: concurrent checkouts by the same customer run one after another.
             $cart = $this->carts->cartFor($customer);
             Cart::whereKey($cart->id)->lockForUpdate()->first();
@@ -137,7 +138,7 @@ class CheckoutService
                 'tax_amount' => '0.00',
                 'total_amount' => Money::format($totals['total_cents']),
                 'currency' => 'USD',
-                'payment_method' => PaymentMethod::Cod,
+                'payment_method' => $paymentMethod,
                 'placed_at' => now(),
                 'delivery_note' => $deliveryNote,
             ]);
@@ -168,12 +169,16 @@ class CheckoutService
             }
 
             $order->statusHistory()->create(['status' => OrderStatus::Pending, 'note' => 'Order placed.']);
-            $order->payments()->create([
-                'provider' => PaymentProvider::Cod,
-                'amount' => $order->total_amount,
-                'currency' => 'USD',
-                'status' => PaymentStatus::Pending,
-            ]);
+            if ($paymentMethod === PaymentMethod::Khqr) {
+                app(KhqrPaymentService::class)->start($order); // the first QR (USD); the order waits for payment
+            } else {
+                $order->payments()->create([
+                    'provider' => PaymentProvider::Cod,
+                    'amount' => $order->total_amount,
+                    'currency' => 'USD',
+                    'status' => PaymentStatus::Pending,
+                ]);
+            }
 
             $cart->items()->delete();
 
@@ -181,9 +186,10 @@ class CheckoutService
         });
 
         if ($result['created']) {
-            app(OpsAlerts::class)->newOrder($result['order']);
-            $customer->notify(new OrderPlacedNotification($result['order']));
-            app(CustomerOrderUpdates::class)->orderPlaced($result['order']);
+            // A KHQR order announces itself when it is paid (KhqrPaymentService), not before.
+            if ($paymentMethod !== PaymentMethod::Khqr) {
+                self::announce($result['order']);
+            }
 
             if ($crossedLowStock !== []) {
                 $staff = StaffUser::all();
@@ -299,5 +305,13 @@ class CheckoutService
             'choice' => $choice,           // applied, offer, coupon not used
             'can_checkout' => $summary['can_checkout'],
         ];
+    }
+
+    /** "Order placed": staff alert, the customer's email and Telegram update. */
+    public static function announce(Order $order): void
+    {
+        app(OpsAlerts::class)->newOrder($order);
+        $order->customer->notify(new OrderPlacedNotification($order));
+        app(CustomerOrderUpdates::class)->orderPlaced($order);
     }
 }

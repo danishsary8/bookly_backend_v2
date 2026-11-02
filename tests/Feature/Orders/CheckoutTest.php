@@ -144,7 +144,7 @@ class CheckoutTest extends TestCase
 
         $this->checkout(['address_id' => $foreign->id])->assertUnprocessable()->assertJsonValidationErrors('address_id');
         $this->checkout(['payment_method' => 'card'])->assertUnprocessable()
-            ->assertJsonPath('errors.payment_method.0', 'Only cash on delivery is available right now.');
+            ->assertJsonPath('errors.payment_method.0', 'This payment method is not available. Choose cash on delivery or KHQR.');
         $this->checkout(['coupon_code' => 'NOPE'])->assertUnprocessable()
             ->assertJsonPath('errors.coupon_code.0', 'This coupon code is not valid.');
 
