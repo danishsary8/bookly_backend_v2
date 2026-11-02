@@ -156,6 +156,9 @@ each branch works alone)
      **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
 - [x] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker). (Owner: all ok, 2026-11-02.)
 
+**Paused 2026-11-02, continue when the Bakong app says verified:** step 1 below (account ID). The Bakong app shows
+"Your account is being verified"; when it is done, find the Account ID in the profile, then do step 2 (token).
+
 **Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
 portfolio). Never paste the token into chat, code or docs.
 1. In your bank app (ABA, ACLEDA, Wing…), find your **Bakong account ID**. It looks like `yourname@aba` or
