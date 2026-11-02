@@ -139,6 +139,17 @@ each branch works alone)
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
+**Site quality check (2026-11-02)** (frontend only; branch `fix/site-check-polish`)
+- What was checked: 65 pages (shop, account, admin) in English and Khmer, light and dark, at 320, 360, 390 and 1280 px,
+  with axe (WCAG 2.1 A/AA), sideways scroll, console errors, one h1 per page; 13 pop-up windows on a short phone screen
+  scrolled to their buttons.
+- Fixed: admin top bar and several admin pages scrolled sideways on small phones (320/360 px); the account overview was
+  12 px too wide at 390 px; 4 tables could not be scrolled with the keyboard.
+- Not a problem (my test setup only): outside pictures blocked, and "too many requests" when two test runs shared one
+  staff login (limit: 120 requests a minute per person).
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/site-check-polish
+- [ ] Live check: on your phone open the admin Dashboard: nothing moves sideways when you swipe left/right.
+
 **Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
 `feature/khqr-payments`). Merge in any order; each works alone. Backend first is nicest.
 - [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
