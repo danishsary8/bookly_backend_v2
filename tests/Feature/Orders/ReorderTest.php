@@ -72,4 +72,38 @@ class ReorderTest extends TestCase
     {
         $this->postJson('/api/v1/orders/'.Order::factory()->create()->id.'/reorder')->assertNotFound();
     }
+
+    public function test_when_fewer_copies_are_left_it_adds_what_is_left_with_a_note(): void
+    {
+        $few = BookVariant::factory()->create(['stock_quantity' => 10]);
+        $plenty = BookVariant::factory()->create(['stock_quantity' => 10]);
+        $id = $this->placeOrder([[$few, 3], [$plenty, 1]]);
+        $few->update(['stock_quantity' => 2]);
+
+        $this->postJson("/api/v1/orders/{$id}/reorder")->assertOk()
+            ->assertJsonPath('data.skipped', [])
+            ->assertJsonPath('data.added.0.quantity', 2)
+            ->assertJsonPath('data.added.0.requested_quantity', 3)
+            ->assertJsonPath('data.added.0.note', __('messages.insufficient_stock_simple', ['count' => 2]))
+            ->assertJsonPath('data.added.1.quantity', 1)
+            ->assertJsonPath('data.added.1.note', null)
+            ->assertJsonPath('data.cart.item_count', 3);
+    }
+
+    public function test_counts_copies_already_in_the_cart(): void
+    {
+        $variant = BookVariant::factory()->create(['stock_quantity' => 10]);
+        $id = $this->placeOrder([[$variant, 3]]);
+        $variant->update(['stock_quantity' => 4]);
+        $this->postJson('/api/v1/cart/items', ['book_variant_id' => $variant->id, 'quantity' => 3])->assertCreated();
+
+        $this->postJson("/api/v1/orders/{$id}/reorder")->assertOk()
+            ->assertJsonPath('data.added.0.quantity', 1)
+            ->assertJsonPath('data.cart.item_count', 4);
+
+        // Now the cart holds all 4: nothing more fits, so the book is skipped with the usual reason.
+        $this->postJson("/api/v1/orders/{$id}/reorder")->assertOk()
+            ->assertJsonPath('data.added', [])
+            ->assertJsonPath('data.skipped.0.reason', __('messages.insufficient_stock_simple', ['count' => 4]));
+    }
 }

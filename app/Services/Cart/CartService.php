@@ -44,6 +44,35 @@ class CartService
         });
     }
 
+    /**
+     * Like add(), but when there are fewer copies than asked it adds what is left (owner 2026-11-02, "Buy again").
+     * Returns the quantity added; throws the usual message when nothing at all can be added.
+     */
+    public function addUpTo(Customer $customer, int $variantId, int $quantity): int
+    {
+        return DB::transaction(function () use ($customer, $variantId, $quantity) {
+            $cart = $this->lockedCart($customer);
+            $variant = BookVariant::with(['book' => fn ($q) => $q->withTrashed()])->findOrFail($variantId);
+            $line = $cart->items()->where('book_variant_id', $variantId)->first();
+            $inCart = $line?->quantity ?? 0;
+
+            $take = $quantity;
+            if (! $variant->format->isDigital()) {
+                $room = min($variant->stock_quantity, self::MAX_PER_LINE) - $inCart;
+                $take = max(1, min($quantity, $room)); // 0 room: the check below throws the normal message
+            }
+            $this->assertCanHold($variant, $inCart + $take, alreadyInCart: $line !== null);
+
+            if ($line) {
+                $line->update(['quantity' => $inCart + $take, 'unit_price_at_add' => $variant->price_usd]);
+            } else {
+                $cart->items()->create(['book_variant_id' => $variantId, 'quantity' => $take, 'unit_price_at_add' => $variant->price_usd]);
+            }
+
+            return $take;
+        });
+    }
+
     public function setQuantity(Customer $customer, int $itemId, int $quantity): void
     {
         DB::transaction(function () use ($customer, $itemId, $quantity) {

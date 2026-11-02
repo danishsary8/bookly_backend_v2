@@ -1576,12 +1576,12 @@ paths:
     post:
       tags:
       - Checkout & orders
-      summary: 'Buy again: add the order items to the cart (items that cannot be bought now are skipped with a reason); 10/min'
+      summary: 'Buy again: add the order items to the cart (items that cannot be bought now are skipped with a reason; when fewer copies are left, what is left is added with a note); 10/min'
       parameters:
       - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: data.added (book_variant_id, title, quantity), data.skipped (book_variant_id, title, reason), data.cart (Cart)
+          description: data.added (book_variant_id, title, quantity added, requested_quantity from the order, note when fewer were added, else null), data.skipped (book_variant_id, title, reason), data.cart (Cart)
           content:
             application/json:
               example:
@@ -1590,6 +1590,8 @@ paths:
                   - book_variant_id: 1
                     title: Pride and Prejudice
                     quantity: 1
+                    requested_quantity: 3
+                    note: Only 1 left in stock.
                   skipped:
                   - book_variant_id: 23
                     title: Treasure Island
