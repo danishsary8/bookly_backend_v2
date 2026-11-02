@@ -29,13 +29,16 @@ You work for the owner, a software development student. Explain in simple Englis
    `public/openapi.yaml` updated for any endpoint change.
 7. **Frontend done =** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` all pass, and a browser check
    of every changed page (`npm run dev` on :5173 against the local API on :8000 or the live API). Say exactly what you
-   clicked and saw. If something was not checked, write "not yet verified".
+   clicked and saw. Also run axe (`@axe-core/playwright`, tags wcag2a/wcag2aa/wcag21a/wcag21aa, like `e2e/a11y.spec.ts`)
+   on every changed page, light + dark, desktop + phone: the CI "Money path end-to-end" job fails on any violation.
+   If something was not checked, write "not yet verified".
 8. **Secrets:** never paste keys, passwords or connection strings in code, docs, commits or chat.
 9. Do not run `composer require laravel/boost`.
 
 ## Notes you must leave (every task)
-- **Work log:** add a finished entry to that repo's `docs/WORKLOG.md` on the task branch (what, branch, tests, what was
-  verified).
+- **Work log (owner, 2026-11-01: notes only):** feature branches never edit `docs/WORKLOG.md`. Write the entry (what,
+  branch, tests, what was verified) on the long-lived notes branch of that repo: backend `docs/handoff-notes`, frontend
+  `docs/worklog-notes` (switch to it, add, commit, push). This keeps feature branches from conflicting with each other.
 - **Hand-over note for the reviewer:** keep ONE running file, `docs/HANDOFF.md`, on the backend branch
   `docs/handoff-notes` (create it from `origin/main` the first time; later just switch to it, add, commit, push).
   For each task write: date, task, branches + links `https://github.com/danishsary8/<repo>/pull/new/<branch>`,

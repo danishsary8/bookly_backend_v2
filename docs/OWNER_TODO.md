@@ -18,6 +18,192 @@ working with today's settings.
 
 ---
 
+## 0. New since 2026-10-31 (notes for each task: `docs/HANDOFF.md` on this branch)
+
+**Task F: phone sign-in code hint** (frontend only, no backend change, no setting to change)
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint → **Create pull request** →
+  wait for green CI → check the reviewer checklist in `docs/prompts/README.md` → **Merge**. Vercel deploys by itself.
+- [ ] Live check after Vercel shows **Ready**: https://bookly-frontend-five.vercel.app/login →
+  **Sign in with phone number?** → the hint "Codes only go to a confirmed number…" is under the field → type `123` →
+  **Send code in Telegram** → red error → type `012 345 678` → the error goes away and the hint is back.
+  Then switch the language to Khmer → the same hint in Khmer.
+- [ ] Signed in: **Account → Profile** → under **Phone**: "Couriers call this number…" → click **Sign-in & security**
+  → that page opens.
+- [ ] Khmer wording: read the two new Khmer lines (login hint and Profile hint; text in `docs/HANDOFF.md`). Change them
+  if a native speaker would say it differently.
+- [ ] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
+
+**Task A: "You may also like" (similar books)** (backend + frontend; no migration, no setting to change; merge order: any,
+each branch works alone)
+- [ ] Merge the backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books →
+  **Create pull request** → wait for green CI → check the reviewer checklist → **Merge**. Render deploys by itself.
+- [ ] Merge the frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books →
+  **Create pull request** → green CI → **Merge**. Vercel deploys by itself.
+- [ ] Live check when both show **Ready/Live** (the first visit may take ~1 minute while Render wakes up):
+  1. Open a book in a series, e.g. the 2nd Sherlock Holmes book on https://bookly-frontend-five.vercel.app/books →
+     scroll down: rows "The series", "More by …", then **More like this / You may also like**. No book in the last row
+     is in the two rows above, and the book itself is not in it.
+  2. Open a book with few matches (e.g. *Meditations*) → **You may also like** shows a full row (up to 12 books).
+  3. Sign in, put the 1st book of a series in the cart → open **Cart** → under **Recommended with your order** the
+     next book of that series comes first.
+  4. Switch the language to Khmer → the row reads **សៀវភៅស្រដៀងគ្នា / អ្នកប្រហែលជាចូលចិត្ត**.
+  5. On your phone (or the browser at phone width) → the rows scroll sideways and the page does not.
+- [ ] Khmer wording: is **សៀវភៅស្រដៀងគ្នា** ("similar books") a natural eyebrow for "More like this"? Change it if not.
+- Note (no action): if staff mark a book back in stock, add a format, or a scheduled book goes live, it can take up to
+  1 hour to join these lists. A sold-out book never shows.
+
+**Task B+D: offers ("Buy 2, get 15% off") + offer reports** (in progress; spec
+`docs/superpowers/specs/2026-10-31-offers-design.md` on `feature/offers-engine`)
+- [ ] **Rollout order (important):** merge the frontend `feature/offers-storefront` **before** you create or resume
+  the first live offer in the admin. Why: today's checkout page does not know about offers, so a coupon that lost to
+  an offer would vanish from the summary without an explanation. Until a live offer exists, nothing changes for
+  customers (the demo offer from the seeder is created **paused**).
+- [ ] **Merge the backend `feature/offers-engine`** (done and reviewed 2026-11-01; its 4 new migrations run by themselves on
+  deploy; nothing changes for customers while no offer is live; the demo offer is paused):
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine → **Create pull request** → green CI →
+  **Merge**. After Render shows **Deploy live**: open the shop → books, cart and checkout still work as before.
+  Do **not** create or resume an offer yet.
+- [ ] **Merge the frontend `feature/offers-storefront`** (after the backend one; reviewed and browser-checked 2026-11-01):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-storefront → **Create pull request** → green CI →
+  **Merge**. Vercel deploys by itself. Nothing shows until an offer is live.
+- [x] Decided 2026-11-01: free delivery starts at **$50**. Fix for the announcement bar (it said $25), frontend only:
+- [ ] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (fixed 2026-11-01:
+  it no longer touches the work log, so it merges cleanly).
+- **Notes rule (you chose "notes only", 2026-11-01):** feature branches no longer edit `WORKLOG.md`. Notes live on two
+  long-lived branches: backend `docs/handoff-notes` and frontend `docs/worklog-notes`
+  (https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes). Merge them whenever you like, as often as
+  you like; after a merge I keep using the same branch names.
+- [ ] **Merge the frontend `feature/offers-admin`** (any order; it says "not available yet" until the backend is live):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-admin
+- [ ] **Your first offer** (only after `offers-engine`, `offers-storefront` and `offers-admin` are all merged and deployed):
+  Admin → **Offers** → **New offer** → e.g. name "Buy 2 Holmes", 2 books, 15%, search "Holmes" → pick the series → check
+  the preview → **Create offer** (it starts paused) → switch it **On** in the list → confirm. Then open the shop: the Holmes
+  books show "Buy 2, save 15%"; put 2 in the cart → "Offer: buy 2, save 15%". Pause it again with the switch if you only
+  wanted to test.
+- [ ] **Merge the offers report** (both, any order):
+  backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offer-reports ·
+  frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/offer-reports
+  Check: Admin → **Reports** → **Offers** tab → choose **30 days** → after your first offer orders you see "Books per order
+  with an offer" vs "Without an offer". **Export CSV** downloads the same table.
+
+---
+
+**Task E: BI dashboard (part 1) + a live bug fix** (merge in any order)
+- [ ] 🔴 **Merge first, it fixes your live dashboard:** backend `fix/dashboard-status-cache`
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/dashboard-status-cache
+  (today "Orders placed by status" shows strange text when you reload the dashboard within 5 minutes).
+- [ ] Backend `feature/dashboard-insights`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-insights
+- [ ] Frontend `feature/admin-dashboard-redesign`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-dashboard-redesign
+- [ ] Check after deploy: Admin → **Dashboard** → 30 days → each top card has a small line and a "View …" link; the
+  "Income report" chart has a solid line (this period) and a dashed one (the month before), and an Income / Orders
+  switch; "Orders placed by status" is a ring with the total in the middle. Reload twice: still correct.
+
+---
+
+**Task E: BI dashboard (part 2)** (frontend, any order)
+- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-quick-jump
+- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-insights-widgets
+- [ ] Check after deploy: the menu shows red numbers beside Orders / Returns / Stock; press **Ctrl K** (Mac: Cmd K) →
+  type part of an order number or a book title → Enter opens it; scroll down the dashboard: Stock value, Dead stock,
+  Repeat customers, Slow movers, Top authors, Orders by province, Offers and coupons.
+
+---
+
+**🔴 E2E check failing on PRs (2026-11-01)** — caused by the dashboard donut (already on `main`), not by your new PRs.
+- [ ] **Merge first:** https://github.com/danishsary8/bookly_frontend/pull/new/fix/dashboard-donut-focus
+- [ ] Then on PR #107 (`feature/admin-insights-widgets`) click **Update branch** (it re-runs the checks with the fix) →
+  wait for all green → **Merge**.
+
+---
+
+**Small fixes + PR #107 (2026-11-01)**
+- [ ] PR #107 (dashboard extras) was still open: I updated it with `main` (incl. the donut fix). Wait for all checks green,
+  then **Merge**: https://github.com/danishsary8/bookly_frontend/pull/107
+- [ ] Small fixes (account strip fade, free-delivery texts EN/KM, donut colours):
+  https://github.com/danishsary8/bookly_frontend/pull/new/fix/small-cleanups
+- [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
+
+**Next task, saved for later: auto refresh (owner 2026-11-02, chose "Admin + customer orders")**
+When something changes (new order, payment, status), pages show it by themselves without the browser's refresh button.
+Plan: admin pages refresh the data on screen every 30 s and when you come back to the tab ("Updated 10 s ago ·
+Refresh" in the header; pauses when the tab is hidden; never resets a form you are typing in). Customers' orders and
+returns refresh every 60 s until finished. Book pages unchanged. Say "auto refresh" to start it.
+- [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
+
+**Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
+`feature/khqr-payments`). Merge in any order; each works alone. Backend first is nicest.
+- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
+  needed: test mode is the default)
+- [ ] Frontend shop: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-checkout
+- [ ] Frontend admin: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-admin
+- [ ] Live check (test mode) when all 3 are deployed:
+  1. Sign in as a customer → add a book → **Checkout** → choose **Bakong KHQR** → **Place order and pay**.
+  2. The payment page shows a red-and-white KHQR card, the amount and a 15:00 countdown. Tap **Riel**: the amount in ៛.
+  3. Tap **Simulate payment (test only — no real money)** → "Payment received" → after a few seconds the order page,
+     status **Paid**. Check your email/Telegram: the "order placed" message arrives now (not before).
+  4. Place another KHQR order and wait 15 minutes (or leave the tab): the order is **cancelled** and the book's stock is
+     back. (Housekeeping runs from web traffic, so it may take until the next visit.)
+  5. Admin → **Orders** → filter **KHQR** → open an order: the **Payment** box lists the QR codes. On a waiting order,
+     **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
+- [ ] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker).
+
+**Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
+portfolio). Never paste the token into chat, code or docs.
+1. In your bank app (ABA, ACLEDA, Wing…), find your **Bakong account ID**. It looks like `yourname@aba` or
+   `yourname@aclb` (often under Profile → KHQR / Bakong). This is not secret.
+2. Register on the **Bakong Open API** website, https://api-bakong.nbc.gov.kh, with your email (Register). NBC emails you a
+   **token**. It expires after about 90 days; you renew it on the same site and get a new one by email.
+3. Render → your Bookly API service → **Environment** → add:
+   - `KHQR_ACCOUNT_ID` = your Bakong account ID
+   - `KHQR_MERCHANT_NAME` = `Bookly` (plain letters only, max 25)
+   - `BAKONG_TOKEN` = the token from the email (secret: only here)
+   - `KHQR_MODE` = `bakong`
+   Then **Save, rebuild and deploy**.
+4. Admin → Dashboard → **System health** → "KHQR payments":
+   - "Bakong mode, no payment checked yet" or "Bakong connected" = good.
+   - "Bakong refused this server (often: not from Cambodia)" = Bakong only answers servers in Cambodia. Set `KHQR_MODE`
+     back to `test` (the shop keeps working). A small Cambodian server that forwards the check (`BAKONG_RELAY_URL`) is
+     possible later (~$5/month); ask me first.
+5. Test with real money: put a cheap book in the cart, pay the QR with your own bank app → the page turns to "Payment
+   received" within a few seconds. The money goes to your own account.
+6. Every ~90 days: when the health card says "token expires soon", renew the token on the Bakong site and replace
+   `BAKONG_TOKEN` in Render.
+
+**To review later (choices I made under your "go ahead" rule, 2026-11-02; tell me to change any):**
+- Design part 3 (tests, branches, setup guide) was taken as approved with "accept all part you recommend".
+- New KHQR orders send "order placed" only when paid; an unpaid order that times out gets the usual "cancelled" message.
+- The payment page opens the order by itself 3.5 s after "Payment received".
+- Admin "Mark as paid" needs a note of 3+ characters; staff (not admin) can only look.
+- The QR's shop name is `Bookly`, city `Phnom Penh`; the test account ID is `bookly@devb` (Bakong's test bank).
+
+**Dialog scroll fix + Buy again with low stock (2026-11-02)**
+- [x] Dialog scroll fix merged (tall forms could not scroll).
+- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/buy-again-partial-stock
+- [ ] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/buy-again-partial-stock
+  (any order; each works alone)
+- [ ] Live check after both deploy: sign in as a customer with a delivered order of 2+ copies of one book → in the admin
+  lower that book's stock to 1 → **Account → Orders → the order → Buy again** → the cart has 1 copy and a note says
+  "<title>: 1 of 2 added". Put the stock back afterwards.
+- [ ] Khmer wording: "ស្តុកមិនគ្រប់សម្រាប់សៀវភៅ N មុខ" and "បានបន្ថែម 2 ក្នុងចំណោម 3" (`orders` group in `km.ts`).
+
+**Seasonal collections (2026-11-01)** (merge in any order; backend first is nicest; each works alone)
+- [ ] Backend (adds 2 tables; Render runs the migration by itself on deploy):
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/seasonal-collections
+- [ ] Frontend shop (home rows + collection page):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-shop
+- [ ] Frontend admin (`/admin/collections`):
+  https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-admin
+- [ ] Live check when all 3 are deployed:
+  1. https://bookly-frontend-five.vercel.app/admin/collections → **New collection** → English title "Rainy season reads",
+     a Khmer title, add 4+ books, move one with ↑ → **Create collection**. It is **Off** (new ones start off).
+  2. Switch it **On** in the list → open the home page → a "Seasonal pick" row is above New arrivals, books in your order.
+  3. Click **See all** → its own page with the description and the end date. Switch the language to Khmer → Khmer title.
+  4. Switch it **Off** → reload the home page: the row is gone (a tab left open may show it up to 5 minutes) and the page link says "not found".
+- [ ] Khmer wording: the eyebrow **Seasonal pick** and "See all" in Khmer (`collections` group in `src/i18n/km.ts`).
+
+---
+
 ## 1. Merge (any order is fine)
 
 All branches start from `main` and were checked together: every order merges cleanly and the combined code passes all
@@ -152,10 +338,9 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
 
 ## 5. Decisions only you can make (reply with your choice)
 
-- [ ] **Buy again:** may customers reorder a *cancelled* order? (today: yes) · When stock is lower than ordered, skip
-  the book (today) or add what is left?
-- [ ] **Download my data:** it leaves out staff-only notes and tags about the customer (internal remarks). Keep it that
-  way, or include them?
+- [x] **Buy again** (answered 2026-11-02): cancelled orders: yes (unchanged). Lower stock: **add what is left** (built:
+  `feature/buy-again-partial-stock`, see section 0).
+- [x] **Download my data** (answered 2026-11-02): keep staff-only notes and tags out (unchanged).
 - [x] Typo-tolerant search: approved and built (no migration was needed after all).
 - [x] Vitest 5: approved and done (in `chore/dependency-audit`).
 - [x] Email worker: you chose the free way (emails after the answer, `feature/send-emails-after-response`). A paid

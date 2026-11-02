@@ -488,3 +488,49 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
     `docs/HANDOFF.md` on `docs/handoff-notes`.
   - Rollout: nothing changes for customers until an admin resumes or creates an offer. Merge `feature/offers-storefront`
     before the first live offer (today's checkout page hides a coupon that lost to an offer).
+
+- [x] Offers report (2026-11-01, branch `feature/offer-reports`; spec section 7): `GET /staff/reports/offers?from&to[&format=csv]`
+  (admin, `throttle:admin-analytics`), `ReportsService::offers()` (5-minute cache, arrays only). Same basis as the coupons
+  report: orders placed in the range, not cancelled, not deleted, shop time zone. Per offer (grouped by `orders.offer_id`,
+  current name or the order copy; the rule the orders were sold with): orders, units (all books in those orders),
+  units_with_offer (books on discounted lines), revenue, discount, average order (rounded to the cent), books per order;
+  `without_offer` with the same numbers. CSV: one row per offer + "Orders without an offer", UTF-8 BOM.
+  - Docs: `docs/API.md`, `public/openapi.yaml` (`OfferReportRow`). Tests: `tests/Feature/Offers/OfferReportTest.php` (4, real
+    checkouts: example 1 + a 2-book order -> 2 orders, 5 books (4), $67.00, $6.00, average $33.50, 2.50 per order; without:
+    1 order, $31.50, 1.00; cancelled orders left out; empty range; an edited offer keeps its orders and shows the current
+    name; staff 403; CSV rows). `php artisan test` 722 passed; pint clean.
+
+- [x] Dashboard insights (2026-11-01, branch `feature/dashboard-insights`; spec
+  `docs/superpowers/specs/2026-11-01-bi-dashboard-design.md`, branch 1): `GET /staff/dashboard/insights` (admin; trend per
+  day with the previous period, dead stock (60 days), stock value at selling price, top authors, top provinces from the
+  order address, promotions, repeat customers) and `GET /staff/dashboard/counts` (all staff; pending orders, open returns,
+  low stock). `DashboardInsightsService`, arrays only in the cache. Tests `DashboardInsightsTest` (7, incl. query count
+  and the file cache). 729 tests, pint clean. Docs: API.md, openapi.yaml.
+- [x] Fix: dashboard "Orders placed by status" after a cached read (2026-11-01, branch `fix/dashboard-status-cache`):
+  `orders_by_status` was cached as a Collection; the file cache refuses objects, so on Render every reload within 5 minutes
+  answered `{"__PHP_Incomplete_Class_Name": "Illuminate\\Support\\Collection"}` (found by the dashboard browser check).
+  `->all()`. New `FileCacheRoundTripTest`: demo shop, file cache, every cached admin report + dashboard + similar books +
+  book lists answered twice -> identical JSON (only this one was broken). 723 tests, pint clean.
+- [x] Seasonal collections (2026-11-01, branch `feature/seasonal-collections`; owner choices: home row + own page, up to 2
+  live, books picked by hand, English + Khmer fields; 2 new migrations approved by the owner): tables `collections` and
+  `collection_books`, model `BookCollection` (the name "Collection" clashes with Laravel's), `Book::scopeForCards()`
+  (shared card eager loads, also used by the book list). Public `GET /collections/live` (up to 2 live by position, 12
+  books each, only collections with a book on sale) and `GET /collections/{slug}` (live only, up to 60 books, else 404).
+  Staff `GET /staff/collections[/{id}]` (catalog:view), admin `POST/PATCH/DELETE` (slug from the English title, `live`
+  reserved, ordered `books` id list, max 60, no trashed books, audit `book_collection.*`). Tests
+  `SeasonalCollectionsTest` (7, incl. query count). 737 tests, pint clean, migrate/rollback/migrate OK. Docs: API.md,
+  openapi.yaml.
+- [x] Buy again with low stock (2026-11-02, branch `feature/buy-again-partial-stock`; owner: add what is left):
+  `CartService::addUpTo()` adds min(ordered, stock and line limit minus what is already in the cart); `reorder` lines now
+  carry `requested_quantity` and `note` ("Only N left in stock.", else null); nothing left -> skipped with the usual
+  reason. Tests in `ReorderTest` (2 new). 739 tests, pint clean. Docs: API.md, openapi.yaml.
+- [x] KHQR payments (2026-11-02, branch `feature/khqr-payments`; spec `docs/superpowers/specs/2026-11-02-khqr-payments-design.md`;
+  owner: portfolio, real KHQR + test mode, 15 minutes, customer picks USD/KHR). `KhqrBuilder` (individual dynamic KHQR,
+  CRC-16/CCITT-FALSE; checked against NBC's official `bakong-khqr` SDK 1.0.20 test strings, exact match), `BakongClient`
+  (`check_transaction_by_md5`, 403 = blocked), `KhqrPaymentService` (one payment row per QR, pending -> paid once via
+  `OrderStatusService::markPaid` with the order locked, amount/currency must match, paid-after-cancel kept + staff alert,
+  expiry with a last check), `OrderPaymentController` (`GET /orders/{id}/payment`, `POST .../qr`, `POST .../simulate`),
+  admin `POST /staff/orders/{id}/mark-paid`, `payment_methods` in `/delivery/options`, `payments` on the health check,
+  `payments:expire-khqr` every minute, named limiters `khqr-poll` / `khqr-action` (plain `throttle:N,1` shares one counter
+  per user across routes: found in the browser check). No migration. Tests: `KhqrBuilderTest` (6), `KhqrPaymentTest`
+  (16). 761 tests, pint clean. Docs: API.md, openapi.yaml, RATE_LIMITS.md, `.env.example`.

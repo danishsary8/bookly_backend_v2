@@ -1,0 +1,583 @@
+# Hand-over notes
+
+## How to review
+1. Read this file from the top. Each task below lists its branches, checks and open points.
+2. For every branch listed, open its PR link and check it against the reviewer checklist in `docs/prompts/README.md`.
+3. Write what you find under a **Review** heading in that task's section (pass, or the problem and the file/line).
+4. Owner-only steps (merge, settings, live checks) are in `docs/OWNER_TODO.md` on this same branch.
+
+---
+
+## 2026-10-31 · Task F: phone sign-in code hint
+
+**Why:** the API only sends a phone sign-in code to a number that is confirmed and linked to the Bookly Telegram bot
+(backend `PhoneCodeController::reachable`: `phone_e164` + `phone_verified_at` + `telegram_chat_id`). A number typed in
+Account → Profile is only a courier contact and is not confirmed, so people (the owner too) got no code.
+
+**Branches**
+- Frontend `fix/phone-code-hint`: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint
+  (commits `ccc4e65` "Explain how to get a phone sign-in code", `d78dc9d` "Log the phone sign-in code hint").
+- Backend: no change.
+
+**Status:** done (pushed, not merged).
+
+**What changed**
+- `src/features/auth/PhoneCodeSignIn.tsx`: hint under the phone field (`TextField` `hint`, so it is the field's
+  accessible description). After the first "Send code", the number is re-checked on every key press, so a fixed number
+  clears the error and brings the hint back without pressing Send again.
+- `src/pages/account/ProfilePage.tsx`: hint under the phone field with a link to `/account/security`.
+- `src/i18n/en.ts`, `src/i18n/km.ts`: `signin.phoneCodeHint`, `account.phoneHint`, `account.phoneHintLink`, `account.phoneHintEnd`.
+  - EN login: "Codes only go to a confirmed number. Not confirmed yet? Use Continue with Telegram below, or confirm it in
+    Account → Sign-in & security → Phone → Confirm."
+  - KM login: "លេខកូដផ្ញើទៅតែលេខដែលបានបញ្ជាក់ប៉ុណ្ណោះ។ មិនទាន់បញ្ជាក់? សូមប្រើ «បន្តជាមួយ Telegram» ខាងក្រោម ឬបញ្ជាក់វានៅ គណនី → ការចូល និងសុវត្ថិភាព → លេខទូរស័ព្ទ → បញ្ជាក់។"
+  - EN Profile: "Couriers call this number. To sign in with it, it must be confirmed in Sign-in & security."
+  - KM Profile: "អ្នកដឹកជញ្ជូនទូរស័ព្ទមកលេខនេះ។ ដើម្បីចូលគណនីដោយលេខនេះ វាត្រូវតែបានបញ្ជាក់នៅក្នុង ការចូល និងសុវត្ថិភាព។"
+- Tests: 4 new (`src/pages/auth/phone-code-sign-in.test.tsx`: hint EN, hint KM, error clears once the number is fixed
+  with no request sent; `src/pages/account/account-pages.test.tsx`: Profile hint + link).
+
+**Tests run**
+- `npm run lint`: 0 errors · `npm run typecheck`: clean · `npm test`: 440 passed, 3 skipped, 0 failed · `npm run build`: ok.
+- Browser (Playwright/Chromium, Vite :5173 + local API :8000, demo customer), EN and KM at 1280 px and 390 px, all pass:
+  hint under the field; `123` → Send → error replaces the hint; typing `012 345 678` → error gone, hint back, no
+  request sent; Profile hint shows and its link opens Sign-in & security; no page or hint overflow; no console errors.
+
+**Not verified**
+- The local API has no Telegram bot, which hides phone sign-in, so `/auth/options` was stubbed to `telegram: true` in the
+  browser for the check. Not checked on the live site yet (owner step in `OWNER_TODO.md` section 0).
+- A real code from the live bot (not part of this change).
+- The Khmer wording has not been checked by a native speaker.
+
+**Decisions the owner made**
+- Wording A1 (hint under the field, always visible) + B1 (Profile hint with a link, always shown).
+- B for the error: re-check the number on every key press after the first Send.
+- No extra review file; this file starts with "How to review".
+
+**Open questions:** none.
+
+**Follow-ups found (not changed in this branch)**
+- Profile, Khmer, 390 px: the account tab row is cut at the right edge ("អាសយដ្ឋា…"). It scrolls sideways, and it
+  existed before this change.
+
+**Review** (2026-10-31, project review; verdict: **pass, OK to merge**)
+- Checklist: branch name and both commit messages are plain, no tool names, no Co-authored-by lines. Only the 7
+  files the task needs changed (5 source/i18n, 2 tests) + `docs/WORKLOG.md`. No backend, no migrations, no secrets.
+- Re-ran on the pushed branch (`d78dc9d`, clean install): `npm run lint` 0 errors, `npm run typecheck` clean,
+  `npm test` 440 passed / 3 skipped, `npm run build` ok. Matches the report above.
+- Code: reuses `TextField`'s `hint` prop, so the hint is the field's accessible description and the error replaces it
+  like every other field. Re-check after the first Send is small and correct (`phoneChecked` + `checkPhone`); the test
+  proves no request is sent while typing. Profile link copies the email hint's pattern. Comment updated.
+- Nit (no change needed now): the new Khmer login hint writes "លេខទូរស័ព្ទ" while the field label above it writes
+  "លេខទូរសព្ទ". The app already mixes both spellings; leave it for the native-speaker review (owner step) and fix all
+  of them together then.
+- Nit: the work log went into a second commit; fine, no need to squash.
+- Not verifiable here: the live check (owner step, section 0) and a real bot code.
+
+
+**Where I stopped / next step**
+- Task F is finished and pushed. Next: the owner merges `fix/phone-code-hint`, does the live check in `OWNER_TODO.md`
+  section 0, then confirms the phone in Sign-in & security (section 4c). Next task prompt: `docs/prompts/02-you-may-also-like.md`.
+
+---
+## 2026-10-31 · Task A: "You may also like" (similar books), PRODUCTION_CHECKLIST.md 4.1
+**Branches**
+- Backend `feature/better-similar-books` (pushed): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books
+- Frontend `feature/better-similar-books` (pushed): https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
+**Status:** done (both branches pushed, not merged). Backend approved by the project lead. (Details at the end.)
+
+**What already exists (do not rebuild)**
+- Routes (`routes/api.php`): `GET /books/{id}/related` and `GET /books/{id}/also-bought` (same method,
+  `BookController::alsoBought` calls `related`), `GET /catalog/recommendations?cart_ids=&exclude_ids=&limit=`
+  (note: the path is `/catalog/...`, not `/books/recommendations`). `limit` 1 to 12, default 6.
+- Logic: `app/Services/Catalog/RecommendationService.php`.
+  - Book page (`getRecommendedIdsForBook`, cached 1 h, key `books:{id}:recommendations:{limit}`):
+    1. co-purchases in >= 2 shared paid orders (not pending/cancelled, not soft-deleted), most shared first;
+    2. same category AND same author (no ORDER BY, so the database picks the order);
+    3. same categories, by units sold, then rating, then newest id;
+    4. same authors, by rating, then newest id;
+    nothing after that. Always: not the book itself, no duplicates, visible + buyable (`baseBuyableQuery`: an
+    active variant with stock > 0, or an ebook/audiobook).
+  - Cart (`getRecommendedIdsForCart`, not cached): same categories by units sold, then same authors (newest),
+    then store best sellers (`queryPopularBookIds`). Empty cart = store best sellers.
+  - Controller `related()` re-loads with `catalogQuery()` (visible only) but does NOT re-check stock.
+- Tests: `tests/Feature/Catalog/RelatedBooksTest.php` (5), `tests/Feature/Platform/AlsoBoughtTest.php` (3).
+- Frontend: `src/pages/catalog/BookDetailPage.tsx` rows in order: series (`otherInSeries`, from `/series/{id}`),
+  "More by {author}" (`otherByAuthor`, up to 8), also-bought (`alsoBought`, ~line 553, eyebrow
+  `book.alsoBoughtEyebrow` "Customers also bought", title `book.alsoBought` "Readers also enjoyed", no `loading`
+  prop), recently viewed. `src/pages/cart/CartPage.tsx` `CartRecommendations` (`cartPage.recommendedEyebrow`,
+  `recommendedWithOrder` / `popularPicks`). Shared row: `src/components/catalog/BookShelf.tsx` (hides itself when
+  loaded and empty; skeleton when `loading`). API calls: `src/api/endpoints/catalog.ts`. No frontend test covers
+  these rows.
+
+**Audit results on the local demo data (20 books, 10 paid orders)**
+- No book pair was bought together twice, so step 1 (co-purchases) never fires: every result is a topic match,
+  yet the row says "Customers also bought".
+- Book 5 *The Sign of the Four* (Sherlock Holmes #2) → 4, 6, 1, 2, 3, 16. Holmes books appear only because they
+  share the author, and they appear in three rows (series, author, also-bought).
+- Book 18 *Meditations* → only 1 book (19). No fallback on the book page.
+- Cart with book 4 (Holmes #1) → 6, 1, 2, 3, 16, 15. The next book in the series (5) is missing.
+- Cache is never cleared; a sold-out book can show for up to 1 h; edits to categories/authors take up to 1 h.
+- Khmer strings exist but are marked `// draft`. 390 px browser check not done yet (shared `BookShelf`, 2 cards wide).
+
+**Decisions the owner made (2026-10-31): 1A 2A 3A 4B, with changes**
+1. **1A Series first** (book page AND cart): later books in the series first (by `series_order`), then earlier ones;
+   step 2 (same category + author) gets a real sort (by sales).
+2. **2A Frontend**: remove books already shown in the series or author rows; ask for `limit=12` so enough stay;
+   rename the row to eyebrow "More like this", title "You may also like" (+ Khmer); add the loading skeleton;
+   **hide the row if fewer than 2 books are left** after removing repeats. Must still work against today's API.
+3. **3A changed by the owner**: fill the rest of the book-page row with best sellers from the SAME CATEGORY first,
+   then store best sellers. Never the book itself, no duplicates, in stock only.
+4. **4B Cache**: cache 12 ids; clear a book's cached list when staff edit the book (version number in the cache
+   key, works with the `file` store). **Stock re-check on every read**, so a sold-out book never shows, even when cached.
+
+**Planned steps (one per "confirm")**
+- Backend `feature/better-similar-books` from fresh `origin/main`:
+  - Step 2: fix 1 (series next-first, then earlier; cart too). Tests: series next-first then earlier; never the book
+    itself; no duplicates.
+  - Step 3: fix 3 (fallback same-category best sellers, then store best sellers). Test: fallback order.
+  - Step 4: fix 4 (cache 12 ids, re-check stock on read, version key bumped on staff book edit). Tests: sold-out
+    excluded even when cached; staff edit clears the cache.
+  - Then `php artisan test` + `vendor/bin/pint --test`; update `docs/API.md` + `public/openapi.yaml` descriptions
+    of the order/behaviour; WORKLOG entry; push.
+- Frontend `feature/better-similar-books` from fresh `origin/main`: step 5: fix 2. Then lint, typecheck, test,
+  build; browser check: a book in a series (e.g. id 5), a book without one (e.g. id 18 or 1), the cart; desktop +
+  390 px; English + Khmer. WORKLOG entry; push.
+- Finally: update this section and `docs/OWNER_TODO.md` (merge links, live check).
+
+**Later decisions the owner made (during steps 2 to 4)**
+- Series-first matters most in the CART; keep the book page part simple. Cart: never a cart book; with 2 series,
+  the next book of each first; out-of-stock rule still applies.
+- 3A order fixed as: series > bought together > category+author > same categories > same authors > same-category
+  best sellers > store best sellers, filled up to `limit` (frontend will ask 12). Note: "same categories" is
+  already sorted by units sold, so it IS the same-category best-seller step; no duplicate step was added.
+- 4B changed: ONE catalogue-wide version number in the cache key (not per book), bumped when staff create, edit,
+  delete or restore a book or change its authors/categories/series, so other books' lists update too.
+- Sales rule = option B: rankings ("best sellers", "bought together") leave out pending, cancelled, **returned**
+  and deleted orders; processing and shipped (cash on delivery, not paid yet) still count.
+- The "within 1 hour" limits below are accepted; no fix now.
+
+**Backend progress (branch `feature/better-similar-books`)**
+| Commit | What |
+|---|---|
+| `eb682dd` | Series first: book page step 0 (next books, then earlier, then unnumbered); cart: per series after the furthest cart book, series take turns; category+author step sorted by units sold. Tests: `tests/Feature/Catalog/SeriesRecommendationsTest.php` |
+| `ff52d01` | Store best sellers fill the book-page list up to `limit`. Pushed with one old test failing (my mistake: commit ran in the same command as the tests). |
+| `8a62bd0` | Fixes that test: `AlsoBoughtTest` now checks the exact order (B bought together first, D with only cancelled/pending co-orders last as a filler). |
+| `73d891a` | Cache: 12 ids per book under `catalog:recommendations-version`; `RecommendationService::catalogChanged()` bumps it after commit (Book `created/updated/deleted/restored` events + explicit calls after author/category sync in staff `BookController::update`, `BookBulkController`, `BookCsvImport::apply`); stock + visibility re-checked on every read, then cut to `limit`. One `unitsSoldSubquery()` helper for all rankings. Tests: `tests/Feature/Catalog/RecommendationCacheTest.php` |
+| `9e5b041` | `docs/API.md` (+ new row for `/catalog/recommendations`) and `public/openapi.yaml`: final order, caching, stock rule |
+| `f6e26e9` | Returned orders left out of rankings (`notSales()`); test + docs line updated |
+- Checks on `f6e26e9`: `php artisan test` 642 passed, `vendor/bin/pint --test` clean. Each new rule test was run
+  against the old code first and failed there (proves it tests something).
+- Demo data (local API): *Sign of the Four* → 6, 4, 1, 2, 3, 16; *Meditations* `limit=12` → 12 books (was 1);
+  cart with Holmes #1 → 5, 6, … (next book first).
+
+**Known limits (accepted by the owner, no fix now)**
+These do not bump the catalogue version, so the change reaches cached lists within 1 hour instead of at once.
+None of them can show a wrong book (stock and visibility are re-checked on every read); a book only joins late.
+- A book comes back into stock, or a new format (variant) is added or re-activated.
+- A scheduled book goes live at its publish time (no save happens then).
+- A category or author is deleted (pivot rows go without a book event).
+- After a re-check removes sold-out or hidden books, a cached list can be shorter than `limit` until it is rebuilt.
+
+- `00e8612`: backend `docs/WORKLOG.md` entry. **Review** (project lead, 2026-10-31): 642 tests + pint re-run on
+  `00e8612`, **approved**.
+
+**Frontend progress (branch `feature/better-similar-books`, commit `a0a8597`)**
+- `src/pages/catalog/BookDetailPage.tsx`: the old "Customers also bought" row (`/also-bought`, 6 books) is replaced by
+  `SimilarBooks`: `GET /books/{id}/related?limit=12` (exists on today's API too), minus the current book and every book
+  the series row and the "More by" row show. Recently viewed is NOT removed (it is history, not a suggestion; removing it
+  would empty the row for people who browse a lot; the owner allowed skipping it).
+- Loading: the shelf skeleton shows while the list, the book, the series row or the author row is loading (the repeats
+  can only be removed once those are known). Loaded with fewer than 2 books left → renders nothing (no heading, no gap).
+  Errors behave like before: the row just does not show.
+- Strings: `book.similarEyebrow` "More like this" / "សៀវភៅស្រដៀងគ្នា", `book.similarTitle` "You may also like" /
+  "អ្នកប្រហែលជាចូលចិត្ត" (same Khmer as the cart's existing "You may also like"). Old `alsoBought*` keys and their
+  `// draft` mark removed. `catalogApi.alsoBought` is left in `catalog.ts` (unused now; harmless).
+- Tests (`src/pages/catalog/catalog-pages.test.tsx`, 4 new): asks 12 + repeats removed (series/author/self); row hidden
+  with < 2 left; skeleton while loading, then nothing when empty; fewer than 12 shown in the API's order. A default
+  `related` mock was added to the older detail tests.
+- Checks: `npm run lint` 0, `npm run typecheck` clean, `npm test` 444 passed / 3 skipped, `npm run build` ok.
+- Browser (Playwright/Chromium, Vite :5173, demo data, EN + KM, 1280 + 390 px), two runs:
+  - Local API on the **new backend branch**: Holmes #2 → series row 4, 6; author row 6, 4; "You may also like"
+    1, 2, 3, 16, 15, 14, 13, 11, 10, 20 (no repeats, not itself). Meditations → 12 books. Cart (demo customer,
+    Holmes #1) → 5, 6, 1, 2, 3, 16. Khmer eyebrow + title show. No horizontal overflow anywhere.
+  - Local API on **backend `main`** (= today's live API code): Holmes #2 same row, no repeats; Meditations → only 1
+    book left, so the row is hidden (no heading, no gap); cart → 6, 1, 2, … (old order). So the frontend works alone.
+  - Console: only cover images from an external photo host failing (no internet in this sandbox); no app errors.
+
+**Review** (project lead, 2026-10-31; verdict: **pass, both branches OK to merge, any order**)
+- Frontend `a0a8597` re-run on a clean install: lint 0, typecheck clean, 444 passed / 3 skipped, build ok. Diff is the 5
+  files the task needs (page, en/km strings, tests, work log). Commit messages plain, no tool names.
+- Backend `00e8612` re-run: 642 tests, pint clean. Cache version bumps only after commit; checked that orders and
+  checkout never save `Book`, so normal sales do not clear the cache.
+- Good calls: recently viewed left alone; frontend works on today's API (Meditations row hidden, no gap).
+- Nit (later, tiny): `catalogApi.alsoBought` is now unused in `catalog.ts`; remove in a future cleanup.
+**Not verified:** the live site (Render + Vercel) in a browser (owner step in `OWNER_TODO.md` section 0); the Khmer
+eyebrow by a native speaker.
+**Open questions:** is "សៀវភៅស្រដៀងគ្នា" a natural Khmer eyebrow for "More like this"? (owner step)
+**Where I stopped / next step**
+- Task A is finished on both branches, pushed, not merged. Merge order: any.
+  Backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books ·
+  Frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books
+- Next: the owner merges both and does the live check in `OWNER_TODO.md` section 0 (Task A). Next task prompt:
+  `docs/prompts/03-offers-and-reports.md`.
+
+---
+
+## 2026-10-31 · Task B+D: offers + offer reports, PRODUCTION_CHECKLIST.md 4.1
+
+**Status:** partly done (design stage). No code, no task branch yet.
+- Step 1 (read only, done): audit of coupons, cart, checkout totals, free delivery and reports. Findings: one discount
+  kind today (coupon, on the whole subtotal, cents, `CheckoutService::totals()` is the one place preview and checkout
+  share); `GET /cart` has no pricing or free-delivery numbers; `/cart/coupon/check` works on the plain subtotal; the
+  order keeps `coupon_id` + `discount_amount` but nothing would say which offer gave a discount; the refund share in
+  `ReturnService::refundCents` and the sales report "Discounts" already use `discount_amount`.
+- Step 2 (design proposal): sent to the owner, waiting for answers. Spec file not written yet (written once agreed).
+
+**Owner decisions so far (2026-10-31)**
+- v1 small: "Buy N, get X% off" first; asked whether "complete the series" is cheap enough to add.
+- No stacking: the customer automatically gets the better of offer vs coupon; cart and checkout say which one was
+  used; `/cart/coupon/check` uses the same comparison.
+- The offer discount counts like a coupon for free delivery (subtotal minus discount), with a test.
+- `GET /cart` gains one pricing block (discount, applied offer, nudge, free-delivery threshold + amount needed from the
+  API), so the cart stops using the fixed $50 from `src/content/shop.ts`.
+- Data: smallest change, NEW migration only: `offers` + nullable `orders.offer_id` + a small snapshot on the order.
+  Exact migration to be shown before writing it.
+- Only admins create/edit/pause offers; staff can view.
+- Reports: per offer orders, units, revenue, discount given, AOV vs orders without offer, date range, CSV, new tab.
+
+**Separate tiny task (not part of offers v1): free-delivery bar gaps found in Step 1**
+1. Cart page and cart drawer use the fixed $50 from `src/content/shop.ts` (`GET /cart` sends no threshold); only
+   checkout uses the API's `free_shipping_threshold`. **Offers v1 fixes this one** (pricing block on `GET /cart`).
+2. The cart drawer (`CartDrawer.tsx:78`) passes the subtotal before the coupon; the cart page and checkout pass the
+   amount after the discount.
+3. `FreeShippingBar.tsx` English and Khmer texts are written inside the component, not in `src/i18n/en.ts` / `km.ts`.
+4. Not checked: whether the bar shows for an ebook-only cart (ebook-only orders have no delivery fee, so it should not).
+
+**Owner answers on the Step 2 proposal (2026-10-31):** Q1-Q9 all A (see the spec, section 2). Migrations OK with
+additions: `order_items.discount_amount` (line discount for offers and coupons; returns use it, old orders keep the
+proportional rule), offer row lock + use given back on cancel + race test, exact discount rule with worked examples
+(all covered units once quantity >= N, rounded down per line, ebooks count), "No books" status when all targets are gone.
+
+**Spec:** `docs/superpowers/specs/2026-10-31-offers-design.md` on branch `feature/offers-engine` (commit `770e25f`)
+https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine
+- Tests not run: the commit is one Markdown file only.
+- Open question O1 (in the spec): what checkout does when the offer ran out after the preview (recommend A: optional
+  `offer_id` in checkout, 422 if it no longer applies).
+
+**Where I stopped / next step**
+- Waiting for the owner's review of the spec and an answer to O1. No migration or code written yet.
+- Next after OK: build `feature/offers-engine` in small steps (migrations first), each step tested and pushed.
+
+### Review of the offers spec (project lead, 2026-10-31; spec `770e25f` on `feature/offers-engine`)
+Verdict: **approved with changes**. Cents math in examples 1-3 re-checked by hand (150+150; 100/100/300; 300+119): correct.
+Migration dates sort after the last one on `main` (`2026_10_17_*`). O1 = A.
+Changes asked before building:
+1. Partial return of an offer book: keep each line's own discount (no claw-back when the remaining books fall under N).
+   Write it in 4.8. The floor in the per-unit share favours the customer by at most 1 cent; say so.
+2. Cancel: guard `offer_id` null (offer deleted, SET NULL) before `decrement`.
+3. Book list `offer` field: no N+1 (categories/series already loaded or eager-loaded); add a query-count test.
+4. Demo offer in `DemoSeeder`: create it **paused** (`is_active = false`), so seeding never starts a live discount on the
+   real shop.
+5. Rollout: until an admin creates a live offer nothing changes for customers. Note in OWNER_TODO: merge
+   `offers-storefront` before creating the first live offer (today's checkout page hides a coupon that lost to an offer).
+
+### Build progress (branch `feature/offers-engine`)
+https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine
+| Commit | What |
+|---|---|
+| `933b6dc` | Spec updated with the review: 4.8 no claw-back + rounding (customer gets at most 1 cent more per line), 4.9 skip the decrement when `offer_id` is null + O1 = A rule, 6.6 no N+1 + query-count test, 6.8 demo offer paused + rollout order. OWNER_TODO rollout note: `011afa9` on this branch. |
+| `d1b47f8` | Migrations `2026_10_31_100001` to `100004`: `offers`, `offer_targets`, 4 offer columns + index on `orders`, `order_items.discount_amount` (default 0). Test `tests/Feature/Offers/OfferSchemaTest.php` (6): CHECK limits and edges, one-target rule, unique target, cascade on hard delete of a book and of the offer, SET NULL keeps the order's copy, line discount default 0.00. |
+- Checks on `d1b47f8`: `migrate:fresh` on the test DB, then `migrate:rollback --step=4` and `migrate` again (all
+  DONE); `php artisan test` 648 passed; `vendor/bin/pint --test` clean. No model, service or endpoint yet, so no
+  `docs/API.md` / `openapi.yaml` change in this step.
+- Note: books and series soft delete, so the cascade on `offer_targets` only runs on a hard delete. A target whose book
+  is in the trash simply matches nothing (the book is not for sale). The "No books" status must treat it the same way.
+
+Migrations reviewed by the project lead (all 4 files read): approved.
+
+| Commit | What |
+|---|---|
+| `13999c0` | Models `Offer`, `OfferTarget`, `OfferFactory`. `app/Services/Offers/`: `OfferCalculator` (pure math, no database: `evaluate`, `best`, `nudge`, `bestForBook`), plain value objects `LiveOffer`, `OfferLine`, `OfferResult`, and `OfferService::live()` (ONE query: offers + targets + the targets' names and trash state, cached 60 s under `offers:live`; dates and use limit re-checked on every read; `forget()` for admin saves). |
+- Tests: `tests/Unit/Offers/OfferCalculatorTest.php` (13): examples 1, 3, 4 (offer side: $3.00, tie -> lower id) and 5 (nudge)
+  in exact cents; 3 units with "buy 2" = all 3; best offer wins; blocked lines never count or get a discount; book /
+  category / series matching; nudge picks the fewest extra books and only a higher tier; book-card best offer; **200
+  seeded random carts** (seed 20261031, 600 offer checks, 170 gave a discount): never negative, never above the floor-sum
+  of X% per covered line, never above X% of the covered subtotal or the subtotal, each line <= its price, lines add up.
+  `tests/Feature/Offers/OfferServiceTest.php` (6): paused, scheduled, ended, used-up and "No books" ignored; targets in the
+  trash (book, series, category) left out and an offer with only those ignored; `target_label` only for exactly one
+  series/category; 1 query for 7 offers with 20 targets, 0 from the cache, 1 again after 61 s and after `forget()`;
+  start/end times honoured from the cache.
+- Checks on `13999c0`: `php artisan test` 667 passed; `vendor/bin/pint --test` clean. No endpoint yet, so no API docs change.
+- Rule choice inside the spec's wording (4.6, for the reviewer): when an offer already applies, the nudge only shows an
+  offer with a **higher percent** (a higher tier); an offer with fewer books needed but a lower percent is not shown.
+
+Calculator reviewed by the project lead: approved. Nudge rule agreed by the owner (only a HIGHER percent once an offer
+applies) and written as final in spec 4.6 (`0444105`).
+
+| Commit | What |
+|---|---|
+| `8654deb` | `GET /cart` (and every cart endpoint, the `cart` in reorder and data export): new `pricing` block (subtotal, discount, total before shipping, `offer`, `nudge`, `free_shipping`) + `in_offer` on each item. New `app/Services/Offers/CartPricing.php`; `CartResource` keeps every old field with the same meaning (`subtotal_usd` is still before any discount). Free delivery from `FREE_SHIPPING_THRESHOLD` via `DeliveryArea::freeShippingThreshold()`, judged on subtotal minus discount like checkout; null for ebook/audiobook-only carts or when switched off. Categories for the cart's books: one query, and none when there is no live offer. `docs/API.md` (cart shape) + `public/openapi.yaml` (`CartPricing` schema, `in_offer`, example). |
+- Tests: `tests/Feature/Offers/CartPricingTest.php` (10): Example 1 (discount 3.00, total 47.00, amount needed 3.00,
+  `in_offer` true/true/false, old fields unchanged); Example 5 nudge; no live offer (paused only) -> offer/nudge null,
+  discount 0.00; empty cart; $52 with 10% -> $46.80, amount needed $3.20; threshold from config (40 -> free, null -> no
+  block); ebook + audiobook only -> no free-delivery block but they count for the offer (2.68); out-of-stock line does not
+  count (nudge instead); POST /cart/items returns the same block; guest 401; query count identical with 1 and 12 offers.
+- Checks on `8654deb`: `php artisan test` 677 passed (old `CartTest`, reorder and data-export tests unchanged and green);
+  `vendor/bin/pint --test` clean; `openapi.yaml` parses.
+- Note for the owner: the API has **no guest cart** (`GET /cart` needs a signed-in, verified customer, `routes/api.php`
+  line 153), so "guest" is tested as "still 401". A guest's cart lives in the browser until sign-in, so it shows no offer.
+
+`GET /cart` reviewed by the project lead: approved.
+
+| Commit | What |
+|---|---|
+| `e72b4a9` | Offer vs coupon in ONE place: `app/Services/Offers/DiscountChoice.php` (bigger discount wins, tie -> offer, store credit like any coupon). `CheckoutService::totals()` (the one totals function for preview AND placing an order) now asks `CartPricing::bestOffer()` and `DiscountChoice`. `POST /checkout/preview` + `POST /cart/coupon/check` gain `applied`, `offer`, `coupon_not_used` (coupon check also `best_discount_*`, `best_total_before_shipping_*`, `free_shipping`). Coupon validation and the 5-guess lock run before the comparison and are unchanged. JSON pieces shared in `app/Http/Resources/OfferPayload.php` (cart, coupon check, preview). Docs: `docs/API.md` rows for both endpoints; `openapi.yaml` schemas `CartOffer`, `CartFreeShipping`, `CouponNotUsed` (cart `pricing` now points to them). |
+- Tests: `tests/Feature/Offers/OfferVsCouponTest.php` (7): Example 1 and Example 2 run preview, then the shared function
+  (`quote()`), then a real `POST /checkout`: discount, delivery and total identical in all three (3.00/1.50/48.50 and
+  5.00/1.50/46.50); Example 4 tie -> offer, `coupon_not_used {THREE, offer_better}`, coupon `used_count` stays 0, order
+  `coupon_id` null; store credit $2 loses / $8 wins; unknown, expired, too-small and inactive codes give today's exact 422
+  in both endpoints with an offer live; 5 unknown codes -> 429 with an offer live; no offer -> same numbers as before.
+- Checks on `e72b4a9`: `php artisan test` 684 passed (old `CouponTest`, `CheckoutTest`, free-delivery tests unchanged and
+  green); `vendor/bin/pint --test` clean; `openapi.yaml` parses, every `$ref` resolves.
+
+**Rollout notes (old fields whose meaning changes; only when a live offer exists, otherwise identical to today)**
+- `POST /checkout/preview` `discount` and `total`: now **the winner** (offer or coupon), i.e. the real amount to pay.
+- `POST /checkout/preview` `coupon_code`: now set **only when the coupon won**; before, any valid code was echoed back.
+  Today's checkout page shows "Have a coupon? Add it in the cart" when it is null, so a coupon that lost would vanish
+  without a word: this is why OWNER_TODO says to merge `feature/offers-storefront` before the first live offer.
+- `POST /checkout/preview` `shipping_fee`, `is_free_shipping`, `amount_needed_for_free_shipping`: judged on subtotal minus
+  the winner's discount (same rule as before, the discount can now be an offer).
+- `POST /cart/coupon/check`: no old field changes meaning (they still describe the coupon alone); the winner is in the
+  new `best_*` fields.
+- ~~Not mergeable yet: checkout did not save the offer.~~ Fixed by `f09ade1` (below).
+- `GET/POST` order responses: new `offer` and item `discount_usd` (added fields, no old meaning changes). Order CSV
+  export: new last column `offer_name` (old columns keep their place). Refunds of **new** orders with a discount now use
+  each line's own share (see below); refunds of older orders are calculated exactly as before.
+
+Coupon check + preview reviewed by the project lead: approved.
+
+| Commit | What |
+|---|---|
+| `f09ade1` | `POST /checkout` saves the winner. Inside the transaction (after the cart, variant and coupon locks): `CheckoutService::lockBestLiveOffer()` reads the live offers **fresh** (`OfferService::liveFresh()`, no cache), locks the row of the offer that would win, re-checks it under the lock (active, dates, `used_count < max_orders`) and, if it is no longer live, drops it and tries the next best. Only the winner's row is locked. The order gets `offer_id` + copy (`offer_name`, `offer_min_quantity`, `offer_percent_off`); each line gets `discount_amount` (`app/Services/Offers/LineDiscounts.php`: offer = each covered line's own discount; coupon = split by line price, rounding cents on the last line, never more than a line's price); `used_count` + 1. O1 = A: optional `offer_id` in the body -> 422 `offer_id` (`messages.offer_ended`, EN + KM) when it no longer wins, nothing placed, cart kept. Cancel (`OrderStatusService::undoOrder`): offer use back, skipped when `offer_id` is null, never below 0. `ReturnService::refundCents`: per-line rule when any line has a discount (grouped by order line, so partial returns add up exactly), else the old proportional rule. `OrderResource` `offer` + item `discount_usd`; CSV `offer_name`. Docs: `docs/API.md` (checkout row, order shape, return estimate, export columns), `openapi.yaml` (`offer_id`, 422, `Order.offer`, item `discount_usd`, cancel summary). |
+- Tests: `tests/Feature/Offers/CheckoutWithOfferTest.php` (12) and `tests/Unit/Offers/LineDiscountsTest.php` (6).
+  **Every placed order is checked: line discounts add up exactly to `orders.discount_amount`, no line over its price.**
+  - Example 1: discount 3.00, total 48.50, lines 1.50/1.50/0.00, copy saved, `coupon_id` null, `used_count` 1, stock -1 each;
+    after delivery, return the cookbook -> refund **$30.00**, then Holmes A -> **$8.50** (Holmes B keeps its discount: no claw-back).
+  - Example 2: READ10 wins, lines 1.00/1.00/3.00, offer `used_count` stays 0, coupon 1; return the cookbook -> **$27.00**.
+  - Coupon rounding: $10 off three $10 books -> 3.33/3.33/3.34. No discount -> 0.00 on every line.
+  - Old order (all lines 0.00, $4.00 whole-order coupon): return the $30 book -> $27.00 (proportional rule unchanged).
+  - Idempotency: same key twice -> same order, `Idempotent-Replayed: true`, one order, `used_count` 1 (not 2).
+  - Last use: `max_orders = 1`; another customer checks out first; then this customer, with `offer_id` -> 422, no order,
+    cart still 3 items; without `offer_id` -> placed at full price (50.00, free delivery), no offer, `used_count` stays 1.
+    The cache still said "free slot" (it was read before), so this also proves checkout reads fresh under the lock.
+  - Best offer used up in the DB but still in the cache -> the next best offer applies (`used_count` 5 and 1).
+  - Paused after the preview + `offer_id` -> 422.
+  - Cancel: use back to 0; cancel again -> 422 and still 0; an offer already at 0 stays 0; offer deleted -> cancel works,
+    order keeps the copy (`offer.id` null).
+  - CSV: header ends with `offer_name`, the row with "Buy 2 Holmes".
+  - `LineDiscounts`: Example 2 split, rest on the last line, a fully discounted last line passes the rest back, 200 seeded
+    random orders always add up exactly, never negative, never over a line's price.
+- Checks on `f09ade1`: `php artisan test` **702 passed**; `vendor/bin/pint --test` clean (pint fixed spacing in
+  `CheckoutService.php` before the commit; the tests were re-run after it, still 702); `openapi.yaml` parses, every `$ref` resolves.
+
+**Race test: what was and was not proven**
+- Proven: the path a waiting checkout takes once the other one has committed (the second checkout sees the used-up offer
+  under the row lock and refuses with `offer_id` / pays full price without it); checkout ignores a stale cache; when the best
+  offer is used up, the next best is used; retries never count twice.
+- **Not proven:** two checkouts running at the **same moment** in two database connections. PHPUnit runs one request at a
+  time inside one test transaction, so a true parallel run is not possible there. The guarantee rests on PostgreSQL's
+  `SELECT ... FOR UPDATE` (the second transaction waits, then reads the committed `used_count`), the same mechanism the
+  coupon limit already uses. A manual check would need two terminals against a real database (not done).
+- Khmer text for `messages.offer_ended` ("ការផ្តល់ជូននេះទើបតែបញ្ចប់។ …") should be read by a native speaker (owner step).
+
+**Review of `f09ade1`** (project lead, 2026-11-01): 702 tests + pint re-run on a clean checkout, approved. The race
+note above is honest and enough for v1 (same `FOR UPDATE` mechanism as the coupon limit).
+
+**2026-11-01: work continues in the main project chat (the Kiro plan ended).** Same rules, same notes.
+
+| Commit | What |
+|---|---|
+| `5904592` | Book cards and book pages show `offer` (spec 6.6): `OfferService::forBook()` (best live offer: biggest percent, tie -> lower N, then lower id; shape `{id, min_quantity, percent_off, ends_at, target_label}`), `bookEagerLoads()` loads only the category ids, and only while a live offer targets a category. Used by `GET /books`, `/books/{id}`, `/related`, `/also-bought`, `/catalog/recommendations`, `/series/{id}`, `/wishlist`. Docs: API.md book card fields, openapi `BookCard.offer` + `BookOffer`. |
+- Tests: `tests/Feature/Offers/BookOfferFieldTest.php` (7): none/paused -> null; series offer on its books only (list +
+  detail, exact shape); category offer + biggest percent wins over an all-books offer; scheduled and used-up not shown;
+  series page and wishlist; **query count the same for 3 books + 1 offer and 15 books + 13 offers**; no category offer
+  -> no extra query, a category offer -> exactly one extra query per list.
+- `PublicCatalogTest::test_listing_query_count_does_not_grow_with_number_of_books`: one warm-up request added before
+  counting (the live-offers read is cached for a minute, so a cold cache adds one query to the first request only).
+- Checks on `5904592`: `php artisan test` **709 passed**; `vendor/bin/pint --test` clean; `openapi.yaml` parses.
+
+| `d2680f4` | Staff offer endpoints (spec 4.10, 6.7): `GET /staff/offers` (q, status filter in SQL with the same rules as `Offer::status()`), `GET /staff/offers/{id}` for `catalog:view` + admin; `POST`, `PATCH`, `DELETE` admin only. Targets validated (type, exists, not in the trash, duplicates once, 1-200, refused for `all`); `applies_to=all` drops targets; dates checked against saved values; delete 409 once used; every create/update/delete audited with the target list; no audit row when nothing changed; every save clears the live-offers cache. `OfferResource`: all columns, `status`, `targets[{type,id,label,in_trash}]`, `orders_count`. Docs: API.md rows + openapi paths. |
+- Tests: `tests/Feature/Offers/StaffOfferTest.php` (8): create with mixed targets + audit; all-books offer; validation limits
+  (N, X, dates, missing/trashed/unknown targets); staff view only, customers 403; pause hides the offer from the shop at
+  once (cache cleared) + resume + target change audited (before/after lists); switch to all drops targets; delete 409 vs
+  204 with cascade; every status shown and filtered (`live, scheduled, paused, ended, used_up, no_books`).
+- Checks on `d2680f4`: `php artisan test` **717 passed**; pint clean; `openapi.yaml` parses.
+
+| `1d74682` | `DemoSeeder`: one sample offer "Buy 2 Sherlock Holmes, save 15%", **paused** (test: paused, no demo order used it, seeding twice keeps 1). Backend `docs/WORKLOG.md` entry for the whole offers backend. |
+- Checks on `1d74682`: `php artisan test` **717 passed**; pint clean. Migrations: rollback of the 4 + migrate again OK; and a
+  production-like run: `main` schema + demo data (13 orders), then this branch's migrations -> all orders kept, every old
+  line `discount_amount` 0, no error.
+
+**Review of the whole branch** (project lead, 2026-11-01; verdict: **complete, OK to merge**): 51 files, migrations new only,
+every endpoint documented (OpenApiSpecTest), customers see no change while no offer is live. Not proven: two checkouts at
+the same moment (see above). Khmer text `messages.offer_ended` for the native-speaker review.
+
+**Fix found by the storefront browser check** | `1373f5f` on `feature/offers-engine`: live offers were cached as `LiveOffer`
+objects; `config/cache.php` `serializable_classes => false` makes the file/database store return
+`__PHP_Incomplete_Class`, so every page with offers would have answered 500 on Render (tests use the array store and
+missed it). Now cached as plain arrays and rebuilt on read; new test `test_live_offers_survive_the_file_cache` uses the
+real file store and fails on the old code. 718 tests, pint clean. Branch was not merged yet, so production never had it.
+Lesson for later caches: never cache objects; cache arrays or scalars.
+
+## 2026-11-01 · Task B (shop): offers on the storefront
+
+Owner choices: 1A badge "Buy 2, save 15%" · 2A line under the price with end date · 3A nudge above the summary with a
+link · 4A note when a coupon lost · 5A drawer shows the offer line only.
+
+| Commit | What |
+|---|---|
+| `685cbfa` (frontend `feature/offers-storefront`) | Book card badge (bottom-left of the cover, moved there after the browser check showed the heart covering it at the top), book page line, cart "In offer" tags + offer line + nudge + coupon note + free-delivery bar from the API, drawer offer line, checkout offer line + coupon note + `offer_id` (O1), order pages offer line. `src/features/offers/*`. Types regenerated from the backend branch's openapi. |
+- Checks: lint 0, typecheck clean, `npm test` 456 passed / 3 skipped (12 new), build ok. Browser: see the frontend WORKLOG
+  entry (EN 1280 + KM 390; −$2.68 and $37.79 match the backend's per-line rounding; no overflow; no app errors).
+- Works alone: on an API without offers every piece renders nothing (tests "works exactly as before", "sends no offer_id").
+- Not verified: the live site (owner step after merging); KM strings by a native speaker.
+- Follow-up found: announcement bar says free delivery over **$25**, the shop's rule is **$50** (owner to choose).
+
+**Where I stopped / next step**
+- Storefront done and pushed. Merge order: backend `feature/offers-engine` first, then frontend
+  `feature/offers-storefront` (either order is safe; offers only appear once both are live AND an admin starts one).
+- Next: frontend `feature/offers-admin` (admin pages), then `feature/offer-reports`.
+
+## 2026-11-01 · Task B (admin): offers admin page
+
+Owner choices: 1A table + dialog like Coupons · 2A one search box (books, categories, series) with chips · 3A live preview ·
+4A on/off switch per row, confirm before ON · 5A next to Coupons.
+
+| Commit | What |
+|---|---|
+| `fcb7623` (frontend `fix/announcement-free-delivery`) | Announcement bar "$25" -> "$50" (owner: free delivery starts at $50), en + km. |
+| `c8a7c77` (frontend `feature/offers-admin`) | `/admin/offers` page, menu item, API helpers, 6 tests. New offers start paused. 404 -> "not available yet". |
+- Checks: lint 0, typecheck clean, `npm test` 450 passed / 3 skipped, build ok; browser run in the frontend WORKLOG entry
+  (create -> ON with confirm -> shop API shows the offer at once -> pause -> delete; 390 px no overflow; no errors).
+- Not verified: the live site (owner step). The preview sentence is written in the admin page too (same words as the
+  shop's `offers.bookLine`), because this branch must work without `feature/offers-storefront`; keep them in step.
+
+**Merge conflicts (2026-11-01):** after the owner merged `offers-storefront`, `offers-admin` and
+`fix/announcement-free-delivery` conflicted only in `docs/WORKLOG.md` (every branch appended at the end). Resolved by
+merging `main` into them (kept every entry, re-ran all checks: 462 / 456 tests, lint, typecheck, build). Owner merged
+`offers-admin`; the banner branch no longer touches `WORKLOG.md` at all.
+**New rule (owner):** "notes only": work-log entries go on `docs/handoff-notes` (backend) and `docs/worklog-notes`
+(frontend), never on feature branches. Steering file updated.
+
+## 2026-11-01 · Task D: offers report
+
+| Commit | What |
+|---|---|
+| `5298e88` (backend `feature/offer-reports`) | `GET /staff/reports/offers` + CSV, 4 tests, docs. 722 tests, pint clean. |
+| `50c95ab` (frontend `feature/offer-reports`) | Reports → **Offers** tab (4 tiles + table + CSV), 2 tests; 404 -> "not available yet". 464 tests, lint, typecheck, build. |
+- Browser: see the frontend work log (`docs/worklog-notes`): 3 real checkouts on the local API, numbers match by hand
+  (37.79 + 16.80 = 54.59; 2 × 2.68 = 5.36; average 27.30; 2.50 vs 1.83 books per order); CSV same rows.
+- Both branches merge cleanly into `main`, in any order (each works alone: the tab says "not available yet" without the
+  backend; the endpoint is ignored by an old frontend).
+- **Offers work (task B+D) is complete.** Not verified: the live site (owner steps); KM strings by a native speaker.
+
+## 2026-11-01 · Task E: BI dashboard (branches 1-2 of 4) + a live bug fix
+
+Owner choices 1A-6A (spec `docs/superpowers/specs/2026-11-01-bi-dashboard-design.md`, on `feature/dashboard-insights`).
+
+| Commit | What |
+|---|---|
+| `125588e`, `1732637` (backend `feature/dashboard-insights`) | insights + counts endpoints, 7 tests, docs. 729 tests. |
+| `571992f`, `3bf7e7e` (backend `fix/dashboard-status-cache`) | live bug: status counts broken after a cached read; round-trip test for every cached endpoint. 723 tests. **Mistake:** `571992f` was pushed with my new test failing (a hard-coded book id); fixed at once in `3bf7e7e`. |
+| `f61ee52` (frontend `feature/admin-dashboard-redesign`) | KPI sparklines + View links, income vs previous period with Income/Orders switch, status donut. 469 tests. |
+- Browser: frontend work log. All three branches merge cleanly into `main`, any order; each works alone.
+- Not verified: the live site (owner steps). The sample site could not be opened from the sandbox (network blocked);
+  compared with the owner's description in PRODUCTION_CHECKLIST 4.2.
+- Small note: the donut's "processing" colour is close to "delivered" green; every slice has its text label and count,
+  so it is readable; can be tuned later.
+
+Owner merged branches 1-2 and the fix (2026-11-01).
+
+| Commit | What |
+|---|---|
+| `9565045` (frontend `feature/admin-quick-jump`) | Ctrl K quick jump (pages, orders, books, customers) + menu badges (pending, returns, low stock). 473 tests. |
+| `c158da2` (frontend `feature/admin-insights-widgets`) | Dashboard extras: stock value, dead stock, repeat customers, slow movers, top authors, provinces, offers vs coupons. 471 tests. |
+- Browser runs: frontend work log. Both merge cleanly into `main` and with each other; each works alone.
+- **Task E (BI dashboard) is complete** with these two merges. Not verified: the live site (owner check in OWNER_TODO).
+
+**Where I stopped / next step**
+- All four BI branches done. Waiting for the owner's merges and the next task. Small follow-ups still open: Khmer account
+  tab row cut at 390 px; unused `catalogApi.alsoBought`; free-delivery bar texts into `en.ts`/`km.ts`; donut colour for
+  "processing"; seasonal/weather picks (owner to explain what is meant).
+- Earlier plan line kept for history: Offers done. Next big task: E, the BI admin dashboard (`docs/prompts/04-bi-dashboard.md`), starting with an audit and
+  design choices for the owner. Small follow-ups waiting: Khmer account tab row cut at 390 px; unused
+  `catalogApi.alsoBought`; free-delivery bar texts into `en.ts`/`km.ts`.
+- Remaining on `feature/offers-engine`: book list + book detail `offer` field (spec 6.6, query-count test), staff offer CRUD
+  (admin only, audit log, "No books" status, 409 delete when used, cache `forget()` on save), paused demo offer in
+  `DemoSeeder`, backend `docs/WORKLOG.md` entry. Then the branch is complete.
+
+**2026-11-01 · E2E failure on PR #107:** axe `aria-hidden-focus` on the donut from `feature/admin-dashboard-redesign`
+(merged): every PR's "Money path end-to-end" job failed (5 tests, one cause). Fixed in frontend `fix/dashboard-donut-focus`
+(`15332be`), verified with axe locally on every page changed today (all 0). My miss: the browser checks did not run axe;
+the steering file now requires it.
+
+**2026-11-01 · Small fixes** frontend `fix/small-cleanups` (`f973aea`): account strip edge fade, free-delivery texts in
+en/km, unused `catalogApi.alsoBought` removed, donut colours. 475 tests; browser + axe in the frontend work log.
+PR #107 was still open with the old red check: merged `main` into `feature/admin-insights-widgets` (`16001b5`), 475 tests,
+axe 0 on `/admin`; checks re-run on push.
+**Where I stopped / next step:** waiting for merges. Open items: seasonal/weather picks (owner to explain); owner list
+(R2, phone code, Khmer review).
+
+## 2026-11-01 · Seasonal collections (owner: A, home row + own page, up to 2 live, books by hand, EN + KM)
+
+| Commit | Branch | What |
+|---|---|---|
+| `96580ad` | backend `feature/seasonal-collections` | 2 tables (owner approved), public live/slug endpoints, admin CRUD with audit. 737 tests. |
+| `f8622ab` | frontend `feature/seasonal-collections-shop` | Home rows above New arrivals + `/collections/:slug` page, EN/KM. 482 tests. |
+| `1321156` | frontend `feature/seasonal-collections-admin` | `/admin/collections` next to Offers: table + dialog, book search, ↑/↓ order, on/off switch. 483 tests. |
+
+- Each branch works alone: without the backend, the home page shows no collection row, the collection page says "not
+  found", and the admin page says "Collections are not available yet". Merge order: any (backend first is nicest).
+- Browser runs (local API, demo data): shop at 1280 light EN and 390 dark KM (home rows, collection page, unknown slug);
+  admin at 1280 light and 390 dark (list, dialog, reorder + save reaches the shop order, switch off/on, create + delete).
+  axe 0 on every page and the dialog; no sideways scroll. Fixed before push: the admin dialog was too wide on phones
+  (long book titles) and the date boxes overlapped on desktop.
+- Not verified: the live site (owner check in OWNER_TODO), real Khmer wording by a native speaker.
+- Choice I made (tell me if you want it different): turning a collection on uses the row switch with no confirm box
+  (offers have one because they change prices; collections do not).
+
+**Where I stopped / next step:** waiting for the 3 merges. Open: owner list (R2, phone code, Khmer review).
+
+## 2026-11-02 · Owner answers + Buy again with low stock
+
+- Answers: Buy again on cancelled orders **yes** (unchanged); lower stock **add what is left** (built); Download my data
+  **keeps staff notes out** (unchanged).
+- Owner found on the live site: tall dialogs could not scroll (collections form). Fixed in frontend `fix/dialog-scroll`
+  (`c817745`, merged). My browser checks now scroll tall dialogs to the end on a short screen.
+- `feature/buy-again-partial-stock`: backend `425ed18` (739 tests), frontend `be101ac` (489 tests). Browser run (local
+  API, real order of 3, stock lowered to 2): cart got 2, note "Pride and Prejudice: 2 of 3 added"; EN 1280 light and KM
+  390 dark; axe 0, no sideways scroll. Each branch works alone (old frontend: the cart shows 2, no note; old backend: no
+  `requested_quantity`, no note).
+
+**Where I stopped / next step:** waiting for the 2 merges. Next big task proposed: online payments (Bakong KHQR first),
+owner to say "payments" or name another idea.
+
+## 2026-11-02 · Online payments: Bakong KHQR (owner: portfolio, approach A, 15 min, USD or KHR)
+
+| Commit | Branch | What |
+|---|---|---|
+| `a11ee8a` | backend `feature/khqr-payments` | Design spec (owner approved parts 1-3) |
+| `ae49843`, `41df22b` | backend `feature/khqr-payments` | KHQR builder, Bakong client, payment service, endpoints, expiry, admin mark-paid, health; named rate limits. 761 tests. |
+| `2cc21d8` | frontend `feature/khqr-checkout` | KHQR at checkout, payment page (`/account/orders/:id/pay`), Pay now, EN/KM. 499 tests. |
+| `b75d26a` | frontend `feature/khqr-admin` | Payment box + Mark as paid, KHQR filter, health line; orders filters fit phones. 496 tests. |
+
+- Browser runs (local API, test mode): shop EN 1280 light + KM 390 dark: checkout -> QR (drawn QR = API string) -> Riel
+  tab (59,409 ៛) -> Download -> Simulate -> Paid -> order page (API: paid / succeeded); expired order -> cancelled screen
+  + Buy again; axe 0 everywhere, no sideways scroll, no console errors. Admin 390 dark + 1280 light: payment box, Mark as
+  paid on a short screen (dialog scrolled, API: paid by staff), KHQR filter, health "Test mode"; axe 0.
+- Found and fixed before push: 429 from shared `throttle:N,1` counters (polling blocked Simulate / Riel); phone width on
+  the pay page (long Khmer button) and on the admin orders filters.
+- Not verified: real Bakong (needs the owner's token, and Bakong may refuse non-Cambodian servers: health card shows it);
+  true parallel double payment (covered by the order row lock; tested as a repeated call).
+- Each branch works alone; all pairs merge cleanly (also with `feature/buy-again-partial-stock`).
+
+**Where I stopped / next step:** waiting for the 3 merges + the owner's live check. Then optional real Bakong (OWNER_TODO).
