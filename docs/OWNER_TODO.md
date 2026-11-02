@@ -125,8 +125,8 @@ each branch works alone)
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
 **Book cover on the New book page (2026-11-02)** (frontend only; you chose "On New book page")
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/book-cover-on-create
-- [ ] **Do R2 first or together** (section 3 below / backend `docs/DEPLOYMENT.md` F6b): without R2, Render wipes uploaded
+- [x] Merged (frontend PR #117).
+- [x] R2 done (2026-11-02, set up with another helper; checked: a cover uploaded on New book got an `https://pub-…r2.dev/covers/…` address). Earlier note: (section 3 below / backend `docs/DEPLOYMENT.md` F6b): without R2, Render wipes uploaded
   covers at every deploy and restart. With R2 they are kept for good.
 - [ ] Live check: Admin → Books → **New book** → title + **Cover** (upload a picture) → **Create** → "Add format" opens
   with the cover → SKU + price → save. The book page shows the **Cover** panel; the shop shows the cover. After the next
@@ -284,7 +284,7 @@ After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** 
 
 ---
 
-## 3. Cover images on Cloudflare R2 (after merging `feature/r2-media-storage`)
+## 3. Cover images on Cloudflare R2 — DONE 2026-11-02 (bucket `bookly-media`, covers get r2.dev addresses) (after merging `feature/r2-media-storage`)
 
 Until you do this, covers are still saved on Render's disk (wiped at every deploy), exactly as today.
 
