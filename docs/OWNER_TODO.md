@@ -124,6 +124,13 @@ each branch works alone)
 - [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
+**Next task, saved for later: auto refresh (owner 2026-11-02, chose "Admin + customer orders")**
+When something changes (new order, payment, status), pages show it by themselves without the browser's refresh button.
+Plan: admin pages refresh the data on screen every 30 s and when you come back to the tab ("Updated 10 s ago ·
+Refresh" in the header; pauses when the tab is hidden; never resets a form you are typing in). Customers' orders and
+returns refresh every 60 s until finished. Book pages unchanged. Say "auto refresh" to start it.
+- [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
+
 **Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
 `feature/khqr-payments`). Merge in any order; each works alone. Backend first is nicest.
 - [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
