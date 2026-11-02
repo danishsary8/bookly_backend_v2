@@ -133,7 +133,7 @@ each branch works alone)
   Render deploy the cover is still there (only true with R2).
 
 **Auto refresh (2026-11-02)** (frontend only; you chose "Admin + customer orders")
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/auto-refresh
+- [x] Merged (2026-11-02).
 - [ ] Live check: open an order in the admin in one tab; in another tab (or your phone) change it, e.g. mark it Shipped.
   Within 30 s the first tab shows Shipped without reloading. Every admin page says "Updates by itself · … ago" with a
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
