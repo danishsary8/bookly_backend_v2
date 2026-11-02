@@ -29,7 +29,7 @@ working with today's settings.
   Then switch the language to Khmer → the same hint in Khmer.
 - [ ] Signed in: **Account → Profile** → under **Phone**: "Couriers call this number…" → click **Sign-in & security**
   → that page opens.
-- [ ] Khmer wording: read the two new Khmer lines (login hint and Profile hint; text in `docs/HANDOFF.md`). Change them
+- [x] Khmer wording: read the two new Khmer lines (login hint and Profile hint; text in `docs/HANDOFF.md`). Change them (Owner: all ok, 2026-11-02.)
   if a native speaker would say it differently.
 - [x] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
 
@@ -48,7 +48,7 @@ each branch works alone)
      next book of that series comes first.
   4. Switch the language to Khmer → the row reads **សៀវភៅស្រដៀងគ្នា / អ្នកប្រហែលជាចូលចិត្ត**.
   5. On your phone (or the browser at phone width) → the rows scroll sideways and the page does not.
-- [ ] Khmer wording: is **សៀវភៅស្រដៀងគ្នា** ("similar books") a natural eyebrow for "More like this"? Change it if not.
+- [x] Khmer wording: is **សៀវភៅស្រដៀងគ្នា** ("similar books") a natural eyebrow for "More like this"? Change it if not. (Owner: all ok, 2026-11-02.)
 - Note (no action): if staff mark a book back in stock, add a format, or a scheduled book goes live, it can take up to
   1 hour to join these lists. A sold-out book never shows.
 
@@ -154,7 +154,7 @@ each branch works alone)
      back. (Housekeeping runs from web traffic, so it may take until the next visit.)
   5. Admin → **Orders** → filter **KHQR** → open an order: the **Payment** box lists the QR codes. On a waiting order,
      **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
-- [ ] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker).
+- [x] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker). (Owner: all ok, 2026-11-02.)
 
 **Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
 portfolio). Never paste the token into chat, code or docs.
@@ -193,7 +193,7 @@ portfolio). Never paste the token into chat, code or docs.
 - [ ] Live check after both deploy: sign in as a customer with a delivered order of 2+ copies of one book → in the admin
   lower that book's stock to 1 → **Account → Orders → the order → Buy again** → the cart has 1 copy and a note says
   "<title>: 1 of 2 added". Put the stock back afterwards.
-- [ ] Khmer wording: "ស្តុកមិនគ្រប់សម្រាប់សៀវភៅ N មុខ" and "បានបន្ថែម 2 ក្នុងចំណោម 3" (`orders` group in `km.ts`).
+- [x] Khmer wording: "ស្តុកមិនគ្រប់សម្រាប់សៀវភៅ N មុខ" and "បានបន្ថែម 2 ក្នុងចំណោម 3" (`orders` group in `km.ts`). (Owner: all ok, 2026-11-02.)
 
 **Seasonal collections (2026-11-01)** (merge in any order; backend first is nicest; each works alone)
 - [ ] Backend (adds 2 tables; Render runs the migration by itself on deploy):
@@ -208,7 +208,7 @@ portfolio). Never paste the token into chat, code or docs.
   2. Switch it **On** in the list → open the home page → a "Seasonal pick" row is above New arrivals, books in your order.
   3. Click **See all** → its own page with the description and the end date. Switch the language to Khmer → Khmer title.
   4. Switch it **Off** → reload the home page: the row is gone (a tab left open may show it up to 5 minutes) and the page link says "not found".
-- [ ] Khmer wording: the eyebrow **Seasonal pick** and "See all" in Khmer (`collections` group in `src/i18n/km.ts`).
+- [x] Khmer wording: the eyebrow **Seasonal pick** and "See all" in Khmer (`collections` group in `src/i18n/km.ts`). (Owner: all ok, 2026-11-02.)
 
 ---
 
