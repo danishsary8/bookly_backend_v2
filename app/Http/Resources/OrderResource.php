@@ -3,8 +3,11 @@
 namespace App\Http\Resources;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Services\CurrencyService;
 use App\Services\Orders\DeliveryArea;
+use App\Services\Payments\KhqrPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,7 +20,12 @@ class OrderResource extends JsonResource
             'order_number' => $this->order_number,
             'status' => $this->status->value,
             'payment_method' => $this->payment_method->value,
-            'payment_status' => $this->whenLoaded('payments', fn () => $this->payments->sortByDesc('id')->first()?->status->value),
+            // A paid QR wins over newer QR rows that were closed as failed (KHQR: one row per QR).
+            'payment_status' => $this->whenLoaded('payments', fn () => ($this->payments->firstWhere('status', PaymentStatus::Succeeded) ?? $this->payments->sortByDesc('id')->first())?->status->value),
+            // KHQR orders waiting for payment: when the time to pay ends (the shop shows "Pay now" until then).
+            'payment_due_at' => $this->payment_method === PaymentMethod::Khqr && $this->status === OrderStatus::Pending
+                ? app(KhqrPaymentService::class)->deadline($this->resource)->toIso8601String()
+                : null,
             'placed_at' => $this->placed_at,
             'item_count' => $this->whenLoaded('items', fn () => $this->items->sum('quantity')),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [

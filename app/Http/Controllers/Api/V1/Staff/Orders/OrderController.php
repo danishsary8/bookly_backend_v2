@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V1\Staff\Orders;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffOrderResource;
 use App\Models\Order;
 use App\Services\Admin\AuditLogger;
 use App\Services\Orders\OrderStatusService;
+use App\Services\Payments\KhqrPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
@@ -19,6 +21,7 @@ class OrderController extends Controller
     {
         $data = $request->validate([
             'status' => ['nullable', Rule::enum(OrderStatus::class)],
+            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'q' => ['nullable', 'string', 'max:190'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', Rule::when($request->filled('from'), 'after_or_equal:from')],
@@ -31,6 +34,7 @@ class OrderController extends Controller
             Order::query()
                 ->with(['customer', 'items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon'])
                 ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+                ->when($data['payment_method'] ?? null, fn ($q, $method) => $q->where('payment_method', $method))
                 ->when($term, fn ($q) => $q->where(fn ($w) => $w
                     ->where('order_number', 'ilike', $term)
                     ->orWhereHas('customer', fn ($c) => $c->withTrashed()->where('email', 'ilike', $term)->orWhere('name', 'ilike', $term))))
@@ -56,6 +60,15 @@ class OrderController extends Controller
         ]);
 
         $statuses->changeByStaff($this->find($order), OrderStatus::from($data['status']), $request->user(), $data['note'] ?? null);
+
+        return new StaffOrderResource($this->find($order));
+    }
+
+    /** An admin confirms a KHQR payment seen elsewhere (e.g. the bank app). Note required; audit log via the status change. */
+    public function markPaid(Request $request, int $order, KhqrPaymentService $payments): StaffOrderResource
+    {
+        $data = $request->validate(['note' => ['required', 'string', 'min:3', 'max:500']]);
+        $payments->markPaidByStaff($this->find($order), $request->user(), trim($data['note']));
 
         return new StaffOrderResource($this->find($order));
     }
