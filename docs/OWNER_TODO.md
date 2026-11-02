@@ -10,7 +10,7 @@ working with today's settings.
 
 - Done: all 18 branches merged and deployed; backup points at `bookly-2` (green run); demo data is there; live checks
   (Download my data, 404 answer, typo search, Download button, admin orders auto-refresh) passed.
-- **Paused, continue here:** section 4c (phone code). What we learned: a number typed in **Profile** is only a courier
+- **Done 2026-11-02:** section 4c (phone code). What we learned: a number typed in **Profile** is only a courier
   contact number. Codes are sent only to a **verified** number linked to the bot. Fix: **Account → Sign-in & security →
   Phone row → Confirm** → share the number in the Bookly bot → then try the phone code again (wait for the
   "Too many attempts" timer first). The "Telegram order updates" card does not verify the number.
@@ -31,7 +31,7 @@ working with today's settings.
   → that page opens.
 - [ ] Khmer wording: read the two new Khmer lines (login hint and Profile hint; text in `docs/HANDOFF.md`). Change them
   if a native speaker would say it differently.
-- [ ] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
+- [x] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
 
 **Task A: "You may also like" (similar books)** (backend + frontend; no migration, no setting to change; merge order: any,
 each branch works alone)
@@ -337,7 +337,7 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
 
 ## 4c. Try the phone code on the live site (after both `feature/telegram-phone-code` branches are deployed)
 
-- [ ] Sign in → **Sign in with phone number?** → your own number → **Send code in Telegram** → the Bookly bot sends
+- [x] Done 2026-11-02 (phone confirmed in Sign-in & security, code sign-in works). Sign in → **Sign in with phone number?** → your own number → **Send code in Telegram** → the Bookly bot sends
   a code → type it → you are signed in, and the bot says "Signed in … Not you?".
 - [ ] Nothing arrives? Your number was linked before the bot stored chats: tap **Continue with Telegram** once,
   then codes work for it.
