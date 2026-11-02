@@ -6,6 +6,13 @@ Comprehensive audit of rate-limiting configurations, middleware, controller-leve
 
 > **Status 2026-10-13 / 2026-10-15:** applied in `feature/rate-limits` and `fix/login-limit-per-email` with the owner's numbers: auth endpoints (login, register, reset) limited to 5/min per email+IP, 30/min per IP, plus 20/hour per email across any IP to block distributed credential stuffing; checkout 5 per 5 min + 20 per hour per customer, coupon check 10/min + a 15-minute lock after 5 unknown codes in a row, `GET /books` 60/min with `q` and 120/min without, Telegram status 60/min per IP + link, dashboard 30/min per staff member, Telegram webhook calls with the right secret not limited. The tables below are the original proposal; `docs/API.md` lists what is live.
 
+> **2026-11-02 (KHQR payments):** the payment page polls `GET /orders/{id}/payment` (named limiter `khqr-poll`, 60/min
+> per customer) and its buttons use `khqr-action` (10/min). Found in the browser check: plain `throttle:N,1` limits share
+> **one counter per user across all routes** that use them (Laravel keys them by user only), so polling every 3 s with
+> `throttle:40,1` made `throttle:10,1` buttons answer 429. New routes should use a named limiter. Older `throttle:N,1`
+> routes (reorder, invoice, preview, staff notes…) still share that counter; low risk today (none of them is polled),
+> worth a small clean-up later.
+
 ## 1. Audited Endpoints Table
 
 The API enforces a global base limiter on all routes defined via `$middleware->throttleApi('api')` in [`bootstrap/app.php:30`](../bootstrap/app.php#L30) and [`AppServiceProvider.php:27-28`](../app/Providers/AppServiceProvider.php#L27-L28) (120 req/min keyed by authenticated model key or guest IP). Endpoints below list their effective rate limiters, abuse vectors, and recommendations.

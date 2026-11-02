@@ -1612,7 +1612,7 @@ paths:
   /orders/{id}/payment:
     get:
       tags: [Checkout & orders]
-      summary: 'KHQR payment page: QR codes, time left and status. Each call also checks Bakong (bakong mode, at most every 3 s) and cancels the order when the time is over; 40/min'
+      summary: 'KHQR payment page: QR codes, time left and status. Each call also checks Bakong (bakong mode, at most every 3 s) and cancels the order when the time is over; 60/min (own counter)'
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       responses:
         '200': { description: 'Payment state', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/KhqrPayment' } } } } } }

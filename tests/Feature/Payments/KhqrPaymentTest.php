@@ -275,6 +275,16 @@ class KhqrPaymentTest extends TestCase
         Log::shouldNotHaveReceived('error', [\Mockery::on(fn ($m) => str_contains((string) $m, 'secret-signature'))]);
     }
 
+    public function test_polling_never_uses_up_the_buttons(): void
+    {
+        $id = $this->placeKhqrOrder();
+        foreach (range(1, 25) as $i) {
+            $this->asCustomer()->getJson("/api/v1/orders/{$id}/payment")->assertOk(); // a bit over a minute of polling
+        }
+        $this->asCustomer()->postJson("/api/v1/orders/{$id}/payment/qr", ['currency' => 'KHR'])->assertOk();
+        $this->asCustomer()->postJson("/api/v1/orders/{$id}/payment/simulate")->assertOk()->assertJsonPath('data.status', 'paid');
+    }
+
     public function test_cash_on_delivery_is_unchanged(): void
     {
         $this->asCustomer()->postJson('/api/v1/cart/items', ['book_variant_id' => $this->variant->id, 'quantity' => 1])->assertCreated();

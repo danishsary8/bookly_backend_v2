@@ -178,9 +178,9 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
     Route::post('/orders/{order}/reorder', [OrderController::class, 'reorder'])->whereNumber('order')->middleware('throttle:10,1');
     // KHQR payment page (KHQR payments design 3.3): the page asks every 3 seconds.
-    Route::get('/orders/{order}/payment', [OrderPaymentController::class, 'show'])->whereNumber('order')->middleware('throttle:40,1');
-    Route::post('/orders/{order}/payment/qr', [OrderPaymentController::class, 'qr'])->whereNumber('order')->middleware('throttle:10,1');
-    Route::post('/orders/{order}/payment/simulate', [OrderPaymentController::class, 'simulate'])->whereNumber('order')->middleware('throttle:10,1');
+    Route::get('/orders/{order}/payment', [OrderPaymentController::class, 'show'])->whereNumber('order')->middleware('throttle:khqr-poll');
+    Route::post('/orders/{order}/payment/qr', [OrderPaymentController::class, 'qr'])->whereNumber('order')->middleware('throttle:khqr-action');
+    Route::post('/orders/{order}/payment/simulate', [OrderPaymentController::class, 'simulate'])->whereNumber('order')->middleware('throttle:khqr-action');
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->whereNumber('order')->middleware('throttle:30,1');
     Route::get('/orders/{order}/returnable-items', [ReturnController::class, 'returnable'])->whereNumber('order');
     Route::post('/orders/{order}/returns', [ReturnController::class, 'store'])->whereNumber('order');
