@@ -132,11 +132,11 @@ each branch works alone)
   with the cover → SKU + price → save. The book page shows the **Cover** panel; the shop shows the cover. After the next
   Render deploy the cover is still there (only true with R2).
 
-**Next task, saved for later: auto refresh (owner 2026-11-02, chose "Admin + customer orders")**
-When something changes (new order, payment, status), pages show it by themselves without the browser's refresh button.
-Plan: admin pages refresh the data on screen every 30 s and when you come back to the tab ("Updated 10 s ago ·
-Refresh" in the header; pauses when the tab is hidden; never resets a form you are typing in). Customers' orders and
-returns refresh every 60 s until finished. Book pages unchanged. Say "auto refresh" to start it.
+**Auto refresh (2026-11-02)** (frontend only; you chose "Admin + customer orders")
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/auto-refresh
+- [ ] Live check: open an order in the admin in one tab; in another tab (or your phone) change it, e.g. mark it Shipped.
+  Within 30 s the first tab shows Shipped without reloading. Every admin page says "Updates by itself · … ago" with a
+  "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
 **Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
