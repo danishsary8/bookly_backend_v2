@@ -124,6 +124,14 @@ each branch works alone)
 - [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
+**Book cover on the New book page (2026-11-02)** (frontend only; you chose "On New book page")
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/book-cover-on-create
+- [ ] **Do R2 first or together** (section 3 below / backend `docs/DEPLOYMENT.md` F6b): without R2, Render wipes uploaded
+  covers at every deploy and restart. With R2 they are kept for good.
+- [ ] Live check: Admin → Books → **New book** → title + **Cover** (upload a picture) → **Create** → "Add format" opens
+  with the cover → SKU + price → save. The book page shows the **Cover** panel; the shop shows the cover. After the next
+  Render deploy the cover is still there (only true with R2).
+
 **Next task, saved for later: auto refresh (owner 2026-11-02, chose "Admin + customer orders")**
 When something changes (new order, payment, status), pages show it by themselves without the browser's refresh button.
 Plan: admin pages refresh the data on screen every 30 s and when you come back to the tab ("Updated 10 s ago ·
