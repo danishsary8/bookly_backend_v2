@@ -560,3 +560,24 @@ axe 0 on `/admin`; checks re-run on push.
 
 **Where I stopped / next step:** waiting for the 2 merges. Next big task proposed: online payments (Bakong KHQR first),
 owner to say "payments" or name another idea.
+
+## 2026-11-02 · Online payments: Bakong KHQR (owner: portfolio, approach A, 15 min, USD or KHR)
+
+| Commit | Branch | What |
+|---|---|---|
+| `a11ee8a` | backend `feature/khqr-payments` | Design spec (owner approved parts 1-3) |
+| `ae49843`, `41df22b` | backend `feature/khqr-payments` | KHQR builder, Bakong client, payment service, endpoints, expiry, admin mark-paid, health; named rate limits. 761 tests. |
+| `2cc21d8` | frontend `feature/khqr-checkout` | KHQR at checkout, payment page (`/account/orders/:id/pay`), Pay now, EN/KM. 499 tests. |
+| `b75d26a` | frontend `feature/khqr-admin` | Payment box + Mark as paid, KHQR filter, health line; orders filters fit phones. 496 tests. |
+
+- Browser runs (local API, test mode): shop EN 1280 light + KM 390 dark: checkout -> QR (drawn QR = API string) -> Riel
+  tab (59,409 ៛) -> Download -> Simulate -> Paid -> order page (API: paid / succeeded); expired order -> cancelled screen
+  + Buy again; axe 0 everywhere, no sideways scroll, no console errors. Admin 390 dark + 1280 light: payment box, Mark as
+  paid on a short screen (dialog scrolled, API: paid by staff), KHQR filter, health "Test mode"; axe 0.
+- Found and fixed before push: 429 from shared `throttle:N,1` counters (polling blocked Simulate / Riel); phone width on
+  the pay page (long Khmer button) and on the admin orders filters.
+- Not verified: real Bakong (needs the owner's token, and Bakong may refuse non-Cambodian servers: health card shows it);
+  true parallel double payment (covered by the order row lock; tested as a repeated call).
+- Each branch works alone; all pairs merge cleanly (also with `feature/buy-again-partial-stock`).
+
+**Where I stopped / next step:** waiting for the 3 merges + the owner's live check. Then optional real Bakong (OWNER_TODO).

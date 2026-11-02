@@ -524,3 +524,13 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   `CartService::addUpTo()` adds min(ordered, stock and line limit minus what is already in the cart); `reorder` lines now
   carry `requested_quantity` and `note` ("Only N left in stock.", else null); nothing left -> skipped with the usual
   reason. Tests in `ReorderTest` (2 new). 739 tests, pint clean. Docs: API.md, openapi.yaml.
+- [x] KHQR payments (2026-11-02, branch `feature/khqr-payments`; spec `docs/superpowers/specs/2026-11-02-khqr-payments-design.md`;
+  owner: portfolio, real KHQR + test mode, 15 minutes, customer picks USD/KHR). `KhqrBuilder` (individual dynamic KHQR,
+  CRC-16/CCITT-FALSE; checked against NBC's official `bakong-khqr` SDK 1.0.20 test strings, exact match), `BakongClient`
+  (`check_transaction_by_md5`, 403 = blocked), `KhqrPaymentService` (one payment row per QR, pending -> paid once via
+  `OrderStatusService::markPaid` with the order locked, amount/currency must match, paid-after-cancel kept + staff alert,
+  expiry with a last check), `OrderPaymentController` (`GET /orders/{id}/payment`, `POST .../qr`, `POST .../simulate`),
+  admin `POST /staff/orders/{id}/mark-paid`, `payment_methods` in `/delivery/options`, `payments` on the health check,
+  `payments:expire-khqr` every minute, named limiters `khqr-poll` / `khqr-action` (plain `throttle:N,1` shares one counter
+  per user across routes: found in the browser check). No migration. Tests: `KhqrBuilderTest` (6), `KhqrPaymentTest`
+  (16). 761 tests, pint clean. Docs: API.md, openapi.yaml, RATE_LIMITS.md, `.env.example`.

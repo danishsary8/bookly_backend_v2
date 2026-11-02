@@ -124,6 +124,52 @@ each branch works alone)
 - [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
+**Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
+`feature/khqr-payments`). Merge in any order; each works alone. Backend first is nicest.
+- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
+  needed: test mode is the default)
+- [ ] Frontend shop: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-checkout
+- [ ] Frontend admin: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-admin
+- [ ] Live check (test mode) when all 3 are deployed:
+  1. Sign in as a customer → add a book → **Checkout** → choose **Bakong KHQR** → **Place order and pay**.
+  2. The payment page shows a red-and-white KHQR card, the amount and a 15:00 countdown. Tap **Riel**: the amount in ៛.
+  3. Tap **Simulate payment (test only — no real money)** → "Payment received" → after a few seconds the order page,
+     status **Paid**. Check your email/Telegram: the "order placed" message arrives now (not before).
+  4. Place another KHQR order and wait 15 minutes (or leave the tab): the order is **cancelled** and the book's stock is
+     back. (Housekeeping runs from web traffic, so it may take until the next visit.)
+  5. Admin → **Orders** → filter **KHQR** → open an order: the **Payment** box lists the QR codes. On a waiting order,
+     **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
+- [ ] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker).
+
+**Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
+portfolio). Never paste the token into chat, code or docs.
+1. In your bank app (ABA, ACLEDA, Wing…), find your **Bakong account ID**. It looks like `yourname@aba` or
+   `yourname@aclb` (often under Profile → KHQR / Bakong). This is not secret.
+2. Register on the **Bakong Open API** website, https://api-bakong.nbc.gov.kh, with your email (Register). NBC emails you a
+   **token**. It expires after about 90 days; you renew it on the same site and get a new one by email.
+3. Render → your Bookly API service → **Environment** → add:
+   - `KHQR_ACCOUNT_ID` = your Bakong account ID
+   - `KHQR_MERCHANT_NAME` = `Bookly` (plain letters only, max 25)
+   - `BAKONG_TOKEN` = the token from the email (secret: only here)
+   - `KHQR_MODE` = `bakong`
+   Then **Save, rebuild and deploy**.
+4. Admin → Dashboard → **System health** → "KHQR payments":
+   - "Bakong mode, no payment checked yet" or "Bakong connected" = good.
+   - "Bakong refused this server (often: not from Cambodia)" = Bakong only answers servers in Cambodia. Set `KHQR_MODE`
+     back to `test` (the shop keeps working). A small Cambodian server that forwards the check (`BAKONG_RELAY_URL`) is
+     possible later (~$5/month); ask me first.
+5. Test with real money: put a cheap book in the cart, pay the QR with your own bank app → the page turns to "Payment
+   received" within a few seconds. The money goes to your own account.
+6. Every ~90 days: when the health card says "token expires soon", renew the token on the Bakong site and replace
+   `BAKONG_TOKEN` in Render.
+
+**To review later (choices I made under your "go ahead" rule, 2026-11-02; tell me to change any):**
+- Design part 3 (tests, branches, setup guide) was taken as approved with "accept all part you recommend".
+- New KHQR orders send "order placed" only when paid; an unpaid order that times out gets the usual "cancelled" message.
+- The payment page opens the order by itself 3.5 s after "Payment received".
+- Admin "Mark as paid" needs a note of 3+ characters; staff (not admin) can only look.
+- The QR's shop name is `Bookly`, city `Phnom Penh`; the test account ID is `bookly@devb` (Bakong's test bank).
+
 **Dialog scroll fix + Buy again with low stock (2026-11-02)**
 - [x] Dialog scroll fix merged (tall forms could not scroll).
 - [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/buy-again-partial-stock
