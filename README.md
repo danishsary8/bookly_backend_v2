@@ -3,7 +3,8 @@
 # 📚 Bookly API
 
 **The backend for a real online bookshop in Cambodia.**
-Customers can search books, fill a cart, check out and return items. Staff run the shop from a back office.
+Customers search books, fill a cart, pay with cash on delivery or a Bakong KHQR code, and return items.
+Staff run the shop from a back office. English and Khmer, US dollars and riel.
 
 [![Tests](https://github.com/danishsary8/bookly_backend_v2/actions/workflows/tests.yml/badge.svg)](https://github.com/danishsary8/bookly_backend_v2/actions/workflows/tests.yml)
 ![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
@@ -26,16 +27,23 @@ Customers can search books, fill a cart, check out and return items. Staff run t
 ## What it does
 
 **For customers**
-- Sign up with email (a 6-digit code confirms it) or with Google / Facebook
-- Search and filter books; see prices in US dollars and Cambodian riel
-- Wishlist, cart, coupons and cash-on-delivery checkout
-- Order history, cancel an order while it is still pending, and **buy again** in one click
-- Return books after delivery, and review books they bought
+- Sign up with email (a 6-digit code confirms it), Google, Facebook or **Telegram**; sign in with a code sent by the
+  Telegram bot to a confirmed phone number
+- Search that forgives typos (`holms` finds Holmes), filters, and prices in US dollars or Cambodian riel
+- "You may also like", the rest of a series and more by the same author
+- Wishlist, cart, coupons, **offers** ("Buy 2, save 15%"), free delivery above a set amount, seasonal **collections**
+- Checkout with **cash on delivery or Bakong KHQR** (a real KHQR code, 15 minutes to pay, checked with Bakong)
+- Order history, cancel while pending, **buy again** in one click (even when only part is in stock)
+- Returns with store credit, reviews of books they bought, back-in-stock alerts, order updates in Telegram,
+  download my data, close my account
 
 **For staff**
 - Sign in with a password **plus** a code from an authenticator app (two-factor login)
-- Manage books, authors, categories, stock, orders, returns, coupons and reviews
-- Dashboard, reports, CSV import/export and an audit log of every change
+- Manage books (cover pictures stored in Cloudflare R2), authors, categories, series, stock, orders, returns,
+  reviews, customers (tags and notes), coupons, offers, collections and newsletters
+- Mark KHQR orders as paid by hand when needed (with a note in the order history)
+- Dashboard and reports (sales, offers, stock value, slow sellers, repeat customers), CSV import/export,
+  notifications, a system health check and an audit log of every change
 
 ## How it keeps things safe
 
@@ -47,6 +55,8 @@ Customers can search books, fill a cart, check out and return items. Staff run t
 | A customer clicks "Order" twice | Each order has a unique **idempotency key**, so the second click can't create a second order. |
 | Two people buy the last copy at once | Stock is **locked** during checkout, so only one order succeeds; the other gets "out of stock". |
 | A price changes after adding to cart | The cart **shows a warning** on that line instead of quietly changing the total. |
+| Someone fakes a "payment done" message | The browser never says an order is paid. The **API asks Bakong** itself, by the QR code's fingerprint (md5), and only then marks it paid. |
+| A customer pays after the 15 minutes ran out | The order is already cancelled, so the API **alerts staff** to refund instead of silently taking the money. |
 
 Everything about the public demo is locked down too: the demo account can't change its password or email, it is cleaned every hour, and the demo sign-in button is limited to 10 uses per hour per visitor.
 
@@ -58,14 +68,17 @@ flowchart LR
     Shop -->|API calls with a token| API[Bookly API<br/>Laravel on Render]
     Visitor([Visitor]) -->|/docs| API
     API --> DB[(PostgreSQL<br/>database on Neon)]
+    API --> R2[(Book covers<br/>Cloudflare R2)]
+    API --> Bakong[Bakong KHQR<br/>payment check]
     API --> Email[Emails]
-    API --> Telegram[Telegram alerts]
+    API --> Telegram[Telegram bot<br/>sign-in and alerts]
 ```
 
 **In simple words:**
 - The **shop website** (a separate project) talks to this API over the internet.
 - The **API** checks who you are, applies the shop's rules (stock, prices, coupons) and saves everything in the **database**.
-- The shop owner gets **Telegram and email alerts** for new orders and low stock.
+- For KHQR payments the API builds the QR code itself and **asks Bakong** whether it was paid.
+- The shop owner gets **Telegram and email alerts** for new orders and low stock; customers can get order updates in Telegram too.
 
 ### Signing in, step by step
 
@@ -95,7 +108,7 @@ Staff do the same, plus one extra step: after the password, they enter the 6-dig
 
 ## The database
 
-35 tables, grouped by what they store:
+39 tables, grouped by what they store:
 
 | Area | Tables |
 | --- | --- |
@@ -104,7 +117,7 @@ Staff do the same, plus one extra step: after the password, they enter the 6-dig
 | Books | books, book_variants (each format: paperback, ebook…), authors, publishers, categories, series, book_authors, book_categories |
 | Stock | inventory_movements, stock_alerts |
 | Shopping | carts, cart_items, wishlists |
-| Promotions | coupons, newsletter_subscribers, newsletter_campaigns, marketing_outbox |
+| Promotions | coupons, offers, offer_targets, collections, collection_books, newsletter_subscribers, newsletter_campaigns, marketing_outbox |
 | Orders | orders, order_items, order_status_history |
 | Payments | payments, payment_webhook_logs |
 | Returns | returns, return_items |
@@ -136,7 +149,7 @@ Demo accounts: `demo@bookly.test` (customer), `admin@bookly.test` and `staff@boo
 ## Tests
 
 ```bash
-php artisan test            # 599 tests
+php artisan test            # 761 tests
 vendor/bin/pint --test      # code style
 ```
 
@@ -154,7 +167,9 @@ The API ships as one Docker image. Step-by-step guide (free hosting or Railway):
 - [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md): what is done and what is left before real customers
 - [docs/WORKLOG.md](docs/WORKLOG.md): how the project was built, step by step
 
-**Next up:** card and Bakong KHQR payments (the database tables are already in place).
+**Payments:** Bakong KHQR runs in **test mode** by default (a real KHQR code and a "Simulate payment" button, no money
+moves). Real payment checks need a Bakong Open API token: set `KHQR_MODE=bakong`, `KHQR_ACCOUNT_ID` and `BAKONG_TOKEN`
+(see `.env.example` and [the design](docs/superpowers/specs/2026-11-02-khqr-payments-design.md)). Card payments are not built.
 
 ---
 
