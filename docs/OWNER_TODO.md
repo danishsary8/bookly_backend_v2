@@ -174,6 +174,10 @@ each branch works alone)
 6. When it works: app top bar → switch **App Mode** to **Live** (needs the privacy URL from step 3), so every
    customer can use it. Facebook may ask you to verify your developer account (phone).
 - Note: the shop's security rules (CSP) already allow Facebook's script and popup.
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/facebook-testing-note (visitors see
+  "Facebook sign-in only works for invited accounts, use email or Telegram"; no setting needed now)
+- Later, once the Facebook app is published: Vercel → add `VITE_FACEBOOK_PUBLIC` = `true` → Redeploy (removes the note).
+- [ ] Khmer wording, please check: `signin.facebookTesting` and `signin.facebookNotFinished` in `km.ts`.
 
 **Excel report download (2026-11-03)** (backend + frontend; all merged 2026-11-03)
 - Your choice: OpenSpout, all sheets. Admin → Reports → **Excel, all reports**: one .xlsx with Summary, Sales by
