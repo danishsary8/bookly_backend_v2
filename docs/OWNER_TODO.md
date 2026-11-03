@@ -225,8 +225,8 @@ portfolio). Never paste the token into chat, code or docs.
 
 **Dialog scroll fix + Buy again with low stock (2026-11-02)**
 - [x] Dialog scroll fix merged (tall forms could not scroll).
-- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/buy-again-partial-stock
-- [ ] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/buy-again-partial-stock
+- [x] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/buy-again-partial-stock
+- [x] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/buy-again-partial-stock
   (any order; each works alone)
 - [ ] Live check after both deploy: sign in as a customer with a delivered order of 2+ copies of one book → in the admin
   lower that book's stock to 1 → **Account → Orders → the order → Buy again** → the cart has 1 copy and a note says
