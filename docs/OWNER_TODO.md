@@ -139,6 +139,14 @@ each branch works alone)
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
+**Ideas for later (owner, 2026-11-03), not started, ask before building:**
+- Google Maps: e.g. pick the delivery spot on a map at checkout / in the address book, and a shop map on Contact.
+- Facebook connection: e.g. turn on "Continue with Facebook" (the code exists; needs a Facebook app ID and secret),
+  and/or a Facebook page / Messenger link.
+- Stronger sign-in and sign-up security: e.g. a review of the current protections, then additions such as
+  new-device sign-in emails, a breached-password check, optional two-step codes for customers.
+- Admin sales export to Excel: waiting for your choice of library and sheets (see "Waiting for you" above).
+
 **Smaller main file (2026-11-03)** (frontend only; merged 2026-11-03)
 - The form-checking library (Zod) no longer loads on every page, only with forms: main file 105 → 101 KB.
 - Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
@@ -219,8 +227,7 @@ each branch works alone)
      **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
 - [x] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker). (Owner: all ok, 2026-11-02.)
 
-**Paused 2026-11-02, continue when the Bakong app says verified:** step 1 below (account ID). The Bakong app shows
-"Your account is being verified"; when it is done, find the Account ID in the profile, then do step 2 (token).
+**Bakong account verified (owner, 2026-11-03).** Now doing step 1 below (account ID), then step 2 (token).
 
 **Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
 portfolio). Never paste the token into chat, code or docs.
