@@ -3,6 +3,7 @@
 namespace Tests\Feature\Platform;
 
 use App\Models\Customer;
+use App\Models\Review;
 use App\Support\SafeNotifier;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,12 +11,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use Tests\Concerns\BuildsOrders;
 use Tests\TestCase;
 
 /** The docs page publishes the demo customer's password: no visitor may take the account away from the next one. */
 class DemoAccountProtectionTest extends TestCase
 {
-    use RefreshDatabase;
+    use BuildsOrders, RefreshDatabase;
 
     private function signIn(string $email): Customer
     {
@@ -42,6 +44,26 @@ class DemoAccountProtectionTest extends TestCase
 
         $this->assertTrue(Hash::check(DemoSeeder::PASSWORD, $demo->fresh()->password_hash));
         $this->assertNull($demo->fresh()->deleted_at ?? null);
+    }
+
+    public function test_the_demo_account_cannot_write_public_reviews_or_link_telegram_order_updates(): void
+    {
+        $demo = $this->signIn(DemoSeeder::EMAIL);
+        $locked = "The shared demo account can't change this. Create your own account to try it.";
+        // A delivered book the demo bought (so a review would otherwise be allowed) and the seeded review it already has.
+        $variant = $this->physical();
+        $order = $this->deliveredOrder($demo, [[$variant, 1]]);
+        $seeded = Review::create(['book_id' => $variant->book_id, 'customer_id' => $demo->id,
+            'order_item_id' => $order->items[0]->id, 'rating' => 5, 'comment' => 'Lovely.']);
+
+        // Reviews show on the public shop at once, and order updates would reach a stranger's Telegram (owner 2026-11-03).
+        $this->postJson("/api/v1/books/{$variant->book_id}/reviews", ['rating' => 1, 'comment' => 'rude words'])
+            ->assertForbidden()->assertJson(['message' => $locked]);
+        $this->patchJson("/api/v1/reviews/{$seeded->id}", ['rating' => 1, 'comment' => 'rude words'])->assertForbidden();
+        $this->deleteJson("/api/v1/reviews/{$seeded->id}")->assertForbidden();
+        $this->postJson('/api/v1/auth/telegram/order-updates')->assertForbidden();
+
+        $this->assertSame([[5, 'Lovely.']], Review::all()->map(fn ($r) => [$r->rating, $r->comment])->all());
     }
 
     public function test_other_customers_can_still_change_their_password(): void

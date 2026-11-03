@@ -58,7 +58,7 @@ Staff run the shop from a back office. English and Khmer, US dollars and riel.
 | Someone fakes a "payment done" message | The browser never says an order is paid. The **API asks Bakong** itself, by the QR code's fingerprint (md5), and only then marks it paid. |
 | A customer pays after the 15 minutes ran out | The order is already cancelled, so the API **alerts staff** to refund instead of silently taking the money. |
 
-Everything about the public demo is locked down too: the demo account can't change its password or email, it is cleaned every hour, and the demo sign-in button is limited to 10 uses per hour per visitor.
+Everything about the public demo is locked down too: the demo account can't change its password or email, write public reviews or connect Telegram; every hour it is cleaned (visitor addresses removed, Telegram unlinked, old pending orders cancelled), and the demo sign-in button is limited to 10 uses per hour per visitor.
 
 ## How it is built
 

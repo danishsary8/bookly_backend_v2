@@ -726,7 +726,9 @@ paths:
       summary: 'One-click demo sign-in: a 2-hour customer token for the shared demo account (10 per hour per IP)'
       description: |
         Used by the **Sign in as demo customer** button on this page. No password needed and no way to choose the account:
-        it only ever signs in `demo@bookly.test`. The demo account can't change its password, email or linked logins and is tidied every hour.
+        it only ever signs in `demo@bookly.test`. The demo account can't change its password, email or linked logins, write reviews or
+        connect Telegram order updates. Every hour it is tidied: name and password restored, cart emptied, visitor addresses removed
+        (only its sample address stays), Telegram unlinked, and pending orders older than an hour cancelled.
         Real sign-ins use `POST /auth/login` (with the bot check when enabled).
       security: []
       responses:
@@ -973,7 +975,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       responses:
         '201': { description: Created }
-        '403': { description: No delivered order contains this book }
+        '403': { description: 'No delivered order contains this book, or the shared demo account (reviews show on the public shop at once)' }
         '409': { description: Already reviewed }
   /authors:
     get: { tags: [Public], summary: 'List authors (q, per_page)', security: [], responses: { '200': { description: Authors with books_count, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Author' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
@@ -1196,7 +1198,7 @@ paths:
       tags: [Customer auth]
       summary: Connect Telegram for real-time order updates
       description: 'Generates a one-time link (10 minutes). Open `url` (t.me/<bot>?start=<code>) and tap Start. The bot links your Telegram chat to receive instant order placed, packing, shipping, and delivery notifications.'
-      responses: { '201': { description: 'url, key, expires_at' }, '401': { $ref: '#/components/responses/Unauthorized' }, '503': { description: 'The bot is off' } }
+      responses: { '201': { description: 'url, key, expires_at' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { description: "The shared demo account (a visitor's chat would get every other visitor's order updates)" }, '503': { description: 'The bot is off' } }
   /auth/telegram/status:
     post:
       tags: [Customer auth]
@@ -1700,8 +1702,8 @@ paths:
   /reviews:
     get: { tags: [Returns & reviews], summary: 'Your reviews (incl. hidden ones)', responses: { '200': { description: Reviews, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/OwnReview' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /reviews/{id}:
-    patch: { tags: [Returns & reviews], summary: 'Edit your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
-    delete: { tags: [Returns & reviews], summary: 'Delete your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+    patch: { tags: [Returns & reviews], summary: 'Edit your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { description: 'The shared demo account' } } }
+    delete: { tags: [Returns & reviews], summary: 'Delete your review', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { description: 'The shared demo account' } } }
 
   /staff/auth/login:
     post: { tags: [Staff auth], summary: 'Password step; with 2FA on returns challenge_token instead of a token', security: [], responses: { '200': { description: Token or challenge }, '401': { description: Wrong credentials }, '403': { description: Deactivated } } }

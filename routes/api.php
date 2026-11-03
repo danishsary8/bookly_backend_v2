@@ -127,7 +127,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/verify-email', [CustomerAuthController::class, 'verifyEmail'])->middleware('throttle:auth');
         Route::post('/resend-verification', [CustomerAuthController::class, 'resendVerification'])->middleware('throttle:otp-send');
         Route::post('/telegram/phone', [TelegramAuthController::class, 'phone'])->middleware(['not.demo', 'throttle:telegram-link']);
-        Route::post('/telegram/order-updates', [TelegramAuthController::class, 'orderUpdates'])->middleware('throttle:telegram-link');
+        Route::post('/telegram/order-updates', [TelegramAuthController::class, 'orderUpdates'])->middleware(['not.demo', 'throttle:telegram-link']);
     });
 });
 
@@ -189,9 +189,10 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::delete('/returns/{return}', [ReturnController::class, 'destroy'])->whereNumber('return');
 
     Route::get('/reviews', [CustomerReviewController::class, 'index']);
-    Route::post('/books/{book}/reviews', [CustomerReviewController::class, 'store'])->whereNumber('book')->middleware('throttle:10,1');
-    Route::patch('/reviews/{review}', [CustomerReviewController::class, 'update'])->whereNumber('review');
-    Route::delete('/reviews/{review}', [CustomerReviewController::class, 'destroy'])->whereNumber('review');
+    // The shared demo account can't write reviews: they would show on the public shop at once (owner 2026-11-03).
+    Route::post('/books/{book}/reviews', [CustomerReviewController::class, 'store'])->whereNumber('book')->middleware(['not.demo', 'throttle:10,1']);
+    Route::patch('/reviews/{review}', [CustomerReviewController::class, 'update'])->whereNumber('review')->middleware('not.demo');
+    Route::delete('/reviews/{review}', [CustomerReviewController::class, 'destroy'])->whereNumber('review')->middleware('not.demo');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
