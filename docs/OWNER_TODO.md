@@ -141,8 +141,8 @@ each branch works alone)
 
 **Ideas for later (owner, 2026-11-03), not started, ask before building:**
 - Google Maps: e.g. pick the delivery spot on a map at checkout / in the address book, and a shop map on Contact.
-- Facebook connection: e.g. turn on "Continue with Facebook" (the code exists; needs a Facebook app ID and secret),
-  and/or a Facebook page / Messenger link.
+- Facebook connection: sign-in setup guide written (see "Facebook sign-in setup" above). Still open: a Facebook
+  page / Messenger link, if you want one.
 - Stronger sign-in and sign-up security: e.g. a review of the current protections, then additions such as
   new-device sign-in emails, a breached-password check, optional two-step codes for customers.
 
@@ -150,6 +150,30 @@ each branch works alone)
 - The form-checking library (Zod) no longer loads on every page, only with forms: main file 105 → 101 KB.
 - Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
 - [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
+
+**Facebook sign-in setup (2026-11-03)** — code exists; it stays off until you add the keys.
+- [ ] Merge first: https://github.com/danishsary8/bookly_frontend/pull/new/fix/facebook-sdk-version (v21.0 → v25.0;
+  v21.0 stops working around 21 Jan 2027)
+1. Go to https://developers.facebook.com → log in with your Facebook account → **My Apps** → **Create App**.
+   - Use case: **"Authenticate and request data from users with Facebook Login"**. App name: `Bookly`.
+2. In the app: **Use cases → Facebook Login → Customize/Settings**:
+   - **Login with the JavaScript SDK** = **Yes**.
+   - **Allowed Domains for the JavaScript SDK** = your shop address, e.g. `https://<your-shop>.vercel.app`.
+   - Permissions: `email` and `public_profile` (both are free; click "Add" if they are not "Ready for testing").
+3. **App settings → Basic**:
+   - **App domains** = `<your-shop>.vercel.app`.
+   - **Privacy Policy URL** = `https://<your-shop>.vercel.app/privacy`, **Terms** = `.../terms`.
+   - **User data deletion**: choose "Data deletion instructions URL" = `https://<your-shop>.vercel.app/privacy`.
+   - Category: Shopping. App icon: optional (1024×1024).
+   - Copy **App ID** (not secret) and **App Secret** (secret: click Show; never share it).
+4. Put the keys in:
+   - **Render** (API) → Environment: `FACEBOOK_CLIENT_ID` = App ID, `FACEBOOK_CLIENT_SECRET` = App Secret → Save, deploy.
+   - **Vercel** (shop) → Settings → Environment Variables: `VITE_FACEBOOK_APP_ID` = App ID → **Redeploy**
+     (Vite reads it at build time).
+5. Test while the app is in **Development** mode (only you can sign in): shop → Sign in → **Continue with Facebook**.
+6. When it works: app top bar → switch **App Mode** to **Live** (needs the privacy URL from step 3), so every
+   customer can use it. Facebook may ask you to verify your developer account (phone).
+- Note: the shop's security rules (CSP) already allow Facebook's script and popup.
 
 **Excel report download (2026-11-03)** (backend + frontend; all merged 2026-11-03)
 - Your choice: OpenSpout, all sheets. Admin → Reports → **Excel, all reports**: one .xlsx with Summary, Sales by
