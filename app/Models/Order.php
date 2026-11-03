@@ -66,9 +66,13 @@ class Order extends Model
         return $this->belongsTo(Offer::class);
     }
 
+    /**
+     * Always in the order they were bought (id order). Without an ORDER BY, Postgres may return rows in any order
+     * (e.g. after it reuses free space), so invoices, order pages and exports could list the books differently.
+     */
     public function items(): HasMany
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(OrderItem::class)->orderBy('id');
     }
 
     public function statusHistory(): HasMany
