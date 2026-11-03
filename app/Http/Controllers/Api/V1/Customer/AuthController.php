@@ -14,11 +14,11 @@ use App\Services\Auth\OtpService;
 use App\Services\Customers\UnverifiedCustomers;
 use App\Services\Telegram\TelegramBot;
 use App\Support\SafeNotifier;
+use App\Support\TimingSafe;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -144,7 +144,8 @@ class AuthController extends Controller
 
         $customer = Customer::where('email', strtolower($data['email']))->first();
 
-        if ($customer === null || $customer->password_hash === null || ! Hash::check($data['password'], $customer->password_hash)) {
+        // One password check whether or not the account exists, so the answer time says nothing (TimingSafe).
+        if (! TimingSafe::check($data['password'], $customer?->password_hash)) {
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 
@@ -209,10 +210,11 @@ class AuthController extends Controller
 
         // Not for an unproven email on a phone account: whoever reads that inbox doesn't own the account.
         if ($customer !== null && ! $this->claims->isUnprovenOnAnotherAccount($customer)) {
-            $this->otp->issue($customer, VerificationPurpose::PasswordReset);
+            TimingSafe::afterResponse(fn () => $this->otp->issue($customer, VerificationPurpose::PasswordReset));
         }
 
-        // Same response either way so the endpoint does not reveal which emails exist.
+        // Same response, in the same time, either way: the code is made and emailed after the answer is sent, so the
+        // endpoint reveals neither by its words nor by its speed which emails exist.
         return response()->json(['message' => 'If that email is registered, a reset code has been sent.']);
     }
 
