@@ -151,17 +151,17 @@ each branch works alone)
 - Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
 - [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
 
-**Excel report download (2026-11-03)** (backend + frontend; branch `feature/excel-sales-export` in both)
+**Excel report download (2026-11-03)** (backend + frontend; all merged 2026-11-03)
 - Your choice: OpenSpout, all sheets. Admin → Reports → **Excel, all reports**: one .xlsx with Summary, Sales by
   day, Top books, Top customers (names and emails: keep the file private), Orders, Coupons and refunds, Offers.
-- [ ] Merge backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/excel-sales-export
+- [x] Merge backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/excel-sales-export
   (adds the OpenSpout library and PHP's zip extension to the Docker image)
-- [ ] Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/excel-sales-export
+- [x] Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/excel-sales-export
   (any order; before the backend is live the button says "not available yet")
 - [ ] Live check: Admin → Reports → pick dates → **Excel, all reports** → open the file in Excel or Google Sheets.
 - CI note: the first run failed once on an old invoice test (books in a random order). Not from the Excel code; the
   pull-request run is all green. Real fix on its own branch:
-- [ ] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/invoice-item-order
+- [x] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/invoice-item-order
   (order lines always come back in the order they were bought; 774 tests pass)
 
 **Wishlist price-drop emails (2026-11-03)** (backend + frontend; both merged 2026-11-03)
