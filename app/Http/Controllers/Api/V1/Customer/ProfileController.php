@@ -33,6 +33,7 @@ class ProfileController extends Controller
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'locale' => ['sometimes', 'required', 'string', Rule::in(['en', 'km'])],
             'telegram_order_updates' => ['sometimes', 'boolean'],
+            'price_drop_alerts' => ['sometimes', 'boolean'],
         ]);
 
         $request->user()->update($data);

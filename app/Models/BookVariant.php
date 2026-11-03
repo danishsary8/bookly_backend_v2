@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Enums\BookFormat;
+use App\Services\Marketing\PriceDropAlerts;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class BookVariant extends Model
 {
@@ -25,6 +27,20 @@ class BookVariant extends Model
             'low_stock_threshold' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Any saved price cut (single edit, bulk edit, CSV import) may queue wishlist price-drop emails, once the change
+     * is committed. A mail problem never blocks the save: the outbox only gets rows here.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (BookVariant $variant) {
+            if ($variant->wasChanged('price_usd')) {
+                $old = $variant->getOriginal('price_usd');
+                DB::afterCommit(fn () => app(PriceDropAlerts::class)->priceChanged($variant, $old));
+            }
+        });
     }
 
     public function book(): BelongsTo

@@ -30,7 +30,7 @@ class ResetDemoCustomer extends Command
         // order updates, so the link is removed (the route is blocked for the demo too; this clears older links).
         $demo->forceFill([
             'name' => 'Demo Customer', 'password_hash' => DemoSeeder::PASSWORD,
-            'telegram_chat_id' => null, 'telegram_order_updates' => false,
+            'telegram_chat_id' => null, 'telegram_order_updates' => false, 'price_drop_alerts' => false,
         ])->save();
         $carts->clear($demo);
         $removedAddresses = $this->resetAddresses($demo);

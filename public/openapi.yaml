@@ -367,6 +367,7 @@ components:
         telegram_chat_id: { type: integer, nullable: true, description: 'Telegram chat ID linked to this customer account' }
         telegram_connected: { type: boolean, description: 'True if a Telegram chat ID has been linked' }
         telegram_order_updates: { type: boolean, description: 'True if customer has enabled real-time order notifications on Telegram' }
+        price_drop_alerts: { type: boolean, description: 'Email me when a book on my "Want to read" wishlist drops 5% or more (at most one email per book per week). Off by default.' }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
         sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, telegram] }, description: 'Ways this account can sign in today (password counts only with an email; telegram means a verified number, while the Telegram bot is on). The last one cannot be removed.' }
         pending_email: { type: string, nullable: true, description: 'Only on the customer''s own account: an address that was sent a code (Telegram sign-up, change email) and is added once POST /me/email/verify gets that code.' }
@@ -1242,7 +1243,11 @@ paths:
         '429': { description: More than 5 exports in an hour }
   /me:
     get: { tags: [Customer], summary: 'Your profile', responses: { '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '200': { description: Customer, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } } } }
-    patch: { tags: [Customer], summary: 'Update name, phone, or locale (en|km)', responses: { '200': { description: Updated } } }
+    patch:
+      tags: [Customer]
+      summary: 'Update name, phone, locale (en|km), Telegram order updates or price-drop emails'
+      requestBody: { content: { application/json: { schema: { type: object, properties: { name: { type: string, maxLength: 150 }, phone: { type: string, nullable: true, maxLength: 30 }, locale: { type: string, enum: [en, km] }, telegram_order_updates: { type: boolean }, price_drop_alerts: { type: boolean } } } } } }
+      responses: { '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } }, '422': { $ref: '#/components/responses/Validation' } }
     delete:
       tags: [Customer]
       summary: Close your own account

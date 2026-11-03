@@ -67,6 +67,17 @@ return [
     'account_reopened_line3' => 'If you did not ask us to reopen it, reply to this email or contact us and we will close it again.',
 
     // Back in Stock
+    // Price drop (wishlist, opt-in)
+    'price_drop_subject' => ':title is cheaper now',
+    'price_drop_greeting' => 'Good news, :name!',
+    'price_drop_intro' => 'A book on your wishlist costs less now: :title (:format), :old → :new.',
+    'price_drop_action' => 'View book',
+    'price_drop_outro' => 'You get this because you turned on price-drop emails. Turn them off any time in your account: :url',
+    'format_paperback' => 'Paperback',
+    'format_hardcover' => 'Hardcover',
+    'format_ebook' => 'Ebook',
+    'format_audiobook' => 'Audiobook',
+
     'back_in_stock_subject' => ':title is back in stock!',
     'back_in_stock_greeting' => 'Good news, :name!',
     'back_in_stock_intro' => 'A book on your alert list is back in stock: :title (:format).',

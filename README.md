@@ -34,7 +34,7 @@ Staff run the shop from a back office. English and Khmer, US dollars and riel.
 - Wishlist, cart, coupons, **offers** ("Buy 2, save 15%"), free delivery above a set amount, seasonal **collections**
 - Checkout with **cash on delivery or Bakong KHQR** (a real KHQR code, 15 minutes to pay, checked with Bakong)
 - Order history, cancel while pending, **buy again** in one click (even when only part is in stock)
-- Returns with store credit, reviews of books they bought, back-in-stock alerts, order updates in Telegram,
+- Returns with store credit, reviews of books they bought, back-in-stock alerts, opt-in wishlist price-drop emails, order updates in Telegram,
   download my data, close my account
 
 **For staff**
