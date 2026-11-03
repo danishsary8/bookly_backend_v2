@@ -139,10 +139,10 @@ each branch works alone)
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
-**Speed check (2026-11-03)** (frontend only; branch `perf/speed-check`)
+**Speed check (2026-11-03)** (frontend only; merged 2026-11-03)
 - Fonts now come from our own site (your choice), ~40 tiny code files were joined, and the book page no longer
   jumps while it loads. Phone score (simulated slow phone): home 74 → 76, book page 64 → 71 (main content 1 s sooner).
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/speed-check
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/speed-check
 - [ ] After Vercel deploys: open the live shop in English and Khmer. Text should look the same as before (same
   fonts). Open any book on your phone: the page should not jump while it loads.
 
