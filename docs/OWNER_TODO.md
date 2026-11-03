@@ -139,6 +139,15 @@ each branch works alone)
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
+**Smaller main file (2026-11-03)** (frontend only; branch `perf/smaller-main-file`)
+- The form-checking library (Zod) no longer loads on every page, only with forms: main file 105 → 101 KB.
+- Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
+
+**Waiting for you: Admin sales export to Excel**
+- Two questions before I start: (1) library: OpenSpout (small, low memory, my pick) or PhpSpreadsheet; (2) which
+  sheets: summary + sales by day, top books, top customers (has names and emails), orders/coupons/offers.
+
 **Wishlist price-drop emails (2026-11-03)** (backend + frontend; both merged 2026-11-03)
 - Your choices: opt-in switch (off by default), email only, 5% or more, at most 1 email per book per week.
 - [x] Merge backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/price-drop-alerts
