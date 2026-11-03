@@ -13,10 +13,10 @@ use App\Services\Auth\OtpService;
 use App\Services\Auth\TotpService;
 use App\Services\Staff\DeviceDetector;
 use App\Support\SafeNotifier;
+use App\Support\TimingSafe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -46,7 +46,7 @@ class AuthController extends Controller
 
         $staff = StaffUser::where('email', strtolower($data['email']))->first();
 
-        if ($staff === null || ! Hash::check($data['password'], $staff->password_hash)) {
+        if (! TimingSafe::check($data['password'], $staff?->password_hash)) {
             if ($staff !== null) {
                 $this->recordLoginHistory($staff, $request, 'failed_password');
             }
@@ -196,7 +196,8 @@ class AuthController extends Controller
         $staff = StaffUser::where('email', strtolower($data['email']))->first();
 
         if ($staff !== null) {
-            $this->otp->issue($staff, VerificationPurpose::PasswordReset);
+            // After the answer is sent, so its timing doesn't show which staff emails exist (TimingSafe).
+            TimingSafe::afterResponse(fn () => $this->otp->issue($staff, VerificationPurpose::PasswordReset));
         }
 
         return response()->json(['message' => 'If that email is registered, a reset code has been sent.']);
