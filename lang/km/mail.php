@@ -66,6 +66,17 @@ return [
     'account_reopened_line2' => 'ការបញ្ជាទិញរបស់អ្នកនៅតែមានដដែល។ រីឯការវាយតម្លៃ បញ្ជីប្រាថ្នា និងកន្ត្រកដែលបានលុប មិនត្រូវបានស្តារឡើងវិញទេ។',
     'account_reopened_line3' => 'ប្រសិនបើអ្នកមិនបានស្នើសុំបើកគណនីឡើងវិញទេ សូមឆ្លើយតបអ៊ីមែលនេះ ឬទាក់ទងមកយើងខ្ញុំដើម្បីបិទវាវិញ។',
 
+    // Price drop (wishlist, opt-in)
+    'price_drop_subject' => ':title ថោកជាងមុនហើយ',
+    'price_drop_greeting' => 'ដំណឹងល្អ :name!',
+    'price_drop_intro' => 'សៀវភៅក្នុងបញ្ជីប្រាថ្នារបស់អ្នកមានតម្លៃថោកជាងមុន៖ :title (:format), :old → :new។',
+    'price_drop_action' => 'មើលសៀវភៅ',
+    'price_drop_outro' => 'អ្នកទទួលបានអ៊ីមែលនេះ ព្រោះអ្នកបានបើកការជូនដំណឹងពេលតម្លៃចុះ។ អ្នកអាចបិទវាបានគ្រប់ពេលនៅក្នុងគណនីរបស់អ្នក៖ :url',
+    'format_paperback' => 'ក្រដាសទន់',
+    'format_hardcover' => 'ក្របរឹង',
+    'format_ebook' => 'សៀវភៅអេឡិចត្រូនិក',
+    'format_audiobook' => 'សៀវភៅជាសំឡេង',
+
     // Back in Stock
     'back_in_stock_subject' => ':title មានស្តុកឡើងវិញហើយ!',
     'back_in_stock_greeting' => 'ដំណឹងល្អ :name!',
