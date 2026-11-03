@@ -585,3 +585,14 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   `Order::items()` had no ORDER BY; Postgres may return rows out of insertion order (reused free space). Could not
   reproduce locally (15/15 green, and a forced-update test also passed), so no new test; fix is `->orderBy('id')`
   on the relation. Checked `sum`, `count` and `withSum` still work on Postgres. 774 pass, pint clean.
+
+## 2026-11-03: Sign-in timing fix (`fix/sign-in-timing`)
+
+- Review measured (local): login 0.22 s known vs 0.03 s unknown email; forgot-password 0.23-0.50 s vs 0.03 s.
+- `App\Support\TimingSafe::check()` always does one Hash::check (cached dummy hash, remade if cost changes):
+  customer + staff login. After: ~0.22 s for both. `TimingSafe::afterResponse()` (app terminating +
+  ignore_user_abort) for customer + staff forgot-password OTP. Locally `php artisan serve` can't finish the request
+  early, so forgot-password timing is only equal on FrankenPHP (fastcgi_finish_request; v1.12.7 fixed an abort bug,
+  hence ignore_user_abort). Not verified on the live server: owner live check listed.
+- Reset-password with a wrong code still answers faster when no code exists; it needs a code first, so left as is.
+- 4 new tests (2 fail on the old code); 781 pass, pint clean.

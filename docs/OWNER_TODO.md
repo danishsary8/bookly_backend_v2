@@ -143,13 +143,25 @@ each branch works alone)
 - Google Maps: e.g. pick the delivery spot on a map at checkout / in the address book, and a shop map on Contact.
 - Facebook connection: sign-in setup guide written (see "Facebook sign-in setup" above). Still open: a Facebook
   page / Messenger link, if you want one.
-- Stronger sign-in and sign-up security: e.g. a review of the current protections, then additions such as
-  new-device sign-in emails, a breached-password check, optional two-step codes for customers.
+- Stronger sign-in and sign-up security: review done 2026-11-03 (see "Sign-in security review" above).
 
 **Smaller main file (2026-11-03)** (frontend only; merged 2026-11-03)
 - The form-checking library (Zod) no longer loads on every page, only with forms: main file 105 → 101 KB.
 - Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
 - [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
+
+**Sign-in security review (2026-11-03)** (backend; branch `fix/sign-in-timing`)
+- Already strong: Turnstile bot check, try limits (5/min, 20/hour per email), hashed codes that die after 5 wrong
+  guesses, Google/Facebook tokens checked against our app, all devices signed out + warning email after a password
+  reset, staff 2-step codes.
+- Fixed (your choice): sign-in and "forgot password" no longer answer faster for emails without an account
+  (was 0.03 s vs 0.2-0.5 s). Customer and staff.
+- [ ] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/sign-in-timing
+- [ ] Live check after Render deploys: on the shop, **Forgot password** with your own email → the code email still
+  arrives (it is now sent just after the page answers).
+- Not chosen now (ask any time): sign out everywhere / device list, new-device sign-in email, block leaked passwords.
+- Small leftover (low risk): sign-up still says "an account with this email already exists" (normal for shops;
+  Turnstile and the try limits slow down anyone testing many emails).
 
 **Facebook sign-in setup (2026-11-03)** — app `Bookly` created (App ID 1468099781929133, not secret); steps 1–5 done: owner signed in with Facebook on the live shop (2026-11-03). Step 6 (Live) blocked: Meta business verification refuses the shared vercel.app domain (needs own domain + usually business papers). Chosen for now: testers only (App roles → Testers); a tester was added. Revisit if a custom domain is bought.
 - [x] Merge first: https://github.com/danishsary8/bookly_frontend/pull/new/fix/facebook-sdk-version (v21.0 → v25.0;
@@ -174,7 +186,7 @@ each branch works alone)
 6. When it works: app top bar → switch **App Mode** to **Live** (needs the privacy URL from step 3), so every
    customer can use it. Facebook may ask you to verify your developer account (phone).
 - Note: the shop's security rules (CSP) already allow Facebook's script and popup.
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/facebook-testing-note (visitors see
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/facebook-testing-note (visitors see
   "Facebook sign-in only works for invited accounts, use email or Telegram"; no setting needed now)
 - Later, once the Facebook app is published: Vercel → add `VITE_FACEBOOK_PUBLIC` = `true` → Redeploy (removes the note).
 - [ ] Khmer wording, please check: `signin.facebookTesting` and `signin.facebookNotFinished` in `km.ts`.
