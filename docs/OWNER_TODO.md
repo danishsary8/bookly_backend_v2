@@ -227,7 +227,7 @@ each branch works alone)
      **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
 - [x] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker). (Owner: all ok, 2026-11-02.)
 
-**Bakong account verified (owner, 2026-11-03).** Now doing step 1 below (account ID), then step 2 (token).
+**Bakong account verified (owner, 2026-11-03).** Step 1 done: account ID `danish_sary@bkrt` (checked: the shop builds a valid QR with it). Next: step 2 (token).
 
 **Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
 portfolio). Never paste the token into chat, code or docs.
