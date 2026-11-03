@@ -145,16 +145,20 @@ each branch works alone)
   and/or a Facebook page / Messenger link.
 - Stronger sign-in and sign-up security: e.g. a review of the current protections, then additions such as
   new-device sign-in emails, a breached-password check, optional two-step codes for customers.
-- Admin sales export to Excel: waiting for your choice of library and sheets (see "Waiting for you" above).
 
 **Smaller main file (2026-11-03)** (frontend only; merged 2026-11-03)
 - The form-checking library (Zod) no longer loads on every page, only with forms: main file 105 → 101 KB.
 - Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
 - [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
 
-**Waiting for you: Admin sales export to Excel**
-- Two questions before I start: (1) library: OpenSpout (small, low memory, my pick) or PhpSpreadsheet; (2) which
-  sheets: summary + sales by day, top books, top customers (has names and emails), orders/coupons/offers.
+**Excel report download (2026-11-03)** (backend + frontend; branch `feature/excel-sales-export` in both)
+- Your choice: OpenSpout, all sheets. Admin → Reports → **Excel, all reports**: one .xlsx with Summary, Sales by
+  day, Top books, Top customers (names and emails: keep the file private), Orders, Coupons and refunds, Offers.
+- [ ] Merge backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/excel-sales-export
+  (adds the OpenSpout library and PHP's zip extension to the Docker image)
+- [ ] Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/excel-sales-export
+  (any order; before the backend is live the button says "not available yet")
+- [ ] Live check: Admin → Reports → pick dates → **Excel, all reports** → open the file in Excel or Google Sheets.
 
 **Wishlist price-drop emails (2026-11-03)** (backend + frontend; both merged 2026-11-03)
 - Your choices: opt-in switch (off by default), email only, 5% or more, at most 1 email per book per week.

@@ -565,3 +565,16 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   don't resolve refs); fixed.
 - Runtime: local API + preview: switch on (toast, saved), wishlist add, staff price cut 20.50 → 16.40,
   outbox row, `marketing:send` → mail log shows subject, "$20.50 → $16.40", links. Test data restored.
+
+## 2026-11-03: Excel report download (`feature/excel-sales-export`, backend + frontend)
+
+- Owner: OpenSpout, all sheets. `ReportsWorkbook` writes 7 sheets from `ReportsService` (same numbers as the JSON
+  reports) row by row into a temp file; `GET /staff/reports/export` (admin, 10/min) sends it and deletes it.
+- Text always `StringCell` (OpenSpout's `Cell::fromValue` turns "=..." into a formula; a mutation test proved the
+  check catches it; note OpenSpout's *reader* also reports "=..." text as formulas, so the test reads the XML).
+- Money as numbers with `"$"#,##0.00` / `#,##0" ៛"`; title + header rows frozen on list sheets.
+- Dockerfile: `zip` extension. Local PHP is 8.3 (project needs 8.4): `composer require` used
+  `--ignore-platform-req=php`; OpenSpout files lint fine on 8.3 and tests pass. CI and Docker use 8.4.
+- 3 backend tests (777 pass, pint clean); 2 frontend tests (526 pass), lint, typecheck, build. Browser: button
+  downloads `bookly-report-2026-10-01-to-2026-11-03.xlsx`, opened with openpyxl (7 sheets, numbers right);
+  axe 0, no overflow at 1280/390 light/dark.
