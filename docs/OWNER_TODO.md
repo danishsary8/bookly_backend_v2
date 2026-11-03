@@ -151,7 +151,7 @@ each branch works alone)
 - Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
 - [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
 
-**Facebook sign-in setup (2026-11-03)** — app `Bookly` created (App ID 1468099781929133, not secret); steps 1–4 done, keys in Render and Vercel. Next: step 5 test, then step 6 Live.
+**Facebook sign-in setup (2026-11-03)** — app `Bookly` created (App ID 1468099781929133, not secret); steps 1–5 done: owner signed in with Facebook on the live shop (2026-11-03). Next: step 6 Live.
 - [x] Merge first: https://github.com/danishsary8/bookly_frontend/pull/new/fix/facebook-sdk-version (v21.0 → v25.0;
   v21.0 stops working around 21 Jan 2027)
 1. Go to https://developers.facebook.com → log in with your Facebook account → **My Apps** → **Create App**.
