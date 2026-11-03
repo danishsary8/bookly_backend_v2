@@ -1247,7 +1247,7 @@ paths:
       tags: [Customer]
       summary: 'Update name, phone, locale (en|km), Telegram order updates or price-drop emails'
       requestBody: { content: { application/json: { schema: { type: object, properties: { name: { type: string, maxLength: 150 }, phone: { type: string, nullable: true, maxLength: 30 }, locale: { type: string, enum: [en, km] }, telegram_order_updates: { type: boolean }, price_drop_alerts: { type: boolean } } } } } }
-      responses: { '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } }, '422': { $ref: '#/components/responses/ValidationError' } }
+      responses: { '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } }, '422': { $ref: '#/components/responses/Validation' } }
     delete:
       tags: [Customer]
       summary: Close your own account
