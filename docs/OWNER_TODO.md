@@ -139,7 +139,7 @@ each branch works alone)
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
-**Security review of the work since 15 Oct (2026-11-03)** (backend only; branch `fix/demo-account-limits`)
+**Security review of the work since 15 Oct (2026-11-03)** (backend only; merged 2026-11-03)
 - Checked and fine: every staff route needs a staff token + 2FA, admin-only actions (mark paid, offers, collections,
   staff) need admin; customers only reach their own orders, payments, credits, alerts and sessions; KHQR (simulate only in
   test mode, Bakong answer must match amount and currency); cover uploads (type, real content, size, random names);
@@ -147,7 +147,7 @@ each branch works alone)
   use long random tokens; no secrets in the code.
 - Fixed (the shared demo account): no more public reviews from it; no Telegram order updates linked to it (and the
   hourly reset unlinks any chat); the hourly reset removes addresses visitors typed in and keeps only its sample address.
-- [ ] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/demo-account-limits
+- [x] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/demo-account-limits
 - [ ] After Render shows Live: Admin → **Reviews** → look for reviews by "Demo Customer" that visitors wrote (not the
   seeded ones) and **Hide** any you don't want public. The fix stops new ones; it does not remove old ones.
 
