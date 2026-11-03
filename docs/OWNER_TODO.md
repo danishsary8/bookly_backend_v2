@@ -139,6 +139,18 @@ each branch works alone)
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
+**Wishlist price-drop emails (2026-11-03)** (backend + frontend; branch `feature/price-drop-alerts` in both)
+- Your choices: opt-in switch (off by default), email only, 5% or more, at most 1 email per book per week.
+- [ ] Merge backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/price-drop-alerts
+  (adds one column, `customers.price_drop_alerts`; Render runs the migration on deploy)
+- [ ] Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/price-drop-alerts
+  (any order: the switch only shows once the backend is live)
+- [ ] Live check: sign in with your own customer account → Account → **Profile** → turn on **Price-drop emails** →
+  add a book to your wishlist ("Want to read") → in the admin, lower one of its formats by 5% or more → within a
+  minute or two you get the email. Put the price back afterwards.
+- [ ] Khmer wording, please check (in `km.ts` → `priceDrop`, and backend `lang/km/mail.php` → `price_drop_*`):
+  switch "អ៊ីមែលពេលតម្លៃចុះ"; email subject ":title ថោកជាងមុនហើយ".
+
 **Speed check (2026-11-03)** (frontend only; merged 2026-11-03)
 - Fonts now come from our own site (your choice), ~40 tiny code files were joined, and the book page no longer
   jumps while it loads. Phone score (simulated slow phone): home 74 → 76, book page 64 → 71 (main content 1 s sooner).

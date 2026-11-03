@@ -550,3 +550,18 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   clears `telegram_chat_id`/`telegram_order_updates` and removes visitor addresses (keeps `DemoSeeder::ADDRESS_LINE1`
   as default, re-creates it if deleted; orders keep their address snapshot). Owner chose "block reviews" and "remove
   visitor addresses". 4 new tests (red on old code), 765 pass, pint clean; OpenAPI + README updated.
+
+## 2026-11-03: Wishlist price-drop emails (`feature/price-drop-alerts`, backend + frontend)
+
+- Owner choices: opt-in (new `customers.price_drop_alerts`, default false), email only, drop >= 5%, max one per
+  book per customer per 7 days.
+- `BookVariant::booted` `updated` hook (after commit) → `PriceDropAlerts::priceChanged`: covers single edit, bulk
+  edit and CSV import. Recipients: "want_to_read" wishlist, switch on, active, confirmed email, not the demo
+  account; book visible, format active. Rows go to the marketing outbox (`kind = price_drop`, daily cap, retries).
+- Outbox re-checks before sending (switch still on, book still on the list, price not back up) and cancels
+  otherwise. `PriceDropNotification` en/km with old → new price, book link and how to turn it off.
+- Demo reset turns the switch off. OpenAPI + docs/API.md + README updated. 9 new tests (CSV path included);
+  774 pass, pint clean. Found my own wrong `$ref` in the spec via the frontend type generator (the spec tests
+  don't resolve refs); fixed.
+- Runtime: local API + preview: switch on (toast, saved), wishlist add, staff price cut 20.50 → 16.40,
+  outbox row, `marketing:send` → mail log shows subject, "$20.50 → $16.40", links. Test data restored.
