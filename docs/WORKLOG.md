@@ -534,3 +534,19 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   `payments:expire-khqr` every minute, named limiters `khqr-poll` / `khqr-action` (plain `throttle:N,1` shares one counter
   per user across routes: found in the browser check). No migration. Tests: `KhqrBuilderTest` (6), `KhqrPaymentTest`
   (16). 761 tests, pint clean. Docs: API.md, openapi.yaml, RATE_LIMITS.md, `.env.example`.
+
+## 2026-11-03: Security review since 2026-10-15 (`fix/demo-account-limits`)
+
+- Scope: ~10k lines in app/routes/config since the 2026-10-15 review (KHQR, Telegram sign-in and phone codes, offers,
+  collections, uploads/R2, CSV import/export, reports, notifications, sessions).
+- OK: all 211 routes audited from `route:list` (staff ability + `EnsureStaffTwoFactorEnabled` on every staff route,
+  admin ability on admin actions, customer ability on customer routes, throttles on public writes); per-customer
+  scoping (payments, credits, stock alerts, data export, sessions, notifications); store-credit codes bound to their
+  customer (tested); KHQR simulate test-mode only, Bakong amount/currency match, md5 of our own QR; offer_id is only an
+  expectation check; upload validation (ext, real MIME, getimagesize, size/dimensions, UUID names); `url:http,https`
+  on cover/photo URLs; CSV formula escaping on all exports; raw SQL only with bindings, search capped at 8 words/200
+  chars; no mass assignment of whole requests; no secrets; CORS patterns anchored; frontend raw HTML only for QR SVGs.
+- Fixed (demo account): `not.demo` on POST/PATCH/DELETE reviews and POST /auth/telegram/order-updates; `demo:reset`
+  clears `telegram_chat_id`/`telegram_order_updates` and removes visitor addresses (keeps `DemoSeeder::ADDRESS_LINE1`
+  as default, re-creates it if deleted; orders keep their address snapshot). Owner chose "block reviews" and "remove
+  visitor addresses". 4 new tests (red on old code), 765 pass, pint clean; OpenAPI + README updated.
