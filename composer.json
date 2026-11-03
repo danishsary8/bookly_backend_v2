@@ -13,6 +13,7 @@
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.0",
+        "openspout/openspout": "^5.13",
         "resend/resend-php": "^1.16",
         "sentry/sentry-laravel": "^4.28"
     },

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Staff\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\Admin\ReportsService;
+use App\Services\Admin\ReportsWorkbook;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
@@ -251,6 +252,31 @@ class ReportsController extends Controller
         }
 
         return response()->json(['data' => $report]);
+    }
+
+    /**
+     * Every report for the chosen dates in one Excel file (one sheet per report). Admins only, like the Reports page;
+     * the "Top customers" sheet holds names and emails. Built in a temp file that is deleted once sent.
+     */
+    public function export(Request $request, ReportsWorkbook $workbook): Response
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
+
+        $this->reports->range($data['from'], $data['to']); // a refused range (over a year) never makes a temp file
+        $path = tempnam(sys_get_temp_dir(), 'bookly-report-');
+        try {
+            $workbook->write($path, $data['from'], $data['to']);
+        } catch (\Throwable $e) {
+            @unlink($path);
+            throw $e;
+        }
+
+        return response()->download($path, "bookly-report-{$data['from']}-to-{$data['to']}.xlsx", [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend();
     }
 
     private function streamCsv(string $filename, callable $writer): StreamedResponse
