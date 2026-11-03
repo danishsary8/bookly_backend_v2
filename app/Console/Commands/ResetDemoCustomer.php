@@ -26,8 +26,14 @@ class ResetDemoCustomer extends Command
         }
 
         // Visitors can rename the account; sign-in details are guarded by EnsureNotDemoAccount, the password reset is a backstop.
-        $demo->forceFill(['name' => 'Demo Customer', 'password_hash' => DemoSeeder::PASSWORD])->save();
+        // Telegram: a visitor could link their own chat to the shared account and then get every other visitor's
+        // order updates, so the link is removed (the route is blocked for the demo too; this clears older links).
+        $demo->forceFill([
+            'name' => 'Demo Customer', 'password_hash' => DemoSeeder::PASSWORD,
+            'telegram_chat_id' => null, 'telegram_order_updates' => false,
+        ])->save();
         $carts->clear($demo);
+        $removedAddresses = $this->resetAddresses($demo);
 
         // The same cancel rules as a shopper (stock and coupon uses come back), recorded as automatic in the history.
         // One order that can't be cancelled (e.g. staff moved it on a moment earlier) is reported and skipped, so it
@@ -43,8 +49,35 @@ class ResetDemoCustomer extends Command
             }
         }
 
-        $this->info("Demo reset: cart emptied, {$cancelled} stale order(s) cancelled.");
+        $this->info("Demo reset: cart emptied, {$removedAddresses} visitor address(es) removed, {$cancelled} stale order(s) cancelled.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Visitors may type a real home address into the shared account, and the next visitor would see it. Keep only the
+     * demo's own sample address (made again if a visitor deleted it) as the default. Orders keep their own copy of the
+     * address, so their history is unchanged.
+     */
+    private function resetAddresses(Customer $demo): int
+    {
+        $sampleId = $demo->addresses()->where('address_line1', DemoSeeder::ADDRESS_LINE1)->oldest('id')->value('id');
+
+        $removed = 0;
+        foreach ($demo->addresses()->when($sampleId !== null, fn ($q) => $q->whereKeyNot($sampleId))->get() as $address) {
+            $address->delete();
+            $removed++;
+        }
+
+        if ($sampleId === null) {
+            $demo->addresses()->create([
+                'label' => 'Home', 'recipient_name' => 'Demo Customer', 'phone' => $demo->phone,
+                'address_line1' => DemoSeeder::ADDRESS_LINE1, 'city' => 'Phnom Penh', 'country' => 'Cambodia', 'is_default' => true,
+            ]);
+        } else {
+            $demo->addresses()->whereKey($sampleId)->where('is_default', false)->update(['is_default' => true]);
+        }
+
+        return $removed;
     }
 }

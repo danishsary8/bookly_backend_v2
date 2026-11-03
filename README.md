@@ -48,7 +48,7 @@ Customers can search books, fill a cart, check out and return items. Staff run t
 | Two people buy the last copy at once | Stock is **locked** during checkout, so only one order succeeds; the other gets "out of stock". |
 | A price changes after adding to cart | The cart **shows a warning** on that line instead of quietly changing the total. |
 
-Everything about the public demo is locked down too: the demo account can't change its password or email, it is cleaned every hour, and the demo sign-in button is limited to 10 uses per hour per visitor.
+Everything about the public demo is locked down too: the demo account can't change its password or email, write public reviews or connect Telegram; every hour it is cleaned (visitor addresses removed, Telegram unlinked, old pending orders cancelled), and the demo sign-in button is limited to 10 uses per hour per visitor.
 
 ## How it is built
 

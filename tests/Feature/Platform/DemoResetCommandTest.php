@@ -141,6 +141,49 @@ class DemoResetCommandTest extends TestCase
         $this->assertTrue(Hash::check(DemoSeeder::PASSWORD, $demo->password_hash));
     }
 
+    public function test_it_removes_visitor_addresses_and_keeps_the_sample_one_as_default(): void
+    {
+        $demo = $this->demo();
+        $sample = CustomerAddress::factory()->for($demo)->create(['address_line1' => DemoSeeder::ADDRESS_LINE1, 'is_default' => false]);
+        $visitor = CustomerAddress::factory()->for($demo)->create(['address_line1' => 'My real home 7', 'is_default' => true]);
+        $order = $this->placeOrder($demo, BookVariant::factory()->create(['stock_quantity' => 10]), 1, 5);
+        $snapshot = $order->shipping_address;
+        $other = Customer::factory()->create();
+        $theirs = CustomerAddress::factory()->for($other)->create();
+
+        $this->artisan('demo:reset')->expectsOutputToContain('visitor address(es) removed')->assertExitCode(0);
+
+        $this->assertSame([$sample->id], $demo->addresses()->pluck('id')->all());
+        $this->assertTrue($sample->fresh()->is_default);
+        $this->assertNull($visitor->fresh());
+        $this->assertNotNull($theirs->fresh(), 'other customers keep their addresses');
+        $this->assertEquals($snapshot, $order->fresh()->shipping_address, 'orders keep their own copy of the address');
+    }
+
+    public function test_it_puts_the_sample_address_back_when_a_visitor_deleted_it(): void
+    {
+        $demo = $this->demo();
+        CustomerAddress::factory()->for($demo)->create(['address_line1' => 'Somewhere else 1']);
+
+        $this->artisan('demo:reset')->assertExitCode(0);
+
+        $only = $demo->addresses()->sole();
+        $this->assertSame(DemoSeeder::ADDRESS_LINE1, $only->address_line1);
+        $this->assertTrue($only->is_default);
+    }
+
+    public function test_it_unlinks_a_telegram_chat_so_no_visitor_gets_other_visitors_order_updates(): void
+    {
+        $demo = $this->demo();
+        $demo->forceFill(['telegram_chat_id' => 123456789, 'telegram_order_updates' => true])->save();
+
+        $this->artisan('demo:reset')->assertExitCode(0);
+
+        $demo->refresh();
+        $this->assertNull($demo->telegram_chat_id);
+        $this->assertFalse($demo->telegram_order_updates);
+    }
+
     public function test_it_does_nothing_without_the_demo_account(): void
     {
         $this->assertSame('demo@bookly.test', DemoSeeder::EMAIL);
