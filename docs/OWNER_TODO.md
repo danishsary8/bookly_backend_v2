@@ -139,12 +139,12 @@ each branch works alone)
   "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
 
-**Portfolio READMEs + Khmer title fix (2026-11-03)** (3 branches, any order, each works alone)
-- [ ] Frontend README (new screenshots, features, 2-minute tour):
+**Portfolio READMEs + Khmer title fix (2026-11-03)** (all 3 merged 2026-11-03)
+- [x] Frontend README (new screenshots, features, 2-minute tour):
   https://github.com/danishsary8/bookly_frontend/pull/new/docs/readme-refresh
-- [ ] Backend README (KHQR, offers, collections, Telegram; 761 tests; 39 tables):
+- [x] Backend README (KHQR, offers, collections, Telegram; 761 tests; 39 tables):
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/readme-refresh
-- [ ] Fix: with "reduce motion" on, the Khmer home title split the word ទូទាំង over two lines on phones:
+- [x] Fix: with "reduce motion" on, the Khmer home title split the word ទូទាំង over two lines on phones:
   https://github.com/danishsary8/bookly_frontend/pull/new/fix/khmer-hero-wrap
 - [ ] After merging: open both repos on GitHub and read the README once; tell me anything that sounds wrong.
 - Note: screenshots were taken on my local copy, where demo cover pictures can't load, so they show the shop's own
