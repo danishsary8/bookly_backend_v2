@@ -42,7 +42,7 @@ Staff run the shop from a back office. English and Khmer, US dollars and riel.
 - Manage books (cover pictures stored in Cloudflare R2), authors, categories, series, stock, orders, returns,
   reviews, customers (tags and notes), coupons, offers, collections and newsletters
 - Mark KHQR orders as paid by hand when needed (with a note in the order history)
-- Dashboard and reports (sales, offers, stock value, slow sellers, repeat customers), CSV import/export,
+- Dashboard and reports (sales, offers, stock value, slow sellers, repeat customers), CSV import/export, one-click Excel report,
   notifications, a system health check and an audit log of every change
 
 ## How it keeps things safe

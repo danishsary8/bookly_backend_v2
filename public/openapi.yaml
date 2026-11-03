@@ -2269,6 +2269,23 @@ paths:
         - { $ref: '#/components/parameters/To' }
         - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
       responses: { '200': { description: Coupons and refunds report data or CSV stream } }
+  /staff/reports/export:
+    get:
+      tags: [Admin]
+      summary: (admin) Every report for the dates in one Excel file
+      description: 'One .xlsx, one sheet per report, same numbers as the JSON reports: Summary, Sales by day, Top books (by revenue, by copies, revenue by category; top 20), Top customers (names and emails: personal data), Orders (by status, payment method, delivery area), Coupons and refunds, Offers. Money is stored as numbers with $ / ៛ formats; text is always a text cell, never a formula. At most 366 days; 10 downloads a minute.'
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+      responses:
+        '200':
+          description: 'The workbook, as a download named bookly-report-{from}-to-{to}.xlsx'
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Too many downloads }
   /staff/reports/offers:
     get:
       tags: [Admin]
