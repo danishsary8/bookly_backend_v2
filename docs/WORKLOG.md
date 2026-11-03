@@ -578,3 +578,10 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 - 3 backend tests (777 pass, pint clean); 2 frontend tests (526 pass), lint, typecheck, build. Browser: button
   downloads `bookly-report-2026-10-01-to-2026-11-03.xlsx`, opened with openpyxl (7 sheets, numbers right);
   axe 0, no overflow at 1280/390 light/dark.
+
+## 2026-11-03: Order lines in a fixed order (`fix/invoice-item-order`)
+
+- CI (push run of the Excel branch) failed `OrderDocumentsTest` once: invoice line 0 was EMMA-EB, not EMMA-PB.
+  `Order::items()` had no ORDER BY; Postgres may return rows out of insertion order (reused free space). Could not
+  reproduce locally (15/15 green, and a forced-update test also passed), so no new test; fix is `->orderBy('id')`
+  on the relation. Checked `sum`, `count` and `withSum` still work on Postgres. 774 pass, pint clean.

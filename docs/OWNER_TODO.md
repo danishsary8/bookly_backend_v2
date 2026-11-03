@@ -159,6 +159,10 @@ each branch works alone)
 - [ ] Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/excel-sales-export
   (any order; before the backend is live the button says "not available yet")
 - [ ] Live check: Admin → Reports → pick dates → **Excel, all reports** → open the file in Excel or Google Sheets.
+- CI note: the first run failed once on an old invoice test (books in a random order). Not from the Excel code; the
+  pull-request run is all green. Real fix on its own branch:
+- [ ] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/invoice-item-order
+  (order lines always come back in the order they were bought; 774 tests pass)
 
 **Wishlist price-drop emails (2026-11-03)** (backend + frontend; both merged 2026-11-03)
 - Your choices: opt-in switch (off by default), email only, 5% or more, at most 1 email per book per week.
