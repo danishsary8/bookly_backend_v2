@@ -147,7 +147,7 @@ each branch works alone)
   12 px too wide at 390 px; 4 tables could not be scrolled with the keyboard.
 - Not a problem (my test setup only): outside pictures blocked, and "too many requests" when two test runs shared one
   staff login (limit: 120 requests a minute per person).
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/site-check-polish
+- [x] Merged (2026-11-03).
 - [ ] Live check: on your phone open the admin Dashboard: nothing moves sideways when you swipe left/right.
 
 **Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
