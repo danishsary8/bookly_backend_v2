@@ -17,6 +17,14 @@ working with today's settings.
 6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
    hint, similar books): try them when you have time; tell me anything that looks wrong.
 
+**Dev tools (2026-11-04)**
+- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/chore/dev-tool-updates (clears the 2 high
+  developer-tool warnings; nothing on the site changes)
+- Dashboard checked in a real browser (all periods, light/dark, phone/desktop): all fine, no change needed.
+
+**Khmer translation: owner's choice 2026-11-04 — Antigravity does all Khmer translation work** (km.ts review, new
+Khmer strings, Khmer book titles). Claude adds English text only and marks any new Khmer line as "to translate".
+
 **Waiting on you (setup)**
 7. **Bakong real payments:** token email → Render `KHQR_ACCOUNT_ID`, `KHQR_MERCHANT_NAME`, `BAKONG_TOKEN`, `KHQR_MODE=bakong`.
 8. **Khmer wording:** `priceDrop`, `signin.facebookTesting` / `facebookNotFinished` (km.ts) and `price_drop_*` (lang/km/mail.php).
