@@ -93,3 +93,26 @@
 - Decisions I made: Used Lucide icons to align with existing design system, and made the icon picker top-level only to keep sub-categories clean.
 - NEEDS DANISH: none
 
+## A6 — Audience info on the book page and cards (frontend) — DONE
+- Repo/branch: frontend · feature/antigravity-overnight · commit 2277a48
+- What changed:
+  - `src/pages/catalog/BookDetailPage.tsx`:
+    - Added category hierarchy awareness (via `catalogQueries.categories()`) showing sub-categories with their parent (`<Parent> › <Child>`) both in the page header and in the details tab.
+    - In `<TabsContent value="details">`, added rows for:
+      - Categories (linking to parent category and sub-category).
+      - Reader age (e.g. "8–12" or "8+"), linking to `/books?age=<min>`.
+      - School grade (e.g. "Grade 9" / "ថ្នាក់ទី 9"), linking to `/books?school_grade=<grade>`.
+      - English level (e.g. "Level B1" / "កម្រិត B1"), linking to `/books?level=<level>`.
+  - `src/components/catalog/BookCard.tsx`:
+    - Added a small, quiet tag beside formats for level or grade (e.g. "B1" or "Grade 9" / "ថ្នាក់ទី 9"), using `shrink-0 rounded bg-muted/80 px-1.5 py-0.5 text-[11px]` so it stays compact and maintains the card layout on 390px mobile viewports.
+  - Added dictionary keys (`categories`, `readerAge`, `schoolGrade`, `level`) in `src/i18n/en.ts` and `src/i18n/km.ts`.
+  - Added tests in `src/components/catalog/book-card.test.tsx` (4 tests) and extended `src/pages/catalog/catalog-pages.test.tsx` (2 new tests, 21 total).
+- Checks:
+  - `npx vitest run src/components/catalog/book-card.test.tsx src/pages/catalog/catalog-pages.test.tsx src/i18n/storefront-khmer.test.tsx` → 32 passed
+  - `npm test` → 567 passed, 3 skipped
+  - `npm run typecheck` → passed clean
+  - `npm run lint` → 0 errors, 1 pre-existing warning in `VisitorAnalytics.tsx`
+- Decisions I made: Prioritized `level` over `school_grade` if both are set on a card for a concise tag; linked age filter to `book.age_min` so the book is guaranteed to appear in search results.
+- NEEDS DANISH: none
+
+
