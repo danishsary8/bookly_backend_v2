@@ -369,5 +369,10 @@ Cached for 5 minutes per report and range. All endpoints take `from` and `to` (Y
 - Staff: POST/PATCH `/staff/categories` take parent_id (must be top-level; a category with children stays top-level),
   sort_order, icon; DELETE refuses (409) while it has sub-categories.
 - Books: `age_min`, `age_max` (0-18), `school_grade` (1-12), `level` (A1-C2), all optional, on cards and staff edit.
+- Book CSV import/export: `GET /staff/books/csv/export` and `POST /staff/books/csv/import` include audience columns `age_min`, `age_max`, `school_grade`, `level`, with relational consistency validation (`age_max >= age_min`) and CEFR level normalization.
+- Sample catalog seeder: `php artisan db:seed --class=SampleCatalogSeeder` populates 120+ curated titles across all 12 starter categories with realistic pricing, stock, audience metadata, and ~34% ebook availability.
+- Customer addresses: `POST/PATCH /me/addresses` accept optional `latitude` and `longitude` for delivery map pin positioning.
+- Cart reminders: Customer opt-in flag `cart_reminders` on `PATCH /me`, with signed one-click unsubscribe links in reminder emails.
+- Leaked-password protection: Passwords checked during registration and password resets against HIBP Pwned Passwords API using k-Anonymity (SHA-1 prefix).
 - `GET /books`: category_id now includes sub-categories; new `category_ids[]`, `formats[]`, `age`, `school_grade`,
   `level`, `has_ebook`, `facets=1`; sorts `best_selling` (copies in non-cancelled orders, last 90 days) and `most_reviewed`.

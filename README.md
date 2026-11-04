@@ -29,18 +29,20 @@ Staff run the shop from a back office. English and Khmer, US dollars and riel.
 **For customers**
 - Sign up with email (a 6-digit code confirms it), Google, Facebook or **Telegram**; sign in with a code sent by the
   Telegram bot to a confirmed phone number
-- Search that forgives typos (`holms` finds Holmes), filters, and prices in US dollars or Cambodian riel
+- Passwords checked against known data leaks (Have I Been Pwned API)
+- Search that forgives typos (`holms` finds Holmes), category tree with sub-categories, audience filters (reader age, school grade, English level), and prices in US dollars or Cambodian riel
 - "You may also like", the rest of a series and more by the same author
-- Wishlist, cart, coupons, **offers** ("Buy 2, save 15%"), free delivery above a set amount, seasonal **collections**
-- Checkout with **cash on delivery or Bakong KHQR** (a real KHQR code, 15 minutes to pay, checked with Bakong)
+- Wishlist with price-drop alerts, cart, coupons, **offers** ("Buy 2, save 15%"), free delivery above a set amount, seasonal **collections**, and cart abandonment reminders
+- Checkout with **cash on delivery or Bakong KHQR** (a real KHQR code, 15 minutes to pay, checked with Bakong), gift notes, and optional delivery address map pin (when configured)
 - Order history, cancel while pending, **buy again** in one click (even when only part is in stock)
 - Returns with store credit, reviews of books they bought, back-in-stock alerts, opt-in wishlist price-drop emails, order updates in Telegram,
-  download my data, close my account
+  active sessions with device sign-out, new-device security alerts, download my data, close my account
 
 **For staff**
 - Sign in with a password **plus** a code from an authenticator app (two-factor login)
-- Manage books (cover pictures stored in Cloudflare R2), authors, categories, series, stock, orders, returns,
+- Manage books (cover pictures stored in Cloudflare R2), authors, category hierarchy with menu ordering and icons, series, stock, orders, returns,
   reviews, customers (tags and notes), coupons, offers, collections and newsletters
+- Book audience fields (`age_min`, `age_max`, `school_grade`, `level`) in catalog edit and CSV import/export
 - Mark KHQR orders as paid by hand when needed (with a note in the order history)
 - Dashboard and reports (sales, offers, stock value, slow sellers, repeat customers), CSV import/export, one-click Excel report,
   notifications, a system health check and an audit log of every change
@@ -159,7 +161,7 @@ Demo accounts: `demo@bookly.test` (customer), `admin@bookly.test` and `staff@boo
 ## Tests
 
 ```bash
-php artisan test            # 761 tests
+php artisan test            # 820+ tests
 vendor/bin/pint --test      # code style
 ```
 
