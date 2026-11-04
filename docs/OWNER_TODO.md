@@ -150,14 +150,14 @@ each branch works alone)
 - Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
 - [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
 
-**Sign-in security review (2026-11-03)** (backend; branch `fix/sign-in-timing`)
+**Sign-in security review (2026-11-03)** (backend; merged 2026-11-04)
 - Already strong: Turnstile bot check, try limits (5/min, 20/hour per email), hashed codes that die after 5 wrong
   guesses, Google/Facebook tokens checked against our app, all devices signed out + warning email after a password
   reset, staff 2-step codes.
 - Fixed (your choice): sign-in and "forgot password" no longer answer faster for emails without an account
   (was 0.03 s vs 0.2-0.5 s). Customer and staff.
-- [ ] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/sign-in-timing
-- [ ] Live check after Render deploys: on the shop, **Forgot password** with your own email → the code email still
+- [x] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/sign-in-timing
+- [x] (owner: email arrived, 2026-11-04) Live check after Render deploys: on the shop, **Forgot password** with your own email → the code email still
   arrives (it is now sent just after the page answers).
 - Not chosen now (ask any time): sign out everywhere / device list, new-device sign-in email, block leaked passwords.
 - Small leftover (low risk): sign-up still says "an account with this email already exists" (normal for shops;
