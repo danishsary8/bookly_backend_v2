@@ -17,6 +17,25 @@ working with today's settings.
 6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
    hint, similar books): try them when you have time; tell me anything that looks wrong.
 
+**Delivery map pin (2026-11-04)** — free plan: map only opens when the customer taps "Pick on map"
+- [ ] 1. Merge backend first (adds 2 columns to addresses + 2 to orders; Render runs the migration):
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/delivery-map-pin
+- [ ] 2. Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/delivery-map-pin
+  (until step 3 is done the pin section is simply hidden; the "Open in Google Maps" links work without a key)
+- [ ] 3. Google Cloud (one time, ~10 minutes) at https://console.cloud.google.com:
+  1. New project "Bookly" → add a billing account (Google asks for a card; the monthly free use covers us).
+  2. APIs & Services → Library → **Maps JavaScript API** → Enable. Nothing else (no Places, no Geocoding).
+  3. APIs & Services → Credentials → Create credentials → **API key** → Edit it:
+     Application restrictions = **Websites**, add `https://bookly-frontend-five.vercel.app/*`;
+     API restrictions = **Maps JavaScript API** only → Save.
+  4. Safety cap: APIs & Services → Maps JavaScript API → **Quotas** → "Map loads per day" → set **300**.
+  5. Billing → Budgets & alerts → new budget **$1** with email alerts (you get an email long before any cost).
+  6. Vercel → project → Settings → Environment Variables → `VITE_GOOGLE_MAPS_KEY` = the key → **Redeploy**.
+     (This key is meant to be public in the browser; the website restriction in step 3 protects it.)
+- [ ] Live check: Account → Addresses → Edit → **Pick on map** → "Use this spot" → Save → place a cash order →
+  order page shows "Open in Google Maps", and your Telegram new-order alert has a "Map:" link.
+- Khmer for the map texts: English placeholder `mapPin` in km.ts, TODO(antigravity) → **Antigravity's job**.
+
 **Block leaked passwords (2026-11-04)** — both merged 2026-11-04
 - [x] 1. Frontend (browser test signs up with a fresh password): https://github.com/danishsary8/bookly_frontend/pull/new/fix/e2e-unique-password
 - [x] 2. Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/block-leaked-passwords

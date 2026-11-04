@@ -621,3 +621,16 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   outage → allowed, km). 3 fail without the rule. 796 pass, pint clean.
 - api.pwnedpasswords.com is blocked from this sandbox, so not checked live here; frontend e2e sign-up now uses a fresh
   password (merge that first). Local e2e journey "new customer" passes against this branch.
+
+## 2026-11-04: Delivery map pin (`feature/delivery-map-pin`, backend + frontend)
+
+- Owner choices: no shop map yet; optional pin on the delivery address; must stay free.
+- Backend: migration adds customer_addresses.latitude/longitude and orders.shipping_latitude/shipping_longitude
+  (decimal 9,6, nullable). Address create/update: both or neither, numeric, inside Cambodia's box (lat 9.5–15,
+  lng 102–108); null removes. Checkout copies the pin onto the order; Order/OrderDocument resources return it in
+  shipping_address; OpsAlerts new-order message adds a free google.com/maps link. OpenAPI + API.md updated.
+  DeliveryMapPinTest (4); 800 pass, pint clean.
+- Frontend: Maps JS loads only when the picker opens (restricted to Cambodia, fixed centre pin, no Marker/Places);
+  "Use my location"; order pages (customer + admin) show "Open in Google Maps" (no key needed). Hidden without
+  VITE_GOOGLE_MAPS_KEY. CSP opened for maps.googleapis.com / maps.gstatic.com / fonts.
+- Cost guard (owner, see OWNER_TODO): key restricted to the site + Maps JS only, 300 map loads/day quota, $1 budget alert.
