@@ -48,7 +48,7 @@ working with today's settings.
 Khmer strings, Khmer book titles). Claude adds English text only and marks any new Khmer line as "to translate".
 
 **Waiting on you (setup)**
-7. **Bakong real payments:** token email → Render `KHQR_ACCOUNT_ID`, `KHQR_MERCHANT_NAME`, `BAKONG_TOKEN`, `KHQR_MODE=bakong`.
+7. ~~Bakong real payments~~ done 2026-11-04 (token until 1 Feb 2027).
 8. **Khmer wording:** `priceDrop`, `signin.facebookTesting` / `facebookNotFinished` (km.ts) and `price_drop_*` (lang/km/mail.php).
 9. **README check:** read both READMEs on GitHub once.
 
@@ -333,6 +333,7 @@ each branch works alone)
      **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
 - [x] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker). (Owner: all ok, 2026-11-02.)
 
+**✅ Real Bakong payments LIVE (2026-11-04):** Render has KHQR_ACCOUNT_ID, KHQR_MERCHANT_NAME, BAKONG_TOKEN, KHQR_MODE=bakong; health card OK; a real payment was received. Token valid until **1 Feb 2027**: renew before then (health card warns 7 days ahead) and replace BAKONG_TOKEN in Render.
 **Bakong account verified (owner, 2026-11-03).** Step 1 done: account ID `danish_sary@bkrt` (checked: the shop builds a valid QR with it). Next: step 2 (token).
 
 **Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
