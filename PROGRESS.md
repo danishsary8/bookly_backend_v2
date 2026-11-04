@@ -128,5 +128,27 @@
 - Decisions I made: Recommended PDF over EPUB for initial launch due to fragile Khmer font shaping on mobile web; recommended enabling both KHQR and COD for pre-orders to maximize conversions in Cambodia; recommended 10% bundle discount for 3+ volumes in a series.
 - NEEDS DANISH: Review the "Questions for Danish" sections in each of the three draft specs when ready to proceed with Phases 2, 3, and 4.
 
+## A8 — Docs refresh (both repos) — DONE
+- Repo/branch: backend · feature/antigravity-overnight · commit a801a5d | frontend · feature/antigravity-overnight · commit 239aff3
+- What changed:
+  - Backend `README.md` and `docs/API.md`:
+    - Documented category hierarchy with sub-categories and icons.
+    - Documented audience fields (`age_min`, `age_max`, `school_grade`, `level`) in books and bulk CSV import/export with relational checks.
+    - Documented `SampleCatalogSeeder` with 120+ curated titles.
+    - Documented delivery address coordinate fields, cart reminders, leaked-password protection (HIBP), active sessions/devices, and new-device alert emails.
+    - Updated backend test suite count to 820+ tests.
+  - Frontend `README.md`:
+    - Documented category tree navigation, audience filters, quiet audience tags on book cards, and audience badges on book detail pages.
+    - Documented checkout gift notes, map pin delivery picker, cart reminder preference, active sessions, and price-drop badges.
+    - Documented category tree management and audience metadata in staff admin.
+    - Updated unit test count to 560+ tests.
+- Checks:
+  - Backend `vendor/bin/pint --test` → passed clean
+  - Frontend `npm run typecheck` → passed clean
+  - Frontend `git diff` → clean, verified exact typography
+- Decisions I made: Maintained existing documentation structure, tone, and conciseness across both repositories.
+- NEEDS DANISH: none
+
+
 
 
