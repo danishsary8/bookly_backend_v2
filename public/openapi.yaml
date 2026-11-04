@@ -458,6 +458,8 @@ components:
         postal_code: { type: string, nullable: true }
         country: { type: string }
         is_default: { type: boolean }
+        latitude: { type: number, nullable: true, description: 'Optional map pin (with longitude), inside Cambodia (9.5–15)' }
+        longitude: { type: number, nullable: true, description: 'Optional map pin (with latitude), inside Cambodia (102–108)' }
     AddressInput:
       type: object
       required: [recipient_name, phone, address_line1, city, country]
@@ -472,6 +474,8 @@ components:
         postal_code: { type: string }
         country: { type: string }
         is_default: { type: boolean }
+        latitude: { type: number, nullable: true, description: 'Optional map pin (with longitude), inside Cambodia (9.5–15)' }
+        longitude: { type: number, nullable: true, description: 'Optional map pin (with latitude), inside Cambodia (102–108)' }
     CartIssue:
       type: object
       properties:

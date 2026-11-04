@@ -132,7 +132,7 @@ Every staff create/update/delete is recorded in `admin_audit_logs` (who, action 
 | Method | Path | Body / notes |
 | --- | --- | --- |
 | GET | /addresses | default first |
-| POST | /addresses | recipient_name, phone, address_line1, city, country, label?, address_line2?, state?, postal_code?, is_default? — max 10; first one becomes default |
+| POST | /addresses | recipient_name, phone, address_line1, city, country, label?, address_line2?, state?, postal_code?, is_default?, latitude? + longitude? (optional map pin, both or neither, inside Cambodia; copied onto each order as shipping_address.latitude/longitude and shown to staff as a Google Maps link) — max 10; first one becomes default |
 | PATCH | /addresses/{id} | any field; `is_default: true` moves the default (it cannot be switched off directly) |
 | DELETE | /addresses/{id} | if it was the default, the newest remaining address becomes default |
 | GET | /cart | see cart shape below |
