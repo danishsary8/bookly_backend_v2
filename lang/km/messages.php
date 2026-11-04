@@ -36,7 +36,6 @@ return [
     'offer_ended' => 'ការផ្តល់ជូននេះទើបតែបញ្ចប់។ សូមពិនិត្យតម្លៃសរុបថ្មី ហើយបញ្ជាទិញម្តងទៀត។',
     'coupon_locked' => 'បញ្ចូលកូដប័ណ្ណបញ្ចុះតម្លៃខុសច្រើនដងពេក។ សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល :minutes នាទី។',
     'email_send_failed' => 'យើងមិនអាចផ្ញើអ៊ីមែលបាននៅពេលនេះទេ។ សូមព្យាយាមម្តងទៀតក្នុងរយៈពេលពីរបីនាទី។',
-    // TODO(antigravity): translate to Khmer (owner 2026-11-04: Antigravity does all Khmer translation). English for now.
-    'cart_reminders_stopped' => 'Done. You will not get cart reminder emails any more. You can turn them back on in Account → Profile.',
-    'cart_reminders_link_invalid' => 'This link is not valid. You can turn cart reminders off in Account → Profile.',
+    'cart_reminders_stopped' => 'រួចរាល់។ អ្នកនឹងលែងទទួលបានអ៊ីមែលរំលឹកពីកន្ត្រកទៀតហើយ។ អ្នកអាចបើកវាឡើងវិញនៅក្នុង គណនី → ប្រវត្តិរូប។',
+    'cart_reminders_link_invalid' => 'តំណភ្ជាប់នេះមិនត្រឹមត្រូវទេ។ អ្នកអាចបិទការរំលឹកពីកន្ត្រកនៅក្នុង គណនី → ប្រវត្តិរូប។',
 ];

@@ -110,12 +110,11 @@ return [
     'security_disconnected_body' => ':name មិនអាចប្រើចូល Bookly បានទៀតទេ។',
 
     // Cart reminder (owner 2026-11-05)
-    // TODO(antigravity): translate to Khmer (owner 2026-11-04: Antigravity does all Khmer translation). English for now.
-    'cart_reminder_subject' => 'Your books are still in your cart',
-    'cart_reminder_greeting' => 'Hi :name,',
-    'cart_reminder_intro' => 'You left these books in your Bookly cart:',
-    'cart_reminder_more' => '{1} …and 1 more book|[2,*] …and :count more books',
-    'cart_reminder_action' => 'Go to my cart',
-    'cart_reminder_outro' => 'Prices and stock can change, so finish your order when you are ready. We only send this once.',
-    'cart_reminder_stop' => 'Stop cart reminder emails',
+    'cart_reminder_subject' => 'សៀវភៅរបស់អ្នកនៅតែមាននៅក្នុងកន្ត្រក',
+    'cart_reminder_greeting' => 'សួស្តី :name,',
+    'cart_reminder_intro' => 'អ្នកបានទុកសៀវភៅទាំងនេះនៅក្នុងកន្ត្រក Bookly របស់អ្នក៖',
+    'cart_reminder_more' => '{1} …និងសៀវភៅ 1 ក្បាលទៀត|[2,*] …និងសៀវភៅ :count ក្បាលទៀត',
+    'cart_reminder_action' => 'ទៅកាន់កន្ត្រករបស់ខ្ញុំ',
+    'cart_reminder_outro' => 'តម្លៃ និងចំនួនស្តុកអាចផ្លាស់ប្តូរបាន ដូច្នេះសូមបញ្ចប់ការបញ្ជាទិញរបស់អ្នកនៅពេលអ្នករួចរាល់។ យើងផ្ញើសារនេះតែម្តងប៉ុណ្ណោះ។',
+    'cart_reminder_stop' => 'ឈប់ទទួលអ៊ីមែលរំលឹកពីកន្ត្រក',
 ];
