@@ -28,3 +28,20 @@
   - `npm run lint` → 0 errors, 1 warning (pre-existing)
 - Decisions I made: Translated age bands, grades, levels, and sort options according to customary Khmer usage (`វ័យជំទង់`, `ថ្នាក់ទី n`, `កម្រិត n`, `លក់ដាច់បំផុត`, `ការវាយតម្លៃច្រើនបំផុត`).
 - NEEDS DANISH: none
+
+## A2 — Audience fields in the book CSV and bulk edit (backend, small frontend) — DONE
+- Repo/branch: backend · feature/antigravity-overnight · commit 05f5d1b | frontend · feature/antigravity-overnight · commit 5a8a7f0
+- What changed:
+  - Added `age_min`, `age_max`, `school_grade`, and `level` to `BookCsvImport::HEADERS`, CSV export, sample template, row preview analysis/validation, and import application.
+  - Added age min/max relational consistency check (`max >= min`) and level normalization to uppercase.
+  - Extended `tests/Feature/Admin/BookPublishingBulkCsvTest.php` with 4 new tests verifying export, import creation, update, row error diagnostics, and legacy CSV backward compatibility.
+  - Updated `docs/API.md`, `public/openapi.yaml`, and regenerated frontend `src/api/schema.d.ts`.
+- Checks:
+  - Backend `php artisan test --filter=BookPublishingBulkCsvTest` → 18 passed (152 assertions)
+  - Backend `php artisan test --filter=ApiContractTest` → 3 passed (29 assertions)
+  - Backend `vendor/bin/pint --test` → passed clean
+  - Frontend `npm run typecheck` → passed clean
+- Decisions I made:
+  - Bulk book edit was skipped because `BookBulkController` only manages batch status publishing/scheduling and category attachment/detachment; it does not touch any book-level optional metadata (publisher, series, language, page count, etc.).
+  - Preserved backward compatibility for CSVs missing the new audience columns: missing or blank cells safely resolve to null on new book creation, or maintain pre-existing values on book updates.
+- NEEDS DANISH: none
