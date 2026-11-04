@@ -17,12 +17,13 @@ working with today's settings.
 6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
    hint, similar books): try them when you have time; tell me anything that looks wrong.
 
-**Delivery map pin (2026-11-04)** — free plan: map only opens when the customer taps "Pick on map"
-- [ ] 1. Merge backend first (adds 2 columns to addresses + 2 to orders; Render runs the migration):
+**Delivery map pin (2026-11-04)** — code merged 2026-11-04; Google Cloud part **postponed by owner (do later)**.
+Until then the "Pick on map" button stays hidden; nothing is broken. Owner is in project Bookly (bookly-510814), billing not added yet.
+- [x] 1. Merge backend first (adds 2 columns to addresses + 2 to orders; Render runs the migration):
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/delivery-map-pin
-- [ ] 2. Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/delivery-map-pin
+- [x] 2. Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/delivery-map-pin
   (until step 3 is done the pin section is simply hidden; the "Open in Google Maps" links work without a key)
-- [ ] 3. Google Cloud (one time, ~10 minutes) at https://console.cloud.google.com:
+- [ ] 3. LATER — Google Cloud (one time, ~10 minutes) at https://console.cloud.google.com:
   1. New project "Bookly" → add a billing account (Google asks for a card; the monthly free use covers us).
   2. APIs & Services → Library → **Maps JavaScript API** → Enable. Nothing else (no Places, no Geocoding).
   3. APIs & Services → Credentials → Create credentials → **API key** → Edit it:
