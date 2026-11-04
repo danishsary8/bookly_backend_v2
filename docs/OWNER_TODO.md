@@ -6,6 +6,15 @@ working with today's settings.
 
 ---
 
+## Phase 1: categories + filters (2026-11-05) — merge backend first
+- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/category-tree (adds 7 optional
+  columns and the starter category tree; your existing categories are kept: same-name ones go under their parent)
+- [ ] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/category-tree
+- [ ] Live check: Books page → pick **Fiction** → its sub-categories open; Admin → Categories → tree, edit one →
+  "Parent category"; Admin → a book → set School grade / English level → the filter appears in the shop.
+- Later notes from you (kept): 100+ demo books with good stock; "buy this book, get a free sticker/highlight pen"
+  offer (phase 5). Khmer: new `catalogFilters` group (Antigravity).
+
 ## YOUR GUIDE (2026-11-05) — start here, top to bottom
 
 Everything below is your part. All code is done. Tick as you go.

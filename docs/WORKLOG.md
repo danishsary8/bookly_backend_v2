@@ -664,3 +664,15 @@ hidden password/2FA fields, no mass assignment from request->all(), CORS from en
 composer audit + npm audit (prod): 0 advisories.
 No High/Medium findings. Low/hardening notes for the owner: customer token in localStorage (CSP mitigates);
 cart-reminder stop link has no expiry (only turns emails off); confirm APP_DEBUG=false on Render (not reachable here).
+
+## 2026-11-05: Phase 1 categories + filters (`feature/category-tree`, both repos)
+
+- Backend: categories.parent_id/sort_order/icon; books.age_min/age_max/school_grade/level. StarterCategories (12
+  top-level, ~65 children) installed by migration outside tests; reuses existing slugs (keeps names, sets parent if
+  none, restores a trashed one), never removes. Tree endpoint ?tree=1 (non-empty only, total_books unique per book).
+  Staff: parent must be top-level, category with children stays top-level and can't be deleted (409). Books filters:
+  category includes children, category_ids[], formats[], age, school_grade, level, has_ebook; sorts best_selling
+  (90 days, non-cancelled), most_reviewed; facets=1 (+ with_age). DemoSeeder firstOrCreate by slug. 8 tests; 819 pass.
+- Frontend: tree in the filter panel (open branch, own totals; facet hiding only before a category is chosen),
+  has-ebook switch, age/grade/level groups only when used, new sorts, chips; admin tree list + parent/order;
+  book form age/grade/level. 556 tests, build; browser en/km light/dark 1280/390 axe 0, CSP 0.
