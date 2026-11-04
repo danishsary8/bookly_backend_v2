@@ -33,6 +33,10 @@ class OpsAlerts
             ? 'Note: '.Str::limit($order->delivery_note, 300)
             : null;
 
+        $gift = $order->is_gift
+            ? '🎁 Gift: print the packing sheet without prices'.(filled($order->gift_message) ? ' — message: '.Str::limit($order->gift_message, 200) : '')
+            : null;
+
         $phone = $order->shipping_phone ?: $order->customer?->phone;
         $customerLine = "Customer: {$order->customer?->name}".($phone ? " ({$phone})" : '');
         $deliveryLocation = filled($order->shipping_address_line1)
@@ -52,6 +56,7 @@ class OpsAlerts
             $deliveryLocation,
             $pin,
             $note,
+            $gift,
             'Payment: cash on delivery',
             $shop !== '' ? "Open: {$shop}/admin/orders/{$order->id}" : null,
         ])), staff: true);

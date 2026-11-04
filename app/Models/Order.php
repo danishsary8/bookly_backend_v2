@@ -19,13 +19,14 @@ class Order extends Model
         'shipping_recipient_name', 'shipping_phone', 'shipping_address_line1', 'shipping_address_line2',
         'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country', 'shipping_latitude', 'shipping_longitude',
         'coupon_id', 'status', 'subtotal', 'discount_amount', 'shipping_fee', 'tax_amount', 'total_amount',
-        'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note',
+        'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note', 'is_gift', 'gift_message',
         'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
     ];
 
     protected function casts(): array
     {
         return [
+            'is_gift' => 'boolean',
             'status' => OrderStatus::class,
             'payment_method' => PaymentMethod::class,
             'subtotal' => 'decimal:2',

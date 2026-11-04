@@ -78,6 +78,9 @@ class CheckoutController extends Controller
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'delivery_note' => ['nullable', 'string', 'max:300'],
+            // Free gift note (owner 2026-11-05): printed on the packing sheet, which then hides the prices.
+            'is_gift' => ['sometimes', 'boolean'],
+            'gift_message' => ['nullable', 'string', 'max:200'],
             // The offer the customer saw in the preview; 422 if it no longer applies (spec 4.9, O1 = A).
             'offer_id' => ['nullable', 'integer'],
         ]);
@@ -92,10 +95,15 @@ class CheckoutController extends Controller
             $deliveryNote = null;
         }
 
+        $isGift = (bool) ($data['is_gift'] ?? false);
+        $giftMessage = $isGift && isset($data['gift_message']) ? trim((string) $data['gift_message']) : null;
+
         ['order' => $order, 'created' => $created] = $this->checkout->place(
             $request->user(), $data['address_id'], $data['coupon_code'] ?? null, $key, $deliveryNote,
             isset($data['offer_id']) ? (int) $data['offer_id'] : null,
             $method,
+            $isGift,
+            $giftMessage === '' ? null : $giftMessage,
         );
 
         $order->load(['items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon', 'statusHistory']);

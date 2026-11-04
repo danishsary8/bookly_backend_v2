@@ -579,6 +579,8 @@ components:
         shipping_address: { $ref: '#/components/schemas/AddressInput' }
         can_cancel: { type: boolean }
         delivery_note: { type: string, maxLength: 300, nullable: true }
+        is_gift: { type: boolean, description: 'Free gift option (no fee). The packing sheet hides prices.' }
+        gift_message: { type: string, maxLength: 200, nullable: true }
         is_free_shipping: { type: boolean }
         estimated_delivery: { $ref: '#/components/schemas/EstimatedDelivery', nullable: true }
         status_history:
@@ -594,6 +596,8 @@ components:
         placed_at: { type: string, format: date-time }
         delivered_at: { type: string, format: date-time, nullable: true }
         delivery_note: { type: string, maxLength: 300, nullable: true }
+        is_gift: { type: boolean, description: 'Free gift option (no fee). The packing sheet hides prices.' }
+        gift_message: { type: string, maxLength: 200, nullable: true }
         payment_method: { type: string, enum: [card, cod, khqr] }
         payment_status: { type: string, enum: [pending, succeeded, failed, refunded], nullable: true }
         customer: { type: object, properties: { name: { type: string }, email: { type: string, nullable: true }, phone: { type: string, nullable: true } } }
@@ -1649,6 +1653,14 @@ paths:
                 delivery_note:
                   type: string
                   maxLength: 300
+                is_gift:
+                  type: boolean
+                  description: Free gift option. Default false.
+                gift_message:
+                  type: string
+                  maxLength: 200
+                  nullable: true
+                  description: Kept only when is_gift is true (trimmed; empty = null).
                 offer_id:
                   type: integer
                   description: The offer shown in the preview. If it no longer applies, 422 on offer_id and nothing is placed. Leave it out to accept whatever wins now.
