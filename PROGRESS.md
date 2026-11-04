@@ -45,3 +45,17 @@
   - Bulk book edit was skipped because `BookBulkController` only manages batch status publishing/scheduling and category attachment/detachment; it does not touch any book-level optional metadata (publisher, series, language, page count, etc.).
   - Preserved backward compatibility for CSVs missing the new audience columns: missing or blank cells safely resolve to null on new book creation, or maintain pre-existing values on book updates.
 - NEEDS DANISH: none
+
+## A3 — Sample catalogue seeder (backend) — DONE
+- Repo/branch: backend · feature/antigravity-overnight · commit e2aabf6
+- What changed:
+  - Created `database/seeders/SampleCatalogSeeder.php` and curated dataset `database/seeders/data/sample_books.php` with 134 real books spanning all 12 starter categories.
+  - Automatically runs `StarterCategories::install()` to ensure tree structure is available.
+  - Generates valid ISBN-13s and SKUs, links publishers/authors/series, sets prices ($3–$42), active formats with realistic stock (10–60), and ~34% with ebook format.
+  - Enforced idempotency (skips when title + primary author exists) and production safeguard (requires `DEMO_SEED_ALLOWED=true`).
+  - Added `tests/Feature/Platform/SampleCatalogSeederTest.php` and documented usage in `README.md`.
+- Checks:
+  - `php artisan test --filter=SampleCatalogSeederTest` → 2 passed (146 assertions)
+  - `vendor/bin/pint --test` → passed clean
+- Decisions I made: Structured dataset in a readable dedicated file (`data/sample_books.php`) so it can be cleanly reviewed, audited, and maintained.
+- NEEDS DANISH: none
