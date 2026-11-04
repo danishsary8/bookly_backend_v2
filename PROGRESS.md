@@ -59,3 +59,17 @@
   - `vendor/bin/pint --test` → passed clean
 - Decisions I made: Structured dataset in a readable dedicated file (`data/sample_books.php`) so it can be cleanly reviewed, audited, and maintained.
 - NEEDS DANISH: none
+
+## A4 — Category page shows its sub-categories (frontend) — DONE
+- Repo/branch: frontend · feature/antigravity-overnight · commit ac07a44
+- What changed:
+  - Updated `src/pages/catalog/CategoryPage.tsx` to read `catalogQueries.categoryTree()`. When viewing a top-level category with children, it renders a wrapping row of pill links with count ("Name · Count") linking to each sub-category. When viewing a sub-category, it displays a "← Back to <parent>" navigation link.
+  - Implemented 44px min touch targets, accessible keyboard navigation, and theme-compatible styling with existing tokens.
+  - Added `categorySubNav` i18n entries in both `en.ts` and `km.ts`.
+  - Added test coverage in `src/pages/catalog/catalog-pages.test.tsx` for both top-level and sub-category views.
+- Checks:
+  - `npx vitest run src/pages/catalog/catalog-pages.test.tsx` → 19 passed
+  - `npx vitest run src/i18n/storefront-khmer.test.tsx` → 7 passed
+  - `npm run typecheck` → passed clean
+- Decisions I made: Integrated category tree data to query sub-category counts, and only show sub-categories nav when children exist; for sub-categories, looked up the parent slug from the cached categories list to render a clean back link.
+- NEEDS DANISH: none
