@@ -13,6 +13,7 @@ use App\Services\Auth\EmailClaims;
 use App\Services\Auth\OtpService;
 use App\Services\Customers\UnverifiedCustomers;
 use App\Services\Telegram\TelegramBot;
+use App\Support\PasswordRules;
 use App\Support\SafeNotifier;
 use App\Support\TimingSafe;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -20,7 +21,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -50,7 +50,7 @@ class AuthController extends Controller
                     $fail(self::EMAIL_TAKEN);
                 }
             }],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', PasswordRules::new()],
             // A contact number for email sign-ups; with Telegram the proven number comes from the bot afterwards.
             'phone' => ['nullable', 'string', 'max:30'],
             'verify_by' => ['nullable', Rule::in(['email', 'telegram'])],
@@ -223,7 +223,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email'],
             'code' => ['required', 'digits:6'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', PasswordRules::new()],
         ]);
 
         $customer = Customer::where('email', strtolower($data['email']))->first();
