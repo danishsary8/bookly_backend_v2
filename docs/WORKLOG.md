@@ -651,3 +651,16 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   only with is_gift, trimmed, empty → null); Order/OrderDocument resources; Telegram new-order alert "🎁 Gift" line.
   3 tests; 803 pass. Both branches merge cleanly (47 Marketing+Shopping tests green on the merge).
 - km mail/messages: English + TODO(antigravity).
+
+## 2026-11-05: Phase 0 security review (read-only, main of both repos)
+
+Method: /security-review rules (high-confidence, real attack paths) across the whole code, not a diff.
+Checked, all OK: raw SQL (every raw query bound), customer data scoping (orders, addresses, returns, reviews,
+payments, cart, stock alerts, sessions all via the signed-in customer), checkout address ownership, KHQR simulate
+(404 outside test mode), 125 staff routes (all auth:sanctum + staff ability + 2FA; admin routes ability:admin),
+Telegram webhook (hash_equals secret), media upload (size, extension, real MIME, getimagesize, UUID name),
+hidden password/2FA fields, no mass assignment from request->all(), CORS from env without credentials, strict CSP
+(no unsafe-inline/eval scripts), React only uses dangerouslySetInnerHTML for locally generated QR SVGs,
+composer audit + npm audit (prod): 0 advisories.
+No High/Medium findings. Low/hardening notes for the owner: customer token in localStorage (CSP mitigates);
+cart-reminder stop link has no expiry (only turns emails off); confirm APP_DEBUG=false on Render (not reachable here).
