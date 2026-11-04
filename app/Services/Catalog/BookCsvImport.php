@@ -16,6 +16,7 @@ use App\Services\Inventory\InventoryService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -31,8 +32,9 @@ class BookCsvImport
     public const HEADERS = [
         'book_id', 'title', 'authors', 'categories', 'series', 'series_order',
         'publisher', 'language', 'page_count', 'publish_date', 'description',
-        'status', 'publish_at', 'format', 'sku', 'isbn', 'price_usd',
-        'stock_quantity', 'low_stock_threshold', 'is_active', 'cover_image_url',
+        'status', 'publish_at', 'age_min', 'age_max', 'school_grade', 'level',
+        'format', 'sku', 'isbn', 'price_usd', 'stock_quantity',
+        'low_stock_threshold', 'is_active', 'cover_image_url',
     ];
 
     private const REQUIRED_COLUMNS = ['sku'];
@@ -148,6 +150,10 @@ class BookCsvImport
                 'description' => ['string', 'max:20000'],
                 'status' => ['in:draft,scheduled,live'],
                 'publish_at' => ['date'],
+                'age_min' => ['integer', 'min:0', 'max:18'],
+                'age_max' => ['integer', 'min:0', 'max:18'],
+                'school_grade' => ['integer', 'min:1', 'max:12'],
+                'level' => ['string', Rule::in(Book::LEVELS)],
                 'format' => ['in:'.implode(',', array_column(BookFormat::cases(), 'value'))],
                 'sku' => ['string', 'max:50'],
                 'isbn' => ['string', 'max:20'],
@@ -172,9 +178,23 @@ class BookCsvImport
             if (isset($input['status'])) {
                 $input['status'] = strtolower($input['status']);
             }
+            if (isset($input['level'])) {
+                $input['level'] = strtoupper(trim($input['level']));
+                $given['level'] = $input['level'];
+            }
             $validator = Validator::make($input, $rules);
             foreach ($validator->errors()->all() as $error) {
                 $messages[] = $error;
+            }
+
+            $min = isset($given['age_min']) && is_numeric($given['age_min'])
+                ? (int) $given['age_min']
+                : $variant?->book?->age_min;
+            $max = isset($given['age_max']) && is_numeric($given['age_max'])
+                ? (int) $given['age_max']
+                : $variant?->book?->age_max;
+            if ($min !== null && $max !== null && $max < $min) {
+                $messages[] = 'The age max must be greater than or equal to age min.';
             }
 
             if ($isbn !== null && ! in_array(strlen($isbn), [10, 13], true)) {
@@ -327,12 +347,12 @@ class BookCsvImport
     private function bookFields(array $given, array $plan): array
     {
         $fields = [];
-        foreach (['title', 'language', 'description', 'publish_date'] as $column) {
+        foreach (['title', 'language', 'description', 'publish_date', 'level'] as $column) {
             if (isset($given[$column])) {
                 $fields[$column] = $given[$column];
             }
         }
-        foreach (['page_count', 'series_order'] as $column) {
+        foreach (['page_count', 'series_order', 'age_min', 'age_max', 'school_grade'] as $column) {
             if (isset($given[$column])) {
                 $fields[$column] = (int) $given[$column];
             }

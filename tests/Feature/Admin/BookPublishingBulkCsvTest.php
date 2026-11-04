@@ -535,4 +535,101 @@ class BookPublishingBulkCsvTest extends TestCase
         $this->actingAsStaff($this->admin)->postJson('/api/v1/staff/books/bulk', ['ids' => [$book->id], 'status' => 'scheduled', 'publish_at' => '2099-02-01T09:00:00+07:00'])->assertOk();
         $this->assertSame('2099-02-01 02:00:00', $book->fresh()->getRawOriginal('publish_at'));
     }
+
+    public function test_csv_export_and_template_contain_audience_fields(): void
+    {
+        $book = Book::create([
+            'title' => 'Audience Reader',
+            'status' => 'live',
+            'age_min' => 7,
+            'age_max' => 12,
+            'school_grade' => 6,
+            'level' => 'B1',
+        ]);
+        BookVariant::create([
+            'book_id' => $book->id,
+            'format' => BookFormat::Paperback,
+            'sku' => 'AUD-001',
+            'price_usd' => '12.00',
+            'stock_quantity' => 10,
+            'is_active' => true,
+        ]);
+
+        $exportRes = $this->actingAsStaff($this->admin)->get('/api/v1/staff/books/export');
+        $exportRes->assertOk();
+        $exportContent = $exportRes->streamedContent();
+
+        $this->assertStringContainsString('age_min,age_max,school_grade,level', $exportContent);
+        $this->assertStringContainsString('7,12,6,B1', $exportContent);
+
+        $templateRes = $this->actingAsStaff($this->admin)->get('/api/v1/staff/books/export-template');
+        $templateRes->assertOk();
+        $this->assertStringContainsString('age_min,age_max,school_grade,level', $templateRes->getContent());
+    }
+
+    public function test_csv_import_creates_and_updates_books_with_audience_fields(): void
+    {
+        $csvNew = implode("\n", [
+            'title,format,sku,price_usd,age_min,age_max,school_grade,level',
+            'Young Learner,paperback,YL-001,15.00,8,14,8,b2',
+        ]);
+
+        $this->importCsv($csvNew)->assertOk();
+
+        $book = Book::where('title', 'Young Learner')->firstOrFail();
+        $this->assertSame(8, $book->age_min);
+        $this->assertSame(14, $book->age_max);
+        $this->assertSame(8, $book->school_grade);
+        $this->assertSame('B2', $book->level);
+
+        $csvUpdate = implode("\n", [
+            'sku,level,age_min',
+            'YL-001,c1,10',
+        ]);
+
+        $this->importCsv($csvUpdate)->assertOk();
+
+        $book->refresh();
+        $this->assertSame(10, $book->age_min);
+        $this->assertSame(14, $book->age_max); // kept existing value
+        $this->assertSame('C1', $book->level);
+    }
+
+    public function test_csv_import_validates_audience_fields_with_readable_errors(): void
+    {
+        $csv = implode("\n", [
+            'title,format,sku,price_usd,age_min,age_max,school_grade,level',
+            'Over Age,paperback,ERR-AGE-1,10.00,25,,,',
+            'Inverted Age,paperback,ERR-AGE-2,10.00,15,10,,',
+            'Bad Grade,paperback,ERR-GRD,10.00,,,14,',
+            'Bad Level,paperback,ERR-LVL,10.00,,,,XYZ',
+        ]);
+
+        $res = $this->preview($csv)->assertOk();
+        $this->assertSame(['total' => 4, 'new' => 0, 'update' => 0, 'error' => 4], $res->json('data.totals'));
+        $rows = $res->json('data.rows');
+
+        $this->assertStringContainsString('age min', strtolower(implode(' ', $rows[0]['messages'])));
+        $this->assertStringContainsString('age max must be greater than or equal to age min', implode(' ', $rows[1]['messages']));
+        $this->assertStringContainsString('school grade', strtolower(implode(' ', $rows[2]['messages'])));
+        $this->assertStringContainsString('selected level is invalid', strtolower(implode(' ', $rows[3]['messages'])));
+    }
+
+    public function test_old_format_csv_without_audience_columns_still_imports_cleanly(): void
+    {
+        Category::create(['name' => 'Fiction', 'slug' => 'fiction']);
+        // self::CSV_HEADER is the legacy 21-column header without age_min, age_max, school_grade, level
+        $csv = implode("\n", [
+            self::CSV_HEADER,
+            ',Legacy Book,Old Author,Fiction,,,,English,200,2020-01-01,Desc,live,,paperback,LEGACY-01,9780123456711,10.00,5,2,1,',
+        ]);
+
+        $this->importCsv($csv)->assertOk();
+
+        $book = Book::where('title', 'Legacy Book')->firstOrFail();
+        $this->assertNull($book->age_min);
+        $this->assertNull($book->age_max);
+        $this->assertNull($book->school_grade);
+        $this->assertNull($book->level);
+    }
 }
