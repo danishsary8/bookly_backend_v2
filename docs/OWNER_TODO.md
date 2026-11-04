@@ -17,6 +17,13 @@ working with today's settings.
 6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
    hint, similar books): try them when you have time; tell me anything that looks wrong.
 
+**Block leaked passwords (2026-11-04)** — merge the **frontend first**, then the backend
+- [ ] 1. Frontend (browser test signs up with a fresh password): https://github.com/danishsary8/bookly_frontend/pull/new/fix/e2e-unique-password
+- [ ] 2. Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/block-leaked-passwords
+- [ ] Live check: Sign up (or Account → change password) with `Password123` → red message "This password has appeared
+  in a known data leak…" → a long unusual password works.
+- Khmer of that message: English for now in lang/km/validation.php (TODO(antigravity)).
+
 **Visitor stats + 3 account features (2026-11-04)** — all merged 2026-11-04 (each works alone; checked they merge cleanly)
 - [x] Visitor stats (frontend): https://github.com/danishsary8/bookly_frontend/pull/new/feature/visitor-analytics
   - [ ] After merge: Vercel → your project → **Analytics** tab → **Enable** (free). Numbers appear after the next deploy.
@@ -52,7 +59,7 @@ Khmer strings, Khmer book titles). Claude adds English text only and marks any n
     old Neon project clean-up, real printer test, shop address on printed sheets, native Khmer review of km.ts.
 
 **Ideas not started (ask before building)**
-13. Google Maps (delivery spot / shop map). 14. Facebook page / Messenger link. 15. Block leaked passwords.
+13. Google Maps (delivery spot / shop map). 14. Facebook page / Messenger link. 15. Block leaked passwords: built 2026-11-04 (see above).
     (Sign out everywhere, new-device email and the wishlist badge: built 2026-11-04, see above.)
 
 ---

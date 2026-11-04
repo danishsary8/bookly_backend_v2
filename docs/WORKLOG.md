@@ -609,3 +609,15 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   tests green on the merge).
 - `feature/wishlist-price-badge`: wishlists.saved_price_usd (lowest active price at first save; kept on re-save/
   status change); GET /wishlist → wishlist_saved_price_usd; wishlist fields added to the OpenAPI spec. 2 tests; 783.
+
+## 2026-11-04: Block leaked passwords (`feature/block-leaked-passwords`)
+
+- `App\Support\PasswordRules::new()` = min 8, letters, numbers, uncompromised(); used by customer register/reset/
+  change, staff reset, admin:create. NotPwnedVerifier timeout 30 → 5 s (AppServiceProvider extend); fails open.
+- lang/en/validation.php adds only password.uncompromised (Laravel merges with its own file; checked). km: English +
+  TODO(antigravity).
+- TestCase binds a stand-in verifier (tests never call the internet; their simple passwords are in real leak lists);
+  LeakedPasswordTest drives the real verifier against Http::fake (refused/accepted, only a 5-char hash prefix sent,
+  outage → allowed, km). 3 fail without the rule. 796 pass, pint clean.
+- api.pwnedpasswords.com is blocked from this sandbox, so not checked live here; frontend e2e sign-up now uses a fresh
+  password (merge that first). Local e2e journey "new customer" passes against this branch.
