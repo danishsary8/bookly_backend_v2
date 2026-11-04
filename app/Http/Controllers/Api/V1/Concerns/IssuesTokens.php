@@ -15,10 +15,11 @@ trait IssuesTokens
             : config('sanctum.expiration');
         $expiresAt = $minutes ? now()->addMinutes((int) $minutes) : null;
 
-        $name = $tokenName ?? ($user instanceof StaffUser ? DeviceDetector::detect(request()->userAgent()) : 'api');
+        // The device ("Chrome on Windows") and IP address: shown under "Where you're signed in" (staff and customers).
+        $name = $tokenName ?? DeviceDetector::detect(request()->userAgent());
         $token = $user->createToken($name, $abilities, $expiresAt);
 
-        if ($user instanceof StaffUser && request()->ip()) {
+        if (request()->ip()) {
             $token->accessToken->forceFill(['ip_address' => request()->ip()])->save();
         }
 
