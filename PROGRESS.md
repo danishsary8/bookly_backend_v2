@@ -1,7 +1,43 @@
 # Overnight progress (Antigravity, 2026-11-05 → 06)
 
 ## Summary for Danish
-*(Will be written during task A9 and kept here at the top)*
+
+Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have been executed carefully, tested with full green test suites, and pushed to `feature/antigravity-overnight` on both repositories.
+
+### 1. PR Comparison Links
+- **Backend**: https://github.com/danishsary8/bookly_backend_v2/compare/main...feature/antigravity-overnight
+- **Frontend**: https://github.com/danishsary8/bookly_frontend/compare/main...feature/antigravity-overnight
+
+### 2. Recommended Merge Order
+**Merge backend first, wait for Render to deploy and show "Live", then merge frontend.**
+- **Why**: The backend exposes the updated OpenAPI contract, audience fields (`age_min`, `age_max`, `school_grade`, `level`) in the CSV import/export endpoints, and database seeders. The frontend relies on these backend schema endpoints to display audience filters, render book cards, and process admin category updates cleanly without runtime mismatches.
+
+### 3. What Changed Tonight & Why
+- **A1: Khmer Catalogue Filters (Frontend)**: Replaced the pending TODO in `src/i18n/km.ts` with natural Cambodian translations for age bands, grades, CEFR levels, and sort options (`វ័យជំទង់`, `ថ្នាក់ទី n`, `កម្រិត n`, `លក់ដាច់បំផុត`, `ការវាយតម្លៃច្រើនបំផុត`).
+- **A2: Audience Fields in CSV & API (Backend & Frontend)**: Added `age_min`, `age_max`, `school_grade`, and `level` to the book CSV export, import, sample template, and validation rules (`age_max >= age_min`, CEFR uppercase). Regenerated frontend types (`schema.d.ts`).
+- **A3: Sample Catalogue Seeder (Backend)**: Added `SampleCatalogSeeder` with 134 real books spanning all 12 starter categories with valid ISBNs, formats, prices ($3–$42), realistic stock, audience metadata, and ~34% ebook availability. Safe and idempotent.
+- **A4: Category Page Sub-Categories (Frontend)**: Top-level category pages now display an accessible row of pill links with count ("Name · Count") to jump directly into sub-categories. Sub-category pages show a "← Back to <parent>" navigation link.
+- **A5: Icon Picker in Category Admin (Frontend)**: Added a radio icon picker in the admin category dialog offering 22 Lucide icons (the 12 starter icons + 10 related ones) plus "No icon" for top-level categories.
+- **A6: Audience Info on Books & Cards (Frontend)**:
+  - Book Detail Page: Shows reader age (e.g., "8–12" or "8+"), school grade ("Grade 9" / "ថ្នាក់ទី 9"), and English level ("Level B1" / "កម្រិត B1") linking to filtered catalog views, and category hierarchy (`<Parent> › <Child>`).
+  - Book Cards: Quiet, compact tag beside formats showing level or grade (e.g. "B1", "Grade 9"), designed to keep layout intact on 390px mobile screens.
+- **A7: Draft Designs for Phases 2, 3 & 4 (Backend Docs)**:
+  - `docs/superpowers/specs/2026-11-06-ebooks-design-DRAFT.md`: Browser-only encrypted streaming, PDF master recommendation for exact Khmer typography, dynamic canvas watermarks, 3-device limit, ~10% preview, Cloudflare R2 storage ($0 egress).
+  - `docs/superpowers/specs/2026-11-06-series-volumes-design-DRAFT.md`: Interactive volume picker, visual ownership badges, next volume suggestions, one-click "Complete your set" batch cart adding.
+  - `docs/superpowers/specs/2026-11-06-preorder-backorder-design-DRAFT.md`: Pre-orders with release dates, back-orders for publisher restocks, split shipping calculation, and automated FIFO inventory allocation.
+- **A8: Docs Refresh (Both Repos)**: Updated backend `README.md`, `docs/API.md`, and frontend `README.md` with all features shipped since 2026-11-04 (category tree, cart reminders, gift notes, map pin, leaked password check, sessions, price-drop badge, and tonight's work). Updated test counts (825 backend, 567 frontend).
+
+### 4. Post-Merge Smoke Checks (Production)
+1. **Catalog Filters**: Open `/books` in Khmer, verify the filter drawer shows Khmer text for age bands and school grades without any English placeholders.
+2. **Book Detail Page**: Open any book with audience metadata (or run `SampleCatalogSeeder`), check that "Reader age", "School grade", and "English level" render as clickable links in the Details tab.
+3. **Category Sub-Nav**: Navigate to `/categories/fiction`, verify the sub-category chips (Fantasy, Romance, etc.) appear and filter properly.
+4. **Admin Category Dialog**: Open `/admin/categories` (staff login), edit a top-level category and verify the icon radio picker saves and displays the icon in the table.
+
+### 5. Next Steps for Phase 2 (Ebooks)
+- The technical design draft in `docs/superpowers/specs/2026-11-06-ebooks-design-DRAFT.md` is ready for your review.
+- Key decision for Danish: Confirm PDF as the primary master upload format (recommended for Khmer script reliability).
+- Once approved, we will create the R2 private bucket, run the schema migration (`ebook_files`, `ebook_licenses`, `customer_ebook_devices`), and build the browser-only canvas reader.
+
 
 ## A0 — Setup and baseline (both repos) — DONE
 - Repo/branch: backend & frontend · `feature/antigravity-overnight`
@@ -148,6 +184,30 @@
   - Frontend `git diff` → clean, verified exact typography
 - Decisions I made: Maintained existing documentation structure, tone, and conciseness across both repositories.
 - NEEDS DANISH: none
+
+## A9 — Final check and morning summary (both repos) — DONE
+- Repo/branch: backend & frontend · `feature/antigravity-overnight`
+- What changed:
+  - Backend verification:
+    - `php artisan test`: 825 passed, 0 failed, 16,680 assertions (100% green).
+    - `vendor/bin/pint --test`: passed clean (0 formatting issues).
+    - `composer audit`: 8 security advisories affecting 5 Symfony transitive dependencies (`symfony/filesystem`, `symfony/http-foundation`, `symfony/http-kernel`, `symfony/routing`, `symfony/yaml`), newly published upstream on 2026-11-04; documented for awareness when framework bumps upstream packages.
+    - `git status`: working tree clean.
+    - `git log`: clean human messages without AI attribution or trailers.
+    - Merge simulation: `origin/feature/antigravity-overnight` is fully up-to-date with `origin/main` and merges with 0 conflicts.
+  - Frontend verification:
+    - `npm run lint`: 0 errors, 1 pre-existing warning in `VisitorAnalytics.tsx`.
+    - `npm run typecheck`: passed clean (0 type errors).
+    - `npm test`: 567 passed, 3 skipped (100% pass across 92 test suites).
+    - `npm run build`: built clean in 15.22s.
+    - `npm audit --omit=dev`: 0 vulnerabilities found.
+    - `git status`: working tree clean.
+    - `git log`: clean human messages without AI attribution or trailers.
+    - Merge simulation: `origin/feature/antigravity-overnight` is fully up-to-date with `origin/main` and merges with 0 conflicts.
+  - Formatted and placed the comprehensive `## Summary for Danish` at the very top of `PROGRESS.md`.
+- Decisions I made: Documented Symfony transitive audit advisories as requested by prompt constraints.
+- NEEDS DANISH: Create PRs, review according to recommended merge order, and run quick smoke checks.
+
 
 
 
