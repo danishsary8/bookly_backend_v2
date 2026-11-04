@@ -6,6 +6,10 @@ working with today's settings.
 
 ---
 
+## Open list (2026-11-04) — all code is merged; only these are left
+
+---
+
 ## Progress (2026-10-31)
 
 - Done: all 18 branches merged and deployed; backup points at `bookly-2` (green run); demo data is there; live checks
@@ -19,8 +23,6 @@ working with today's settings.
 ---
 
 ## 0. New since 2026-10-31 (notes for each task: `docs/HANDOFF.md` on this branch)
-
-## Open list (2026-11-04) — all code is merged; only these are left
 
 **Live checks (about 2 minutes each, any order)**
 1. Excel: Admin → Reports → **Excel, all reports** → open the file.
