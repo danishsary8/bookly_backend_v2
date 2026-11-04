@@ -108,4 +108,13 @@ return [
     'security_connected_body' => 'You can now sign in to Bookly with :name.',
     'security_disconnected_subject' => ':name was disconnected from your Bookly account',
     'security_disconnected_body' => ':name can no longer be used to sign in to Bookly.',
+
+    // Cart reminder (owner 2026-11-05)
+    'cart_reminder_subject' => 'Your books are still in your cart',
+    'cart_reminder_greeting' => 'Hi :name,',
+    'cart_reminder_intro' => 'You left these books in your Bookly cart:',
+    'cart_reminder_more' => '{1} …and 1 more book|[2,*] …and :count more books',
+    'cart_reminder_action' => 'Go to my cart',
+    'cart_reminder_outro' => 'Prices and stock can change, so finish your order when you are ready. We only send this once.',
+    'cart_reminder_stop' => 'Stop cart reminder emails',
 ];

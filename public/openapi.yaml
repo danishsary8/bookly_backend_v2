@@ -368,6 +368,7 @@ components:
         telegram_connected: { type: boolean, description: 'True if a Telegram chat ID has been linked' }
         telegram_order_updates: { type: boolean, description: 'True if customer has enabled real-time order notifications on Telegram' }
         price_drop_alerts: { type: boolean, description: 'Email me when a book on my "Want to read" wishlist drops 5% or more (at most one email per book per week). Off by default.' }
+        cart_reminders: { type: boolean, description: 'One email 24 hours after books are left in the cart (at most one a week, and only after the cart changed). On by default.' }
         connected: { type: object, properties: { google: { type: boolean }, facebook: { type: boolean } } }
         sign_in_methods: { type: array, items: { type: string, enum: [password, google, facebook, telegram] }, description: 'Ways this account can sign in today (password counts only with an email; telegram means a verified number, while the Telegram bot is on). The last one cannot be removed.' }
         pending_email: { type: string, nullable: true, description: 'Only on the customer''s own account: an address that was sent a code (Telegram sign-up, change email) and is added once POST /me/email/verify gets that code.' }
@@ -1250,7 +1251,7 @@ paths:
     patch:
       tags: [Customer]
       summary: 'Update name, phone, locale (en|km), Telegram order updates or price-drop emails'
-      requestBody: { content: { application/json: { schema: { type: object, properties: { name: { type: string, maxLength: 150 }, phone: { type: string, nullable: true, maxLength: 30 }, locale: { type: string, enum: [en, km] }, telegram_order_updates: { type: boolean }, price_drop_alerts: { type: boolean } } } } } }
+      requestBody: { content: { application/json: { schema: { type: object, properties: { name: { type: string, maxLength: 150 }, phone: { type: string, nullable: true, maxLength: 30 }, locale: { type: string, enum: [en, km] }, telegram_order_updates: { type: boolean }, price_drop_alerts: { type: boolean }, cart_reminders: { type: boolean } } } } } }
       responses: { '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Customer' } } } } } }, '422': { $ref: '#/components/responses/Validation' } }
     delete:
       tags: [Customer]
@@ -2438,6 +2439,35 @@ paths:
       responses:
         '200': { description: Unsubscribed }
         '422': { description: Invalid token }
+  /cart-reminders/stop:
+    post:
+      tags: [Customer]
+      summary: Stop cart reminder emails (the link in the email; no sign-in)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer, token]
+              properties:
+                customer: { type: integer }
+                token: { type: string, maxLength: 100 }
+      responses:
+        '200': { description: Cart reminders turned off }
+        '422': { description: Wrong link }
+  /cart-reminders/stop/one-click:
+    post:
+      tags: [Customer]
+      summary: RFC 8058 one-click version of the stop link (mail apps)
+      security: []
+      parameters:
+        - { name: customer, in: query, required: true, schema: { type: integer } }
+        - { name: token, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Cart reminders turned off }
+        '422': { description: Wrong link }
   /me/newsletter:
     get:
       tags: [Customer]

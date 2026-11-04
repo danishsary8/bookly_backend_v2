@@ -34,6 +34,7 @@ class ProfileController extends Controller
             'locale' => ['sometimes', 'required', 'string', Rule::in(['en', 'km'])],
             'telegram_order_updates' => ['sometimes', 'boolean'],
             'price_drop_alerts' => ['sometimes', 'boolean'],
+            'cart_reminders' => ['sometimes', 'boolean'],
         ]);
 
         $request->user()->update($data);

@@ -10,6 +10,11 @@ class Cart extends Model
 {
     protected $fillable = ['customer_id'];
 
+    protected function casts(): array
+    {
+        return ['reminder_sent_at' => 'datetime'];
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
