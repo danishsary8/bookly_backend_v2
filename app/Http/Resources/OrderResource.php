@@ -62,6 +62,9 @@ class OrderResource extends JsonResource
                 'state' => $this->shipping_state,
                 'postal_code' => $this->shipping_postal_code,
                 'country' => $this->shipping_country,
+                // The customer's map pin, if they set one: the courier opens it in Google Maps.
+                'latitude' => $this->shipping_latitude !== null ? (float) $this->shipping_latitude : null,
+                'longitude' => $this->shipping_longitude !== null ? (float) $this->shipping_longitude : null,
             ],
             'can_cancel' => $this->status === OrderStatus::Pending,
             'delivery_note' => $this->delivery_note,

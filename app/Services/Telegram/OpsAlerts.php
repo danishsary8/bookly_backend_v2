@@ -38,6 +38,10 @@ class OpsAlerts
         $deliveryLocation = filled($order->shipping_address_line1)
             ? "Delivery: {$order->shipping_address_line1}, {$order->shipping_city}, {$order->shipping_country}"
             : "Delivery: {$order->shipping_city}, {$order->shipping_country}";
+        // The customer's map pin (optional): a plain Google Maps link, free to open, no API key.
+        $pin = $order->shipping_latitude !== null && $order->shipping_longitude !== null
+            ? 'Map: https://www.google.com/maps/search/?api=1&query='.((float) $order->shipping_latitude).','.((float) $order->shipping_longitude)
+            : null;
 
         $this->send(implode("\n", array_filter([
             "🛒 New order {$order->order_number}",
@@ -46,6 +50,7 @@ class OpsAlerts
             $lines->count() > 10 ? '• … and '.($lines->count() - 10).' more lines' : null,
             $customerLine,
             $deliveryLocation,
+            $pin,
             $note,
             'Payment: cash on delivery',
             $shop !== '' ? "Open: {$shop}/admin/orders/{$order->id}" : null,

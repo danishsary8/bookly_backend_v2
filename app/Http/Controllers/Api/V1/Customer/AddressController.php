@@ -81,6 +81,9 @@ class AddressController extends Controller
         return response()->json(null, 204);
     }
 
+    /** Cambodia, with a small margin: a pin outside it is a mistake (the shop only delivers in Cambodia). */
+    public const PIN_AREA = ['lat' => [9.5, 15], 'lng' => [102, 108]];
+
     private function rules(bool $partial = false): array
     {
         $required = $partial ? 'sometimes' : 'required';
@@ -96,6 +99,9 @@ class AddressController extends Controller
             'postal_code' => ['nullable', 'string', 'max:20'],
             'country' => [$required, 'string', 'max:100'],
             'is_default' => ['sometimes', 'boolean'],
+            // Optional map pin (owner 2026-11-04): both or neither, and inside Cambodia, where the shop delivers.
+            'latitude' => ['nullable', 'numeric', 'required_with:longitude', 'between:'.self::PIN_AREA['lat'][0].','.self::PIN_AREA['lat'][1]],
+            'longitude' => ['nullable', 'numeric', 'required_with:latitude', 'between:'.self::PIN_AREA['lng'][0].','.self::PIN_AREA['lng'][1]],
         ];
     }
 }

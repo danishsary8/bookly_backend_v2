@@ -125,6 +125,8 @@ class CheckoutService
                 'shipping_state' => $address->state,
                 'shipping_postal_code' => $address->postal_code,
                 'shipping_country' => $address->country,
+                'shipping_latitude' => $address->latitude,
+                'shipping_longitude' => $address->longitude,
                 'coupon_id' => $totals['coupon']?->id,
                 // A copy of the offer at order time, so reports stay right after it is edited or deleted.
                 'offer_id' => $offer?->offer->id,
