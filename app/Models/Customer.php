@@ -22,7 +22,7 @@ class Customer extends Authenticatable implements HasLocalePreference
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
-    protected $fillable = ['name', 'email', 'locale', 'password_hash', 'phone', 'phone_e164', 'google_id', 'facebook_id', 'email_verified_at', 'phone_verified_at', 'is_active', 'telegram_chat_id', 'telegram_order_updates', 'price_drop_alerts'];
+    protected $fillable = ['name', 'email', 'locale', 'password_hash', 'phone', 'phone_e164', 'google_id', 'facebook_id', 'email_verified_at', 'phone_verified_at', 'is_active', 'telegram_chat_id', 'telegram_order_updates', 'price_drop_alerts', 'cart_reminders'];
 
     protected $hidden = ['password_hash', 'google_id', 'facebook_id'];
 
@@ -36,6 +36,7 @@ class Customer extends Authenticatable implements HasLocalePreference
             'telegram_chat_id' => 'integer',
             'telegram_order_updates' => 'boolean',
             'price_drop_alerts' => 'boolean',
+            'cart_reminders' => 'boolean',
         ];
     }
 

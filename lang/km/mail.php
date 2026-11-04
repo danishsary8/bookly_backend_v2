@@ -108,4 +108,14 @@ return [
     'security_connected_body' => 'អ្នកអាចចូល Bookly ដោយប្រើ :name ឥឡូវនេះ។',
     'security_disconnected_subject' => ':name ត្រូវបានផ្តាច់ពីគណនី Bookly របស់អ្នក',
     'security_disconnected_body' => ':name មិនអាចប្រើចូល Bookly បានទៀតទេ។',
+
+    // Cart reminder (owner 2026-11-05)
+    // TODO(antigravity): translate to Khmer (owner 2026-11-04: Antigravity does all Khmer translation). English for now.
+    'cart_reminder_subject' => 'Your books are still in your cart',
+    'cart_reminder_greeting' => 'Hi :name,',
+    'cart_reminder_intro' => 'You left these books in your Bookly cart:',
+    'cart_reminder_more' => '{1} …and 1 more book|[2,*] …and :count more books',
+    'cart_reminder_action' => 'Go to my cart',
+    'cart_reminder_outro' => 'Prices and stock can change, so finish your order when you are ready. We only send this once.',
+    'cart_reminder_stop' => 'Stop cart reminder emails',
 ];

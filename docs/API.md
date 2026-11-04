@@ -37,7 +37,9 @@ Browsers: only origins in `CORS_ALLOWED_ORIGINS` may call the API. The frontend 
 \* `turnstile_token`: the Cloudflare Turnstile token from the form. Required (422 `turnstile_token` "We couldn't check that you're a person…") once `TURNSTILE_SECRET_KEY` is set; ignored while it's empty. Checked with Cloudflare's siteverify and the visitor's IP; if Cloudflare can't be reached the request is refused.
 | GET | /me | — | auth |
 | GET | /me/export | — | auth. "Download my data": JSON file (attachment) with profile, addresses, cart, wishlist, orders, returns, reviews, stock alerts, store credits, newsletter status; no password hash, tokens or staff notes. 5/hour |
-| PATCH | /me | name?, phone?, locale? (`en`/`km`), telegram_order_updates?, price_drop_alerts? (bool, off by default: email when a "Want to read" wishlist book's format drops 5% or more, at most one per book per 7 days, through the marketing outbox; offers don't count) | auth |
+| PATCH | /me | name?, phone?, locale? (`en`/`km`), telegram_order_updates?, price_drop_alerts? (bool, off by default: email when a "Want to read" wishlist book's format drops 5% or more, at most one per book per 7 days, through the marketing outbox; offers don't count), cart_reminders? (bool, on by default: one email 24 h after books are left in the cart, max one a week and only after a cart change; `cart:remind` hourly, sent by the marketing outbox, cancelled if the customer came back, checked out or turned it off) | auth |
+| POST | /cart-reminders/stop | customer, token (from the email link; turns cart reminders off) | public |
+| POST | /cart-reminders/stop/one-click | ?customer=&token= (RFC 8058 List-Unsubscribe-Post) | public |
 | GET | /me/sessions | — | auth. "Where you're signed in": one row per device (device from the browser, IP, signed in, last used, `is_current`). The demo account sees only its own session. |
 | POST | /me/sessions/sign-out-others | — | auth, not demo. Signs out every other device; `signed_out` = count. |
 | DELETE | /me/sessions/{id} | — | auth, not demo. Signs out one other device (404 if not yours/gone, 422 for this device: use /auth/logout). |

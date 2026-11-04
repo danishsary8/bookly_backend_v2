@@ -36,4 +36,6 @@ return [
     'offer_ended' => 'This offer has just ended. Please check your new total and place the order again.',
     'coupon_locked' => 'Too many wrong coupon codes. Please try again in :minutes minutes.',
     'email_send_failed' => 'We couldn\'t send the email just now. Please try again in a few minutes.',
+    'cart_reminders_stopped' => 'Done. You will not get cart reminder emails any more. You can turn them back on in Account → Profile.',
+    'cart_reminders_link_invalid' => 'This link is not valid. You can turn cart reminders off in Account → Profile.',
 ];

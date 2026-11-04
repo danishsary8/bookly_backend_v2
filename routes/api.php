@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\CartReminderController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
@@ -99,6 +100,10 @@ Route::get('/delivery/options', [DeliveryController::class, 'options']);
 /*
 | Public newsletter (double opt-in, unsubscribe, RFC 8058 one-click)
 */
+// Cart reminder emails: "stop these emails" link (owner 2026-11-05).
+Route::post('/cart-reminders/stop', [CartReminderController::class, 'stop'])->middleware('throttle:20,1');
+Route::post('/cart-reminders/stop/one-click', [CartReminderController::class, 'oneClick'])->middleware('throttle:20,1');
+
 Route::prefix('newsletter')->group(function () {
     Route::post('/subscribe', [NewsletterController::class, 'subscribe'])->middleware('throttle:newsletter-subscribe');
     Route::post('/confirm', [NewsletterController::class, 'confirm']);

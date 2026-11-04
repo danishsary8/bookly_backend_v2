@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CartItem extends Model
 {
+    /** Removing or changing a line counts as cart activity (the cart reminder waits 24 h after the last one). */
+    protected $touches = ['cart'];
+
     protected $fillable = ['book_variant_id', 'quantity', 'unit_price_at_add'];
 
     protected function casts(): array

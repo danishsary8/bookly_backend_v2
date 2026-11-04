@@ -6,6 +6,7 @@ use App\Models\MarketingOutbox;
 use App\Models\NewsletterCampaign;
 use App\Models\NewsletterSubscriber;
 use App\Notifications\BackInStockNotification;
+use App\Notifications\CartReminderNotification;
 use App\Notifications\NewsletterCampaignNotification;
 use App\Notifications\PriceDropNotification;
 use Illuminate\Support\Carbon;
@@ -68,6 +69,14 @@ class MarketingOutboxService
                         }
                         Notification::route('mail', $row->email)
                             ->notifyNow((new PriceDropNotification($row->payload))->locale($row->locale));
+                    } elseif ($row->kind === CartReminders::KIND) {
+                        if ($reason = app(CartReminders::class)->staleReason($row)) {
+                            $row->update(['status' => 'cancelled', 'last_error' => $reason]);
+
+                            continue;
+                        }
+                        Notification::route('mail', $row->email)
+                            ->notifyNow((new CartReminderNotification($row->payload, $row->customer))->locale($row->locale));
                     } elseif ($row->kind === 'newsletter') {
                         $subscriber = NewsletterSubscriber::find($row->payload['subscriber_id'] ?? 0);
                         if ($subscriber === null || $subscriber->status !== 'confirmed') {

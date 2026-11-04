@@ -26,6 +26,7 @@ class CustomerResource extends JsonResource
             'telegram_connected' => $this->telegram_chat_id !== null,
             'telegram_order_updates' => (bool) $this->telegram_order_updates,
             'price_drop_alerts' => (bool) $this->price_drop_alerts,
+            'cart_reminders' => (bool) ($this->cart_reminders ?? true),
             'connected' => ['google' => $this->google_id !== null, 'facebook' => $this->facebook_id !== null],
             'sign_in_methods' => $this->signInMethods(),
             // To the customer only, not to staff: an address waiting for its code (Telegram sign-up, change email).

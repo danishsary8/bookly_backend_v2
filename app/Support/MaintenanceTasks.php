@@ -30,6 +30,8 @@ class MaintenanceTasks
             ['name' => 'purge-trash', 'command' => 'trash:purge', 'parameters' => [], 'cron' => '0 0 * * *'],
             // The docs page lets visitors sign in as the shared demo customer: keep that account usable for the next one.
             // KHQR orders not paid in time: cancelled, stock back (KHQR payments design 3.4).
+            // One friendly email for carts left alone for a day (App\Services\Marketing\CartReminders).
+            ['name' => 'cart-reminders', 'command' => 'cart:remind', 'parameters' => [], 'cron' => '5 * * * *'],
             ['name' => 'khqr-expire', 'command' => 'payments:expire-khqr', 'parameters' => [], 'cron' => '* * * * *'],
             ['name' => 'demo-reset', 'command' => 'demo:reset', 'parameters' => [], 'cron' => '0 * * * *'],
         ];
