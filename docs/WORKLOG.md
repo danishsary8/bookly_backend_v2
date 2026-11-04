@@ -596,3 +596,16 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   hence ignore_user_abort). Not verified on the live server: owner live check listed.
 - Reset-password with a wrong code still answers faster when no code exists; it needs a code first, so left as is.
 - 4 new tests (2 fail on the old code); 781 pass, pint clean.
+
+## 2026-11-04: customer sessions, new-device email, wishlist saved price (backend)
+
+- `feature/customer-sessions`: IssuesTokens names every token with DeviceDetector + saves ip for customers too;
+  GET /me/sessions, DELETE /me/sessions/{id} (422 for this device), POST /me/sessions/sign-out-others; demo sees
+  only its own session and both writes are `not.demo`. 5 tests; 786 pass.
+- `feature/new-device-email`: table customer_known_devices (unique customer+device, 30 newest kept);
+  KnownDevices::signedIn from IssuesTokens (customers): first device silent, new device → AccountSecurityNotice
+  `new_device` (device, Phnom Penh time, IP). Skipped for demo and for Telegram/phone-code sign-ins (the bot emails).
+  km mail text = English, TODO(antigravity). 5 tests; 786 pass; merges cleanly with customer-sessions (169 auth
+  tests green on the merge).
+- `feature/wishlist-price-badge`: wishlists.saved_price_usd (lowest active price at first save; kept on re-save/
+  status change); GET /wishlist → wishlist_saved_price_usd; wishlist fields added to the OpenAPI spec. 2 tests; 783.

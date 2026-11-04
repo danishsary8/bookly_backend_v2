@@ -17,6 +17,21 @@ working with today's settings.
 6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
    hint, similar books): try them when you have time; tell me anything that looks wrong.
 
+**Visitor stats + 3 account features (2026-11-04)** — merge in any order (each works alone; checked they merge cleanly)
+- [ ] Visitor stats (frontend): https://github.com/danishsary8/bookly_frontend/pull/new/feature/visitor-analytics
+  - [ ] After merge: Vercel → your project → **Analytics** tab → **Enable** (free). Numbers appear after the next deploy.
+    Query strings (emails, codes) are removed and /admin pages aren't counted.
+- [ ] Sign out everywhere: backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/customer-sessions ·
+  frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/customer-sessions
+- [ ] New-device email (backend, adds 1 table): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/new-device-email
+- [ ] Wishlist price-drop badge: backend (adds 1 column) https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/wishlist-price-badge ·
+  frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/wishlist-price-badge
+- [ ] Live checks after deploy: Account → **Sign-in & security** → "Where you're signed in" (sign in on your phone too,
+  then "Sign out of all other devices"); sign in on a second browser → "New sign-in" email; wishlist a book, lower its
+  cheapest format in the admin → wishlist shows "Price dropped …%".
+- Khmer for these: English placeholders marked `TODO(antigravity)` in km.ts (`sessions`, `wishlistDrop`) and
+  lang/km/mail.php (`security_new_device_*`) → **Antigravity's job**.
+
 **Dev tools (2026-11-04)**
 - [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/chore/dev-tool-updates (clears the 2 high
   developer-tool warnings; nothing on the site changes)
@@ -37,8 +52,8 @@ Khmer strings, Khmer book titles). Claude adds English text only and marks any n
     old Neon project clean-up, real printer test, shop address on printed sheets, native Khmer review of km.ts.
 
 **Ideas not started (ask before building)**
-13. Google Maps (delivery spot / shop map). 14. Facebook page / Messenger link. 15. More sign-in security: sign out
-    everywhere, new-device email, block leaked passwords. 16. Price-drop badge on the wishlist.
+13. Google Maps (delivery spot / shop map). 14. Facebook page / Messenger link. 15. Block leaked passwords.
+    (Sign out everywhere, new-device email and the wishlist badge: built 2026-11-04, see above.)
 
 ---
 
