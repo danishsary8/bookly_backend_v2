@@ -13,7 +13,13 @@ class CategoryResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            'parent_id' => $this->parent_id,
+            'sort_order' => (int) $this->sort_order,
+            'icon' => $this->icon,
             'books_count' => $this->whenCounted('books'),
+            // In the tree: books in this category or any child (what the category page shows).
+            'total_books' => $this->when(isset($this->total_books), fn () => (int) $this->total_books),
+            'children' => self::collection($this->whenLoaded('children')),
         ];
     }
 }

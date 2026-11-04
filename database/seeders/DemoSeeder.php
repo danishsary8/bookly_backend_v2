@@ -86,7 +86,7 @@ class DemoSeeder extends Seeder
     private function catalog(): array
     {
         $categories = collect(['Fiction', 'Classics', 'Mystery', 'Science Fiction', 'Fantasy', 'Adventure', 'Philosophy', 'Poetry'])
-            ->mapWithKeys(fn ($name) => [$name => Category::create(['name' => $name, 'slug' => Str::slug($name)])]);
+            ->mapWithKeys(fn ($name) => [$name => Category::firstOrCreate(['slug' => Str::slug($name)], ['name' => $name])]);
 
         $publishers = collect(['Mekong Press', 'Angkor House', 'Riverside Classics'])
             ->mapWithKeys(fn ($name) => [$name => Publisher::create(['name' => $name])]);

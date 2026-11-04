@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CategoryController extends Controller
 {
@@ -26,7 +27,9 @@ class CategoryController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'slug' => ['nullable', 'string', 'max:120', 'alpha_dash', 'unique:categories,slug'],
+            ...$this->treeRules(),
         ]);
+        $this->checkParent($data, null);
         $data['slug'] ??= $this->uniqueSlug($data['name']);
 
         $category = Category::create($data);
@@ -40,7 +43,9 @@ class CategoryController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:100'],
             'slug' => ['sometimes', 'required', 'string', 'max:120', 'alpha_dash', Rule::unique('categories', 'slug')->ignore($category)],
+            ...$this->treeRules(),
         ]);
+        $this->checkParent($data, $category);
 
         $before = $category->getAttributes();
         $category->update($data);
@@ -51,6 +56,9 @@ class CategoryController extends Controller
 
     public function destroy(Request $request, Category $category): JsonResponse
     {
+        if ($category->children()->exists()) {
+            return response()->json(['message' => 'This category has sub-categories. Move or delete them first.'], 409);
+        }
         $inUse = $category->books()->withTrashed()->count();
         if ($inUse > 0) {
             return response()->json(['message' => "This category is used by {$inUse} book(s). Remove it from those books first."], 409);
@@ -74,6 +82,34 @@ class CategoryController extends Controller
         $this->opsAlerts->itemDeletedByAdmin($user->name, 'Category', $category->name);
 
         return response()->json(null, 204);
+    }
+
+    /** @return array<string, list<mixed>> */
+    private function treeRules(): array
+    {
+        return [
+            'parent_id' => ['sometimes', 'nullable', 'integer', Rule::exists('categories', 'id')->whereNull('deleted_at')],
+            'sort_order' => ['sometimes', 'integer', 'min:0', 'max:65535'],
+            'icon' => ['sometimes', 'nullable', 'string', 'max:40', 'regex:/^[a-z0-9-]+$/'],
+        ];
+    }
+
+    /** The tree has two levels: a parent must be top-level, and a category with children can't go under another. */
+    private function checkParent(array $data, ?Category $category): void
+    {
+        $parentId = $data['parent_id'] ?? null;
+        if ($parentId === null) {
+            return;
+        }
+        $error = match (true) {
+            $category !== null && $parentId === $category->id => 'A category can\'t be inside itself.',
+            Category::whereKey($parentId)->value('parent_id') !== null => 'Choose a top-level category as the parent (two levels at most).',
+            $category !== null && $category->children()->exists() => 'This category has sub-categories, so it must stay top-level.',
+            default => null,
+        };
+        if ($error !== null) {
+            throw ValidationException::withMessages(['parent_id' => $error]);
+        }
     }
 
     private function uniqueSlug(string $name): string

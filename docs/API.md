@@ -358,3 +358,16 @@ Cached for 5 minutes per report and range. All endpoints take `from` and `to` (Y
 | POST | /staff/newsletter/campaigns/{id}/send | admin | queues campaign rows to `marketing_outbox` for all confirmed subscribers in their locale (fallback to English if Khmer empty); transitions status to `sending` -> `sent`. Returns estimated days to complete at `MARKETING_DAILY_LIMIT` (60/day). Cannot be sent twice. Audit-logged. |
 
 
+
+### Category tree and catalog filters (roadmap v3 phase 1, 2026-11-05)
+
+- Categories have `parent_id` (two levels), `sort_order`, `icon`. A starter tree of 12 top-level categories (Fiction,
+  Khmer books, Khmer school books, English learning, Self-help & growth, Business & money, Non-fiction, Comics & manga,
+  Kids, Young adult, Education & reference, Arts & hobbies) with ~65 children is installed by a migration; existing
+  categories are kept (same slug = reused and placed under its parent; others stay top-level).
+- `GET /categories?tree=1`: menu tree with `children` and `total_books`; empty categories left out.
+- Staff: POST/PATCH `/staff/categories` take parent_id (must be top-level; a category with children stays top-level),
+  sort_order, icon; DELETE refuses (409) while it has sub-categories.
+- Books: `age_min`, `age_max` (0-18), `school_grade` (1-12), `level` (A1-C2), all optional, on cards and staff edit.
+- `GET /books`: category_id now includes sub-categories; new `category_ids[]`, `formats[]`, `age`, `school_grade`,
+  `level`, `has_ebook`, `facets=1`; sorts `best_selling` (copies in non-cancelled orders, last 90 days) and `most_reviewed`.

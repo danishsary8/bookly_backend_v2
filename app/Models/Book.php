@@ -21,8 +21,11 @@ class Book extends Model
 
     protected $fillable = [
         'title', 'description', 'status', 'publish_at', 'publisher_id', 'series_id', 'series_order',
-        'language', 'page_count', 'publish_date',
+        'language', 'page_count', 'publish_date', 'age_min', 'age_max', 'school_grade', 'level',
     ];
+
+    /** English learning levels (CEFR), for the "level" filter. */
+    public const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     protected $hidden = ['search_vector'];
 
@@ -53,6 +56,9 @@ class Book extends Model
         return [
             'publish_date' => 'date',
             'publish_at' => 'datetime',
+            'age_min' => 'integer',
+            'age_max' => 'integer',
+            'school_grade' => 'integer',
         ];
     }
 
