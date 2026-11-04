@@ -6,6 +6,62 @@ working with today's settings.
 
 ---
 
+## YOUR GUIDE (2026-11-05) — start here, top to bottom
+
+Everything below is your part. All code is done. Tick as you go.
+
+**Part 1. Merge the 4 new branches (about 10 min).** Backend first (it adds 4 small database columns; Render runs them).
+- [ ] Backend cart reminder: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/cart-reminder
+- [ ] Backend gift note: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/gift-note
+- [ ] Wait until Render shows **Live**.
+- [ ] Frontend cart reminder: https://github.com/danishsary8/bookly_frontend/pull/new/feature/cart-reminder
+- [ ] Frontend gift note: https://github.com/danishsary8/bookly_frontend/pull/new/feature/gift-note
+  (If GitHub says `src/api/schema.d.ts` has a conflict on the second one, tell me; I fix it in 1 minute.)
+- [ ] Wait until Vercel shows **Ready**.
+
+**Part 2. Live checks: new features (about 10 min)**
+- [ ] Gift: add a book → Checkout → tick **This is a gift** → write a message → Place order → the order page shows
+  "Gift". Admin → that order → yellow "Gift order" box → **Print packing slip** → a dashed gift card with your message.
+- [ ] Cart reminder switch: Account → Profile → **Cart reminder emails** is ON; turn off and on.
+- [ ] Cart reminder email: leave a book in your cart and don't touch it for 24 hours (+ up to 1 hour) → email
+  "Your books are still in your cart" → click **Stop cart reminder emails** → page says "Done" → Profile switch is OFF
+  → turn it back ON.
+
+**Part 3. Live checks: earlier features (about 20 min, any order)**
+- [ ] Leaked password: Account → Sign-in & security → change password to `Password123` → red "data leak" message.
+- [ ] Signed-in devices: sign in on your phone too → Sign-in & security → "Where you're signed in" shows 2 →
+  **Sign out of all other devices** → the phone is signed out. The phone sign-in also sent a "New sign-in" email.
+- [ ] Wishlist badge + price-drop email: Profile → turn on **Price-drop emails** → add a book to "Want to read" →
+  Admin → lower its price 5%+ → wishlist shows "Price dropped …%" and an email arrives within a few minutes.
+- [ ] Excel: Admin → Reports → **Excel, all reports** → the file opens.
+- [ ] Demo reviews: Admin → Reviews → hide reviews visitors wrote as "Demo Customer".
+- [ ] Collections: Admin → Collections → make one live → it shows on the home page.
+- [ ] Admin quick checks: Dashboard (30 days) cards; **Ctrl K** search; red numbers in the menu; new book with a
+  cover upload; an order open in two tabs refreshes by itself; Dashboard on your phone doesn't move sideways.
+- [ ] Customer quick checks: "Buy again" on a delivered order; phone-code hint on the login page; Khmer switch on
+  a few pages.
+- [ ] Print one invoice and one packing slip on a real printer.
+
+**Part 4. Settings (about 10 min)**
+- [ ] Vercel → project → **Analytics** → Enable (free), if not done yet.
+- [ ] Read both READMEs on GitHub once; tell me anything that sounds wrong.
+- [ ] Shop details on printed sheets: tell me the shop email/address you want (now: dnshsary@gmail.com).
+- [ ] Neon → Monitoring: check compute hours once a week.
+- [ ] Healthchecks.io missed-backup alert, if not done (`docs/DEPLOYMENT.md` → "Missed-backup check").
+
+**Part 5. Antigravity (Khmer)** — give it the prompt in chat (2026-11-05): new English placeholders marked
+`TODO(antigravity)`: frontend `cartReminder`, `gift`; backend lang/km/mail.php `cart_reminder_*`,
+lang/km/messages.php `cart_reminders_*`.
+
+**Part 6. Dates to remember**
+- [ ] Bakong token: renew before **1 Feb 2027** (the health card warns you).
+- [ ] Google Maps key: postponed (steps below, "Delivery map pin").
+
+**Later / optional (costs money or needs a domain):** own domain (~$10–15/year) → Facebook sign-in for everyone,
+email from your domain (less spam), staging server, speed test.
+
+---
+
 ## Open list (2026-11-04) — all code is merged; only these are left
 
 **Live checks (about 2 minutes each, any order)**

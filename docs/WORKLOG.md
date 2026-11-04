@@ -634,3 +634,20 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   "Use my location"; order pages (customer + admin) show "Open in Google Maps" (no key needed). Hidden without
   VITE_GOOGLE_MAPS_KEY. CSP opened for maps.googleapis.com / maps.gstatic.com / fonts.
 - Cost guard (owner, see OWNER_TODO): key restricted to the site + Maps JS only, 300 map loads/day quota, $1 budget alert.
+
+## 2026-11-05: Cart reminder emails + gift note (backend)
+
+- Owner choices: reminder on by default, 24 h, max 1 a week; free gift note (no wrapping fee); 4 new columns OK.
+- `feature/cart-reminder`: customers.cart_reminders (default true), carts.reminder_sent_at. CartItem touches its cart
+  (removal = activity). CartReminders::queueDue (cmd `cart:remind`, cron `5 * * * *`, in MaintenanceTasks): carts
+  with items, last change (greatest of cart/lines updated_at) 24 h–7 d ago, verified active non-demo customer,
+  reminder never sent or >7 d ago and before the last change → MarketingOutbox kind `cart_reminder`
+  (reminder_sent_at set via DB::table so updated_at isn't bumped). staleReason at send: turned off / cart empty /
+  cart changed since queued. CartReminderNotification lists 3 titles + "N more", button → /cart, stop link
+  (HMAC of customer id with app key) → frontend /email/cart-reminders/stop + RFC 8058 List-Unsubscribe.
+  Public POST /cart-reminders/stop and /stop/one-click (throttle 20/min). PATCH /me cart_reminders. 8 tests; 808 pass.
+  Cron is single-digit minute: schedule:list pads "15" and broke the DueMaintenance listing test.
+- `feature/gift-note`: orders.is_gift (default false), gift_message (200). Checkout is_gift?, gift_message? (kept
+  only with is_gift, trimmed, empty → null); Order/OrderDocument resources; Telegram new-order alert "🎁 Gift" line.
+  3 tests; 803 pass. Both branches merge cleanly (47 Marketing+Shopping tests green on the merge).
+- km mail/messages: English + TODO(antigravity).
