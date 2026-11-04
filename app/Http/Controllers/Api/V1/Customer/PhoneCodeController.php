@@ -98,7 +98,7 @@ class PhoneCodeController extends Controller
 
         return response()->json([
             'customer' => new CustomerResource($customer),
-            ...$this->issueToken($customer, ['customer']),
+            ...$this->issueToken($customer, ['customer'], newDeviceEmail: false), // the bot already emails every sign-in
         ]);
     }
 
