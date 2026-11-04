@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\Customer\PhoneCodeController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
+use App\Http\Controllers\Api\V1\Customer\SessionController as CustomerSessionController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\StockAlertController;
 use App\Http\Controllers\Api\V1\Customer\StoreCreditController;
@@ -147,6 +148,10 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware(['not.demo', 'throttle:auth']);
     Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware(['not.demo', 'throttle:auth']);
     Route::get('/store-credits', [StoreCreditController::class, 'index']);
+    // "Where you're signed in": devices with a sign-in, and signing them out (not for the shared demo account).
+    Route::get('/sessions', [CustomerSessionController::class, 'index']);
+    Route::post('/sessions/sign-out-others', [CustomerSessionController::class, 'destroyOthers'])->middleware(['not.demo', 'throttle:auth']);
+    Route::delete('/sessions/{id}', [CustomerSessionController::class, 'destroy'])->whereNumber('id')->middleware(['not.demo', 'throttle:auth']);
     Route::get('/stock-alerts', [StockAlertController::class, 'index']);
     Route::post('/stock-alerts', [StockAlertController::class, 'store']);
     Route::delete('/stock-alerts/{stockAlert}', [StockAlertController::class, 'destroy'])->whereNumber('stockAlert');
