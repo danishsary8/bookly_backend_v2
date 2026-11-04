@@ -73,3 +73,23 @@
   - `npm run typecheck` → passed clean
 - Decisions I made: Integrated category tree data to query sub-category counts, and only show sub-categories nav when children exist; for sub-categories, looked up the parent slug from the cached categories list to render a clean back link.
 - NEEDS DANISH: none
+
+## A5 — Icon picker in the admin category dialog (frontend) — DONE
+- Repo/branch: frontend · feature/antigravity-overnight · commit a8f7d46
+- What changed:
+  - Created `src/features/catalog/categoryIcons.tsx` mapping 22 icons: the 12 starter icons (BookOpen, Languages, School, GraduationCap, Sprout, Briefcase, Landmark, Zap, Baby, Sparkles, Library, Palette) plus 10 related ones (Book, Bookmark, Compass, Globe, Heart, Music, Camera, Code, Trophy, Feather). Exports `<CategoryIcon name={...} />` and `CATEGORY_ICON_OPTIONS`.
+  - Updated `src/pages/admin/LookupPage.tsx` category form dialog:
+    - Renders a labeled icon radio picker for top-level categories (`parentId === null` or `""`), allowing selection of any of the 22 icons or "No icon" (which clears icon to `null`).
+    - Hides the icon picker when editing or creating a sub-category (`parentId !== null`).
+    - Renders the chosen icon beside top-level category names in the category management table.
+  - Added unit and interaction tests in `src/pages/admin/category-tree-admin.test.tsx`:
+    - Picking an icon sets and submits `icon` value on save.
+    - Selecting "No icon" submits `icon: null`.
+    - Icon picker is conditionally hidden when a parent category is selected.
+- Checks:
+  - `npx vitest run src/pages/admin/category-tree-admin.test.tsx` → 5 passed
+  - `npm run typecheck` → passed clean
+  - `npm run lint` → 0 errors, 1 pre-existing warning in `VisitorAnalytics.tsx`
+- Decisions I made: Used Lucide icons to align with existing design system, and made the icon picker top-level only to keep sub-categories clean.
+- NEEDS DANISH: none
+
