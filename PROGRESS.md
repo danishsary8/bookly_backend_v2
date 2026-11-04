@@ -115,4 +115,18 @@
 - Decisions I made: Prioritized `level` over `school_grade` if both are set on a card for a concise tag; linked age filter to `book.age_min` so the book is guaranteed to appear in search results.
 - NEEDS DANISH: none
 
+## A7 — Draft designs for phases 2, 3 and 4 (backend docs) — DONE
+- Repo/branch: backend · feature/antigravity-overnight · commit 23f0bf5
+- What changed:
+  - Created 3 comprehensive design specification drafts in `docs/superpowers/specs/`:
+    1. `2026-11-06-ebooks-design-DRAFT.md`: Browser-only streaming reader, PDF master recommendation (preserves exact Khmer typography), dynamic canvas watermarks (`email · order#`), right-click/print/copy blocking, max 3 devices per customer with 30-day deregistration window, ~10% free preview, zero direct file downloads, Cloudflare R2 storage architecture (\$0 egress).
+    2. `2026-11-06-series-volumes-design-DRAFT.md`: Interactive volume picker on book details, visual badges (Owned, In Cart, Price), next volume auto-suggestion, "Complete your collection" one-click batch cart adder, proposed schema updates for series status and volume counts.
+    3. `2026-11-06-preorder-backorder-design-DRAFT.md`: Pre-orders for upcoming books with release dates, back-orders for out-of-stock titles awaiting publisher replenishment, atomic reservation counters, split vs. combined shipping calculation, and FIFO allocation when restocked.
+  - Each draft includes: goal, customer & admin flows, proposed data models (clearly marked "proposed"), API endpoints, security & IP controls, free-hosting constraints (Render 512MB RAM & Cloudflare R2), performance, tests to write, rollout steps, and explicit "Questions for Danish" with actionable recommendations.
+- Checks:
+  - Document files exist, are properly formatted in Markdown, and are pushed to `feature/antigravity-overnight`.
+- Decisions I made: Recommended PDF over EPUB for initial launch due to fragile Khmer font shaping on mobile web; recommended enabling both KHQR and COD for pre-orders to maximize conversions in Cambodia; recommended 10% bundle discount for 3+ volumes in a series.
+- NEEDS DANISH: Review the "Questions for Danish" sections in each of the three draft specs when ready to proceed with Phases 2, 3, and 4.
+
+
 
