@@ -68,6 +68,8 @@ class OrderResource extends JsonResource
             ],
             'can_cancel' => $this->status === OrderStatus::Pending,
             'delivery_note' => $this->delivery_note,
+            'is_gift' => (bool) $this->is_gift,
+            'gift_message' => $this->gift_message,
             'is_free_shipping' => (float) $this->shipping_fee === 0.0 && (float) $this->subtotal > 0,
             'estimated_delivery' => DeliveryArea::estimate($this->placed_at, $this->shipping_city, $this->shipping_state),
             'status_history' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($h) => [
