@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BookResource;
+use App\Models\BookVariant;
 use App\Models\Wishlist;
 use App\Services\Offers\OfferService;
 use Illuminate\Http\JsonResponse;
@@ -75,10 +76,14 @@ class WishlistController extends Controller
 
         $status = $data['status'] ?? Wishlist::STATUS_WANT_TO_READ;
 
+        // The lowest price when the book is first saved, for the "Now …, was …" badge. Saving it again keeps the old one.
+        $alreadySaved = $request->user()->wishlistBooks()->where('books.id', $data['book_id'])->exists();
+        $savedPrice = $alreadySaved ? [] : ['saved_price_usd' => BookVariant::where('book_id', $data['book_id'])->where('is_active', true)->min('price_usd')];
         $result = $request->user()->wishlistBooks()->syncWithoutDetaching([
             $data['book_id'] => [
                 'status' => $status,
                 'created_at' => now(),
+                ...$savedPrice,
             ],
         ]);
         $added = $result['attached'] !== [];

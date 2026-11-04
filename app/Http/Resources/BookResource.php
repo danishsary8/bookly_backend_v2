@@ -32,6 +32,8 @@ class BookResource extends JsonResource
             'offer' => app(OfferService::class)->forBook($this->resource),
             'wishlist_status' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->status ?? 'want_to_read'),
             'wishlist_saved_at' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->created_at?->toIso8601String()),
+            // Lowest price when it was saved (null for older saves): the wishlist shows "Now …, was …" when it fell.
+            'wishlist_saved_price_usd' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->saved_price_usd !== null ? number_format((float) $this->pivot->saved_price_usd, 2, '.', '') : null),
         ];
     }
 }
