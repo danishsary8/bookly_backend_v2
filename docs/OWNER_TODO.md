@@ -20,8 +20,34 @@ working with today's settings.
 
 ## 0. New since 2026-10-31 (notes for each task: `docs/HANDOFF.md` on this branch)
 
+## Open list (2026-11-04) — all code is merged; only these are left
+
+**Live checks (about 2 minutes each, any order)**
+1. Excel: Admin → Reports → **Excel, all reports** → open the file.
+2. Price-drop email: Profile → turn on **Price-drop emails** → wishlist a book → lower its price 5%+ in the admin → email arrives.
+3. Demo reviews: Admin → Reviews → hide visitor-written "Demo Customer" reviews.
+4. KHQR (test mode): pay a cheap order with **Bakong KHQR** → **Simulate payment** → "Payment received".
+5. Collections: Admin → Collections → make one live → it shows on the home page.
+6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
+   hint, similar books): try them when you have time; tell me anything that looks wrong.
+
+**Waiting on you (setup)**
+7. **Bakong real payments:** token email → Render `KHQR_ACCOUNT_ID`, `KHQR_MERCHANT_NAME`, `BAKONG_TOKEN`, `KHQR_MODE=bakong`.
+8. **Khmer wording:** `priceDrop`, `signin.facebookTesting` / `facebookNotFinished` (km.ts) and `price_drop_*` (lang/km/mail.php).
+9. **README check:** read both READMEs on GitHub once.
+
+**Later / optional**
+10. Own domain (unlocks Facebook for everyone, better email delivery, nicer address).
+11. Facebook app Live (needs 10 + Meta business verification).
+12. Email from your domain (SPF/DKIM/DMARC), Healthchecks.io backup alert, staging server, k6 speed test, Neon usage check,
+    old Neon project clean-up, real printer test, shop address on printed sheets, native Khmer review of km.ts.
+
+**Ideas not started (ask before building)**
+13. Google Maps (delivery spot / shop map). 14. Facebook page / Messenger link. 15. More sign-in security: sign out
+    everywhere, new-device email, block leaked passwords. 16. Price-drop badge on the wishlist.
+
 **Task F: phone sign-in code hint** (frontend only, no backend change, no setting to change)
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint → **Create pull request** →
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint → **Create pull request** →
   wait for green CI → check the reviewer checklist in `docs/prompts/README.md` → **Merge**. Vercel deploys by itself.
 - [ ] Live check after Vercel shows **Ready**: https://bookly-frontend-five.vercel.app/login →
   **Sign in with phone number?** → the hint "Codes only go to a confirmed number…" is under the field → type `123` →
@@ -35,9 +61,9 @@ working with today's settings.
 
 **Task A: "You may also like" (similar books)** (backend + frontend; no migration, no setting to change; merge order: any,
 each branch works alone)
-- [ ] Merge the backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books →
+- [x] Merge the backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books →
   **Create pull request** → wait for green CI → check the reviewer checklist → **Merge**. Render deploys by itself.
-- [ ] Merge the frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books →
+- [x] Merge the frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books →
   **Create pull request** → green CI → **Merge**. Vercel deploys by itself.
 - [ ] Live check when both show **Ready/Live** (the first visit may take ~1 minute while Render wakes up):
   1. Open a book in a series, e.g. the 2nd Sherlock Holmes book on https://bookly-frontend-five.vercel.app/books →
@@ -54,33 +80,33 @@ each branch works alone)
 
 **Task B+D: offers ("Buy 2, get 15% off") + offer reports** (in progress; spec
 `docs/superpowers/specs/2026-10-31-offers-design.md` on `feature/offers-engine`)
-- [ ] **Rollout order (important):** merge the frontend `feature/offers-storefront` **before** you create or resume
+- [x] **Rollout order (important):** merge the frontend `feature/offers-storefront` **before** you create or resume
   the first live offer in the admin. Why: today's checkout page does not know about offers, so a coupon that lost to
   an offer would vanish from the summary without an explanation. Until a live offer exists, nothing changes for
   customers (the demo offer from the seeder is created **paused**).
-- [ ] **Merge the backend `feature/offers-engine`** (done and reviewed 2026-11-01; its 4 new migrations run by themselves on
+- [x] **Merge the backend `feature/offers-engine`** (done and reviewed 2026-11-01; its 4 new migrations run by themselves on
   deploy; nothing changes for customers while no offer is live; the demo offer is paused):
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine → **Create pull request** → green CI →
   **Merge**. After Render shows **Deploy live**: open the shop → books, cart and checkout still work as before.
   Do **not** create or resume an offer yet.
-- [ ] **Merge the frontend `feature/offers-storefront`** (after the backend one; reviewed and browser-checked 2026-11-01):
+- [x] **Merge the frontend `feature/offers-storefront`** (after the backend one; reviewed and browser-checked 2026-11-01):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-storefront → **Create pull request** → green CI →
   **Merge**. Vercel deploys by itself. Nothing shows until an offer is live.
 - [x] Decided 2026-11-01: free delivery starts at **$50**. Fix for the announcement bar (it said $25), frontend only:
-- [ ] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (fixed 2026-11-01:
+- [x] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (fixed 2026-11-01:
   it no longer touches the work log, so it merges cleanly).
 - **Notes rule (you chose "notes only", 2026-11-01):** feature branches no longer edit `WORKLOG.md`. Notes live on two
   long-lived branches: backend `docs/handoff-notes` and frontend `docs/worklog-notes`
   (https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes). Merge them whenever you like, as often as
   you like; after a merge I keep using the same branch names.
-- [ ] **Merge the frontend `feature/offers-admin`** (any order; it says "not available yet" until the backend is live):
+- [x] **Merge the frontend `feature/offers-admin`** (any order; it says "not available yet" until the backend is live):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-admin
 - [ ] **Your first offer** (only after `offers-engine`, `offers-storefront` and `offers-admin` are all merged and deployed):
   Admin → **Offers** → **New offer** → e.g. name "Buy 2 Holmes", 2 books, 15%, search "Holmes" → pick the series → check
   the preview → **Create offer** (it starts paused) → switch it **On** in the list → confirm. Then open the shop: the Holmes
   books show "Buy 2, save 15%"; put 2 in the cart → "Offer: buy 2, save 15%". Pause it again with the switch if you only
   wanted to test.
-- [ ] **Merge the offers report** (both, any order):
+- [x] **Merge the offers report** (both, any order):
   backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offer-reports ·
   frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/offer-reports
   Check: Admin → **Reports** → **Offers** tab → choose **30 days** → after your first offer orders you see "Books per order
@@ -89,11 +115,11 @@ each branch works alone)
 ---
 
 **Task E: BI dashboard (part 1) + a live bug fix** (merge in any order)
-- [ ] 🔴 **Merge first, it fixes your live dashboard:** backend `fix/dashboard-status-cache`
+- [x] 🔴 **Merge first, it fixes your live dashboard:** backend `fix/dashboard-status-cache`
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/dashboard-status-cache
   (today "Orders placed by status" shows strange text when you reload the dashboard within 5 minutes).
-- [ ] Backend `feature/dashboard-insights`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-insights
-- [ ] Frontend `feature/admin-dashboard-redesign`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-dashboard-redesign
+- [x] Backend `feature/dashboard-insights`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-insights
+- [x] Frontend `feature/admin-dashboard-redesign`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-dashboard-redesign
 - [ ] Check after deploy: Admin → **Dashboard** → 30 days → each top card has a small line and a "View …" link; the
   "Income report" chart has a solid line (this period) and a dashed one (the month before), and an Income / Orders
   switch; "Orders placed by status" is a ring with the total in the middle. Reload twice: still correct.
@@ -101,8 +127,8 @@ each branch works alone)
 ---
 
 **Task E: BI dashboard (part 2)** (frontend, any order)
-- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-quick-jump
-- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-insights-widgets
+- [x] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-quick-jump
+- [x] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-insights-widgets
 - [ ] Check after deploy: the menu shows red numbers beside Orders / Returns / Stock; press **Ctrl K** (Mac: Cmd K) →
   type part of an order number or a book title → Enter opens it; scroll down the dashboard: Stock value, Dead stock,
   Repeat customers, Slow movers, Top authors, Orders by province, Offers and coupons.
@@ -110,18 +136,18 @@ each branch works alone)
 ---
 
 **🔴 E2E check failing on PRs (2026-11-01)** — caused by the dashboard donut (already on `main`), not by your new PRs.
-- [ ] **Merge first:** https://github.com/danishsary8/bookly_frontend/pull/new/fix/dashboard-donut-focus
-- [ ] Then on PR #107 (`feature/admin-insights-widgets`) click **Update branch** (it re-runs the checks with the fix) →
+- [x] **Merge first:** https://github.com/danishsary8/bookly_frontend/pull/new/fix/dashboard-donut-focus
+- [x] Then on PR #107 (`feature/admin-insights-widgets`) click **Update branch** (it re-runs the checks with the fix) →
   wait for all green → **Merge**.
 
 ---
 
 **Small fixes + PR #107 (2026-11-01)**
-- [ ] PR #107 (dashboard extras) was still open: I updated it with `main` (incl. the donut fix). Wait for all checks green,
+- [x] PR #107 (dashboard extras) was still open: I updated it with `main` (incl. the donut fix). Wait for all checks green,
   then **Merge**: https://github.com/danishsary8/bookly_frontend/pull/107
-- [ ] Small fixes (account strip fade, free-delivery texts EN/KM, donut colours):
+- [x] Small fixes (account strip fade, free-delivery texts EN/KM, donut colours):
   https://github.com/danishsary8/bookly_frontend/pull/new/fix/small-cleanups
-- [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
+- [x] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
 **Book cover on the New book page (2026-11-02)** (frontend only; you chose "On New book page")
@@ -260,10 +286,10 @@ each branch works alone)
 
 **Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
 `feature/khqr-payments`). Merge in any order; each works alone. Backend first is nicest.
-- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
+- [x] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
   needed: test mode is the default)
-- [ ] Frontend shop: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-checkout
-- [ ] Frontend admin: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-admin
+- [x] Frontend shop: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-checkout
+- [x] Frontend admin: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-admin
 - [ ] Live check (test mode) when all 3 are deployed:
   1. Sign in as a customer → add a book → **Checkout** → choose **Bakong KHQR** → **Place order and pay**.
   2. The payment page shows a red-and-white KHQR card, the amount and a 15:00 countdown. Tap **Riel**: the amount in ៛.
@@ -317,11 +343,11 @@ portfolio). Never paste the token into chat, code or docs.
 - [x] Khmer wording: "ស្តុកមិនគ្រប់សម្រាប់សៀវភៅ N មុខ" and "បានបន្ថែម 2 ក្នុងចំណោម 3" (`orders` group in `km.ts`). (Owner: all ok, 2026-11-02.)
 
 **Seasonal collections (2026-11-01)** (merge in any order; backend first is nicest; each works alone)
-- [ ] Backend (adds 2 tables; Render runs the migration by itself on deploy):
+- [x] Backend (adds 2 tables; Render runs the migration by itself on deploy):
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/seasonal-collections
-- [ ] Frontend shop (home rows + collection page):
+- [x] Frontend shop (home rows + collection page):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-shop
-- [ ] Frontend admin (`/admin/collections`):
+- [x] Frontend admin (`/admin/collections`):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-admin
 - [ ] Live check when all 3 are deployed:
   1. https://bookly-frontend-five.vercel.app/admin/collections → **New collection** → English title "Rainy season reads",
@@ -485,7 +511,7 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
   Facebook, Turnstile and CORS to the new domain (I update `APP_URL` and links).
 - [ ] **Email from your domain:** verify the domain in Brevo/Resend (SPF, DKIM, DMARC records) so codes don't land in spam.
 - [ ] **Neon usage:** check compute hours once a week (Neon → Monitoring); upgrade before real customers.
-- [ ] **Facebook sign-in:** put the Facebook app in Live mode, then set `VITE_FACEBOOK_APP_ID` on Vercel and Render.
+- [ ] **Facebook sign-in for everyone:** needs your own domain + Meta business verification (see "Facebook sign-in setup"); then publish the app and add `VITE_FACEBOOK_PUBLIC=true` on Vercel. Keys are already set; testers work today.
 - [ ] **Healthchecks.io** for the missed-backup alert, if not done (`docs/DEPLOYMENT.md` → "Missed-backup check").
 - [ ] **Staging server** (optional): a second Render service + a Neon branch, to try changes before customers do.
 
