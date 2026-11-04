@@ -17,14 +17,14 @@ working with today's settings.
 6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
    hint, similar books): try them when you have time; tell me anything that looks wrong.
 
-**Visitor stats + 3 account features (2026-11-04)** — merge in any order (each works alone; checked they merge cleanly)
-- [ ] Visitor stats (frontend): https://github.com/danishsary8/bookly_frontend/pull/new/feature/visitor-analytics
+**Visitor stats + 3 account features (2026-11-04)** — all merged 2026-11-04 (each works alone; checked they merge cleanly)
+- [x] Visitor stats (frontend): https://github.com/danishsary8/bookly_frontend/pull/new/feature/visitor-analytics
   - [ ] After merge: Vercel → your project → **Analytics** tab → **Enable** (free). Numbers appear after the next deploy.
     Query strings (emails, codes) are removed and /admin pages aren't counted.
-- [ ] Sign out everywhere: backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/customer-sessions ·
+- [x] Sign out everywhere: backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/customer-sessions ·
   frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/customer-sessions
-- [ ] New-device email (backend, adds 1 table): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/new-device-email
-- [ ] Wishlist price-drop badge: backend (adds 1 column) https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/wishlist-price-badge ·
+- [x] New-device email (backend, adds 1 table): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/new-device-email
+- [x] Wishlist price-drop badge: backend (adds 1 column) https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/wishlist-price-badge ·
   frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/wishlist-price-badge
 - [ ] Live checks after deploy: Account → **Sign-in & security** → "Where you're signed in" (sign in on your phone too,
   then "Sign out of all other devices"); sign in on a second browser → "New sign-in" email; wishlist a book, lower its
@@ -33,7 +33,7 @@ working with today's settings.
   lang/km/mail.php (`security_new_device_*`) → **Antigravity's job**.
 
 **Dev tools (2026-11-04)**
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/chore/dev-tool-updates (clears the 2 high
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/chore/dev-tool-updates (clears the 2 high
   developer-tool warnings; nothing on the site changes)
 - Dashboard checked in a real browser (all periods, light/dark, phone/desktop): all fine, no change needed.
 
