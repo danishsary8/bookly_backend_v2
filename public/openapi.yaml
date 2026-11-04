@@ -167,7 +167,23 @@ components:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
+        parent_id: { type: integer, nullable: true, description: 'Two levels: null = top-level' }
+        sort_order: { type: integer }
+        icon: { type: string, nullable: true, description: 'Lucide icon name, e.g. book-open' }
         books_count: { type: integer }
+    CategoryNode:
+      type: object
+      description: 'GET /categories?tree=1: a top-level category with its non-empty children'
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        parent_id: { type: integer, nullable: true }
+        sort_order: { type: integer }
+        icon: { type: string, nullable: true }
+        books_count: { type: integer }
+        total_books: { type: integer, description: 'Books in this category or its children, each counted once' }
+        children: { type: array, items: { $ref: '#/components/schemas/CategoryNode' } }
     Publisher:
       type: object
       properties:
@@ -379,6 +395,10 @@ components:
         id: { type: integer }
         title: { type: string }
         language: { type: string }
+        age_min: { type: integer, nullable: true, description: 'Youngest reader age (0-18)' }
+        age_max: { type: integer, nullable: true }
+        school_grade: { type: integer, nullable: true, description: 'Khmer school grade (1-12)' }
+        level: { type: string, nullable: true, enum: [A1, A2, B1, B2, C1, C2, null], description: English learning level }
         publish_date: { type: string, format: date, nullable: true }
         authors: { type: array, items: { type: object, properties: { id: { type: integer }, name: { type: string } } } }
         cover_image_url: { type: string, nullable: true }
@@ -804,6 +824,13 @@ paths:
         in: query
         schema:
           type: boolean
+      - { name: 'category_ids[]', in: query, schema: { type: array, items: { type: integer } }, description: 'Any of these categories (each includes its sub-categories; category_id does too)' }
+      - { name: 'formats[]', in: query, schema: { type: array, items: { type: string, enum: [hardcover, paperback, ebook, audiobook] } } }
+      - { name: age, in: query, schema: { type: integer, minimum: 0, maximum: 18 }, description: 'Books for a reader of this age (age_min <= age <= age_max)' }
+      - { name: school_grade, in: query, schema: { type: integer, minimum: 1, maximum: 12 } }
+      - { name: level, in: query, schema: { type: string, enum: [A1, A2, B1, B2, C1, C2] } }
+      - { name: has_ebook, in: query, schema: { type: boolean } }
+      - { name: facets, in: query, schema: { type: boolean }, description: 'Adds `facets` {formats, languages, categories (top-level id), school_grades, levels} = book counts with the other filters applied' }
       - name: sort
         in: query
         schema:
@@ -813,6 +840,8 @@ paths:
           - newest
           - price_asc
           - price_desc
+          - best_selling
+          - most_reviewed
           - title
           - rating
       - name: ids
@@ -992,7 +1021,7 @@ paths:
   /authors/{id}:
     get: { tags: [Public], summary: 'Author profile (books via /books?author_id=)', security: [], parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Author, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Author' } } } } } }, '404': { $ref: '#/components/responses/NotFound' } } }
   /categories:
-    get: { tags: [Public], summary: 'All categories with books_count (not paginated)', security: [], responses: { '200': { description: Categories, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } } } } }
+    get: { tags: [Public], summary: 'All categories with books_count and parent_id (not paginated, by name). ?tree=1: top-level categories in admin order with children nested and total_books; empty ones left out', parameters: [{ name: tree, in: query, schema: { type: boolean } }], security: [], responses: { '200': { description: Categories, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Category' } } } } } } } } }
   /publishers:
     get: { tags: [Public], summary: 'List publishers', security: [], responses: { '200': { description: Publishers, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Publisher' } }, links: { $ref: '#/components/schemas/PageLinks' }, meta: { $ref: '#/components/schemas/PageMeta' } } } } } } } }
   /collections/live:
@@ -1983,7 +2012,7 @@ paths:
     patch: { tags: [Staff catalog], summary: 'Update author', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Staff catalog], summary: '(admin) Delete, 409 while used by a book', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
   /staff/categories:
-    post: { tags: [Staff catalog], summary: 'Create category (slug auto)', responses: { '201': { description: Created } } }
+    post: { tags: [Staff catalog], summary: 'Create category (name, slug? auto, parent_id? top-level only: two levels, sort_order?, icon? lucide name)', responses: { '201': { description: Created } } }
   /staff/categories/{id}:
     patch: { tags: [Staff catalog], summary: 'Update category', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Staff catalog], summary: '(admin) Delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }

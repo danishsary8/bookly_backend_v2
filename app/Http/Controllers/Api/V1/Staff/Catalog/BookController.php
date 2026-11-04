@@ -206,6 +206,11 @@ class BookController extends Controller
             'series_order' => ['nullable', 'integer', 'min:1', 'max:32767'],
             'language' => $partial ? ['sometimes', 'required', 'string', 'max:50'] : ['nullable', 'string', 'max:50'],
             'page_count' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            // Who the book is for (all optional): reader age, Khmer school grade, English level.
+            'age_min' => ['nullable', 'integer', 'min:0', 'max:18'],
+            'age_max' => ['nullable', 'integer', 'min:0', 'max:18', Rule::when($request->filled('age_min'), 'gte:age_min')],
+            'school_grade' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'level' => ['nullable', 'string', Rule::in(Book::LEVELS)],
             'publish_date' => ['nullable', 'date'],
             'author_ids' => ['sometimes', 'array'],
             'author_ids.*' => ['integer', 'distinct', 'exists:authors,id'],
