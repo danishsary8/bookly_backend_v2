@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Shopping;
 
+use App\Enums\BookFormat;
 use App\Models\Book;
 use App\Models\BookVariant;
 use App\Models\Customer;
@@ -43,6 +44,30 @@ class WishlistTest extends TestCase
 
         $this->deleteJson("/api/v1/wishlist/{$older->id}")->assertNoContent();
         $this->getJson('/api/v1/wishlist')->assertJsonCount(1, 'data');
+    }
+
+    public function test_the_lowest_price_when_saved_is_kept_for_the_was_now_badge(): void
+    {
+        $book = BookVariant::factory()->create(['price_usd' => '20.50', 'is_active' => true])->book;
+        BookVariant::factory()->create(['book_id' => $book->id, 'format' => BookFormat::Ebook, 'price_usd' => '24.00', 'is_active' => true]);
+
+        $this->postJson('/api/v1/wishlist', ['book_id' => $book->id])->assertCreated();
+        $book->variants()->where('price_usd', '20.50')->update(['price_usd' => '16.40']);
+        // Saving it again (or changing its status) keeps the first price.
+        $this->postJson('/api/v1/wishlist', ['book_id' => $book->id, 'status' => 'reading'])->assertOk();
+        $this->patchJson("/api/v1/wishlist/{$book->id}", ['status' => 'want_to_read'])->assertOk();
+
+        $this->getJson('/api/v1/wishlist')->assertOk()
+            ->assertJsonPath('data.0.wishlist_saved_price_usd', '20.50')
+            ->assertJsonPath('data.0.price_from_usd', '16.40');
+    }
+
+    public function test_books_saved_before_the_badge_existed_have_no_saved_price(): void
+    {
+        $book = BookVariant::factory()->create(['price_usd' => '12.00'])->book;
+        $this->customer->wishlistBooks()->attach($book->id, ['status' => 'want_to_read', 'created_at' => now()]);
+
+        $this->getJson('/api/v1/wishlist')->assertOk()->assertJsonPath('data.0.wishlist_saved_price_usd', null);
     }
 
     public function test_reading_status_lifecycle_and_filtering(): void

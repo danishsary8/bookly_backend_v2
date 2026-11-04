@@ -1504,7 +1504,16 @@ paths:
               schema:
                 type: object
                 properties:
-                  data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - { $ref: '#/components/schemas/BookCard' }
+                        - type: object
+                          properties:
+                            wishlist_status: { type: string, enum: [want_to_read, reading, finished] }
+                            wishlist_saved_at: { type: string, format: date-time, nullable: true }
+                            wishlist_saved_price_usd: { type: string, nullable: true, description: 'Lowest price when the book was saved (null for saves before 2026-11-04); the wishlist shows "Now …, was …" when price_from_usd is lower' }
                   links: { $ref: '#/components/schemas/PageLinks' }
                   meta: { $ref: '#/components/schemas/PageMeta' }
     post:
