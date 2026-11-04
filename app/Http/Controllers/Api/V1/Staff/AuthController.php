@@ -12,6 +12,7 @@ use App\Notifications\AccountSecurityNotice;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\TotpService;
 use App\Services\Staff\DeviceDetector;
+use App\Support\PasswordRules;
 use App\Support\SafeNotifier;
 use App\Support\TimingSafe;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -208,7 +208,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email'],
             'code' => ['required', 'digits:6'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', PasswordRules::new()],
         ]);
 
         $staff = StaffUser::where('email', strtolower($data['email']))->first();

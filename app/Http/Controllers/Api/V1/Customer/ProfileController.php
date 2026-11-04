@@ -8,12 +8,12 @@ use App\Http\Resources\CustomerResource;
 use App\Notifications\AccountSecurityNotice;
 use App\Services\Auth\SocialTokenVerifier;
 use App\Services\Customers\ClosedCustomers;
+use App\Support\PasswordRules;
 use App\Support\SafeNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
 
@@ -57,7 +57,7 @@ class ProfileController extends Controller
         $customer = $request->user();
         $data = $request->validate([
             'current_password' => [$customer->password_hash === null ? 'nullable' : 'required', 'string'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', PasswordRules::new()],
         ]);
 
         if ($customer->password_hash !== null && ! Hash::check($data['current_password'] ?? '', $customer->password_hash)) {

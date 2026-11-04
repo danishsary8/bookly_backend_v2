@@ -7,10 +7,13 @@ use App\Services\KhrRateHistory;
 use App\Services\Telegram\TelegramBot;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Validation\UncompromisedVerifier;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\NotPwnedVerifier;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
         // One instance per request so the exchange rate is read once, not per book.
         $this->app->scoped(CurrencyService::class);
         $this->app->scoped(KhrRateHistory::class);
+        // The leaked-password check (PasswordRules) waits at most 5 seconds for Have I Been Pwned, not Laravel's 30.
+        $this->app->extend(UncompromisedVerifier::class, fn ($verifier, $app) => new NotPwnedVerifier($app[HttpFactory::class], 5));
     }
 
     public function boot(): void

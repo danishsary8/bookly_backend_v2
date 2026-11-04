@@ -21,6 +21,10 @@ return [
     'required' => 'សូមបញ្ចូល :attribute។',
     'string' => ':attribute ត្រូវតែជាអក្សរ។',
     'unique' => ':attribute នេះត្រូវបានប្រើប្រាស់រួចហើយ។',
+    // TODO(antigravity): translate to Khmer (owner 2026-11-04: Antigravity does all Khmer translation). English for now.
+    'password' => [
+        'uncompromised' => 'This password has appeared in a known data leak, so it isn\'t safe. Please choose a different one.',
+    ],
 
     'attributes' => [
         'name' => 'ឈ្មោះ',

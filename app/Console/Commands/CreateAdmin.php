@@ -4,9 +4,9 @@ namespace App\Console\Commands;
 
 use App\Enums\StaffRole;
 use App\Models\StaffUser;
+use App\Support\PasswordRules;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rules\Password;
 
 class CreateAdmin extends Command
 {
@@ -26,7 +26,7 @@ class CreateAdmin extends Command
             [
                 'name' => ['required', 'string', 'max:150'],
                 'email' => ['required', 'email', 'max:190', 'unique:staff_users,email'],
-                'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+                'password' => ['required', 'confirmed', PasswordRules::new()],
             ],
         );
 
