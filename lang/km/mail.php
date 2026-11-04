@@ -59,9 +59,8 @@ return [
     'security_password_reset_body' => 'ពាក្យសម្ងាត់នៃគណនី Bookly របស់អ្នកត្រូវបានកំណត់ឡើងវិញដោយប្រើលេខកូដដែលបានផ្ញើទៅកាន់អ៊ីមែលនេះ ហើយគ្រប់ឧបករណ៍ទាំងអស់ត្រូវបានចាកចេញ។',
     'security_password_changed_subject' => 'ពាក្យសម្ងាត់ Bookly របស់អ្នកត្រូវបានផ្លាស់ប្តូរ',
     'security_password_changed_body' => 'ពាក្យសម្ងាត់នៃគណនី Bookly របស់អ្នកទើបតែត្រូវបានផ្លាស់ប្តូរ ហើយឧបករណ៍ផ្សេងទៀតត្រូវបានចាកចេញ។',
-    // TODO(antigravity): translate to Khmer (owner 2026-11-04: Antigravity does all Khmer translation). English for now.
-    'security_new_device_subject' => 'New sign-in to your Bookly account',
-    'security_new_device_body' => 'Your Bookly account was signed in on a new device: :device, on :at (Phnom Penh time), from :ip. You can see and sign out every device in Account → Sign-in & security.',
+    'security_new_device_subject' => 'ការចូលថ្មីទៅកាន់គណនី Bookly របស់អ្នក',
+    'security_new_device_body' => 'គណនី Bookly របស់អ្នកត្រូវបានចូលនៅលើឧបករណ៍ថ្មីមួយ៖ :device នៅ :at (ម៉ោងភ្នំពេញ) ពី :ip។ អ្នកអាចមើល និងចាកចេញពីគ្រប់ឧបករណ៍ទាំងអស់នៅក្នុង គណនី → ការចូល និងសុវត្ថិភាព។',
     'security_ignore' => 'ប្រសិនបើនេះជាសកម្មភាពរបស់អ្នក អ្នកមិនចាំបាច់ធ្វើអ្វីឡើយ។',
     'security_alert' => 'ប្រសិនបើមិនមែនជាអ្នកទេ សូមកំណត់ពាក្យសម្ងាត់របស់អ្នកឡើងវិញជាបន្ទាន់ ហើយទាក់ទងមកយើងខ្ញុំ។',
     'account_reopened_subject' => 'គណនី Bookly របស់អ្នកត្រូវបានបើកឡើងវិញហើយ',
