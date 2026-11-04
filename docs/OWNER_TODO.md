@@ -8,22 +8,6 @@ working with today's settings.
 
 ## Open list (2026-11-04) — all code is merged; only these are left
 
----
-
-## Progress (2026-10-31)
-
-- Done: all 18 branches merged and deployed; backup points at `bookly-2` (green run); demo data is there; live checks
-  (Download my data, 404 answer, typo search, Download button, admin orders auto-refresh) passed.
-- **Done 2026-11-02:** section 4c (phone code). What we learned: a number typed in **Profile** is only a courier
-  contact number. Codes are sent only to a **verified** number linked to the bot. Fix: **Account → Sign-in & security →
-  Phone row → Confirm** → share the number in the Bookly bot → then try the phone code again (wait for the
-  "Too many attempts" timer first). The "Telegram order updates" card does not verify the number.
-- Then: section 3 (R2), section 5 (decisions), sections 4b, 6, 7, 8 when ready.
-
----
-
-## 0. New since 2026-10-31 (notes for each task: `docs/HANDOFF.md` on this branch)
-
 **Live checks (about 2 minutes each, any order)**
 1. Excel: Admin → Reports → **Excel, all reports** → open the file.
 2. Price-drop email: Profile → turn on **Price-drop emails** → wishlist a book → lower its price 5%+ in the admin → email arrives.
@@ -47,6 +31,22 @@ working with today's settings.
 **Ideas not started (ask before building)**
 13. Google Maps (delivery spot / shop map). 14. Facebook page / Messenger link. 15. More sign-in security: sign out
     everywhere, new-device email, block leaked passwords. 16. Price-drop badge on the wishlist.
+
+---
+
+## Progress (2026-10-31)
+
+- Done: all 18 branches merged and deployed; backup points at `bookly-2` (green run); demo data is there; live checks
+  (Download my data, 404 answer, typo search, Download button, admin orders auto-refresh) passed.
+- **Done 2026-11-02:** section 4c (phone code). What we learned: a number typed in **Profile** is only a courier
+  contact number. Codes are sent only to a **verified** number linked to the bot. Fix: **Account → Sign-in & security →
+  Phone row → Confirm** → share the number in the Bookly bot → then try the phone code again (wait for the
+  "Too many attempts" timer first). The "Telegram order updates" card does not verify the number.
+- Then: section 3 (R2), section 5 (decisions), sections 4b, 6, 7, 8 when ready.
+
+---
+
+## 0. New since 2026-10-31 (notes for each task: `docs/HANDOFF.md` on this branch)
 
 **Task F: phone sign-in code hint** (frontend only, no backend change, no setting to change)
 - [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint → **Create pull request** →
