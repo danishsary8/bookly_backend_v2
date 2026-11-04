@@ -196,7 +196,7 @@ class BookController extends Controller
 
     /**
      * How many books each choice would show with the other filters kept (so the filter panel can hide empty choices):
-     * formats, languages, top-level categories, school grades and English levels.
+     * formats, languages, top-level categories, school grades and English levels, plus how many have a reader age.
      *
      * @return array<string, array<string, int>>
      */
@@ -218,6 +218,8 @@ class BookController extends Controller
                 ->selectRaw('COALESCE(categories.parent_id, categories.id) AS k, COUNT(DISTINCT book_categories.book_id) AS n')->get()),
             'school_grades' => $count((clone $books)->whereNotNull('school_grade')->groupBy('school_grade')->selectRaw('school_grade AS k, COUNT(*) AS n')->get()),
             'levels' => $count((clone $books)->whereNotNull('level')->groupBy('level')->selectRaw('level AS k, COUNT(*) AS n')->get()),
+            // Books with a reader age set (the age filter is only worth showing when there are some).
+            'with_age' => (clone $books)->whereNotNull('age_min')->count(),
         ];
     }
 

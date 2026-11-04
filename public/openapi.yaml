@@ -830,7 +830,7 @@ paths:
       - { name: school_grade, in: query, schema: { type: integer, minimum: 1, maximum: 12 } }
       - { name: level, in: query, schema: { type: string, enum: [A1, A2, B1, B2, C1, C2] } }
       - { name: has_ebook, in: query, schema: { type: boolean } }
-      - { name: facets, in: query, schema: { type: boolean }, description: 'Adds `facets` {formats, languages, categories (top-level id), school_grades, levels} = book counts with the other filters applied' }
+      - { name: facets, in: query, schema: { type: boolean }, description: 'Adds `facets` {formats, languages, categories (top-level id), school_grades, levels, with_age} = book counts with the other filters applied' }
       - name: sort
         in: query
         schema:

@@ -140,6 +140,7 @@ class CategoryTreeTest extends TestCase
         $this->assertSame(['English' => 1, 'Khmer' => 1], collect($facets['languages'])->sortKeys()->all());
         $this->assertSame(2, $facets['formats']['paperback']);
         $this->assertSame(['A2' => 1], $facets['levels']);
+        $this->assertSame(0, $facets['with_age']);
 
         $this->assertSame(['Khmer' => 1], $this->getJson('/api/v1/books?facets=1&language=Khmer')->json('facets.languages'));
         $this->assertArrayNotHasKey('facets', $this->getJson('/api/v1/books')->json());
