@@ -59,6 +59,8 @@ return [
     'security_password_reset_body' => 'The password of your Bookly account was just reset with a code sent to this email, and every device was signed out.',
     'security_password_changed_subject' => 'Your Bookly password was changed',
     'security_password_changed_body' => 'The password of your Bookly account was just changed, and other devices were signed out.',
+    'security_new_device_subject' => 'New sign-in to your Bookly account',
+    'security_new_device_body' => 'Your Bookly account was signed in on a new device: :device, on :at (Phnom Penh time), from :ip. You can see and sign out every device in Account → Sign-in & security.',
     'security_ignore' => 'If this was you, there is nothing to do.',
     'security_alert' => 'If it was not you, reset your password straight away and contact us.',
     'account_reopened_subject' => 'Your Bookly account is open again',

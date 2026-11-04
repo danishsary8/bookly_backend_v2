@@ -86,7 +86,7 @@ class TelegramAuthController extends Controller
         return response()->json([
             'status' => 'done',
             'customer' => new CustomerResource($customer),
-            ...($link['purpose'] === 'login' ? $this->issueToken($customer, ['customer']) : []),
+            ...($link['purpose'] === 'login' ? $this->issueToken($customer, ['customer'], newDeviceEmail: false) : []),
         ]);
     }
 

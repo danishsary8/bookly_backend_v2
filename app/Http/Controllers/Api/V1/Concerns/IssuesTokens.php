@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers\Api\V1\Concerns;
 
+use App\Models\Customer;
 use App\Models\StaffUser;
+use App\Services\Auth\KnownDevices;
 use App\Services\Staff\DeviceDetector;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 trait IssuesTokens
 {
-    protected function issueToken(Authenticatable $user, array $abilities, ?string $tokenName = null): array
+    /** @param  bool  $newDeviceEmail  false where the sign-in already sends its own email (Telegram) */
+    protected function issueToken(Authenticatable $user, array $abilities, ?string $tokenName = null, bool $newDeviceEmail = true): array
     {
+        if ($user instanceof Customer) {
+            app(KnownDevices::class)->signedIn($user, request()->userAgent(), request()->ip(), $newDeviceEmail);
+        }
+
         $minutes = $user instanceof StaffUser
             ? config('auth.staff_token_hours') * 60
             : config('sanctum.expiration');
