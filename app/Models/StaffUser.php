@@ -25,6 +25,7 @@ class StaffUser extends Authenticatable
         'customers:view',
         'customers:manage',
         'reviews:manage',
+        'support:manage',
     ];
 
     public const ADMIN_PERMISSIONS = [

@@ -1,5 +1,48 @@
 # Summary for Danish
 
+Phase 6 is complete and pushed. Phase 7 implementation and verification are in progress on feature/support-chat, started independently from origin/main. Final results will replace this working summary.
+
+- Review links: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/ratings ; https://github.com/danishsary8/bookly_frontend/pull/new/feature/ratings ; https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/support-chat ; https://github.com/danishsary8/bookly_frontend/pull/new/feature/support-chat
+- Exact merge order: ratings backend, wait Render Live, ratings frontend, support-chat backend, wait Render Live, support-chat frontend. No pull requests opened, hosting changes or production calls.
+- Phase 7 decisions: guest conversations have no public read URL/token; staff replies reach guests through email. Internal notes are staff-only and never generate outbound delivery. Conversation row locking serialises writes, ratings, mail cooldown claims and Telegram retries. One rating per closed conversation; customers cannot reopen. Read receipts do not consume the 20/minute message quota. Staff list follows the existing 30-second admin refresh; open details poll every five seconds, closed panel lists every thirty. ETags skip message loading when unchanged.
+- Email: immediate public reply emails only while customer away; at most one per 30 minutes/conversation. A message watermark and minute web maintenance batch later guest replies so cooldown does not lose messages. Delivery failures log only a generic reference and consume the cooldown slot; provider retry remains outside scope.
+- Telegram: preserve existing Bookly login bot/webhook secret; send reference/topic/admin URL only to the configured staff group. Require mapping, exact group, active eligible staff identity linked by an administrator and deduplicate update IDs. HUMAN: add the existing Bookly bot to the staff group, set OPS_STAFF_CHAT_ID only if missing, then Admin > Support > Telegram reply access links staff user IDs. No settings or credentials changed here.
+- Safe additive migration, nullable staff binding; explicit order-handling staff permissions/tokens gain support:manage without widening other custom roles. Daily web maintenance anonymises chats closed for over a year and account closure closes active chats. Keep conversation history migration after deployment; rolling it down destroys support history.
+- Security review so far: cross-owner lookups return 404; order reference belongs to owner; plain text bodies escaped, URLs never autolink; notes filtered both in query and resource; demo authenticated writes blocked; Turnstile and guest quota; CORS exposes ETag; user-scoped conditional query cache, cleared on logout/session expiry. Shared star input is identical to Phase 6 for a clean integration.
+- Local checks completed: support API/privacy tests 6/56 assertions, real-commit email/Telegram tests 3/30 assertions, related spec/contracts/permissions subset 23/157 assertions; frontend support UI/API tests 4 passed. Final full gates, browser matrix and integration review are pending.
+- Local browser work uses bookshop_v2_support_browser_test, localhost API8017/frontend5187, array mail, Telegram disabled, no web maintenance. Guest quota remains enabled: three guest submissions, guest form checked across all eight EN/KM/light/dark/390/1280 combinations. No secrets or tokens enter artifacts.
+
+## Phase 6 record and prior work
+
+# Summary for Danish
+
+Phases 6 and 7 are in progress. Phase 6 is implemented; final checks and browser verification are being completed before its push. Phase 7 will start from origin/main independently.
+
+Review links (no pull requests opened):
+- https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/ratings
+- https://github.com/danishsary8/bookly_frontend/pull/new/feature/ratings
+- https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/support-chat
+- https://github.com/danishsary8/bookly_frontend/pull/new/feature/support-chat
+
+Merge order: ratings backend → wait for Render Live → ratings frontend → support-chat backend → wait for Render Live → support-chat frontend. Danish performs merges and external configuration.
+
+## Decisions and review — Phase 6
+
+- One delivered-order rating per owner, protected by an order row lock and unique constraint; edit deadline is exactly seven days after first creation. Hidden comments remain hidden after customer edits. Hidden comments still contribute their real stars to averages.
+- Store proof exposes only average/count and is null below ten; cache is one hour without per-write invalidation. Dashboard rating insights use the selected rating-creation period and the existing five-minute dashboard cache.
+- Low-rating alerts fire on first entry into 1–2 stars, not every edit, and omit comments/customer details. Book review verified-purchase badges already exist and are preserved.
+- Shared StarRatingInput uses native radios, arrow keys, a labelled radiogroup and 44px labels. Existing book-review UI remains unchanged.
+- Existing Symfony dependency advisories were found by composer audit. Patched within the existing minor lines: filesystem 8.1.11, http-foundation/http-kernel/routing 7.4.23, yaml 7.4.23. No framework major migration; var-dumper remains unchanged. npm production audit reports zero vulnerabilities.
+- Backend first full run: 875 passed, Pint clean. Frontend: 606 passed (3 existing opt-in skips), lint zero errors (one existing refresh warning), typecheck and build passed. Full backend checks will be rerun after dependency patches.
+- Local browser database is isolated from the PHPUnit database and production. Browser script tests en/km × light/dark × 390/1280, rating save, radio keyboard control, badge below ten and at ten, and axe. Final results pending.
+- Self-review: ownership is checked in every customer endpoint; staff routes require reviews:manage/admin; body fields are allowlisted and comments are plain text; demo writes refused and writes throttled. New migration only; old migrations untouched. No settings or production endpoints used.
+
+---
+
+## Prior handoff
+
+# Summary for Danish
+
 Phase 5 Parts A–E are implemented on `feature/shop-extras` in both repositories. All final checks passed; branches are ready for Danish's review.
 
 - Backend review link: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/shop-extras
@@ -469,3 +512,9 @@ Reading lists implemented with customer/list row locks, ownership 404s, plain te
 Backend reading-list/route/contract checks: 13 passed. Frontend public-list and manager checks: 3 passed. A controlled-checkbox test caught deferred event access; the handler now captures the boolean before scheduling the mutation.
 Browser: dedicated local PostgreSQL database bookshop_v2_extras_browser_test, API 127.0.0.1:8015, Vite 127.0.0.1:5185. scripts/check-shop-extras.mjs exercised home automatic rows + View all + keyboard focus scrolling; cart real gift, delivery estimate and free-delivery progress; public list first name, escaped text, Facebook/Telegram URLs and clipboard sharing. Initial full matrix: 390 and 1280 px, light and dark, all 12 page checks axe WCAG 2.1 A/AA 0 violations, no horizontal overflow. Screenshots/report in frontend test-results/shop-extras (ignored). Added batch-cart interaction and paced the repeat matrix to respect catalogue rate limits. No external requests allowed by the browser check. Runtime imagery review caught obsolete KHQR coming-soon cart copy; corrected EN/KM.
 Final full checks are being repeated after fixture/schema corrections. Existing tests were updated to supply real auto-row and preview fixtures; assertions preserved. OpenAPI nullable delivery amounts now use allOf so generated types match actual null responses.
+
+## Phase 6 final results
+Initial full backend 875 passed (17,164 assertions); patched-dependency repeat pending completion. Pint passed. Frontend full 606 passed, 3 existing opt-in skips unchanged; lint 0 errors (one existing refresh warning), typecheck/build passed; npm audit --omit=dev 0 vulnerabilities. composer audit after patch reports no advisories; one later retry used cache after a transient DNS error. route:list exposes the six intended rating routes.
+Playwright scripts/check-ratings.mjs passed all 8 combinations (en/km × light/dark × 390/1280), each rating an order and auditing order + home: 16 page audits, 0 WCAG 2.1 A/AA axe violations, no overflow. Confirmed store endpoint null at 9, then both home/footer badges after the tenth; saved stars read back from the API. Local fixture database bookshop_v2_ratings_browser_test only. Keyboard radio controls exercised. Artifacts are ignored test-results/ratings. No external settings or production calls.
+
+Patched-dependency final rerun: 875 tests passed / 17,164 assertions; Pint passed; composer audit no advisories; route sanity six rating routes. Phase 6 is ready for review. Phase 7 starts independently from origin/main next.

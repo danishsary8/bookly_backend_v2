@@ -26,6 +26,17 @@ Staff run the shop from a back office. English and Khmer, US dollars and riel.
 
 ## What it does
 
+### Human support chat
+
+Customers use the storefront bubble or Account → Support; guests send a short form and receive replies by email.
+The staff inbox requires `support:manage` (or admin), supports assignments, internal notes, bilingual quick replies and closed-chat ratings.
+Conditional polling uses ETags; unread reply email is limited to once per 30 minutes per conversation.
+`MaintenanceTasks` sends deferred reply batches and anonymises conversations closed for over one year through the existing web-request maintenance runner; no scheduler service is needed.
+Telegram alerts reuse the existing Bookly bot and webhook secret. A human must add that bot to the existing staff group,
+set `OPS_STAFF_CHAT_ID` if absent, and link each eligible staff member's Telegram user ID under Admin → Support → Telegram reply access.
+Only replies to mapped alerts in that configured group from active, explicitly linked staff are accepted. Do not replace the existing login webhook.
+No service settings are changed by this feature. See [API reference](docs/API.md) for all routes and privacy rules.
+
 **For customers**
 - Sign up with email (a 6-digit code confirms it), Google, Facebook or **Telegram**; sign in with a code sent by the
   Telegram bot to a confirmed phone number

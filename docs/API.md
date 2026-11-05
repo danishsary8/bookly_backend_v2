@@ -406,3 +406,36 @@ an order with its ebook format in status paid/processing/shipped/delivered. Page
 Endpoints: `GET /me/ebooks`, `GET|DELETE /me/ebook-devices[/{id}]`, `GET /reader/{book}`, `GET /reader/{book}/pages/{n}`,
 `PUT /reader/{book}/progress`, `GET /reader/{book}/preview`, `GET /reader/{book}/preview/pages/{n}`,
 staff `GET|POST|PATCH|DELETE /staff/books/{book}/ebook`, `POST /staff/customers/{customer}/ebook-devices/reset`.
+# Human support chat (Phase 7)
+
+All paths below are relative to `/api/v1`. Customer routes require a verified customer token and scope every lookup to its owner (foreign orders/conversations return 404). Staff routes require a 2FA staff token with `support:manage` or `admin`. Demo accounts cannot use authenticated support writes.
+
+| Method | Path | Behaviour |
+| --- | --- | --- |
+| POST | `/support/guest` | Name (100), email (255), plain message (2000), `turnstile_token`; Turnstile when configured, 3 requests/hour/IP. Creates a conversation and emails confirmation; returns only `{data:{id}}`, never a public read token. |
+| GET / POST | `/support/conversations` | Paginated owned conversations / start with `topic`, optional owned `order_id`, `message`. |
+| GET | `/support/conversations/{conversation}` | Latest 100 public messages in chronological order; `before_id` retrieves the preceding page. |
+| POST | `/support/conversations/{conversation}/messages` | Plain `message`, max 2000 characters; closed chats reject messages. Customer `is_internal` cannot create notes. |
+| POST | `/support/conversations/{conversation}/read` | Mark incoming public messages read; refresh presence. |
+| POST | `/support/conversations/{conversation}/status` | Customer can send only `status:closed`. |
+| POST | `/support/conversations/{conversation}/rating` | Closed owned conversation, once only; `stars` 1–5, optional plain `comment` max 500. |
+| GET | `/staff/support/conversations` | Paginated inbox; `status`, `topic`, `assigned_to_me=1`, `unread=1`. |
+| GET | `/staff/support/conversations/{conversation}` | Staff detail includes internal notes and customer/guest contact, optional order reference; `before_id` paging. |
+| POST | `/staff/support/conversations/{conversation}/messages` | Reply or `is_internal:true` staff note; notes never appear in customer responses, Telegram or emails. |
+| POST | `/staff/support/conversations/{conversation}/read` | Mark customer messages read. |
+| POST | `/staff/support/conversations/{conversation}/status` | `open`, `pending`, `closed`; staff can reopen. |
+| POST | `/staff/support/conversations/{conversation}/assign` | `staff_id` active eligible staff, or null to unassign. |
+| GET | `/staff/support/staff` | Eligible active staff IDs/names, no credentials or Telegram IDs. |
+| GET / POST | `/staff/support/quick-replies` | List/create plain templates: `title`, `body_en`, `body_km`. |
+| PATCH / DELETE | `/staff/support/quick-replies/{reply}` | Edit/delete template; changes audited. |
+| POST | `/staff/support/telegram-users` | Admin only: `staff_id`, nullable positive `telegram_user_id`; explicitly authorises that linked active staff sender. |
+
+Topics: `order`, `payment`, `ebook`, `delivery`, `other`. Reply status is `pending` after staff reply, `open` after customer reply. No automated replies or typing simulation. Authenticated writes are limited to 20/minute per principal; read receipts have no message quota. Plain text rejects HTML delimiters; rendering escapes text and never auto-links URLs. All state changes lock the same conversation row; duplicate ratings and Telegram retries cannot create duplicates.
+
+Lists/details return private, no-cache `ETag`; `If-None-Match` returns 304 when unchanged. CORS exposes ETag. Poll detail every 5 seconds while mounted, background customer lists every 30 seconds; staff inbox uses the existing 30-second admin refresh and focus refresh, paused during editing. A 304 detail response skips loading message history. Presence refreshes at most every 30 seconds; visible messages are marked read explicitly.
+
+Away customer notification email and guest reply email are limited to once/30 minutes/conversation. Guest emails include the actual public staff replies; further replies are batched by `support:send-emails` through existing web maintenance. Active customer presence suppresses immediate email; unread replies are emailed after leaving. Internal notes never cause outbound delivery. Email/provider failures log a generic event and numeric reference only. An email delivery failure consumes its cooldown slot; provider-level retries are not added.
+
+Telegram uses the existing Bookly bot, webhook secret and `OPS_STAFF_CHAT_ID`. Alerts contain only reference/topic/admin link. Only replies to stored alert message IDs in that group from explicitly linked active eligible staff are accepted; update IDs deduplicate retries. Existing private phone sign-in remains intact. Human setup is described in README; no webhook/settings changes are made by this task.
+
+Daily `support:anonymise` replaces message bodies and clears contact/order/staff references and rating comments on conversations closed for more than one year; reopen resets the retention clock. Both support maintenance commands are registered in `MaintenanceTasks` for free-plan web requests. Anonymised conversations cannot reopen. No public chat or rating endpoint exists.

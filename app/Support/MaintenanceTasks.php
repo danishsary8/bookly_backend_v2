@@ -14,6 +14,8 @@ class MaintenanceTasks
     public static function all(): array
     {
         return [
+            ['name' => 'support-retention', 'command' => 'support:anonymise', 'parameters' => [], 'cron' => '0 0 * * *'],
+            ['name' => 'support-mail', 'command' => 'support:send-emails', 'parameters' => [], 'cron' => '* * * * *'],
             // Expired API tokens stop working at expiry; this just keeps the table small. (Our own command: Sanctum's
             // `sanctum:prune-expired` is not registered during web requests.)
             ['name' => 'sanctum-tokens', 'command' => 'tokens:prune-expired', 'parameters' => ['--hours' => 24], 'cron' => '0 0 * * *'],

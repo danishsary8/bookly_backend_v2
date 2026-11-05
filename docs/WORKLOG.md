@@ -2,6 +2,7 @@
 
 Append newest entries at the bottom. Every finished step gets an entry.
 
+
 ## Step 0 — Planning (done, owner confirmed)
 Requirements, entity list (27 tables), ER diagram, column-level schema. See PROJECT_CONTEXT.md for the schema doc link.
 
@@ -558,3 +559,9 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 - Phase 5 Part E: shareable reading lists with locked limits, public/private access, staff picks, plain notes, list management and batch add-to-cart. Export/closed-account cleanup included. Reading-list, route and contract tests pass; browser matrix 390/1280 light/dark has axe 0 and no overflow. Final check totals tracked in PROGRESS.md.
 
 - Phase 5 final verification: PostgreSQL 871 tests / 17,138 assertions, Pint clean. Frontend lint 0 errors, typecheck, 603 passing tests (3 existing skips), build passed. Real local Playwright home/cart/public-list matrix 390/1280, light/dark: 12 checks, axe 0, no overflow; batch-cart and share interactions verified. No production calls/settings. Final owner handoff is at the top of PROGRESS.md.
+
+## Phase 7 — Human support chat implementation (2026-11-05)
+- Started feature/support-chat from origin/main independently of ratings; reused only the dependency security patch and identical shared star input.
+- Added owner-scoped conversations/messages/ratings, guest Turnstile/quota/confirmation, staff support ability/backfill, assignments/status/notes/bilingual templates, conditional polling/read receipts, exact Telegram group/linked-staff reply mapping and idempotency, mail cooldown/batching, and web maintenance retention.
+- Added isolated local browser fixtures, API/privacy/rate-limit/contracts and real-commit delivery tests. Initial full backend suite: 880 passed / 17,234 assertions; final additional cases and integration gates follow in PROGRESS.md.
+- API reference, OpenAPI and README explain privacy rules and human Telegram setup. External service settings and production untouched. Decisions and final Danish handoff are recorded at the top of PROGRESS.md.

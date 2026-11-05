@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\ReturnStatus;
 use App\Models\Customer;
 use App\Models\ReadingList;
+use App\Models\SupportConversation;
 use App\Models\VerificationToken;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -54,6 +55,7 @@ class ClosedCustomers
             $customer->tokens()->delete();
             $customer->reviews()->delete();
             $customer->wishlistBooks()->detach();
+            SupportConversation::where('customer_id', $customer->id)->where('status', '!=', 'closed')->update(['status' => 'closed', 'closed_at' => now(), 'version' => DB::raw('version + 1')]);
             ReadingList::where('customer_id', $customer->id)->delete();
             $customer->cart()->delete();
             $customer->delete();
