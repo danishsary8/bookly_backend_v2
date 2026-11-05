@@ -1,5 +1,32 @@
 # Summary for Danish
 
+Phase 6 is complete and ready for review on feature/ratings. Phase 7 was implemented independently from origin/main on feature/support-chat; normal merge commits resolve the shared-file conflicts there. Its final combined handoff is in PROGRESS.md on feature/support-chat.
+
+Review links (no pull requests opened):
+- https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/ratings
+- https://github.com/danishsary8/bookly_frontend/pull/new/feature/ratings
+- https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/support-chat
+- https://github.com/danishsary8/bookly_frontend/pull/new/feature/support-chat
+
+Merge order: ratings backend → wait for Render Live → ratings frontend → support-chat backend → wait for Render Live → support-chat frontend. Danish performs merges and external configuration.
+
+## Decisions and review — Phase 6
+
+- One delivered-order rating per owner, protected by an order row lock and unique constraint; edit deadline is exactly seven days after first creation. Hidden comments remain hidden after customer edits. Hidden comments still contribute their real stars to averages.
+- Store proof exposes only average/count and is null below ten; cache is one hour without per-write invalidation. Dashboard rating insights use the selected rating-creation period and the existing five-minute dashboard cache.
+- Low-rating alerts fire on first entry into 1–2 stars, not every edit, and omit comments/customer details. Book review verified-purchase badges already exist and are preserved.
+- Shared StarRatingInput uses native radios, arrow keys, a labelled radiogroup and 44px labels. Existing book-review UI remains unchanged. Final privacy review scopes order-rating queries by customer, resets editor state on account changes and clears private ratings on logout/session expiry; regression verifies a switched account never sees the prior comment.
+- Existing Symfony dependency advisories were found by composer audit. Patched within the existing minor lines: filesystem 8.1.11, http-foundation/http-kernel/routing 7.4.23, yaml 7.4.23. No framework major migration; var-dumper remains unchanged. npm production audit reports zero vulnerabilities.
+- Backend final: 875 passed / 17,164 assertions on PostgreSQL with patched dependencies, Pint clean, route sanity passed and composer audit found no advisories. Frontend final: 607 passed (3 existing opt-in skips), lint zero errors (one existing refresh warning), typecheck/build passed, production audit zero.
+- Real local browser checks: all eight en/km × light/dark ×390/1280 combinations passed, rating save, radio keyboard control, badge hidden below ten and shown at ten; sixteen page audits, axe WCAG2.1A/AA zero, no overflow. After the final customer-cache fix, a focused 390px real save/API/keyboard/axe check also passed. Fixtures use dedicated local browser databases, separate from PHPUnit and production.
+- Self-review: ownership is checked in every customer endpoint; staff routes require reviews:manage/admin; body fields are allowlisted and comments are plain text; demo writes refused and writes throttled. New migration only; old migrations untouched. No settings or production endpoints used.
+
+---
+
+## Prior handoff
+
+# Summary for Danish
+
 Phase 5 Parts A–E are implemented on `feature/shop-extras` in both repositories. All final checks passed; branches are ready for Danish's review.
 
 - Backend review link: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/shop-extras
@@ -469,3 +496,9 @@ Reading lists implemented with customer/list row locks, ownership 404s, plain te
 Backend reading-list/route/contract checks: 13 passed. Frontend public-list and manager checks: 3 passed. A controlled-checkbox test caught deferred event access; the handler now captures the boolean before scheduling the mutation.
 Browser: dedicated local PostgreSQL database bookshop_v2_extras_browser_test, API 127.0.0.1:8015, Vite 127.0.0.1:5185. scripts/check-shop-extras.mjs exercised home automatic rows + View all + keyboard focus scrolling; cart real gift, delivery estimate and free-delivery progress; public list first name, escaped text, Facebook/Telegram URLs and clipboard sharing. Initial full matrix: 390 and 1280 px, light and dark, all 12 page checks axe WCAG 2.1 A/AA 0 violations, no horizontal overflow. Screenshots/report in frontend test-results/shop-extras (ignored). Added batch-cart interaction and paced the repeat matrix to respect catalogue rate limits. No external requests allowed by the browser check. Runtime imagery review caught obsolete KHQR coming-soon cart copy; corrected EN/KM.
 Final full checks are being repeated after fixture/schema corrections. Existing tests were updated to supply real auto-row and preview fixtures; assertions preserved. OpenAPI nullable delivery amounts now use allOf so generated types match actual null responses.
+
+## Phase 6 final results
+Initial full backend 875 passed (17,164 assertions); patched-dependency repeat pending completion. Pint passed. Frontend full 606 passed, 3 existing opt-in skips unchanged; lint 0 errors (one existing refresh warning), typecheck/build passed; npm audit --omit=dev 0 vulnerabilities. composer audit after patch reports no advisories; one later retry used cache after a transient DNS error. route:list exposes the six intended rating routes.
+Playwright scripts/check-ratings.mjs passed all 8 combinations (en/km × light/dark × 390/1280), each rating an order and auditing order + home: 16 page audits, 0 WCAG 2.1 A/AA axe violations, no overflow. Confirmed store endpoint null at 9, then both home/footer badges after the tenth; saved stars read back from the API. Local fixture database bookshop_v2_ratings_browser_test only. Keyboard radio controls exercised. Artifacts are ignored test-results/ratings. No external settings or production calls.
+
+Patched-dependency final rerun: 875 tests passed / 17,164 assertions; Pint passed; composer audit no advisories; route sanity six rating routes. Phase 6 is ready for review. Phase 7 starts independently from origin/main next.

@@ -44,6 +44,7 @@ class DashboardInsightsService
                 'provinces' => $this->provinces($start, $end),
                 'promotions' => $this->promotions($start, $end),
                 'repeat_customer_rate' => $this->repeatCustomerRate($start, $end),
+                'order_ratings' => $this->orderRatings($start, $end),
             ];
         });
     }
@@ -61,6 +62,14 @@ class DashboardInsightsService
                 ->whereHas('book')
                 ->count(),
         ]);
+    }
+
+    private function orderRatings(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $row = DB::table('order_ratings')->where('created_at', '>=', $start->utc())->where('created_at', '<', $end->utc())
+            ->selectRaw('COUNT(*) AS count, AVG(stars) AS average')->first();
+
+        return ['count' => (int) $row->count, 'average' => $row->average === null ? null : round((float) $row->average, 1)];
     }
 
     /**

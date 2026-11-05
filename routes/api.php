@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\Customer\EmailController;
 use App\Http\Controllers\Api\V1\Customer\NewsletterCustomerController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\OrderPaymentController;
+use App\Http\Controllers\Api\V1\Customer\OrderRatingController;
 use App\Http\Controllers\Api\V1\Customer\PhoneCodeController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\ReadingListController;
@@ -88,6 +89,7 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 | Public catalog (no login needed)
 */
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
+Route::get('/store-rating', [OrderRatingController::class, 'storeRating']);
 Route::get('/lists/staff-picks', [ReadingListController::class, 'staffPicks'])->middleware('throttle:catalog');
 Route::get('/lists/{slug}', [ReadingListController::class, 'publicShow'])->middleware('throttle:catalog');
 Route::get('/catalog/rows', CatalogRowsController::class)->middleware('throttle:catalog');
@@ -223,6 +225,9 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::delete('/returns/{return}', [ReturnController::class, 'destroy'])->whereNumber('return');
 
     Route::get('/reviews', [CustomerReviewController::class, 'index']);
+    Route::get('/orders/{order}/rating', [OrderRatingController::class, 'show'])->whereNumber('order');
+    Route::post('/orders/{order}/rating', [OrderRatingController::class, 'store'])->whereNumber('order')->middleware(['not.demo', 'throttle:10,1']);
+    Route::patch('/orders/{order}/rating', [OrderRatingController::class, 'update'])->whereNumber('order')->middleware(['not.demo', 'throttle:10,1']);
     // The shared demo account can't write reviews: they would show on the public shop at once (owner 2026-11-03).
     Route::post('/books/{book}/reviews', [CustomerReviewController::class, 'store'])->whereNumber('book')->middleware(['not.demo', 'throttle:10,1']);
     Route::patch('/reviews/{review}', [CustomerReviewController::class, 'update'])->whereNumber('review')->middleware('not.demo');
@@ -301,6 +306,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/customers/{customer}/resend-verification', [StaffCustomerController::class, 'resendVerification'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
 
     Route::get('/reviews', [StaffReviewController::class, 'index']);
+    Route::get('/ratings', [App\Http\Controllers\Api\V1\Staff\OrderRatingController::class, 'index'])->middleware('ability:reviews:manage,admin');
+    Route::post('/ratings/{rating}/hide', [App\Http\Controllers\Api\V1\Staff\OrderRatingController::class, 'hide'])->whereNumber('rating')->middleware('ability:reviews:manage,admin');
     Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review')->middleware('ability:reviews:manage,admin');
     Route::post('/reviews/{review}/show', [StaffReviewController::class, 'show'])->whereNumber('review')->middleware('ability:reviews:manage,admin');
 
