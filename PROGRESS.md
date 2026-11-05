@@ -1,11 +1,17 @@
 # Summary for Danish
 
-Phase 5 is in progress on `feature/shop-extras` in both repositories. Nothing has been pushed yet.
+Phase 5 Parts A–E are implemented on `feature/shop-extras` in both repositories. All final checks passed; branches are ready for Danish's review.
 
-- Backend review link when pushed: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/shop-extras
-- Frontend review link when pushed: https://github.com/danishsary8/bookly_frontend/pull/new/feature/shop-extras
+- Backend review link: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/shop-extras
+- Frontend review link: https://github.com/danishsary8/bookly_frontend/pull/new/feature/shop-extras
 - Merge order: backend first, wait for Render, then frontend. Danish handles merges and hosting.
-- Checks: pending. Parts A–E and the browser matrix are not yet complete.
+- Changed: real stock/sales signals and optional unsaved .99 price suggestions; cached catalogue shelves and coming-soon filters; transaction-safe purchase gifts and staff tools; cart delivery estimates; private/public reading lists and staff picks. API specification, generated frontend types, documentation, tests and EN/KM text are included.
+- Backend final: `php artisan test --compact` **871 passed, 17,138 assertions** on local PostgreSQL; `vendor/bin/pint --test` passed. Includes API contracts, ownership/limits/rate limits and independent-process last-gift concurrency.
+- Frontend final: lint **0 errors** (one existing VisitorAnalytics refresh warning), typecheck passed, **603 tests passed** (3 existing opt-in skips unchanged), build passed using the local API. No tests were weakened or newly skipped.
+- Browser final: Playwright against real local API/data, home/cart/public list at **390/1280 px × light/dark**: all **12 checks**, axe WCAG 2.1 A/AA **0 violations**, no horizontal overflow. Shelf focus scrolling, View all, gift/delivery/progress, clipboard/Facebook/Telegram sharing and batch Add all to cart were exercised. Final repeat was completed across the paced matrix and a focused 1280-dark rerun; report contains all 12 combinations. Artifacts: frontend `test-results/shop-extras/report.json` and screenshots (ignored).
+- Decisions: one gift plus the existing monetary offer-or-coupon winner; first eligible gift offer by id, matching pre-discount quantity/subtotal, no gift when stock is insufficient. Digital purchases with a physical gift use existing shipping rates. Card scarcity uses the cheapest active format; no digital/preorder/backorder scarcity. Best sellers use 30 days; social proof uses 90 days and an hourly cache. Full rationale follows below.
+- Danish: review the branches and the two additive migrations; merge backend first, wait for Render, then frontend. Create real gift inventory in **Gifts**, create/activate a gift offer in **Offers**, and mark public reading lists in **Staff picks** if desired. No new keys or hosting settings are required. Never roll back the gift migration once gift offers/snapshots are in use; its guard preserves that history.
+- Production, hosting and external service settings were untouched. No live site/API calls were made. Browser verification used a dedicated local database; full backend tests used their separate local test database.
 
 ## Decisions
 
