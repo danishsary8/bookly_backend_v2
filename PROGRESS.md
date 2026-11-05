@@ -1,3 +1,34 @@
+# Fix: Pre-order Release Email Deduplication
+
+## Summary for Danish
+
+### 1. Pull Request Links & Merge Order
+1. **Backend PR (Fix)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/preorder-release-email
+2. **Backend PR (Phase 3 Series)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/series-volumes (then wait for Render Live)
+3. **Frontend PR (Phase 3 Series)**: https://github.com/danishsary8/bookly_frontend/pull/new/feature/series-volumes
+
+### 2. What Changed in this Fix
+- **Problem**: `PreorderAllocationService::releasePreorders()` runs hourly and was checking all variants where `release_date <= today`. When an order remained waiting on stock (`is_waiting_stock = true`), customers received duplicate release emails every hour.
+- **Solution (No new migration)**:
+  - Deduplicated customer release notifications per order and variant using atomic `Cache::add("preorder-released:{$order->id}:{$variant->id}", true, now()->addDays(30))`.
+  - Added a 3-day release window check (`release_date >= today - 3 days` and `<= today`) so that server deploys or cache clears never re-email old historical releases.
+  - Allocation logic (`allocateForVariant`) still runs for all released variants with waiting orders to ensure stock is allocated as soon as items arrive.
+  - Comprehensive feature tests in `PreorderBackorderTest` verifying:
+    - Multiple runs on the same day send the email only once.
+    - Running on the next day does not send duplicate emails.
+    - Second orders for the same variant receive their own release email.
+    - Variants released 10 days ago are not emailed.
+    - Allocation still succeeds when stock arrives.
+
+### 3. Check Results
+- `php artisan test`: 843 passed, 0 failed (16,912 assertions).
+- `vendor/bin/pint --test`: PASSED (100% PSR-12 clean).
+
+### 4. Needs Danish
+- Review and merge `fix/preorder-release-email` PR first into `main`.
+
+---
+
 # Bookly Phase 4 — Pre-order & Backorder
 
 ## Summary for Danish
@@ -169,9 +200,9 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
   - Book Detail Page: Shows reader age (e.g., "8–12" or "8+"), school grade ("Grade 9" / "ថ្នាក់ទី 9"), and English level ("Level B1" / "កម្រិត B1") linking to filtered catalog views, and category hierarchy (`<Parent> › <Child>`).
   - Book Cards: Quiet, compact tag beside formats showing level or grade (e.g. "B1", "Grade 9"), designed to keep layout intact on 390px mobile screens.
 - **A7: Draft Designs for Phases 2, 3 & 4 (Backend Docs)**:
-  - `docs/superpowers/specs/2026-11-06-ebooks-design-DRAFT.md`: Browser-only encrypted streaming, PDF master recommendation for exact Khmer typography, dynamic canvas watermarks, 3-device limit, ~10% preview, Cloudflare R2 storage ($0 egress).
-  - `docs/superpowers/specs/2026-11-06-series-volumes-design-DRAFT.md`: Interactive volume picker, visual ownership badges, next volume suggestions, one-click "Complete your set" batch cart adding.
-  - `docs/superpowers/specs/2026-11-06-preorder-backorder-design-DRAFT.md`: Pre-orders with release dates, back-orders for publisher restocks, split shipping calculation, and automated FIFO inventory allocation.
+  - `docs/superpowers/specs/2026-11-06-ebooks-design-DRAFT.md`: Browser-only encrypted streaming, PDF master recommendation for exact Khmer typography, dynamic canvas watermarks (`email · order#`), right-click/print/copy blocking, max 3 devices per customer with 30-day deregistration window, ~10% free preview, zero direct file downloads, Cloudflare R2 storage architecture (\$0 egress).
+  - `docs/superpowers/specs/2026-11-06-series-volumes-design-DRAFT.md`: Interactive volume picker on book details, visual badges (Owned, In Cart, Price), next volume auto-suggestion, "Complete your collection" one-click batch cart adder, proposed schema updates for series status and volume counts.
+  - `docs/superpowers/specs/2026-11-06-preorder-backorder-design-DRAFT.md`: Pre-orders for upcoming books with release dates, back-orders for out-of-stock titles awaiting publisher replenishment, atomic reservation counters, split vs. combined shipping calculation, and FIFO allocation when restocked.
 - **A8: Docs Refresh (Both Repos)**: Updated backend `README.md`, `docs/API.md`, and frontend `README.md` with all features shipped since 2026-11-04 (category tree, cart reminders, gift notes, map pin, leaked password check, sessions, price-drop badge, and tonight's work). Updated test counts (825 backend, 567 frontend).
 
 ### 4. Post-Merge Smoke Checks (Production)
@@ -273,7 +304,7 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
   - `npx vitest run src/pages/admin/category-tree-admin.test.tsx` → 5 passed
   - `npm run typecheck` → passed clean
   - `npm run lint` → 0 errors, 1 pre-existing warning in `VisitorAnalytics.tsx`
-- Decisions I made: Used Lucide icons to align with existing design system, and made the icon picker top-level only to keep sub-categories clean.
+- Decisions I made: Used Lucide icons to align with existing design system, and潰made the icon picker top-level only to keep sub-categories clean.
 - NEEDS DANISH: none
 
 ## A6 — Audience info on the book page and cards (frontend) — DONE
@@ -302,7 +333,7 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
 - Repo/branch: backend · feature/antigravity-overnight · commit 23f0bf5
 - What changed:
   - Created 3 comprehensive design specification drafts in `docs/superpowers/specs/`:
-    1. `2026-11-06-ebooks-design-DRAFT.md`: Browser-only streaming reader, PDF master recommendation (preserves exact Khmer typography), dynamic canvas watermarks (`email · order#`), right-click/print/copy blocking, max 3 devices per customer with 30-day deregistration window, ~10% free preview, zero direct file downloads, Cloudflare R2 storage architecture (\$0 egress).
+    1. `2026-11-06-ebooks-design-DRAFT.md`: Browser-only encrypted streaming, PDF master recommendation (preserves exact Khmer typography), dynamic canvas watermarks (`email · order#`), right-click/print/copy blocking, max 3 devices per customer with 30-day deregistration window, ~10% free preview, zero direct file downloads, Cloudflare R2 storage architecture (\$0 egress).
     2. `2026-11-06-series-volumes-design-DRAFT.md`: Interactive volume picker on book details, visual badges (Owned, In Cart, Price), next volume auto-suggestion, "Complete your collection" one-click batch cart adder, proposed schema updates for series status and volume counts.
     3. `2026-11-06-preorder-backorder-design-DRAFT.md`: Pre-orders for upcoming books with release dates, back-orders for out-of-stock titles awaiting publisher replenishment, atomic reservation counters, split vs. combined shipping calculation, and FIFO allocation when restocked.
   - Each draft includes: goal, customer & admin flows, proposed data models (clearly marked "proposed"), API endpoints, security & IP controls, free-hosting constraints (Render 512MB RAM & Cloudflare R2), performance, tests to write, rollout steps, and explicit "Questions for Danish" with actionable recommendations.
