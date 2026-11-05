@@ -309,4 +309,92 @@ class PreorderBackorderTest extends TestCase
         $this->assertContains($waitingOrder->id, $ids);
         $this->assertNotContains($normalOrder->id, $ids);
     }
+
+    public function test_preorder_released_email_sent_only_once_per_order_variant_and_respects_3_day_window(): void
+    {
+        $today = Carbon::today()->toDateString();
+
+        // Variant A released today, out of stock (so orders remain waiting)
+        $variantA = BookVariant::factory()->format(BookFormat::Hardcover)->create([
+            'price_usd' => '25.00',
+            'stock_quantity' => 0,
+            'release_date' => $today,
+            'allow_backorder' => true,
+        ]);
+
+        // Order 1 by Customer 1
+        $this->addToCart($variantA, 1);
+        $res1 = $this->checkout([], 'order-multi-rel-1')->assertCreated();
+        $order1 = Order::find($res1->json('data.id'));
+        $order1->update(['is_waiting_stock' => true, 'status' => OrderStatus::Processing]);
+
+        // Order 2 by Customer 2 for same variant
+        $customer2 = Customer::factory()->create();
+        $address2 = CustomerAddress::factory()->for($customer2)->create();
+        $token2 = $customer2->createToken('t2', ['customer'])->plainTextToken;
+        $this->asToken($token2)->postJson('/api/v1/cart/items', ['book_variant_id' => $variantA->id, 'quantity' => 1])->assertCreated();
+        $res2 = $this->asToken($token2)->withHeader('Idempotency-Key', 'order-multi-rel-2')->postJson('/api/v1/checkout', [
+            'address_id' => $address2->id,
+            'payment_method' => 'cod',
+        ])->assertCreated();
+        $order2 = Order::find($res2->json('data.id'));
+        $order2->update(['is_waiting_stock' => true, 'status' => OrderStatus::Processing]);
+
+        // Variant B released 10 days ago (old release, out of stock)
+        $variantB = BookVariant::factory()->format(BookFormat::Paperback)->create([
+            'price_usd' => '15.00',
+            'stock_quantity' => 0,
+            'release_date' => Carbon::today()->subDays(10)->toDateString(),
+            'allow_backorder' => true,
+        ]);
+        $customer3 = Customer::factory()->create();
+        $address3 = CustomerAddress::factory()->for($customer3)->create();
+        $token3 = $customer3->createToken('t3', ['customer'])->plainTextToken;
+        $this->asToken($token3)->postJson('/api/v1/cart/items', ['book_variant_id' => $variantB->id, 'quantity' => 1])->assertCreated();
+        $res3 = $this->asToken($token3)->withHeader('Idempotency-Key', 'order-multi-rel-3')->postJson('/api/v1/checkout', [
+            'address_id' => $address3->id,
+            'payment_method' => 'cod',
+        ])->assertCreated();
+        $order3 = Order::find($res3->json('data.id'));
+        $order3->update(['is_waiting_stock' => true, 'status' => OrderStatus::Processing]);
+
+        // Run 1: customer 1 & customer 2 receive email; customer 3 (released 10 days ago) does NOT receive email
+        $this->artisan('preorders:check-releases')->assertSuccessful();
+        Notification::assertSentToTimes($this->customer, PreorderReleasedNotification::class, 1);
+        Notification::assertSentToTimes($customer2, PreorderReleasedNotification::class, 1);
+        Notification::assertNotSentTo($customer3, PreorderReleasedNotification::class);
+
+        // Run 2: running immediately again sends 0 duplicate emails
+        $this->artisan('preorders:check-releases')->assertSuccessful();
+        Notification::assertSentToTimes($this->customer, PreorderReleasedNotification::class, 1);
+        Notification::assertSentToTimes($customer2, PreorderReleasedNotification::class, 1);
+
+        // Run 3: running a 3rd time still sends 0 duplicate emails
+        $this->artisan('preorders:check-releases')->assertSuccessful();
+        Notification::assertSentToTimes($this->customer, PreorderReleasedNotification::class, 1);
+        Notification::assertSentToTimes($customer2, PreorderReleasedNotification::class, 1);
+
+        // Next day: advance time by 1 day
+        Carbon::setTestNow(Carbon::today()->addDay()->setHour(10));
+        $this->artisan('preorders:check-releases')->assertSuccessful();
+        Notification::assertSentToTimes($this->customer, PreorderReleasedNotification::class, 1);
+        Notification::assertSentToTimes($customer2, PreorderReleasedNotification::class, 1);
+        Notification::assertNotSentTo($customer3, PreorderReleasedNotification::class);
+
+        // Allocation still happens when stock arrives:
+        // Restock variant A with 1 copy -> Order 1 (placed earlier) should be allocated
+        $order1->update(['placed_at' => now()->subHours(2)]);
+        $order2->update(['placed_at' => now()->subHour()]);
+        $variantA->increment('stock_quantity', 1);
+
+        $this->artisan('preorders:check-releases')->assertSuccessful();
+        $this->assertFalse($order1->fresh()->is_waiting_stock);
+        $this->assertTrue($order2->fresh()->is_waiting_stock);
+
+        // No new release emails were sent during allocation run
+        Notification::assertSentToTimes($this->customer, PreorderReleasedNotification::class, 1);
+        Notification::assertSentToTimes($customer2, PreorderReleasedNotification::class, 1);
+
+        Carbon::setTestNow();
+    }
 }

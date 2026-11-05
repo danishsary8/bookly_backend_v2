@@ -3,7 +3,7 @@
 ## Summary for Danish
 
 ### 1. Pull Request Links & Merge Order
-1. **Backend PR (Fix)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/preorder-release-email
+1. **Backend PR (Fix)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/preorder-release-email (MERGED)
 2. **Backend PR (Phase 3 Series)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/series-volumes (then wait for Render Live)
 3. **Frontend PR (Phase 3 Series)**: https://github.com/danishsary8/bookly_frontend/pull/new/feature/series-volumes
 
@@ -35,7 +35,30 @@ No new database migration is required for Phase 3 (it utilizes the existing `ser
 - Frontend `npm run build`: PASSED.
 
 ### 5. Needs Danish
-- Review and merge in order: `fix/preorder-release-email` -> backend `feature/series-volumes` (wait for Render Live) -> frontend `feature/series-volumes`.
+- Review and merge in order: backend `feature/series-volumes` (wait for Render Live) -> frontend `feature/series-volumes`.
+
+---
+
+# Fix: Pre-order Release Email Deduplication
+
+## Summary for Danish
+
+### 1. What Changed in this Fix
+- **Problem**: `PreorderAllocationService::releasePreorders()` runs hourly and was checking all variants where `release_date <= today`. When an order remained waiting on stock (`is_waiting_stock = true`), customers received duplicate release emails every hour.
+- **Solution (No new migration)**:
+  - Deduplicated customer release notifications per order and variant using atomic `Cache::add("preorder-released:{$order->id}:{$variant->id}", true, now()->addDays(30))`.
+  - Added a 3-day release window check (`release_date >= today - 3 days` and `<= today`) so that server deploys or cache clears never re-email old historical releases.
+  - Allocation logic (`allocateForVariant`) still runs for all released variants with waiting orders to ensure stock is allocated as soon as items arrive.
+  - Comprehensive feature tests in `PreorderBackorderTest` verifying:
+    - Multiple runs on the same day send the email only once.
+    - Running on the next day does not send duplicate emails.
+    - Second orders for the same variant receive their own release email.
+    - Variants released 10 days ago are not emailed.
+    - Allocation still succeeds when stock arrives.
+
+### 2. Check Results
+- `php artisan test`: 843 passed, 0 failed (16,912 assertions).
+- `vendor/bin/pint --test`: PASSED (100% PSR-12 clean).
 
 ---
 
@@ -314,7 +337,7 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
   - `npx vitest run src/pages/admin/category-tree-admin.test.tsx` → 5 passed
   - `npm run typecheck` → passed clean
   - `npm run lint` → 0 errors, 1 pre-existing warning in `VisitorAnalytics.tsx`
-- Decisions I made: Used Lucide icons to align with existing design system, and made the icon picker top-level only to keep sub-categories clean.
+- Decisions I made: Used Lucide icons to align with existing design system, and潰made the icon picker top-level only to keep sub-categories clean.
 - NEEDS DANISH: none
 
 ## A6 — Audience info on the book page and cards (frontend) — DONE
