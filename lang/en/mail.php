@@ -117,4 +117,10 @@ return [
     'cart_reminder_action' => 'Go to my cart',
     'cart_reminder_outro' => 'Prices and stock can change, so finish your order when you are ready. We only send this once.',
     'cart_reminder_stop' => 'Stop cart reminder emails',
+
+    // Pre-orders (owner 2026-11-06)
+    'preorder_released_subject' => 'Your pre-ordered book has been released: :title',
+    'preorder_released_intro' => 'Great news! Your pre-ordered book :title has officially released and your order :number is now being prepared for shipping.',
+    'preorder_delayed_subject' => 'Release date update: :title',
+    'preorder_delayed_intro' => 'The release date for your pre-ordered book :title has been updated to :date.',
 ];

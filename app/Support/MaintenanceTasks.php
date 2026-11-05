@@ -35,6 +35,8 @@ class MaintenanceTasks
             // Ebook PDFs are turned into page images a batch at a time (App\Services\Ebooks\EbookPages).
             ['name' => 'ebook-pages', 'command' => 'ebooks:render', 'parameters' => [], 'cron' => '* * * * *'],
             ['name' => 'khqr-expire', 'command' => 'payments:expire-khqr', 'parameters' => [], 'cron' => '* * * * *'],
+            // Pre-orders whose release date has arrived: notifies customers and allocates waiting orders.
+            ['name' => 'check-preorder-releases', 'command' => 'preorders:check-releases', 'parameters' => [], 'cron' => '0 * * * *'],
             ['name' => 'demo-reset', 'command' => 'demo:reset', 'parameters' => [], 'cron' => '0 * * * *'],
         ];
     }

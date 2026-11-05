@@ -16,6 +16,7 @@ class BookVariant extends Model
 
     protected $fillable = [
         'book_id', 'format', 'isbn', 'sku', 'price_usd', 'stock_quantity', 'low_stock_threshold', 'cover_image_url', 'is_active',
+        'release_date', 'allow_backorder',
     ];
 
     protected function casts(): array
@@ -26,6 +27,8 @@ class BookVariant extends Model
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
             'is_active' => 'boolean',
+            'release_date' => 'date',
+            'allow_backorder' => 'boolean',
         ];
     }
 
@@ -58,10 +61,20 @@ class BookVariant extends Model
         return $this->hasMany(OrderItem::class);
     }
 
-    /** Digital formats never run out; physical ones need stock. */
+    /** Digital formats never run out; physical ones need stock, pre-order status, or backorder permission. */
     public function isAvailable(): bool
     {
-        return $this->is_active && ($this->format->isDigital() || $this->stock_quantity > 0);
+        return $this->is_active && ($this->format->isDigital() || $this->stock_quantity > 0 || $this->isPreorder() || $this->isBackorder());
+    }
+
+    public function isPreorder(): bool
+    {
+        return $this->release_date !== null && $this->release_date->isFuture();
+    }
+
+    public function isBackorder(): bool
+    {
+        return (bool) $this->allow_backorder && $this->stock_quantity <= 0 && ! $this->isPreorder();
     }
 
     public function isLowStock(): bool

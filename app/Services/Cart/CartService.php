@@ -57,9 +57,12 @@ class CartService
             $inCart = $line?->quantity ?? 0;
 
             $take = $quantity;
-            if (! $variant->format->isDigital()) {
+            if (! $variant->format->isDigital() && ! $variant->isPreorder() && ! $variant->allow_backorder) {
                 $room = min($variant->stock_quantity, self::MAX_PER_LINE) - $inCart;
                 $take = max(1, min($quantity, $room)); // 0 room: the check below throws the normal message
+            } else {
+                $room = self::MAX_PER_LINE - $inCart;
+                $take = max(1, min($quantity, $room));
             }
             $this->assertCanHold($variant, $inCart + $take, alreadyInCart: $line !== null);
 
@@ -123,9 +126,9 @@ class CartService
 
         if (! $variant->is_active || $variant->book === null || $variant->book->trashed() || ! $variant->book->isPublic()) {
             $issues[] = ['code' => 'unavailable', 'message' => __('messages.item_unavailable')];
-        } elseif (! $variant->format->isDigital() && $variant->stock_quantity === 0) {
+        } elseif (! $variant->format->isDigital() && ! $variant->isPreorder() && ! $variant->allow_backorder && $variant->stock_quantity === 0) {
             $issues[] = ['code' => 'out_of_stock', 'message' => __('messages.out_of_stock')];
-        } elseif (! $variant->format->isDigital() && $item->quantity > $variant->stock_quantity) {
+        } elseif (! $variant->format->isDigital() && ! $variant->isPreorder() && ! $variant->allow_backorder && $item->quantity > $variant->stock_quantity) {
             $issues[] = [
                 'code' => 'insufficient_stock',
                 'message' => __('messages.insufficient_stock', ['count' => $variant->stock_quantity]),
@@ -173,12 +176,14 @@ class CartService
             $fail(__('messages.max_per_line', ['max' => self::MAX_PER_LINE]));
         }
 
-        if ($variant->stock_quantity === 0) {
-            $fail(__('messages.out_of_stock'));
-        }
+        if (! $variant->isPreorder() && ! $variant->allow_backorder) {
+            if ($variant->stock_quantity === 0) {
+                $fail(__('messages.out_of_stock'));
+            }
 
-        if ($quantity > $variant->stock_quantity) {
-            $fail(__('messages.insufficient_stock_simple', ['count' => $variant->stock_quantity]));
+            if ($quantity > $variant->stock_quantity) {
+                $fail(__('messages.insufficient_stock_simple', ['count' => $variant->stock_quantity]));
+            }
         }
     }
 
