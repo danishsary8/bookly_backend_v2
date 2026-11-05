@@ -12,6 +12,7 @@ use App\Notifications\PreorderReleasedNotification;
 use App\Services\Telegram\OpsAlerts;
 use App\Support\SafeNotifier;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -134,14 +135,18 @@ class PreorderAllocationService
     /**
      * Releases all pre-orders whose release date has arrived (<= today).
      * Dispatches customer release emails and allocates waiting orders FIFO.
+     * Only recently released variants (within last 3 days) send customer emails,
+     * and each order+variant gets the email at most once (cached 30 days).
      *
      * @return int count of released variants
      */
     public function releasePreorders(): int
     {
-        $today = Carbon::today()->toDateString();
+        $today = Carbon::today();
+        $minReleaseDate = $today->copy()->subDays(3);
+
         $variants = BookVariant::whereNotNull('release_date')
-            ->where('release_date', '<=', $today)
+            ->where('release_date', '<=', $today->toDateString())
             ->with(['book'])
             ->get();
 
@@ -154,9 +159,23 @@ class PreorderAllocationService
                 ->with(['customer'])
                 ->get();
 
-            foreach ($orders as $order) {
-                if ($order->customer) {
-                    SafeNotifier::toCustomer($order->customer, new PreorderReleasedNotification($order, $variant));
+            if ($orders->isEmpty()) {
+                continue;
+            }
+
+            // Only email if the release date is within the last 3 days
+            $isRecentlyReleased = $variant->release_date !== null
+                && $variant->release_date->copy()->startOfDay()->greaterThanOrEqualTo($minReleaseDate)
+                && $variant->release_date->copy()->startOfDay()->lessThanOrEqualTo($today);
+
+            if ($isRecentlyReleased) {
+                foreach ($orders as $order) {
+                    if ($order->customer) {
+                        $cacheKey = "preorder-released:{$order->id}:{$variant->id}";
+                        if (Cache::add($cacheKey, true, now()->addDays(30))) {
+                            SafeNotifier::toCustomer($order->customer, new PreorderReleasedNotification($order, $variant));
+                        }
+                    }
                 }
             }
 
