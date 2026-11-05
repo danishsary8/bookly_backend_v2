@@ -87,6 +87,7 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
 Route::get('/catalog/recommendations', [BookController::class, 'recommendations'])->middleware('throttle:catalog');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
+Route::get('/books/{book}/next-volume', [BookController::class, 'nextVolume'])->whereNumber('book');
 Route::get('/books/{book}/also-bought', [BookController::class, 'alsoBought'])->whereNumber('book');
 Route::get('/books/{book}/related', [BookController::class, 'related'])->whereNumber('book');
 Route::get('/books/{book}/reviews', [BookReviewController::class, 'index'])->whereNumber('book');
@@ -192,6 +193,7 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::get('/cart', [CartController::class, 'show']);
     Route::delete('/cart', [CartController::class, 'clear']);
     Route::post('/cart/items', [CartController::class, 'addItem']);
+    Route::post('/cart/series/{series}', [CartController::class, 'addSeries'])->whereNumber('series');
     Route::patch('/cart/items/{item}', [CartController::class, 'updateItem'])->whereNumber('item');
     Route::delete('/cart/items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
     // Coupon codes cannot be guessed: 10 tries a minute, and 5 wrong codes in a row lock checking for 15 minutes.
@@ -305,7 +307,9 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/publishers', [StaffPublisherController::class, 'store'])->middleware('ability:catalog:manage,admin');
     Route::patch('/publishers/{publisher}', [StaffPublisherController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::post('/series', [StaffSeriesController::class, 'store'])->middleware('ability:catalog:manage,admin');
-    Route::patch('/series/{series}', [StaffSeriesController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::get('/series/{series}', [StaffSeriesController::class, 'show'])->whereNumber('series')->middleware('ability:catalog:view,admin');
+    Route::patch('/series/{series}', [StaffSeriesController::class, 'update'])->whereNumber('series')->middleware('ability:catalog:manage,admin');
+    Route::put('/series/{series}/volumes', [StaffSeriesController::class, 'updateVolumes'])->whereNumber('series')->middleware('ability:catalog:manage,admin');
     Route::get('/coupons', [StaffCouponController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/coupons/{coupon}', [StaffCouponController::class, 'show'])->middleware('ability:catalog:view,admin');
     // Menu badges (pending orders, open returns, low stock) for every staff member; numbers only.

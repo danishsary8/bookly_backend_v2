@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1\Customer;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CartResource;
+use App\Models\Order;
+use App\Models\Series;
 use App\Services\Cart\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,5 +53,111 @@ class CartController extends Controller
         $this->carts->clear($request->user());
 
         return new CartResource($this->carts->summary($request->user()));
+    }
+
+    /** Add missing volumes of a series to cart (complete the set). */
+    public function addSeries(Request $request, Series $series): JsonResponse
+    {
+        $customer = $request->user();
+
+        // 1. Visible books in series ordered by series_order
+        $books = $series->books()
+            ->visible()
+            ->with(['activeVariants' => fn ($q) => $q->where('is_active', true)])
+            ->orderByRaw('series_order ASC NULLS LAST')
+            ->orderBy('id')
+            ->get();
+
+        // 2. Owned book IDs
+        $ownedBookIds = Order::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', [
+                OrderStatus::Paid->value,
+                OrderStatus::Processing->value,
+                OrderStatus::Shipped->value,
+                OrderStatus::Delivered->value,
+            ])
+            ->join('order_items', 'order_items.order_id', '=', 'orders.id')
+            ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->distinct()
+            ->pluck('book_variants.book_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        // 3. In-cart book IDs
+        $cart = $this->carts->cartFor($customer);
+        $inCartBookIds = $cart->items()
+            ->join('book_variants', 'book_variants.id', '=', 'cart_items.book_variant_id')
+            ->distinct()
+            ->pluck('book_variants.book_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $added = [];
+        $skipped = [];
+
+        foreach ($books as $book) {
+            if (in_array($book->id, $ownedBookIds, true)) {
+                continue;
+            }
+            if (in_array($book->id, $inCartBookIds, true)) {
+                continue;
+            }
+
+            // Cheapest physical format in stock
+            $variant = $book->activeVariants
+                ->filter(fn ($v) => ! $v->format->isDigital() && $v->isAvailable())
+                ->sortBy('price_usd')
+                ->first();
+
+            if (! $variant) {
+                $skipped[] = [
+                    'book_id' => $book->id,
+                    'title' => $book->title,
+                    'series_order' => $book->series_order,
+                    'reason' => 'out_of_stock',
+                ];
+
+                continue;
+            }
+
+            try {
+                $this->carts->add($customer, $variant->id, 1);
+                $added[] = [
+                    'book_id' => $book->id,
+                    'title' => $book->title,
+                    'series_order' => $book->series_order,
+                    'variant_id' => $variant->id,
+                    'format' => $variant->format->value,
+                    'price_usd' => (string) $variant->price_usd,
+                ];
+                $inCartBookIds[] = $book->id;
+            } catch (\Throwable $e) {
+                $skipped[] = [
+                    'book_id' => $book->id,
+                    'title' => $book->title,
+                    'series_order' => $book->series_order,
+                    'reason' => $e->getMessage(),
+                ];
+            }
+        }
+
+        $count = count($added);
+        $message = match ($count) {
+            0 => 'No missing volumes were added.',
+            1 => 'Added 1 volume to your cart.',
+            default => "Added {$count} volumes to your cart.",
+        };
+
+        return response()->json([
+            'data' => [
+                'added' => $added,
+                'skipped' => $skipped,
+                'added_count' => count($added),
+                'skipped_count' => count($skipped),
+                'message' => $message,
+                'cart' => new CartResource($this->carts->summary($customer)),
+            ],
+        ]);
     }
 }

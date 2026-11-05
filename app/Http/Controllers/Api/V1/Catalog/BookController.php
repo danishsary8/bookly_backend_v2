@@ -11,6 +11,7 @@ use App\Models\Book;
 use App\Models\Category;
 use App\Services\Catalog\RecommendationService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -145,6 +146,31 @@ class BookController extends Controller
             ->findOrFail($book);
 
         return new BookDetailResource($model);
+    }
+
+    public function nextVolume(int $book): JsonResponse
+    {
+        $targetBook = Book::query()->visible()->findOrFail($book);
+        if (! $targetBook->series_id) {
+            return response()->json(['data' => null]);
+        }
+
+        $next = $this->catalogQuery()
+            ->where('books.series_id', $targetBook->series_id)
+            ->where(function (Builder $q) use ($targetBook) {
+                if ($targetBook->series_order !== null) {
+                    $q->where('books.series_order', '>', $targetBook->series_order);
+                } else {
+                    $q->where('books.id', '>', $targetBook->id);
+                }
+            })
+            ->orderByRaw('books.series_order ASC NULLS LAST')
+            ->orderBy('books.id')
+            ->first();
+
+        return response()->json([
+            'data' => $next ? new BookResource($next) : null,
+        ]);
     }
 
     public function alsoBought(Request $request, int $book, RecommendationService $recommender): AnonymousResourceCollection

@@ -203,6 +203,10 @@ components:
         id: { type: integer }
         name: { type: string }
         description: { type: string, nullable: true }
+        books_count: { type: integer, nullable: true }
+        total_volumes: { type: integer, nullable: true }
+        owned_count: { type: integer, nullable: true }
+        in_cart_count: { type: integer, nullable: true }
         books: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
     RatingSummary:
       type: object
@@ -413,6 +417,7 @@ components:
         rating_avg: { type: number, nullable: true }
         review_count: { type: integer }
         offer: { $ref: '#/components/schemas/BookOffer' }
+        series_order: { type: integer, nullable: true }
     OfferReportRow:
       type: object
       properties:
@@ -980,6 +985,24 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
         '404': { $ref: '#/components/responses/NotFound' }
+  /books/{id}/next-volume:
+    get:
+      tags: [Public]
+      summary: 'Get next volume in the series if this book belongs to a series'
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Next volume or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BookDetail'
+                    nullable: true
   /catalog/recommendations:
     get:
       tags: [Public]
@@ -1581,6 +1604,44 @@ paths:
     delete: { tags: [Customer], summary: 'Remove a line', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Cart } } }
   /cart/coupon/check:
     post: { tags: [Customer], summary: 'Preview a coupon against the cart (10/min)', requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { code: { type: string } } } } } }, responses: { '200': { description: Discount preview, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CouponCheck' } } } } } }, '422': { description: 'Invalid, expired, used up, minimum not met or already used by you' } } }
+  /cart/series/{id}:
+    post:
+      tags: [Customer]
+      summary: 'Add missing series volumes to cart ("Complete the set")'
+      description: 'Adds cheapest in-stock physical variant for every volume in the series that the customer does not own and is not already in cart.'
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Missing volumes added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      added:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            book_id: { type: integer }
+                            title: { type: string }
+                            variant_id: { type: integer }
+                            format: { type: string }
+                            price_usd: { $ref: '#/components/schemas/Money' }
+                      skipped:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            book_id: { type: integer }
+                            title: { type: string }
+                            reason: { type: string, enum: [already_owned, already_in_cart, out_of_stock] }
+                      cart:
+                        $ref: '#/components/schemas/Cart'
   /wishlist:
     get:
       tags: [Customer]
@@ -2037,8 +2098,79 @@ paths:
   /staff/series:
     post: { tags: [Staff catalog], summary: 'Create series', responses: { '201': { description: Created } } }
   /staff/series/{id}:
+    get:
+      tags: [Staff catalog]
+      summary: 'Series details with volumes for admin ordering'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Series with ordered volumes and duplicate warnings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      name: { type: string }
+                      slug: { type: string, nullable: true }
+                      description: { type: string, nullable: true }
+                      books:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            title: { type: string }
+                            status: { type: string }
+                            series_order: { type: integer, nullable: true }
+                            cover_image_url: { type: string, nullable: true }
+                            authors: { type: array, items: { type: object, properties: { id: { type: integer }, name: { type: string } } } }
+                            formats: { type: array, items: { type: string } }
+                            in_stock: { type: boolean }
+                            created_at: { type: string, nullable: true }
+                      has_duplicate_orders: { type: boolean }
+                      duplicate_orders: { type: array, items: { type: integer } }
     patch: { tags: [Staff catalog], summary: 'Update series', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
     delete: { tags: [Staff catalog], summary: '(admin) Delete', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/series/{id}/volumes:
+    put:
+      tags: [Staff catalog]
+      summary: 'Batch update series volume ordering'
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [volumes]
+              properties:
+                volumes:
+                  type: array
+                  items:
+                    type: object
+                    required: [id]
+                    properties:
+                      id: { type: integer }
+                      series_order: { type: integer, nullable: true }
+      responses:
+        '200':
+          description: Volumes updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message: { type: string }
+                      updated_count: { type: integer }
+                      has_duplicates: { type: boolean }
+                      warnings: { type: array, items: { type: string } }
   /staff/coupons:
     get: { tags: [Staff operations], summary: 'List coupons (q, active)', responses: { '200': { description: Coupons } } }
     post: { tags: [Staff operations], summary: '(admin) Create (code, type percentage|fixed, value, min_order_amount, max_uses, starts_at, expires_at)', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' } } }

@@ -1,13 +1,49 @@
-# Fix: Pre-order Release Email Deduplication
+# Bookly Phase 3 — Series volumes (manga, comics, multi-part books)
 
 ## Summary for Danish
 
 ### 1. Pull Request Links & Merge Order
-1. **Backend PR (Fix)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/preorder-release-email
+1. **Backend PR (Fix)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/preorder-release-email (MERGED)
 2. **Backend PR (Phase 3 Series)**: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/series-volumes (then wait for Render Live)
 3. **Frontend PR (Phase 3 Series)**: https://github.com/danishsary8/bookly_frontend/pull/new/feature/series-volumes
 
-### 2. What Changed in this Fix
+### 2. Merge Order
+Backend first, wait for Render Live, then frontend.
+No new database migration is required for Phase 3 (it utilizes the existing `series`, `books.series_id`, and `books.series_order`).
+
+### 3. Decisions & Implementation Summary
+- **Data model**:
+  - Leveraged existing `series` table, `books.series_id`, and `books.series_order`. No new volume table was needed.
+  - Ownership: Customers own a book if they have an order containing any variant of that book with status in `['paid', 'processing', 'shipped', 'delivered']`.
+- **API Endpoints**:
+  - `GET /series/{id}`: Returns series with books ordered by `series_order ASC NULLS LAST, id ASC`. When requested with customer authentication, includes `is_owned` and `is_in_cart` flags on books, plus `total_volumes`, `owned_count`, and `in_cart_count` on the series summary.
+  - `GET /books/{id}/next-volume`: Resolves the next volume in the series by series order or ID, returning `BookDetail` or `null`.
+  - `POST /cart/series/{id}` ("Complete the set"): Adds the cheapest available in-stock physical format for all missing volumes in the series (skipping owned, in-cart, and out-of-stock volumes), returning arrays of `added`, `skipped` (with reason: `already_owned`, `already_in_cart`, `out_of_stock`), and the updated `cart`.
+  - `GET /staff/series/{id}`: Returns series with its volumes in reading order, including duplicate order detection.
+  - `PUT /staff/series/{id}/volumes`: Allows staff to update `series_order` in batch, with automatic duplicate order number warnings.
+- **Documentation & Testing**:
+  - Updated `public/openapi.yaml` and `docs/API.md`.
+  - Comprehensive feature tests in `tests/Feature/Catalog/SeriesVolumesTest.php`.
+  - Contract tests in `tests/Feature/Platform/ApiContractTest.php` passing.
+
+### 4. Check Results
+- Backend `php artisan test`: 843 passed, 0 failed.
+- Backend `vendor/bin/pint --test`: PASSED.
+- Frontend `npm run lint`: PASSED.
+- Frontend `npm run typecheck`: PASSED.
+- Frontend `npm test`: PASSED.
+- Frontend `npm run build`: PASSED.
+
+### 5. Needs Danish
+- Review and merge in order: backend `feature/series-volumes` (wait for Render Live) -> frontend `feature/series-volumes`.
+
+---
+
+# Fix: Pre-order Release Email Deduplication
+
+## Summary for Danish
+
+### 1. What Changed in this Fix
 - **Problem**: `PreorderAllocationService::releasePreorders()` runs hourly and was checking all variants where `release_date <= today`. When an order remained waiting on stock (`is_waiting_stock = true`), customers received duplicate release emails every hour.
 - **Solution (No new migration)**:
   - Deduplicated customer release notifications per order and variant using atomic `Cache::add("preorder-released:{$order->id}:{$variant->id}", true, now()->addDays(30))`.
@@ -20,12 +56,9 @@
     - Variants released 10 days ago are not emailed.
     - Allocation still succeeds when stock arrives.
 
-### 3. Check Results
+### 2. Check Results
 - `php artisan test`: 843 passed, 0 failed (16,912 assertions).
 - `vendor/bin/pint --test`: PASSED (100% PSR-12 clean).
-
-### 4. Needs Danish
-- Review and merge `fix/preorder-release-email` PR first into `main`.
 
 ---
 
