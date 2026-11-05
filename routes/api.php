@@ -33,6 +33,9 @@ use App\Http\Controllers\Api\V1\DeliveryController;
 use App\Http\Controllers\Api\V1\DemoTokenController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Newsletter\NewsletterController;
+use App\Http\Controllers\Api\V1\Reader\EbookDeviceController;
+use App\Http\Controllers\Api\V1\Reader\PreviewController as EbookPreviewController;
+use App\Http\Controllers\Api\V1\Reader\ReaderController;
 use App\Http\Controllers\Api\V1\Staff\Admin\AuditLogController;
 use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
@@ -47,6 +50,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookControl
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookCsvController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\EbookFileController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\MediaUploadController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
@@ -100,6 +104,10 @@ Route::get('/delivery/options', [DeliveryController::class, 'options']);
 /*
 | Public newsletter (double opt-in, unsubscribe, RFC 8058 one-click)
 */
+// Ebook "Look inside" preview: anyone, no account (ebooks design 2026-11-06).
+Route::get('/reader/{book}/preview', [EbookPreviewController::class, 'show'])->whereNumber('book')->middleware('throttle:60,1');
+Route::get('/reader/{book}/preview/pages/{page}', [EbookPreviewController::class, 'page'])->whereNumber(['book', 'page'])->middleware('throttle:60,1');
+
 // Cart reminder emails: "stop these emails" link (owner 2026-11-05).
 Route::post('/cart-reminders/stop', [CartReminderController::class, 'stop'])->middleware('throttle:20,1');
 Route::post('/cart-reminders/stop/one-click', [CartReminderController::class, 'oneClick'])->middleware('throttle:20,1');
@@ -168,6 +176,14 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
 | Customer shopping features: verified customers only.
 */
 Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->group(function () {
+    // Ebooks: library, reader pages (watermarked images, never the file), progress, devices.
+    Route::get('/me/ebooks', [ReaderController::class, 'library']);
+    Route::get('/me/ebook-devices', [EbookDeviceController::class, 'index']);
+    Route::delete('/me/ebook-devices/{device}', [EbookDeviceController::class, 'destroy'])->whereNumber('device')->middleware('not.demo');
+    Route::get('/reader/{book}', [ReaderController::class, 'show'])->whereNumber('book');
+    Route::get('/reader/{book}/pages/{page}', [ReaderController::class, 'page'])->whereNumber(['book', 'page'])->middleware('throttle:120,1');
+    Route::put('/reader/{book}/progress', [ReaderController::class, 'progress'])->whereNumber('book')->middleware('throttle:60,1');
+
     Route::get('/addresses', [AddressController::class, 'index']);
     Route::post('/addresses', [AddressController::class, 'store']);
     Route::patch('/addresses/{address}', [AddressController::class, 'update'])->whereNumber('address');
@@ -298,6 +314,11 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/collections/{collection}', [StaffCollectionController::class, 'show'])->whereNumber('collection')->middleware('ability:catalog:view,admin');
     Route::get('/offers', [StaffOfferController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/offers/{offer}', [StaffOfferController::class, 'show'])->whereNumber('offer')->middleware('ability:catalog:view,admin');
+    Route::get('/books/{book}/ebook', [EbookFileController::class, 'show'])->middleware('ability:catalog:manage,admin');
+    Route::post('/books/{book}/ebook', [EbookFileController::class, 'store'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
+    Route::patch('/books/{book}/ebook', [EbookFileController::class, 'update'])->middleware('ability:catalog:manage,admin');
+    Route::delete('/books/{book}/ebook', [EbookFileController::class, 'destroy'])->middleware('ability:catalog:manage,admin');
+    Route::post('/customers/{customer}/ebook-devices/reset', [EbookFileController::class, 'resetDevices'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
     Route::post('/media/upload', [MediaUploadController::class, 'upload'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
 
     Route::middleware('abilities:admin')->group(function () {

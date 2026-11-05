@@ -38,4 +38,8 @@ return [
     'email_send_failed' => 'We couldn\'t send the email just now. Please try again in a few minutes.',
     'cart_reminders_stopped' => 'Done. You will not get cart reminder emails any more. You can turn them back on in Account → Profile.',
     'cart_reminders_link_invalid' => 'This link is not valid. You can turn cart reminders off in Account → Profile.',
+    'ebook_device_limit' => 'You already read on :max devices. Remove one in Account → My ebooks to read here.',
+    'ebook_device_remove_wait' => 'You can remove another device on :date. Contact us if you need it sooner.',
+    'ebook_not_owned' => 'Buy this ebook to read it all. You can read the free preview.',
+    'ebook_not_ready' => 'This ebook is being prepared. Please try again in a few minutes.',
 ];
