@@ -13,7 +13,10 @@ class SeriesResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
-            'books_count' => $this->whenCounted('books'),
+            'books_count' => $this->books_count ?? ($this->relationLoaded('books') ? $this->books->count() : null),
+            'total_volumes' => $this->whenLoaded('books', fn () => $this->books->count()),
+            'owned_count' => $this->whenLoaded('books', fn () => $this->books->where('is_owned', true)->count()),
+            'in_cart_count' => $this->whenLoaded('books', fn () => $this->books->where('is_in_cart', true)->count()),
             'books' => BookResource::collection($this->whenLoaded('books')),
         ];
     }

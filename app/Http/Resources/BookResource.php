@@ -34,6 +34,9 @@ class BookResource extends JsonResource
             'review_count' => (int) ($this->review_count ?? 0),
             // The best live automatic offer for this book ("Buy 2, save 15%"), or null.
             'offer' => app(OfferService::class)->forBook($this->resource),
+            'series_order' => $this->series_order,
+            'is_owned' => $this->when(isset($this->is_owned), (bool) $this->is_owned),
+            'is_in_cart' => $this->when(isset($this->is_in_cart), (bool) $this->is_in_cart),
             'wishlist_status' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->status ?? 'want_to_read'),
             'wishlist_saved_at' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->created_at?->toIso8601String()),
             // Lowest price when it was saved (null for older saves): the wishlist shows "Now …, was …" when it fell.

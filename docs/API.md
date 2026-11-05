@@ -94,7 +94,8 @@ Every `/api` route: 120 requests per minute per logged-in user, otherwise per IP
 | GET | /collections/live | Seasonal collections for the home page (owner 2026-11-01): up to 2 live ones (switched on, started, not ended, at least one visible book), by `position` then id; each `{id, slug, title_en, title_km, description_en, description_km, ends_at, books_count, books[]}` with up to 12 book cards in the admin's order. Hidden books are left out |
 | GET | /collections/{slug} | One live collection with all its visible books (up to 60); 404 when hidden, scheduled, ended or empty |
 | GET | /series | `per_page` |
-| GET | /series/{id} | series with its books in reading order |
+| GET | /series/{id} | series with its books in reading order; for authenticated customers, includes `owned_count`, `in_cart_count`, and each book has `is_owned`, `is_in_cart` |
+| GET | /books/{id}/next-volume | next volume in the series if this book belongs to a series; `null` if none |
 | GET | /delivery/options | Public delivery policy: free delivery threshold, area base fees, and all 25 Cambodia provinces with fees, delivery days, and English/Khmer labels; `payment_methods` (`[{code: cod}, {code: khqr, mode: test\|bakong, pay_minutes}]`; KHQR only when enabled) |
 
 Only books with at least one active variant are public. Book card fields: `id, title, language, publish_date, authors[{id,name}], cover_image_url, price_from_usd, price_from_khr, formats[], in_stock, rating_avg, review_count, offer`. `offer` is the best live automatic offer for that book (`{id, min_quantity, percent_off, ends_at, target_label}`: biggest percent, tie -> lower `min_quantity`, then lower id) or `null`; it is on every book card (lists, detail, series page, wishlist). Live offers are cached 60 seconds, so a just-ended offer can show for up to a minute; checkout always re-checks. Variant fields: `id, format, isbn, price_usd, price_khr, in_stock, cover_image_url` (exact stock is not public). `price_khr` is whole riel from the latest USD->KHR rate, `null` if no rate exists. Lists are paginated: `{data, links, meta}`.
@@ -126,6 +127,8 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | POST / PATCH | /staff/categories, /staff/categories/{id} | name, slug? (auto from name) |
 | POST / PATCH | /staff/publishers, /staff/publishers/{id} | name (unique) |
 | POST / PATCH | /staff/series, /staff/series/{id} | name, description? |
+| GET | /staff/series/{id} | series with ordered volumes and duplicate warnings |
+| PUT | /staff/series/{id}/volumes | `{volumes: [{id, series_order}]}`: reorder volumes, returns duplicate warnings |
 | DELETE | /staff/{authors\|categories\|publishers\|series}/{id} | admin; 409 while any book (incl. deleted) uses it; strict delete: `confirm` (name), `password`, `code` (2FA); soft delete into Trash |
 
 Every staff create/update/delete is recorded in `admin_audit_logs` (who, action like `book_variant.updated`, changed fields before/after).
@@ -143,6 +146,7 @@ Every staff create/update/delete is recorded in `admin_audit_logs` (who, action 
 | DELETE | /cart/items/{id} | returns the cart |
 | DELETE | /cart | empties the cart |
 | POST | /cart/coupon/check | code — preview only (10 per minute; 5 unknown codes in a row lock it 15 minutes); send the code again at checkout. A wrong, expired, inactive or too-small coupon gives the same 422 as before, even when an offer exists. 200: the old fields (`code, type, value, subtotal_usd, discount_usd/khr, total_before_shipping_usd/khr`) still describe **the coupon alone**. New: `applied` (`"coupon"` or `"offer"`: never both, the bigger discount wins, a tie goes to the offer), `offer` (the best live offer for the cart, same shape as the cart's `pricing.offer`, or null), `coupon_not_used` (`{code, reason: "offer_better"}` when the offer wins, else null), `best_discount_usd/khr`, `best_total_before_shipping_usd/khr` (the winner) and `free_shipping` (as the cart's, for the winner). Store credit is compared like any coupon |
+| POST | /cart/series/{id} | "Complete the set": adds cheapest in-stock physical variant for every missing series volume not yet owned or in cart; returns `added`, `skipped`, and updated `cart` |
 | GET | /wishlist | book cards, newest first, paginated |
 | POST | /wishlist | book_id — 201 added, 200 already there |
 | DELETE | /wishlist/{book_id} | 204 |
