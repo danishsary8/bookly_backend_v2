@@ -28,13 +28,15 @@ class CheckoutController extends Controller
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'address_id' => ['nullable', 'integer'],
             'delivery_note' => ['nullable', 'string', 'max:300'],
+            'delivery_area' => ['nullable', Rule::in(['phnom_penh', 'provinces'])],
         ]);
-        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null);
+        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null, $data['delivery_area'] ?? null);
 
         $money = fn (int $cents) => ['usd' => Money::format($cents), 'khr' => $currency->usdToKhr(Money::format($cents))];
 
         return response()->json(['data' => [
             'subtotal' => $money($totals['subtotal_cents']),
+            'has_delivery_address' => $totals['has_delivery_address'],
             'discount' => $money($totals['discount_cents']),
             'shipping_fee' => $money($totals['shipping_cents']),
             'tax' => $money($totals['tax_cents']),

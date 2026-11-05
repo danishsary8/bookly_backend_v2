@@ -454,3 +454,6 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
 
 ## Part C verification
 Gift checkout/admin/coupon tests: 5 passed. Independent PostgreSQL checkout race plus gift and API contract tests: 8 passed (66 assertions before the added coupon test). Offer schema/admin, catalogue rows and route documentation regression tests: 22 passed; Pint passed. Frontend gift lines and offer form: 10 passed; existing checkout/offer tests: 18 passed. Final browser/full suite still pending. Digital-only carts can receive gifts and use the existing physical delivery rates; depleted gifts are removed before totals. Snapshot names are plain text in UI and documents.
+
+## Part D
+Cart now calls the existing checkout preview for delivery fees, dates and free-delivery progress. Saved addresses override an area estimate; unknown backorders suppress calendar promises; preorders start the delivery calendar on release. Backend estimate/contract checks: 4 passed; Pint passed; frontend typecheck passed. Browser matrix pending.

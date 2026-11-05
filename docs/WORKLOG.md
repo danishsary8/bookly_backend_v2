@@ -552,3 +552,5 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 - Phase 5 Part B: /catalog/rows, coming_soon and release_soon, 30-day best sellers and format-specific price bounds. Focused row/OpenAPI tests 8 passed; final suite pending.
 
 - Phase 5 Part C: gift inventory, gift offer winner, locked checkout reservation/cancel restoration, snapshots and alerts; independent-process last-gift race verified. Staff gifts API and contract documentation added. See PROGRESS.md for checks.
+
+- Phase 5 Part D: checkout preview area choice and saved-address flag, honest preorder/backorder dates; delivery estimate and contract tests pass.

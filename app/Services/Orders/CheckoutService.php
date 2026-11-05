@@ -48,14 +48,19 @@ class CheckoutService
      * Totals for the current cart, without placing anything. Delivery is priced for the given address,
      * else the customer's default address, else the provinces fee (never quote less than checkout charges).
      */
-    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null): array
+    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null, ?string $deliveryArea = null): array
     {
         $addresses = CustomerAddress::where('customer_id', $customer->id);
         $address = $addressId !== null
             ? ((clone $addresses)->find($addressId) ?? throw ValidationException::withMessages(['address_id' => __('messages.checkout_choose_address')]))
             : (clone $addresses)->where('is_default', true)->first();
 
-        return $this->totals($customer, $this->carts->summary($customer), $couponCode, $address);
+        $hasAddress = $address !== null;
+        if ($address === null && $deliveryArea !== null) {
+            $address = new CustomerAddress(['city' => $deliveryArea === 'phnom_penh' ? 'Phnom Penh' : 'Provinces']);
+        }
+
+        return [...$this->totals($customer, $this->carts->summary($customer), $couponCode, $address), 'has_delivery_address' => $hasAddress];
     }
 
     /**
@@ -330,6 +335,11 @@ class CheckoutService
             }
         }
         $latestReleaseDate = $preorderDates !== [] ? max($preorderDates) : null;
+        if ($hasBackorder) {
+            $estimatedDelivery = null; // No calendar promise until stock has a known arrival date.
+        } elseif ($hasPreorder && $latestReleaseDate && $requiresShipping) {
+            $estimatedDelivery = DeliveryArea::estimate(now()->parse($latestReleaseDate)->startOfDay(), $address?->city, $address?->state);
+        }
         $shippingNotice = null;
         if ($hasPreorder && $latestReleaseDate) {
             $shippingNotice = __('messages.ships_when_ready_from', ['date' => $latestReleaseDate]);

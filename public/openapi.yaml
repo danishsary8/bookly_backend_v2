@@ -317,6 +317,7 @@ components:
     CheckoutPreview:
       type: object
       properties:
+        has_delivery_address: { type: boolean, description: 'A saved address was selected or defaulted; otherwise delivery_area is an estimate choice only.' }
         free_gift: { $ref: '#/components/schemas/FreeGift' }
         subtotal: { $ref: '#/components/schemas/Amount' }
         discount: { $ref: '#/components/schemas/Amount' }
@@ -1817,7 +1818,7 @@ paths:
         '204': { $ref: '#/components/responses/NoContent' }
 
   /checkout/preview:
-    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', description: 'Delivery is priced for address_id, else the default address: Phnom Penh 1.50 USD, the provinces 3.00 USD (SHIPPING_FEE_PHNOM_PENH / SHIPPING_FEE_PROVINCES).', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'address_id is not one of your addresses, or a bad coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
+    post: { tags: [Checkout & orders], summary: 'Totals and delivery estimate for the cart', description: 'Saved address_id or default address takes precedence; without one, optional delivery_area selects the existing Phnom Penh/provinces rates and calendar. Does not reserve inventory.', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_area: { type: string, enum: [phnom_penh, provinces] }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'Invalid area, address or coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
       tags:
