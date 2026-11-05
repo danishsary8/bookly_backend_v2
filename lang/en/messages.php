@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'low_gift_stock' => 'Low gift stock: :name has :stock left.',
+    'reading_lists_limit' => 'You can have up to 20 reading lists.',
+    'reading_list_books_limit' => 'A reading list can contain up to 200 books.',
     'return_window_closed' => 'The return window for this order has closed.',
     'item_unavailable' => 'This item is no longer available.',
     'out_of_stock' => 'This item is out of stock.',

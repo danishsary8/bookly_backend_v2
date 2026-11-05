@@ -14,7 +14,7 @@ $app->make(Kernel::class)->bootstrap();
 Http::fake();
 Mail::fake();
 Notification::fake();
-config(['services.ops_alerts.token' => null, 'services.telegram.bot_token' => null]);
+config(['services.ops_alerts.token' => null, 'services.telegram_bot.token' => null]);
 $customer = Customer::findOrFail((int) $argv[1]);
 $result = app(CheckoutService::class)->place($customer, (int) $argv[2], null, $argv[3]);
 echo $result['order']->free_gift === null ? 'without-gift' : 'with-gift';

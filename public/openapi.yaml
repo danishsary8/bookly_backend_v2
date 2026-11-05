@@ -99,6 +99,31 @@ components:
     NoContent:
       description: Done, no body
   schemas:
+    ReadingList:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        title: { type: string, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 2000 }
+        is_public: { type: boolean }
+        is_staff_pick: { type: boolean }
+        owner_first_name: { type: string, description: 'First name only; never email or full customer data' }
+        books:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            properties:
+              book: { $ref: '#/components/schemas/BookCard' }
+              position: { type: integer }
+              note: { type: string, nullable: true }
+    ReadingListInput:
+      type: object
+      properties:
+        title: { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 2000, nullable: true }
+        is_public: { type: boolean }
     FreeGift:
       type: object
       nullable: true
@@ -332,8 +357,8 @@ components:
         delivery_area: { type: string, enum: [phnom_penh, provinces], nullable: true, description: 'Area the shipping fee was priced for; null when the customer has no address yet (the provinces fee is quoted)' }
         can_checkout: { type: boolean }
         is_free_shipping: { type: boolean }
-        free_shipping_threshold: { $ref: '#/components/schemas/Amount', nullable: true }
-        amount_needed_for_free_shipping: { $ref: '#/components/schemas/Amount', nullable: true }
+        free_shipping_threshold: { allOf: [{ $ref: '#/components/schemas/Amount' }], nullable: true }
+        amount_needed_for_free_shipping: { allOf: [{ $ref: '#/components/schemas/Amount' }], nullable: true }
         province_code: { type: string, nullable: true }
         province_name: { type: string, nullable: true }
         estimated_delivery: { $ref: '#/components/schemas/EstimatedDelivery', nullable: true }
@@ -1080,6 +1105,98 @@ paths:
           content:
             application/json:
               schema: { type: object, properties: { data: { $ref: '#/components/schemas/Gift' } } }
+  /lists/staff-picks:
+    get:
+      tags: [Catalog]
+      summary: Up to six public staff-pick lists from active customers
+      responses:
+        '200': &ReadingListsResponse
+          description: Reading lists with currently visible books
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/ReadingList' } } } }
+  /lists/{slug}:
+    get:
+      tags: [Catalog]
+      summary: Public reading list; private, closed-owner and missing lists return 404
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': &ReadingListResponse
+          description: Reading list
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/ReadingList' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /lists/{slug}/cart:
+    post:
+      tags: [Customer]
+      summary: Add one cheapest available format per visible public-list book; skip existing or unavailable books (20/min)
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Honest added and skipped counts; existing cart rules apply
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: object, properties: { added: { type: integer }, skipped: { type: integer } } } } }
+  /reading-lists:
+    get:
+      tags: [Customer]
+      summary: Own reading lists (verified customer)
+      responses: { '200': *ReadingListsResponse }
+    post:
+      tags: [Customer]
+      summary: Create a list (max 20; writes 20/minute; demo writes refused)
+      requestBody: &ReadingListBody
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReadingListInput' }
+      responses: { '201': *ReadingListResponse, '422': { $ref: '#/components/responses/Validation' } }
+  /reading-lists/{id}:
+    patch:
+      tags: [Customer]
+      summary: Edit own list; private also clears staff-pick status
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: *ReadingListBody
+      responses: { '200': *ReadingListResponse, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Customer]
+      summary: Delete own list and entries
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '204': { $ref: '#/components/responses/NoContent' } }
+  /reading-lists/{id}/books:
+    post:
+      tags: [Customer]
+      summary: Add/update visible book (max 200); optional plain note and position 0-199
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [book_id], properties: { book_id: { type: integer }, note: { type: string, nullable: true, maxLength: 1000 }, position: { type: integer, minimum: 0, maximum: 199 } } }
+      responses: { '200': *ReadingListResponse, '422': { $ref: '#/components/responses/Validation' } }
+  /reading-lists/{id}/books/{book}:
+    delete:
+      tags: [Customer]
+      summary: Remove book from own list
+      parameters: [{ $ref: '#/components/parameters/Id' }, { name: book, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': *ReadingListResponse }
+  /staff/reading-lists:
+    get:
+      tags: [Staff operations]
+      summary: Latest 100 public lists (catalog view or admin); private lists never included
+      responses: { '200': *ReadingListsResponse }
+  /staff/reading-lists/{id}:
+    patch:
+      tags: [Staff operations]
+      summary: Mark/unmark a public list as staff pick (catalog view or admin, audited, 20 writes/minute)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [is_staff_pick], properties: { is_staff_pick: { type: boolean } } }
+      responses: { '200': *ReadingListResponse }
   /catalog/rows:
     get:
       tags: [Catalog]

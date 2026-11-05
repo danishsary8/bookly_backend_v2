@@ -22,6 +22,6 @@ class LowGiftStockNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return ['gift_id' => $this->gift->id, 'stock_quantity' => $this->gift->stock,
-            'message' => "Low gift stock: {$this->gift->name_en} has {$this->gift->stock} left."];
+            'message' => __('messages.low_gift_stock', ['name' => app()->getLocale() === 'km' ? $this->gift->name_km : $this->gift->name_en, 'stock' => $this->gift->stock])];
     }
 }

@@ -554,3 +554,5 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 - Phase 5 Part C: gift inventory, gift offer winner, locked checkout reservation/cancel restoration, snapshots and alerts; independent-process last-gift race verified. Staff gifts API and contract documentation added. See PROGRESS.md for checks.
 
 - Phase 5 Part D: checkout preview area choice and saved-address flag, honest preorder/backorder dates; delivery estimate and contract tests pass.
+
+- Phase 5 Part E: shareable reading lists with locked limits, public/private access, staff picks, plain notes, list management and batch add-to-cart. Export/closed-account cleanup included. Reading-list, route and contract tests pass; browser matrix 390/1280 light/dark has axe 0 and no overflow. Final check totals tracked in PROGRESS.md.
