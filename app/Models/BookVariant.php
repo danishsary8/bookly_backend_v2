@@ -81,4 +81,11 @@ class BookVariant extends Model
     {
         return $this->stock_quantity <= $this->low_stock_threshold;
     }
+
+    public function lowStockBadge(): ?int
+    {
+        return $this->is_active && ! $this->format->isDigital() && ! $this->isPreorder() && ! $this->isBackorder()
+            && $this->stock_quantity > 0 && $this->stock_quantity <= (int) config('shop.low_stock_badge', 5)
+                ? $this->stock_quantity : null;
+    }
 }

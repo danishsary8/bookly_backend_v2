@@ -1,5 +1,7 @@
 # API Reference (v1)
 
+Shop signals: book cards/detail expose nullable `sold_count` (copies in non-cancelled, non-deleted orders in the last 90 days, minimum 5, cached one hour). `low_stock_remaining` on cards, variants and cart lines is a real count from 1 through `config/shop.php` `low_stock_badge` (default 5), otherwise null. Cards use the cheapest active format (id breaks price ties); variants/cart use that format. Digital, pre-order, backorder and out-of-stock formats never advertise low stock. Existing `offer.ends_at` is the source for a Limited label; open-ended percentage offers must not display it.
+
 Base URL: `/api/v1`. Send `Accept: application/json`. Authenticated calls send `Authorization: Bearer <token>`.
 Errors: `{"message": "..."}`; validation errors are 422 with `{"message", "errors": {"field": ["..."]}}`. 401 = not logged in / bad credentials, 403 = not allowed (wrong token type, email not verified, 2FA not set up), 429 = rate limited (see `Retry-After`). A 500 only says `{"message": "Server Error"}`.
 

@@ -546,3 +546,5 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - A8 (Both): Updated `README.md` and `docs/API.md` covering all features shipped since 2026-11-04.
   - A9 (Both): Full test suite verification (Backend: 825 passed tests, Pint clean; Frontend: 567 passed tests, lint and build clean). Progress recorded in `PROGRESS.md`.
 
+
+- Phase 5 Part A in progress on feature/shop-extras: real low-stock and hourly sales signals, API documentation and regression tests. Full checks pending; see PROGRESS.md.

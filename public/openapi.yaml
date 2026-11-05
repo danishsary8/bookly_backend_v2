@@ -416,6 +416,8 @@ components:
         in_stock: { type: boolean }
         rating_avg: { type: number, nullable: true }
         review_count: { type: integer }
+        sold_count: { type: integer, nullable: true, minimum: 5, description: 'Copies ordered in the last 90 days excluding cancelled and deleted orders; cached hourly. Null below 5.' }
+        low_stock_remaining: { type: integer, nullable: true, description: 'Remaining copies of the cheapest active format when physical, released and between 1 and shop.low_stock_badge; otherwise null.' }
         offer: { $ref: '#/components/schemas/BookOffer' }
         series_order: { type: integer, nullable: true }
     OfferReportRow:
@@ -467,6 +469,7 @@ components:
         allow_backorder: { type: boolean }
         is_preorder: { type: boolean }
         is_backorder: { type: boolean }
+        low_stock_remaining: { type: integer, nullable: true, description: 'Physical stock from 1 through shop.low_stock_badge; null for digital, preorders, backorders and out of stock.' }
     BookDetail:
       allOf:
         - $ref: '#/components/schemas/BookCard'
@@ -538,6 +541,7 @@ components:
               line_total_khr: { $ref: '#/components/schemas/Riel' }
               issues: { type: array, items: { $ref: '#/components/schemas/CartIssue' } }
               in_offer: { type: boolean, description: 'True when the automatic offer in `pricing.offer` discounts this line.' }
+              low_stock_remaining: { type: integer, nullable: true, description: 'Real low-stock count for this format; null when no badge applies.' }
         item_count: { type: integer }
         subtotal_usd: { $ref: '#/components/schemas/Money' }
         subtotal_khr: { $ref: '#/components/schemas/Riel' }

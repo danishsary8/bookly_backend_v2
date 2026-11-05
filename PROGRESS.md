@@ -1,3 +1,30 @@
+# Summary for Danish
+
+Phase 5 is in progress on `feature/shop-extras` in both repositories. Nothing has been pushed yet.
+
+- Backend review link when pushed: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/shop-extras
+- Frontend review link when pushed: https://github.com/danishsary8/bookly_frontend/pull/new/feature/shop-extras
+- Merge order: backend first, wait for Render, then frontend. Danish handles merges and hosting.
+- Checks: pending. Parts A–E and the browser matrix are not yet complete.
+
+## Decisions
+
+- Current task instructions override the older request to stop for confirmation in repository guidance.
+- Low-stock card counts refer to the cheapest active format (id breaks price ties), so a cheap ebook never advertises scarcity from a different physical format. Detail and cart counts refer to the selected format.
+- Sales proof counts quantities in non-cancelled, non-deleted orders placed within 90 days, as requested. Pending orders count; this is order volume, not paid revenue. Cache plain aggregate data for one hour without checkout invalidation.
+- Gift selection will be independent of the existing monetary winner: at most one eligible gift offer plus either the winning percentage offer or coupon. Quantity/subtotal eligibility uses matching cart lines before discounts; lowest eligible gift offer id wins. Gift inventory must be locked and rechecked during checkout.
+- New customer copy must describe estimates and existing delivery rules. No fabricated sales, ratings, deadlines, or stored price changes.
+
+## Work
+
+- Read repository instructions, READMEs, design tokens, roadmap, handoff worklog and approved v3 design. Both working trees were clean.
+- Fetched both remotes and created the requested branches from current `origin/main`.
+
+
+---
+
+## Prior phase record
+
 # Bookly Phase 3 — Series volumes (manga, comics, multi-part books)
 
 ## Summary for Danish

@@ -34,6 +34,7 @@ class CartResource extends JsonResource
                     'format' => $variant->format->value,
                     'cover_image_url' => $variant->cover_image_url,
                     'quantity' => $item->quantity,
+                    'low_stock_remaining' => $variant->lowStockBadge(),
                     'unit_price_usd' => $variant->price_usd,
                     'unit_price_khr' => $currency->usdToKhr($variant->price_usd),
                     'line_total_usd' => $total,

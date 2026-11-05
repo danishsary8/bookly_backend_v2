@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Catalog\SalesSignals;
 use App\Services\CurrencyService;
 use App\Services\Offers\OfferService;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ class BookResource extends JsonResource
     {
         $variants = $this->activeVariants;
         $priceFrom = $this->min_price ?? $variants->min('price_usd');
+        $primary = $variants->sortBy([['price_usd', 'asc'], ['id', 'asc']])->first();
 
         return [
             'id' => $this->id,
@@ -32,6 +34,8 @@ class BookResource extends JsonResource
             'in_stock' => $variants->contains(fn ($v) => $v->isAvailable()),
             'rating_avg' => $this->rating_avg !== null ? round((float) $this->rating_avg, 1) : null,
             'review_count' => (int) ($this->review_count ?? 0),
+            'low_stock_remaining' => $primary?->lowStockBadge(),
+            'sold_count' => app(SalesSignals::class)->count((int) $this->id),
             // The best live automatic offer for this book ("Buy 2, save 15%"), or null.
             'offer' => app(OfferService::class)->forBook($this->resource),
             'series_order' => $this->series_order,
