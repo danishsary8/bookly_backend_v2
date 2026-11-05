@@ -569,3 +569,8 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 
 ## Phases 6 and 7 — Final handoff (2026-11-06)
 All branch gates passed: ratings backend875/17,164 assertions and frontend607; integrated support backend887/17,324 assertions and frontend613. Pint/lint/typecheck/build/route sanity/audits passed,3 existing frontend skips unchanged. Full local browser matrices and post-merge focused repeats have axe0/no overflow. Strict security review fixed private cache scoping and support identity/logging/archive boundaries. Normal merge commits resolved conflicts; merge-tree checks passed against main and between phases. Four review links, exact merge order, human Telegram/staff-login setup and full evidence are at the top of PROGRESS.md. No production calls or service settings changed.
+
+## Phase 8 — Assistants implementation (2026-11-06)
+- Started feature/assistants from origin/main in both repositories after confirming ratings and support chat were already present. Added a replaceable local rules engine, bilingual intent matching, owner-scoped order lookup, catalogue filters, staff ability checks, FAQ management, redacted unanswered aggregation and explicit idempotent FAQ seeder.
+- Existing support bubble now starts with the automatic assistant and offers an explicit prefilled human handoff; staff have a header panel, Ctrl-K destination and knowledge screen. No external model or provider calls. Matched backend/API route, contract, owner/privacy/rate-limit tests and focused frontend interaction tests passed; full branch gates and local smoke follow.
+- See PROGRESS.md for all decisions and final handoff; nothing was deployed and .env files remain untouched.

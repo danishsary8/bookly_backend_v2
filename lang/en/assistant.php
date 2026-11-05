@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'greeting' => 'Hello! I am Bookly’s automatic assistant. How can I help?',
+    'thanks' => 'You’re welcome!',
+    'order_signin' => 'Please sign in to check your orders.',
+    'order_missing' => 'I could not find that order in your account.',
+    'order_status' => 'Order :number is :status. Open your order for the latest details.',
+    'delivery' => 'The standard delivery fee is $:phnom in Phnom Penh and $:provinces for other provinces; the exact fee depends on the address.',
+    'free_delivery' => ' Qualifying physical orders of $:threshold or more receive free delivery.',
+    'delivery_time' => ' Delivery usually takes :phnom_days working day in Phnom Penh and :province_min–:province_max working days in the provinces.',
+    'payment' => 'You can pay by cash on delivery or Bakong KHQR. Open checkout to see the available methods.',
+    'returns' => 'Eligible physical books can be returned within :days days after delivery. See the return policy for conditions.',
+    'ebook' => 'Read purchased ebooks in your browser on up to three registered devices. Downloads are not offered.',
+    'account' => 'Use Forgot password on the sign-in page to reset your password. You can manage sessions in Account → Security.',
+    'contact' => 'Our team is available Monday to Saturday, :opens–:closes Phnom Penh time, and closed Sunday. See our contact page for contact details.',
+    'books' => 'Here are matching books from our catalogue.',
+    'unknown' => 'I could not understand that. Would you like to talk to a person?',
+    'unavailable' => 'You do not have access to this topic.',
+    'staff_count' => ':label: :value.',
+    'staff_comparison' => ':label: :current; previous period: :previous.',
+    'staff_empty' => 'There are no results for this period.',
+    'staff_unknown' => 'I could not understand that. Try asking about sales, stock, orders, returns or support.',
+    'staff_labels' => ['sales' => 'Net revenue', 'average' => 'Average order value', 'customers' => 'New customers', 'ratings' => 'Average order rating', 'orders' => 'Orders waiting', 'returns' => 'Returns waiting', 'stock' => 'Low-stock formats', 'support' => 'Open support conversations', 'books' => 'Top books', 'categories' => 'Top categories'],
+    'statuses' => ['pending' => 'pending', 'paid' => 'paid', 'processing' => 'being prepared', 'shipped' => 'shipped', 'delivered' => 'delivered', 'cancelled' => 'cancelled', 'returned' => 'returned'],
+];

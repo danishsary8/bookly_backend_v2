@@ -1,5 +1,13 @@
 # Summary for Danish
 
+Phases 8–10 are in progress. Both repositories started `feature/assistants` directly from the latest `origin/main`; ratings and support chat were already merged there. This is a working handoff, not a release-ready statement. Final branch links, checks and deployment instructions will replace it as work is verified.
+
+Phase 8 decisions: use deterministic local rules and the existing catalogue/dashboard/order services; never send questions to external services. Keep fallback records free of email addresses and phone numbers and retain only a short normalized question. Keep staff analytics behind the same abilities as their source pages. FAQs are seeded explicitly and idempotently, never automatically on production deployment. The human-support handoff must preserve the visitor's question without sending it until they choose to do so.
+
+## Previous handoff
+
+# Summary for Danish
+
 Phases 6 and 7 are implemented, reviewed and verified. All four feature branches are ready for review; no pull requests were opened and nothing was merged into main or deployed.
 
 Review links:
