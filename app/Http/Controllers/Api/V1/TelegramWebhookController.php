@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Customer\AuthController;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Notifications\AccountSecurityNotice;
+use App\Services\Support\SupportTelegram;
 use App\Services\Telegram\TelegramBot;
 use App\Services\Telegram\TelegramLinks;
 use App\Services\Telegram\TelegramSignIns;
@@ -60,6 +61,9 @@ class TelegramWebhookController extends Controller
             abort(404);
         }
         $message = $request->input('message');
+        if (is_array($message) && app(SupportTelegram::class)->receive($message, (int) $request->input('update_id', -1))) {
+            return response()->noContent();
+        }
         // Only private chats with a person; anything else (groups, channels, edits) needs no answer.
         if (! is_array($message) || ($message['chat']['type'] ?? null) !== 'private' || ! isset($message['chat']['id'], $message['from']['id'])) {
             return response()->noContent();

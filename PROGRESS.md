@@ -1,6 +1,49 @@
 # Summary for Danish
 
-Phase 6 is complete and ready for review on feature/ratings. Phase 7 was implemented independently from origin/main on feature/support-chat; normal merge commits resolve the shared-file conflicts there. Its final combined handoff is in PROGRESS.md on feature/support-chat.
+Phases 6 and 7 are implemented, reviewed and verified. All four feature branches are ready for review; no pull requests were opened and nothing was merged into main or deployed.
+
+Review links:
+- Ratings backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/ratings
+- Ratings frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/ratings
+- Support backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/support-chat
+- Support frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/support-chat
+
+Exact merge order: **ratings backend → wait for Render Live → ratings frontend → support-chat backend → wait for Render Live → support-chat frontend**. Use normal merge commits to preserve the resolved integration ancestry. Both support branches began independently at origin/main; ratings were merged into them later with normal merge commits to resolve shared-file conflicts. All six merge-tree checks passed against the fetched origin/main and between the phase branches.
+
+Changed: delivered-order ratings (owner/once/seven-day edit, comment moderation, genuine hourly store badge, low-rating alerts and dashboard insights); shared accessible star input; human support bubble/account page/staff inbox, private notes, assignment/status, bilingual quick replies, guest email support, verified Telegram staff replies, conditional polling/read receipts/unread badges, close-and-rate, and annual anonymisation through existing web maintenance. OpenAPI, API docs, generated types, tests and EN/KM strings are included. Existing verified-buyer book review badges are preserved.
+
+| Final branch checks | Backend | Frontend |
+| --- | --- | --- |
+| feature/ratings | **875 passed / 17,164 assertions**, Pint passed, six rating routes checked | **607 passed**, lint 0 errors, typecheck/build passed |
+| feature/support-chat (integrated) | **887 passed / 17,324 assertions**, Pint passed, twenty support routes checked | **613 passed**, lint 0 errors, typecheck/build passed |
+
+Composer audit: no advisories on both branches after patching existing Symfony minor lines. npm audit --omit=dev: zero vulnerabilities on both branches. Three existing frontend opt-in skips and one existing VisitorAnalytics refresh warning remain; no tests were weakened or newly skipped. Builds used the local API with upload credentials disabled. Combined PHPUnit needs test-only 512 MB because the expanded contract suite exceeded the local CLI default 128 MB; production settings are unchanged.
+
+Browser evidence: scripts/check-ratings.mjs passed all **eight EN/KM × light/dark ×390/1280** combinations (sixteen order/home audits), including actual rating saves and the below-ten/ten-plus badge threshold. scripts/check-support.mjs passed all **eight** combinations (thirty-two customer/staff/rated/guest audits), including actual staff replies and closed-chat ratings; three actual guest submissions respected the IP quota, with guest forms checked in every combination. Final post-merge EN/light1280 and KM/dark390 reruns passed with customer API readback, twelve Tab presses staying inside the dialog, Escape/focus return and ratings. All audits: **axe WCAG2.1 A/AA 0 violations; no horizontal overflow**. A final 390px real order-rating save/API/keyboard/axe check passed after the customer-cache fix. One concurrent browser rerun hit its 12-second reply wait; the paced rerun with API readback and a 30-second wait passed, without mocking responses or dropping assertions. Ignored reports/screenshots: frontend test-results/ratings, support and support-smoke. Existing staff area remains English by policy; customer/guest screens were exercised in both languages.
+
+Security self-review covered git diff origin/main...HEAD in both repos: route abilities, ownership/order references, XSS/plain text, throttles, demo restrictions, caches, webhook identity, migrations and secrets. Fixed: customer-scoped rating/support caches and clearing on logout/expiry; note filtering in query and resource; explicitly linked active Telegram staff plus exact group/mapping and update deduplication; hidden raw staff Telegram IDs; no template text copied into audit logs; anonymised chats cannot reopen or regain assignments; null token abilities handled safely in permission backfill; partial unread and assignment indexes. Only two new migrations were added; pre-existing migrations and .env files were untouched. Full findings and decisions follow below.
+
+Decisions and reasons:
+- One rating per delivered order, exactly seven days to edit. Hidden comments stay hidden after edits but their stars remain real aggregate data. Store badge is null below ten and cached hourly; dashboard follows its existing period/cache. Low alerts trigger on first entry into 1–2 stars and omit comments/customer details.
+- Guests receive a reference and email replies, never a public read token. Authenticated ownership is enforced before loading messages. Notes remain staff-only and never trigger email/Telegram. Plain text is escaped without automatic links. Authenticated writes are 20/minute/principal; guest submissions are 3/hour/IP plus configured Turnstile; read receipts do not consume message quota.
+- Every writer locks the conversation row. Telegram requires the existing webhook secret, exact configured group, mapped alert and explicitly linked active eligible staff; update IDs make retries idempotent. No webhook replacement or new bot credentials.
+- Open detail polls every five seconds; customer background lists every thirty; staff inbox reuses the existing thirty-second/focus refresh and pause-while-editing behaviour. ETags skip unchanged message loading; CORS exposes ETag.
+- Away reply emails are limited to one per thirty minutes/conversation. A message watermark and minute web maintenance batch replies sent inside the cooldown, so later guest messages are not discarded. Delivery failure logs only a generic numeric reference and consumes its slot; provider-level retries are not added. Confirmation/reply delivery was verified with fake transports, never real external providers.
+- Chats closed for over one year are anonymised by daily MaintenanceTasks; reopening resets retention. Account closure closes active chats. Explicit order-managing staff permissions/tokens gain support:manage without widening other custom roles. New nullable/defaulted columns are safe for existing data. Do not roll back support history after use.
+
+**HUMAN steps:**
+1. Review and merge in the exact order above, waiting for Render Live after each backend. Deployment should apply the two new migrations through the existing deployment process.
+2. Existing staff should sign out and back in after deployment so saved frontend permission lists include support:manage.
+3. For Telegram replies, add the **existing Bookly login bot** to the existing staff group (the separate alerts bot alone is insufficient). If the group is not configured, Danish sets **OPS_STAFF_CHAT_ID** in the backend Render environment. No value or credential is recorded here; no service settings were changed.
+4. Admin → Support → Telegram reply access: choose each eligible active staff member and enter their numeric Telegram **user ID**, not the group ID or username. Keep the existing Bookly webhook and secret mechanism. Existing mail and Turnstile configuration are reused.
+
+Production/site APIs, hosting, database services and external settings were never touched. Real email/Telegram/Turnstile providers were intentionally not called; integration tests use fake transports. Local browser and PHPUnit databases are separate. Test servers are stopped after verification.
+
+## Phase 6 record and prior work
+
+# Summary for Danish
+
+Phases 6 and 7 are in progress. Phase 6 is implemented; final checks and browser verification are being completed before its push. Phase 7 will start from origin/main independently.
 
 Review links (no pull requests opened):
 - https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/ratings
@@ -502,3 +545,9 @@ Initial full backend 875 passed (17,164 assertions); patched-dependency repeat p
 Playwright scripts/check-ratings.mjs passed all 8 combinations (en/km × light/dark × 390/1280), each rating an order and auditing order + home: 16 page audits, 0 WCAG 2.1 A/AA axe violations, no overflow. Confirmed store endpoint null at 9, then both home/footer badges after the tenth; saved stars read back from the API. Local fixture database bookshop_v2_ratings_browser_test only. Keyboard radio controls exercised. Artifacts are ignored test-results/ratings. No external settings or production calls.
 
 Patched-dependency final rerun: 875 tests passed / 17,164 assertions; Pint passed; composer audit no advisories; route sanity six rating routes. Phase 6 is ready for review. Phase 7 starts independently from origin/main next.
+## Phase 7 final security review (2026-11-06)
+Reviewed git diff origin/main...HEAD in both repos, including routes, controllers, resources, database constraints, webhook, mail, caches, UI rendering and generated contract. Ratings and support changes were integrated with normal merge commits; main was never checked out for a merge or pushed. Three merge-tree checks per repo cover main/ratings, main/support and ratings/support.
+Findings fixed: explicit linked Telegram staff identity and group mapping; webhook retry deduplication; internal notes excluded twice and never mailed; mail watermark batches replies inside the cooldown; guest endpoint issues reference only; CORS exposes ETag; support query caches are user-scoped and cleared on logout/expiry; raw staff Telegram IDs hidden; anonymised conversations reject assignment/reopen; null token abilities tolerated by additive backfill; template audit logs record change flags without copying text. PostgreSQL skill review confirmed shared-row locks and outbound I/O after commit; partial unread index and assignment/status index support polling. No pre-existing migration edited; two new migrations only. Test-only memory_limit is 512M because combined contract parsing exceeded the local CLI default128M; no assertions skipped/weakened and production config unchanged.
+Browser: full8 EN/KM x light/dark x390/1280 passed,32 page audits(customer/staff/closed-rating/guest),axe WCAG2.1A/AA0 and no overflow. Three real guest submissions respected the per-IP quota; guest forms checked in all8. After normal merges, focused EN/light1280 and KM/dark390 repeated real customer/staff/closed-rating flows plus guest form,8 audits axe0. Existing staff area stays English by policy, customer and guest UI use both languages. Real email/Telegram providers intentionally not called; fake integration tests verify delivery and permission logic. Reports and screenshots in frontend test-results/support and support-smoke are ignored.
+
+Final combined backend verification: php artisan test --compact passed887 tests/17,324 assertions on local PostgreSQL with test-only512M; vendor/bin/pint --test passed; composer audit --no-interaction found no advisories. Route sanity covers20 support routes and6 ratings routes. No new skips or weakened assertions. A final frontend privacy review also scoped order-rating caches by customer and clears them at sign-out/session expiry; this is applied to feature/ratings first and merged forward normally.

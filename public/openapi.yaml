@@ -99,6 +99,52 @@ components:
     NoContent:
       description: Done, no body
   schemas:
+    SupportMessage:
+      type: object
+      required: [id, sender, body, is_internal, created_at, read_at]
+      properties:
+        id: { type: integer }
+        sender: { type: string, enum: [customer, staff, system] }
+        body: { type: string, maxLength: 2000 }
+        is_internal: { type: boolean }
+        created_at: { type: string, format: date-time }
+        read_at: { type: string, format: date-time, nullable: true }
+    SupportConversation:
+      type: object
+      required: [id, topic, order_id, status, assigned_staff_id, last_message_at, closed_at, unread_count]
+      properties:
+        id: { type: integer }
+        topic: { type: string, enum: [order, payment, ebook, delivery, other] }
+        order_id: { type: integer, nullable: true }
+        status: { type: string, enum: [open, pending, closed] }
+        assigned_staff_id: { type: integer, nullable: true }
+        last_message_at: { type: string, format: date-time, nullable: true }
+        closed_at: { type: string, format: date-time, nullable: true }
+        unread_count: { type: integer }
+        customer:
+          type: object
+          description: Staff-only; omitted for customers
+          properties:
+            id: { type: integer, nullable: true }
+            name: { type: string, nullable: true }
+            email: { type: string, nullable: true }
+        rating:
+          type: object
+          nullable: true
+          properties:
+            stars: { type: integer, minimum: 1, maximum: 5 }
+            comment: { type: string, nullable: true }
+        messages: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SupportMessage' } }
+    SupportQuickReply:
+      type: object
+      required: [id, title, body_en, body_km]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        body_en: { type: string }
+        body_km: { type: string }
+        created_at: { type: string }
+        updated_at: { type: string }
     OrderRating:
       type: object
       properties:
@@ -820,6 +866,267 @@ security:
   - bearer: []
 
 paths:
+  /support/guest:
+    post:
+      tags: [Customer]
+      security: []
+      summary: 'Create guest support request (Turnstile and 3 per hour per IP)'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name, email, message], properties: { name: { type: string, maxLength: 100 }, email: { type: string, format: email }, message: { type: string, maxLength: 2000 }, turnstile_token: { type: string } } } } } }
+      responses:
+        '201':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: object, properties: { id: { type: integer } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /support/conversations:
+    get:
+      tags: [Customer]
+      summary: 'Own conversations, paginated, optional status/topic/unread filters; ETag'
+      parameters: [{ name: If-None-Match, in: header, schema: { type: string } }, { name: status, in: query, schema: { type: string } }, { name: topic, in: query, schema: { type: string } }, { name: unread, in: query, schema: { type: boolean } }, { name: assigned_to_me, in: query, schema: { type: boolean } }, { name: page, in: query, schema: { type: integer } }]
+      responses:
+        '200':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/SupportConversation' } }, meta: { $ref: '#/components/schemas/PageMeta' }, links: { $ref: '#/components/schemas/PageLinks' } } }
+        '304': { description: Unchanged; no body }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+    post:
+      tags: [Customer]
+      summary: 'Start own support conversation, optional owned order; demo refused; 20 writes/minute'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [topic, message], properties: { topic: { type: string, enum: [order, payment, ebook, delivery, other] }, order_id: { type: integer, nullable: true }, message: { type: string, maxLength: 2000 } } } } } }
+      responses:
+        '201':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/SupportConversation' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /support/conversations/{id}:
+    get:
+      tags: [Customer]
+      summary: 'Own conversation, last 100 public messages; before_id pages older messages; ETag'
+      parameters: [{ $ref: '#/components/parameters/Id' }, { name: If-None-Match, in: header, schema: { type: string } }, { name: before_id, in: query, schema: { type: integer } }]
+      responses:
+        '200':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/SupportConversation' } } }
+        '304': { description: Unchanged; no body }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /support/conversations/{id}/messages:
+    post:
+      tags: [Customer]
+      summary: 'Send customer plain message, max 2000; only owner, not closed; demo refused'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [message], properties: { message: { type: string, maxLength: 2000 }, is_internal: { type: boolean } } } } } }
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /support/conversations/{id}/read:
+    post:
+      tags: [Customer]
+      summary: 'Mark received staff messages read (owner only)'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /support/conversations/{id}/status:
+    post:
+      tags: [Customer]
+      summary: 'Customer may close own conversation only'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [open, pending, closed] } } } } } }
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /support/conversations/{id}/rating:
+    post:
+      tags: [Customer]
+      summary: 'Rate own closed conversation once'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [stars], properties: { stars: { type: integer, minimum: 1, maximum: 5 }, comment: { type: string, maxLength: 500, nullable: true } } } } } }
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/conversations:
+    get:
+      tags: [Staff operations]
+      summary: 'Support inbox filters: status, topic, unread, assigned_to_me; support manage/admin; ETag'
+      parameters: [{ name: If-None-Match, in: header, schema: { type: string } }, { name: status, in: query, schema: { type: string } }, { name: topic, in: query, schema: { type: string } }, { name: unread, in: query, schema: { type: boolean } }, { name: assigned_to_me, in: query, schema: { type: boolean } }, { name: page, in: query, schema: { type: integer } }]
+      responses:
+        '200':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/SupportConversation' } }, meta: { $ref: '#/components/schemas/PageMeta' }, links: { $ref: '#/components/schemas/PageLinks' } } }
+        '304': { description: Unchanged; no body }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/conversations/{id}:
+    get:
+      tags: [Staff operations]
+      summary: 'Staff conversation including internal notes; ETag'
+      parameters: [{ $ref: '#/components/parameters/Id' }, { name: If-None-Match, in: header, schema: { type: string } }, { name: before_id, in: query, schema: { type: integer } }]
+      responses:
+        '200':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/SupportConversation' } } }
+        '304': { description: Unchanged; no body }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/conversations/{id}/messages:
+    post:
+      tags: [Staff operations]
+      summary: 'Staff reply or internal note (is_internal); internal notes never reach customers or email'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [message], properties: { message: { type: string, maxLength: 2000 }, is_internal: { type: boolean } } } } } }
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/conversations/{id}/read:
+    post:
+      tags: [Staff operations]
+      summary: 'Mark customer messages read'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/conversations/{id}/status:
+    post:
+      tags: [Staff operations]
+      summary: 'Staff may open, pend or close; anonymised conversations cannot reopen'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [open, pending, closed] } } } } } }
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/conversations/{id}/assign:
+    post:
+      tags: [Staff operations]
+      summary: 'Assign to active support staff or null'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [staff_id], properties: { staff_id: { type: integer, nullable: true } } } } } }
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/staff:
+    get:
+      tags: [Staff operations]
+      summary: 'Active staff eligible for assignment (id and name only)'
+      parameters: [{ name: If-None-Match, in: header, schema: { type: string } }]
+      responses:
+        '200':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { type: object, properties: { id: { type: integer }, name: { type: string } } } } } }
+        '304': { description: Unchanged; no body }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/quick-replies:
+    get:
+      tags: [Staff operations]
+      summary: 'Quick reply templates'
+      parameters: [{ name: If-None-Match, in: header, schema: { type: string } }]
+      responses:
+        '200':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/SupportQuickReply' } } } }
+        '304': { description: Unchanged; no body }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+    post:
+      tags: [Staff operations]
+      summary: 'Create bilingual plain quick reply (audited)'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [title, body_en, body_km], properties: { title: { type: string, maxLength: 100 }, body_en: { type: string, maxLength: 2000 }, body_km: { type: string, maxLength: 2000 } } } } } }
+      responses:
+        '201':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/SupportQuickReply' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/quick-replies/{id}:
+    patch:
+      tags: [Staff operations]
+      summary: 'Edit bilingual quick reply (audited)'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [title, body_en, body_km], properties: { title: { type: string, maxLength: 100 }, body_en: { type: string, maxLength: 2000 }, body_km: { type: string, maxLength: 2000 } } } } } }
+      responses:
+        '200':
+          description: 'Response'
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/SupportQuickReply' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+    delete:
+      tags: [Staff operations]
+      summary: 'Delete quick reply (audited)'
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
+  /staff/support/telegram-users:
+    post:
+      tags: [Staff operations]
+      summary: 'Admin-only binding of Telegram user id to active support staff; nullable id unlinks'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [staff_id, telegram_user_id], properties: { staff_id: { type: integer }, telegram_user_id: { type: integer, minimum: 1, nullable: true } } } } } }
+      responses:
+        '204':
+          description: 'Completed without a body'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Rate limit exceeded }
   /store-rating:
     get:
       tags: [Catalog]

@@ -2,6 +2,7 @@
 
 Append newest entries at the bottom. Every finished step gets an entry.
 
+
 ## Step 0 — Planning (done, owner confirmed)
 Requirements, entity list (27 tables), ER diagram, column-level schema. See PROJECT_CONTEXT.md for the schema doc link.
 
@@ -559,4 +560,12 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 
 - Phase 5 final verification: PostgreSQL 871 tests / 17,138 assertions, Pint clean. Frontend lint 0 errors, typecheck, 603 passing tests (3 existing skips), build passed. Real local Playwright home/cart/public-list matrix 390/1280, light/dark: 12 checks, axe 0, no overflow; batch-cart and share interactions verified. No production calls/settings. Final owner handoff is at the top of PROGRESS.md.
 
+## Phase 7 — Human support chat implementation (2026-11-05)
+- Started feature/support-chat from origin/main independently of ratings; reused only the dependency security patch and identical shared star input.
+- Added owner-scoped conversations/messages/ratings, guest Turnstile/quota/confirmation, staff support ability/backfill, assignments/status/notes/bilingual templates, conditional polling/read receipts, exact Telegram group/linked-staff reply mapping and idempotency, mail cooldown/batching, and web maintenance retention.
+- Added isolated local browser fixtures, API/privacy/rate-limit/contracts and real-commit delivery tests. Initial full backend suite: 880 passed / 17,234 assertions; final additional cases and integration gates follow in PROGRESS.md.
+- API reference, OpenAPI and README explain privacy rules and human Telegram setup. External service settings and production untouched. Decisions and final Danish handoff are recorded at the top of PROGRESS.md.
 - Phase 6 ratings: owner/delivered/once/seven-day checks, hidden comments, genuine cached store badge, dashboard insights, low alerts and shared accessible input. First full run 875 backend / 606 frontend tests passed. Existing Symfony audit advisories patched; final dependency checks and browser matrix pending. See PROGRESS.md.
+
+## Phases 6 and 7 — Final handoff (2026-11-06)
+All branch gates passed: ratings backend875/17,164 assertions and frontend607; integrated support backend887/17,324 assertions and frontend613. Pint/lint/typecheck/build/route sanity/audits passed,3 existing frontend skips unchanged. Full local browser matrices and post-merge focused repeats have axe0/no overflow. Strict security review fixed private cache scoping and support identity/logging/archive boundaries. Normal merge commits resolved conflicts; merge-tree checks passed against main and between phases. Four review links, exact merge order, human Telegram/staff-login setup and full evidence are at the top of PROGRESS.md. No production calls or service settings changed.

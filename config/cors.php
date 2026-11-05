@@ -22,7 +22,7 @@ return [
     'allowed_headers' => ['*'],
 
     // Let the frontend's JavaScript read these response headers.
-    'exposed_headers' => ['X-Request-Id', 'Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'Idempotent-Replayed', 'Content-Disposition'],
+    'exposed_headers' => ['X-Request-Id', 'Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'Idempotent-Replayed', 'Content-Disposition', 'ETag'],
 
     'max_age' => 3600,
 

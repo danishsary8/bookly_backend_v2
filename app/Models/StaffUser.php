@@ -15,7 +15,7 @@ class StaffUser extends Authenticatable
 
     protected $fillable = ['name', 'email', 'password_hash', 'role', 'permissions', 'two_factor_secret', 'two_factor_enabled', 'is_active'];
 
-    protected $hidden = ['password_hash', 'two_factor_secret'];
+    protected $hidden = ['password_hash', 'two_factor_secret', 'support_telegram_user_id'];
 
     public const DEFAULT_PERMISSIONS = [
         'catalog:view',
@@ -25,6 +25,7 @@ class StaffUser extends Authenticatable
         'customers:view',
         'customers:manage',
         'reviews:manage',
+        'support:manage',
     ];
 
     public const ADMIN_PERMISSIONS = [

@@ -110,6 +110,8 @@ class AppServiceProvider extends ServiceProvider
             ->by('telegram-status|'.$request->ip().'|'.substr((string) $request->input('key'), 0, 64)));
 
         // Public book list: text search costs the database more than browsing.
+        RateLimiter::for('support-guest', fn (Request $request) => Limit::perHour(3)->by('support-guest|'.$request->ip()));
+        RateLimiter::for('support-messages', fn (Request $request) => Limit::perMinute(20)->by('support-write|'.get_class($request->user()).'|'.$request->user()->id));
         RateLimiter::for('catalog', fn (Request $request) => $request->filled('q')
             ? Limit::perMinute(60)->by('catalog-search|'.$request->ip())
             : Limit::perMinute(120)->by('catalog-browse|'.$request->ip()));

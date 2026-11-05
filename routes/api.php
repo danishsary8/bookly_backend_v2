@@ -74,6 +74,8 @@ use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnCon
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Staff\StaffNewsletterController;
 use App\Http\Controllers\Api\V1\Staff\StaffSessionController;
+use App\Http\Controllers\Api\V1\Staff\SupportToolsController;
+use App\Http\Controllers\Api\V1\SupportController;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,6 +86,7 @@ Route::post('/demo/token', DemoTokenController::class)->middleware('throttle:dem
 
 // The Bookly Telegram bot's updates (Telegram signs each one with the webhook secret).
 Route::post('/telegram/webhook', TelegramWebhookController::class);
+Route::post('/support/guest', [SupportController::class, 'guest'])->middleware('throttle:support-guest');
 
 /*
 | Public catalog (no login needed)
@@ -234,6 +237,17 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::delete('/reviews/{review}', [CustomerReviewController::class, 'destroy'])->whereNumber('review')->middleware('not.demo');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
+    Route::prefix('support/conversations')->group(function () {
+        Route::get('/', [SupportController::class, 'index']);
+        Route::get('/{conversation}', [SupportController::class, 'show'])->whereNumber('conversation');
+        Route::middleware(['not.demo', 'throttle:support-messages'])->group(function () {
+            Route::post('/', [SupportController::class, 'store']);
+            Route::post('/{conversation}/messages', [SupportController::class, 'message'])->whereNumber('conversation');
+            Route::post('/{conversation}/status', [SupportController::class, 'status'])->whereNumber('conversation');
+            Route::post('/{conversation}/rating', [SupportController::class, 'rate'])->whereNumber('conversation');
+        });
+        Route::post('/{conversation}/read', [SupportController::class, 'read'])->whereNumber('conversation')->middleware('not.demo');
+    });
     Route::get('/reading-lists', [ReadingListController::class, 'index']);
     Route::middleware(['throttle:20,1', 'not.demo'])->group(function () {
         Route::post('/lists/{slug}/cart', [ReadingListController::class, 'addAll']);
@@ -271,6 +285,22 @@ Route::prefix('staff/auth')->group(function () {
 | Staff features: staff + admin can create/edit, deletes are admin-only.
 */
 Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::prefix('support')->middleware('ability:support:manage,admin')->group(function () {
+        Route::get('/conversations', [SupportController::class, 'index']);
+        Route::get('/conversations/{conversation}', [SupportController::class, 'show'])->whereNumber('conversation');
+        Route::get('/staff', [SupportToolsController::class, 'staff']);
+        Route::get('/quick-replies', [SupportToolsController::class, 'index']);
+        Route::middleware('throttle:support-messages')->group(function () {
+            Route::post('/conversations/{conversation}/messages', [SupportController::class, 'message'])->whereNumber('conversation');
+            Route::post('/conversations/{conversation}/status', [SupportController::class, 'status'])->whereNumber('conversation');
+            Route::post('/conversations/{conversation}/assign', [SupportController::class, 'assign'])->whereNumber('conversation');
+            Route::post('/quick-replies', [SupportToolsController::class, 'store']);
+            Route::patch('/quick-replies/{reply}', [SupportToolsController::class, 'update'])->whereNumber('reply');
+            Route::delete('/quick-replies/{reply}', [SupportToolsController::class, 'destroy'])->whereNumber('reply');
+            Route::post('/telegram-users', [SupportToolsController::class, 'bindTelegram'])->middleware('abilities:admin');
+        });
+        Route::post('/conversations/{conversation}/read', [SupportController::class, 'read'])->whereNumber('conversation');
+    });
     Route::get('/sessions', [StaffSessionController::class, 'index']);
     Route::delete('/sessions/{id}', [StaffSessionController::class, 'destroy'])->whereNumber('id');
     Route::post('/sessions/revoke-others', [StaffSessionController::class, 'revokeOthers']);
