@@ -2480,6 +2480,33 @@ paths:
       responses:
         '200': { description: Unsubscribed }
         '422': { description: Invalid token }
+  /me/ebooks:
+    get: { tags: [Ebooks], summary: 'My ebooks: owned ebooks (orders paid/processing/shipped/delivered) with status, page_count, last_page, last_read_at, book card; most recently read first', responses: { '200': { description: Library } } }
+  /me/ebook-devices:
+    get: { tags: [Ebooks], summary: 'Browsers that read my ebooks (max 3). Send X-Reader-Device to get is_current. meta: max_devices, next_removal_at', responses: { '200': { description: Devices } } }
+  /me/ebook-devices/{device}:
+    delete: { tags: [Ebooks], summary: 'Remove a device (one removal per 30 days; 429 with the date otherwise)', parameters: [{ name: device, in: path, required: true, schema: { type: integer } }], responses: { '204': { description: Removed }, '429': { description: Too soon } } }
+  /reader/{book}:
+    get: { tags: [Ebooks], summary: 'Reader info: status (processing/ready/failed), page_count, preview_pages, owned, last_page. 404 when the book has no ebook', parameters: [{ name: book, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: Info } } }
+  /reader/{book}/pages/{page}:
+    get:
+      tags: [Ebooks]
+      summary: 'One page as a JPEG with the owner''s watermark (email + order number) burned in; Cache-Control no-store. Header X-Reader-Device (16-100 chars [A-Za-z0-9_-]) required: unknown devices are registered, max 3 (409). 403 not owned, 409 not ready, 120/min'
+      parameters: [{ name: book, in: path, required: true, schema: { type: integer } }, { name: page, in: path, required: true, schema: { type: integer } }, { name: X-Reader-Device, in: header, required: true, schema: { type: string } }]
+      responses: { '200': { description: Page image, content: { image/jpeg: { schema: { type: string, format: binary } } } }, '403': { description: Not owned }, '409': { description: Not ready or device limit } }
+  /reader/{book}/progress:
+    put: { tags: [Ebooks], summary: 'Save the reading position (page, clamped to the page count)', parameters: [{ name: book, in: path, required: true, schema: { type: integer } }], requestBody: { content: { application/json: { schema: { type: object, required: [page], properties: { page: { type: integer, minimum: 1 } } } } } }, responses: { '200': { description: Saved } } }
+  /reader/{book}/preview:
+    get: { tags: [Ebooks], summary: 'Free preview info (no account): page_count, preview_pages (staff value or 10%, at least 1). 404 when no ready ebook', security: [], parameters: [{ name: book, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: Preview info } } }
+  /reader/{book}/preview/pages/{page}:
+    get: { tags: [Ebooks], summary: 'A preview page (JPEG, "Bookly · free preview" watermark); pages above preview_pages are 404', security: [], parameters: [{ name: book, in: path, required: true, schema: { type: integer } }, { name: page, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: Page image } } }
+  /staff/books/{book}/ebook:
+    get: { tags: [Staff catalog], summary: 'The book''s ebook (status, page_count, pages_rendered, preview_pages, preview_limit, size_bytes, error) or null', parameters: [{ name: book, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: Ebook } } }
+    post: { tags: [Staff catalog], summary: 'Upload the ebook PDF (multipart `file`, max 50 MB, must really be a PDF). Replaces an earlier one; pages are rendered in the background (ebooks:render)', parameters: [{ name: book, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Uploaded }, '422': { description: Not a readable PDF } } }
+    patch: { tags: [Staff catalog], summary: 'Set preview_pages (1..page_count, or null for 10%)', parameters: [{ name: book, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: Saved } } }
+    delete: { tags: [Staff catalog], summary: 'Remove the ebook file and its pages', parameters: [{ name: book, in: path, required: true, schema: { type: integer } }], responses: { '204': { description: Removed } } }
+  /staff/customers/{customer}/ebook-devices/reset:
+    post: { tags: [Staff customers], summary: 'Free all of a customer''s ebook devices (and the 30-day wait)', parameters: [{ name: customer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: Reset } } }
   /cart-reminders/stop:
     post:
       tags: [Customer]

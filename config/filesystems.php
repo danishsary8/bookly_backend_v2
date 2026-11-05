@@ -34,6 +34,9 @@ return [
     */
     'media_disk' => env('MEDIA_DISK', 'public'),
 
+    // Where ebook PDFs and their rendered pages are kept (private). See the ebooks design.
+    'ebook_disk' => env('EBOOK_DISK', 'local'),
+
     'disks' => [
 
         'local' => [
@@ -65,6 +68,20 @@ return [
             'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => false,
             // No per-file visibility: R2 has no object ACLs; the bucket's public access setting decides.
+            'throw' => true,
+            'report' => false,
+        ],
+
+        // Ebook files (master PDFs and rendered pages) must never be public. Production: a separate PRIVATE R2 bucket
+        // (EBOOK_DISK=r2_private). Locally and in tests the private `local` disk is used.
+        'r2_private' => [
+            'driver' => 's3',
+            'key' => env('R2_PRIVATE_ACCESS_KEY_ID', env('R2_ACCESS_KEY_ID')),
+            'secret' => env('R2_PRIVATE_SECRET_ACCESS_KEY', env('R2_SECRET_ACCESS_KEY')),
+            'region' => 'auto',
+            'bucket' => env('R2_PRIVATE_BUCKET'),
+            'endpoint' => env('R2_PRIVATE_ENDPOINT', env('R2_ENDPOINT')),
+            'use_path_style_endpoint' => false,
             'throw' => true,
             'report' => false,
         ],

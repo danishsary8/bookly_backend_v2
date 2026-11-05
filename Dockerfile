@@ -13,7 +13,10 @@ RUN composer dump-autoload --no-dev --optimize --no-scripts
 # --- 2. Runtime: FrankenPHP (Caddy web server with PHP built in) ---------------------------
 FROM dunglas/frankenphp:1-php8.4-bookworm
 
-RUN install-php-extensions pdo_pgsql pgsql pcntl opcache zip
+RUN install-php-extensions pdo_pgsql pgsql pcntl opcache zip gd
+
+# poppler-utils: pdfinfo/pdftoppm turn ebook PDFs into page images (App\Services\Ebooks\EbookPages).
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 
 # The base image gives frankenphp the cap_net_bind_service file capability (to use ports below 1024).
 # We listen on $PORT (8080/10000), and hosts that drop all capabilities (Render) refuse to start a binary

@@ -376,3 +376,15 @@ Cached for 5 minutes per report and range. All endpoints take `from` and `to` (Y
 - Leaked-password protection: Passwords checked during registration and password resets against HIBP Pwned Passwords API using k-Anonymity (SHA-1 prefix).
 - `GET /books`: category_id now includes sub-categories; new `category_ids[]`, `formats[]`, `age`, `school_grade`,
   `level`, `has_ebook`, `facets=1`; sorts `best_selling` (copies in non-cancelled orders, last 90 days) and `most_reviewed`.
+
+### Ebooks (roadmap v3 phase 2, 2026-11-06)
+
+Ebooks are read in the browser only: the API never sends the file, only page images with the reader's email and order
+number burned in. Staff upload a PDF per book (`POST /staff/books/{book}/ebook`, max 50 MB); `ebooks:render` (every
+minute via MaintenanceTasks) turns it into page images 15 pages at a time with poppler. A customer owns an ebook through
+an order with its ebook format in status paid/processing/shipped/delivered. Pages need header `X-Reader-Device`
+(random id kept by the browser; max 3 devices, one self-removal per 30 days, staff reset). Free preview: first 10%
+(staff can change it), no account. Files live on `EBOOK_DISK` (private; `r2_private` in production).
+Endpoints: `GET /me/ebooks`, `GET|DELETE /me/ebook-devices[/{id}]`, `GET /reader/{book}`, `GET /reader/{book}/pages/{n}`,
+`PUT /reader/{book}/progress`, `GET /reader/{book}/preview`, `GET /reader/{book}/preview/pages/{n}`,
+staff `GET|POST|PATCH|DELETE /staff/books/{book}/ebook`, `POST /staff/customers/{customer}/ebook-devices/reset`.
