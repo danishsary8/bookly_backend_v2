@@ -22,12 +22,14 @@ class Order extends Model
         'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note', 'is_gift', 'gift_message',
         'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
         'is_waiting_stock', 'expected_ship_date',
+        'free_gift',
     ];
 
     protected function casts(): array
     {
         return [
             'is_gift' => 'boolean',
+            'free_gift' => 'array',
             'is_waiting_stock' => 'boolean',
             'expected_ship_date' => 'date',
             'status' => OrderStatus::class,

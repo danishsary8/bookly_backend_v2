@@ -61,6 +61,7 @@ class CheckoutController extends Controller
             'has_backorder' => $totals['has_backorder'],
             'expected_ship_date' => $totals['expected_ship_date'],
             'shipping_notice' => $totals['shipping_notice'],
+            'free_gift' => $totals['free_gift'],
         ]]);
     }
 

@@ -25,6 +25,7 @@ use App\Services\Offers\DiscountChoice;
 use App\Services\Offers\LineDiscounts;
 use App\Services\Offers\LiveOffer;
 use App\Services\Offers\OfferService;
+use App\Services\Offers\PurchaseGifts;
 use App\Services\Payments\KhqrPaymentService;
 use App\Services\Telegram\CustomerOrderUpdates;
 use App\Services\Telegram\OpsAlerts;
@@ -98,7 +99,8 @@ class CheckoutService
                 Coupon::where('code', CouponService::normalize($couponCode))->lockForUpdate()->first();
             }
             $live = $this->lockBestLiveOffer($summary);
-            $totals = $this->totals($customer, $summary, $couponCode, $address, $live);
+            $freeGift = app(PurchaseGifts::class)->select($summary, reserve: true);
+            $totals = $this->totals($customer, $summary, $couponCode, $address, $live, $freeGift, true);
             $offer = $totals['choice']->winningOffer();
 
             // O1 = A: the customer saw this offer; if it no longer wins (ended, used up, paused), place nothing.
@@ -129,6 +131,7 @@ class CheckoutService
             // 5. Create the order with a copy of the address and today's prices.
             $order = Order::create([
                 'customer_id' => $customer->id,
+                'free_gift' => $freeGift,
                 'order_number' => OrderNumber::generate(),
                 'idempotency_key' => $idempotencyKey,
                 'shipping_address_id' => $address->id,
@@ -260,8 +263,11 @@ class CheckoutService
     }
 
     /** @param  list<LiveOffer>|null  $live  checkout passes the offers it locked; the preview uses the cached list */
-    private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address, ?array $live = null): array
+    private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address, ?array $live = null, ?array $freeGift = null, bool $giftReserved = false): array
     {
+        if (! $giftReserved) {
+            $freeGift = app(PurchaseGifts::class)->select($summary);
+        }
         $subtotal = $summary['subtotal_cents'];
         $coupon = null;
         $couponDiscount = 0;
@@ -281,7 +287,7 @@ class CheckoutService
         $discount = $choice->discountCents;
         $coupon = $choice->coupon;
 
-        $requiresShipping = $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
+        $requiresShipping = $freeGift !== null || $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
         $area = DeliveryArea::for($address);
         $province = $address ? DeliveryArea::detectProvince($address->city, $address->state) : null;
         $provinceCode = $province['code'] ?? null;
@@ -354,6 +360,7 @@ class CheckoutService
             'has_backorder' => $hasBackorder,
             'expected_ship_date' => $latestReleaseDate,
             'shipping_notice' => $shippingNotice,
+            'free_gift' => $freeGift,
         ];
     }
 

@@ -99,6 +99,25 @@ components:
     NoContent:
       description: Done, no body
   schemas:
+    FreeGift:
+      type: object
+      nullable: true
+      properties:
+        id: { type: integer }
+        offer_id: { type: integer }
+        name_en: { type: string }
+        name_km: { type: string }
+        quantity: { type: integer }
+        limited: { type: boolean }
+    Gift:
+      type: object
+      properties:
+        id: { type: integer }
+        name_en: { type: string, maxLength: 100 }
+        name_km: { type: string, maxLength: 100 }
+        image_url: { type: string, nullable: true }
+        stock: { type: integer, minimum: 0 }
+        is_active: { type: boolean }
     Error:
       type: object
       properties:
@@ -298,6 +317,7 @@ components:
     CheckoutPreview:
       type: object
       properties:
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         subtotal: { $ref: '#/components/schemas/Amount' }
         discount: { $ref: '#/components/schemas/Amount' }
         shipping_fee: { $ref: '#/components/schemas/Amount' }
@@ -523,6 +543,7 @@ components:
     Cart:
       type: object
       properties:
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         items:
           type: array
@@ -575,6 +596,7 @@ components:
     Order:
       type: object
       properties:
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         order_number: { type: string, example: ORD-20261003-7K2QX }
         status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
@@ -632,6 +654,7 @@ components:
       type: object
       description: 'What an invoice or packing slip prints. KHR uses the rate in force when the order was placed (null when no rate was set then), so a reprint never changes.'
       properties:
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         order_number: { type: string, example: ORD-20261003-7K2QX }
         status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
@@ -1009,6 +1032,53 @@ paths:
                   data:
                     $ref: '#/components/schemas/BookDetail'
                     nullable: true
+  /staff/gifts:
+    get:
+      tags: [Staff]
+      security: [{ bearer: [] }]
+      summary: List gifts (catalog view or admin)
+      responses:
+        '200':
+          description: Gifts outside the book catalogue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Gift' } }
+    post:
+      tags: [Staff]
+      security: [{ bearer: [] }]
+      summary: Create a gift (admin only, audited)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Gift' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/Gift' } } }
+  /staff/gifts/{gift}:
+    patch:
+      tags: [Staff]
+      security: [{ bearer: [] }]
+      summary: Edit gift or stock under a row lock (admin only, audited)
+      parameters:
+      - { name: gift, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Gift' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/Gift' } } }
   /catalog/rows:
     get:
       tags: [Catalog]
@@ -2217,7 +2287,7 @@ paths:
     delete: { tags: [Staff operations], summary: '(admin) Delete (its book list goes with it). Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /staff/offers:
     get: { tags: [Staff operations], summary: 'List automatic offers (q = name, status = live|scheduled|paused|ended|used_up|no_books, per_page). Staff with catalog:view and admins', responses: { '200': { description: 'Offers: all columns, status, targets [{type, id, label, in_trash}], orders_count' } } }
-    post: { tags: [Staff operations], summary: '(admin) Create (name, applies_to all|selected, min_quantity 2-20, percent_off 0.01-50, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all). Audited; the live-offers cache is cleared', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Staff operations], summary: '(admin) Create automatic offer', description: 'name, type buy_n_percent (default) or gift, applies_to all|selected, min_quantity 2-20 (gift 1-20, default 1), percent_off 0.01-50 (gift 0), gift_id required for gift, gift_quantity 1-100 default 1, min_subtotal optional positive matching subtotal instead of min_quantity for gifts, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all. Gift and monetary winners are independent; one gift plus one monetary discount. Audited.', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
   /staff/offers/{id}:
     get: { tags: [Staff operations], summary: 'One offer', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Offer } } }
     patch: { tags: [Staff operations], summary: '(admin) Update any field; pause/resume with is_active; targets replace the list when sent; switching to all drops them. used_count is read-only', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }

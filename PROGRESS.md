@@ -9,6 +9,8 @@ Phase 5 is in progress on `feature/shop-extras` in both repositories. Nothing ha
 
 ## Decisions
 
+- Gift delivery decision revised during implementation: gifts also qualify for digital-only carts. A gift makes the order a physical shipment using existing delivery rates. Stock reservation happens before final totals, so a lost last gift cannot leave a phantom delivery charge. Earlier physical-only approach was removed before the part was completed.
+
 - Current task instructions override the older request to stop for confirmation in repository guidance.
 - Low-stock card counts refer to the cheapest active format (id breaks price ties), so a cheap ebook never advertises scarcity from a different physical format. Detail and cart counts refer to the selected format.
 - Sales proof counts quantities in non-cancelled, non-deleted orders placed within 90 days, as requested. Pending orders count; this is order volume, not paid revenue. Cache plain aggregate data for one hour without checkout invalidation.
@@ -449,3 +451,6 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
   - Formatted and placed the comprehensive `## Summary for Danish` at the very top of `PROGRESS.md`.
 - Decisions I made: Documented Symfony transitive audit advisories as requested by prompt constraints.
 - NEEDS DANISH: Create PRs, review according to recommended merge order, and run quick smoke checks.
+
+## Part C verification
+Gift checkout/admin/coupon tests: 5 passed. Independent PostgreSQL checkout race plus gift and API contract tests: 8 passed (66 assertions before the added coupon test). Offer schema/admin, catalogue rows and route documentation regression tests: 22 passed; Pint passed. Frontend gift lines and offer form: 10 passed; existing checkout/offer tests: 18 passed. Final browser/full suite still pending. Digital-only carts can receive gifts and use the existing physical delivery rates; depleted gifts are removed before totals. Snapshot names are plain text in UI and documents.

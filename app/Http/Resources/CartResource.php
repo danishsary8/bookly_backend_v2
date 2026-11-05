@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Services\CurrencyService;
 use App\Services\Offers\CartPricing;
+use App\Services\Offers\PurchaseGifts;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -48,6 +49,7 @@ class CartResource extends JsonResource
             'subtotal_khr' => $currency->usdToKhr($subtotal),
             'can_checkout' => $this->resource['can_checkout'],
             'pricing' => $this->pricing($pricing, $currency),
+            'free_gift' => app(PurchaseGifts::class)->select($this->resource),
         ];
     }
 

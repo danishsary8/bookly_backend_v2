@@ -22,6 +22,7 @@ class Offer extends Model
 
     protected $fillable = [
         'name', 'type', 'applies_to', 'min_quantity', 'percent_off', 'starts_at', 'ends_at', 'max_orders', 'is_active',
+        'gift_id', 'gift_quantity', 'min_subtotal',
     ];
 
     protected $attributes = [
@@ -40,6 +41,8 @@ class Offer extends Model
             'max_orders' => 'integer',
             'used_count' => 'integer',
             'is_active' => 'boolean',
+            'gift_quantity' => 'integer',
+            'min_subtotal' => 'decimal:2',
         ];
     }
 

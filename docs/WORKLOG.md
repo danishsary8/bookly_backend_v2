@@ -550,3 +550,5 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 - Phase 5 Part A in progress on feature/shop-extras: real low-stock and hourly sales signals, API documentation and regression tests. Full checks pending; see PROGRESS.md.
 
 - Phase 5 Part B: /catalog/rows, coming_soon and release_soon, 30-day best sellers and format-specific price bounds. Focused row/OpenAPI tests 8 passed; final suite pending.
+
+- Phase 5 Part C: gift inventory, gift offer winner, locked checkout reservation/cancel restoration, snapshots and alerts; independent-process last-gift race verified. Staff gifts API and contract documentation added. See PROGRESS.md for checks.
