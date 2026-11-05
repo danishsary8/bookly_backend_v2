@@ -111,6 +111,21 @@ class CheckoutService
                 ? LineDiscounts::forOffer($lineTotals, $offer)
                 : LineDiscounts::forCoupon($lineTotals, $totals['coupon'] ? $totals['discount_cents'] : 0);
 
+            $isWaitingStock = false;
+            $preorderDates = [];
+            foreach ($summary['lines'] as $line) {
+                $v = $variants[$line['item']->book_variant_id];
+                if ($v->isPreorder()) {
+                    $isWaitingStock = true;
+                    if ($v->release_date) {
+                        $preorderDates[] = $v->release_date->format('Y-m-d');
+                    }
+                } elseif (! $v->format->isDigital() && ($v->isBackorder() || $v->stock_quantity < $line['item']->quantity)) {
+                    $isWaitingStock = true;
+                }
+            }
+            $expectedShipDate = $preorderDates !== [] ? max($preorderDates) : null;
+
             // 5. Create the order with a copy of the address and today's prices.
             $order = Order::create([
                 'customer_id' => $customer->id,
@@ -145,6 +160,8 @@ class CheckoutService
                 'delivery_note' => $deliveryNote,
                 'is_gift' => $isGift,
                 'gift_message' => $isGift ? $giftMessage : null,
+                'is_waiting_stock' => $isWaitingStock,
+                'expected_ship_date' => $expectedShipDate,
             ]);
 
             foreach ($summary['lines'] as $line) {
@@ -290,6 +307,31 @@ class CheckoutService
             ? DeliveryArea::estimate(now(), $address?->city, $address?->state)
             : null;
 
+        $hasPreorder = false;
+        $hasBackorder = false;
+        $preorderDates = [];
+        foreach ($summary['lines'] as $line) {
+            $variant = $line['item']->variant;
+            if ($variant) {
+                if ($variant->isPreorder()) {
+                    $hasPreorder = true;
+                    if ($variant->release_date) {
+                        $preorderDates[] = $variant->release_date->format('Y-m-d');
+                    }
+                } elseif (! $variant->format->isDigital() && ($variant->isBackorder() || $variant->stock_quantity < $line['item']->quantity)) {
+                    $hasBackorder = true;
+                }
+            }
+        }
+        $latestReleaseDate = $preorderDates !== [] ? max($preorderDates) : null;
+        $shippingNotice = null;
+        if ($hasPreorder && $latestReleaseDate) {
+            $shippingNotice = __('messages.ships_when_ready_from', ['date' => $latestReleaseDate]);
+        } elseif ($hasBackorder) {
+            $wait = config('shop.backorder_estimated_wait', '2–3 weeks');
+            $shippingNotice = __('messages.ships_when_ready_wait', ['wait' => $wait]);
+        }
+
         return [
             'subtotal_cents' => $subtotal,
             'discount_cents' => $discount,
@@ -308,6 +350,10 @@ class CheckoutService
             'coupon' => $coupon,           // only when the coupon won
             'choice' => $choice,           // applied, offer, coupon not used
             'can_checkout' => $summary['can_checkout'],
+            'has_preorder' => $hasPreorder,
+            'has_backorder' => $hasBackorder,
+            'expected_ship_date' => $latestReleaseDate,
+            'shipping_notice' => $shippingNotice,
         ];
     }
 

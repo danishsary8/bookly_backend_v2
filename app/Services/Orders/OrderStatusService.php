@@ -80,7 +80,9 @@ class OrderStatusService
             $from = $locked->status;
 
             if ($customer && $from !== OrderStatus::Pending) {
-                throw ValidationException::withMessages(['status' => 'This order can no longer be cancelled. Please contact support.']);
+                if (! ($locked->is_waiting_stock && in_array($from, [OrderStatus::Paid, OrderStatus::Processing], true))) {
+                    throw ValidationException::withMessages(['status' => 'This order can no longer be cancelled. Please contact support.']);
+                }
             }
             if ($staff && ! $system && ! in_array($to, self::STAFF_TARGETS, true)) {
                 throw ValidationException::withMessages(['status' => "Staff cannot set an order to {$to->value}."]);
@@ -100,7 +102,10 @@ class OrderStatusService
                 $locked->payments()->where('status', PaymentStatus::Pending)->update(['status' => PaymentStatus::Succeeded]);
             }
 
-            $locked->update(['status' => $to]);
+            $locked->update([
+                'status' => $to,
+                'is_waiting_stock' => $to === OrderStatus::Cancelled ? false : $locked->is_waiting_stock,
+            ]);
             $locked->statusHistory()->create(['status' => $to, 'note' => $note, 'changed_by_staff_id' => $staff?->id]);
 
             if ($staff) {

@@ -14,13 +14,18 @@ class OrderItem extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['book_variant_id', 'quantity', 'unit_price', 'subtotal', 'discount_amount', 'title', 'format', 'sku', 'isbn', 'authors'];
+    protected $fillable = [
+        'book_variant_id', 'quantity', 'unit_price', 'subtotal', 'discount_amount',
+        'title', 'format', 'sku', 'isbn', 'authors',
+        'is_preorder', 'is_backorder', 'expected_date',
+    ];
 
     protected function casts(): array
     {
         return [
             'quantity' => 'integer', 'unit_price' => 'decimal:2', 'subtotal' => 'decimal:2', 'discount_amount' => 'decimal:2',
             'format' => BookFormat::class, 'authors' => 'array',
+            'is_preorder' => 'boolean', 'is_backorder' => 'boolean', 'expected_date' => 'date',
         ];
     }
 
@@ -33,6 +38,9 @@ class OrderItem extends Model
             'sku' => $variant->sku,
             'isbn' => $variant->isbn,
             'authors' => $variant->book?->authors->sortBy('id')->pluck('name')->values()->all() ?? [],
+            'is_preorder' => $variant->isPreorder(),
+            'is_backorder' => $variant->isBackorder(),
+            'expected_date' => $variant->isPreorder() ? $variant->release_date : null,
         ];
     }
 

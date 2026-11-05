@@ -38,9 +38,10 @@ return [
     'email_send_failed' => 'យើងមិនអាចផ្ញើអ៊ីមែលបាននៅពេលនេះទេ។ សូមព្យាយាមម្តងទៀតក្នុងរយៈពេលពីរបីនាទី។',
     'cart_reminders_stopped' => 'រួចរាល់។ អ្នកនឹងលែងទទួលបានអ៊ីមែលរំលឹកពីកន្ត្រកទៀតហើយ។ អ្នកអាចបើកវាឡើងវិញនៅក្នុង គណនី → ប្រវត្តិរូប។',
     'cart_reminders_link_invalid' => 'តំណភ្ជាប់នេះមិនត្រឹមត្រូវទេ។ អ្នកអាចបិទការរំលឹកពីកន្ត្រកនៅក្នុង គណនី → ប្រវត្តិរូប។',
-    // TODO(antigravity): translate to Khmer (owner 2026-11-04: Antigravity does all Khmer translation). English for now.
-    'ebook_device_limit' => 'You already read on :max devices. Remove one in Account → My ebooks to read here.',
-    'ebook_device_remove_wait' => 'You can remove another device on :date. Contact us if you need it sooner.',
-    'ebook_not_owned' => 'Buy this ebook to read it all. You can read the free preview.',
-    'ebook_not_ready' => 'This ebook is being prepared. Please try again in a few minutes.',
+    'ebook_device_limit' => 'អ្នកបានអាននៅលើឧបករណ៍ចំនួន :max រួចហើយ។ សូមលុបមួយចេញនៅក្នុង គណនី → សៀវភៅអេឡិចត្រូនិចរបស់ខ្ញុំ ដើម្បីអាននៅទីនេះ។',
+    'ebook_device_remove_wait' => 'អ្នកអាចលុបឧបករណ៍មួយផ្សេងទៀតនៅថ្ងៃ :date។ សូមទាក់ទងមកយើងប្រសិនបើអ្នកត្រូវការលឿនជាងនេះ។',
+    'ebook_not_owned' => 'ទិញសៀវភៅអេឡិចត្រូនិចនេះដើម្បីអានទាំងមូល។ អ្នកអាចអានការមើលសាកល្បងដោយឥតគិតថ្លៃ។',
+    'ebook_not_ready' => 'សៀវភៅអេឡិចត្រូនិចនេះកំពុងត្រូវបានរៀបចំ។ សូមព្យាយាមម្តងទៀតក្នុងរយៈពេលពីរបីនាទី។',
+    'ships_when_ready_from' => 'ដឹកជញ្ជូននៅពេលទំនិញទាំងអស់រួចរាល់ (ចាប់ពីថ្ងៃ :date)',
+    'ships_when_ready_wait' => 'ដឹកជញ្ជូននៅពេលទំនិញទាំងអស់រួចរាល់ (ប្រហែល :wait)',
 ];

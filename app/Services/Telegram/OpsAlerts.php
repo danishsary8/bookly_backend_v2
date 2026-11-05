@@ -62,6 +62,19 @@ class OpsAlerts
         ])), staff: true);
     }
 
+    public function orderReadyToShip(Order $order): void
+    {
+        $order->loadMissing(['customer', 'items']);
+        $shop = rtrim((string) config('shop.url'), '/');
+
+        $this->send(implode("\n", array_filter([
+            "📦 Order {$order->order_number} is ready to ship",
+            "Customer: {$order->customer?->name}",
+            "Items: {$order->items->sum('quantity')}",
+            $shop !== '' ? "Open: {$shop}/admin/orders/{$order->id}" : null,
+        ])), staff: true);
+    }
+
     public function lowStock(BookVariant $variant): void
     {
         $variant->loadMissing('book');

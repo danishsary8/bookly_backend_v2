@@ -57,6 +57,10 @@ class CheckoutController extends Controller
             'province_code' => $totals['province_code'],
             'province_name' => $totals['province_name'],
             'estimated_delivery' => $totals['estimated_delivery'],
+            'has_preorder' => $totals['has_preorder'],
+            'has_backorder' => $totals['has_backorder'],
+            'expected_ship_date' => $totals['expected_ship_date'],
+            'shipping_notice' => $totals['shipping_notice'],
         ]]);
     }
 

@@ -30,6 +30,9 @@ return [
     // request (the uptime monitor's 5-minute ping is enough). Leave it off where `schedule:work` runs.
     'maintenance_on_request' => (bool) env('RUN_MAINTENANCE_ON_REQUEST', false),
 
+    // Customer notice text for backorders ("ships in about 2–3 weeks").
+    'backorder_estimated_wait' => env('BACKORDER_ESTIMATED_WAIT', '2–3 weeks'),
+
     // Maximum marketing emails sent per shop-time calendar day (Resend free allows 100/day total).
     'marketing_daily_limit' => (int) env('MARKETING_DAILY_LIMIT', 60),
 ];

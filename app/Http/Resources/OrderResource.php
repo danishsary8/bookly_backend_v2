@@ -27,6 +27,8 @@ class OrderResource extends JsonResource
                 ? app(KhqrPaymentService::class)->deadline($this->resource)->toIso8601String()
                 : null,
             'placed_at' => $this->placed_at,
+            'is_waiting_stock' => (bool) $this->is_waiting_stock,
+            'expected_ship_date' => $this->expected_ship_date?->format('Y-m-d'),
             'item_count' => $this->whenLoaded('items', fn () => $this->items->sum('quantity')),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
@@ -38,6 +40,9 @@ class OrderResource extends JsonResource
                 'unit_price_usd' => $item->unit_price,
                 'subtotal_usd' => $item->subtotal,
                 'discount_usd' => $item->discount_amount ?? '0.00', // this line's share of the order discount
+                'is_preorder' => (bool) $item->is_preorder,
+                'is_backorder' => (bool) $item->is_backorder,
+                'expected_date' => $item->expected_date?->format('Y-m-d'),
             ])->values()),
             'subtotal_usd' => $this->subtotal,
             'discount_usd' => $this->discount_amount,
@@ -66,7 +71,7 @@ class OrderResource extends JsonResource
                 'latitude' => $this->shipping_latitude !== null ? (float) $this->shipping_latitude : null,
                 'longitude' => $this->shipping_longitude !== null ? (float) $this->shipping_longitude : null,
             ],
-            'can_cancel' => $this->status === OrderStatus::Pending,
+            'can_cancel' => $this->status === OrderStatus::Pending || ($this->is_waiting_stock && in_array($this->status, [OrderStatus::Paid, OrderStatus::Processing], true)),
             'delivery_note' => $this->delivery_note,
             'is_gift' => (bool) $this->is_gift,
             'gift_message' => $this->gift_message,
