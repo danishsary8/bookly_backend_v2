@@ -1880,7 +1880,7 @@ paths:
     post:
       tags: [Staff catalog]
       summary: '(admin) Preview CSV book import: nothing is written'
-      description: 'Same columns as the export (book_id ignored), one row per format; only `sku` is a required column. A row updates the format with the same SKU (any case), else the same ISBN (digits/X compared); otherwise it creates a new book + format (needs title, format, sku, price_usd; new books are drafts unless `status` says otherwise; rows with the same title and authors become one book). On an update a blank cell keeps the current value. Categories must exist; authors, publisher and series are created. `publish_at` is read in shop time. Max 2 MB and 2000 rows; quoted cells may span lines.'
+      description: 'Same columns as the export (book_id ignored), one row per format; only `sku` is a required column. A row updates the format with the same SKU (any case), else the same ISBN (digits/X compared); otherwise it creates a new book + format (needs title, format, sku, price_usd; new books are drafts unless `status` says otherwise; rows with the same title and authors become one book). Optional audience fields: `age_min`, `age_max` (0–18, max ≥ min), `school_grade` (1–12), `level` (A1–C2). On an update a blank cell keeps the current value. Categories must exist; authors, publisher and series are created. `publish_at` is read in shop time. Max 2 MB and 2000 rows; quoted cells may span lines.'
       requestBody: { content: { multipart/form-data: { schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } } } } }
       responses:
         '200':

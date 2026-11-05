@@ -78,6 +78,10 @@ class BookCsvController extends Controller
             'A classic novel of the Jazz Age.',
             'live',
             '',
+            '', // age_min
+            '', // age_max
+            '', // school_grade
+            '', // level
             'paperback',
             'BK-GATSBY-PB',
             '9780743273565',
@@ -184,6 +188,10 @@ class BookCsvController extends Controller
             $book->description ?? '',
             $book->status,
             $book->publish_at?->timezone(config('shop.timezone'))->format('Y-m-d H:i') ?? '',
+            $book->age_min ?? '',
+            $book->age_max ?? '',
+            $book->school_grade ?? '',
+            $book->level ?? '',
             $variant?->format?->value ?? '',
             $variant?->sku ?? '',
             $variant?->isbn ?? '',
