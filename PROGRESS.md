@@ -1,3 +1,83 @@
+# Bookly Phase 4 — Pre-order & Backorder
+
+## Summary for Danish
+
+### 1. Pull Request Links
+- **Backend PR**: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/preorder-backorder
+- **Frontend PR**: https://github.com/danishsary8/bookly_frontend/pull/new/feature/preorder-backorder
+
+### 2. Merge Order
+**Merge backend first, wait for Render to deploy and run migrations, then merge frontend to Vercel.**
+- **Why**: The backend adds schema migrations (`release_date`, `allow_backorder` on `book_variants`, `is_preorder`, `is_backorder`, `expected_date` on `order_items`, `is_waiting_stock`, `expected_ship_date` on `orders`), inventory constraint updates, checkout quote calculations, customer/staff notifications, and the hourly scheduled release check command. Frontend components depend on the updated API schema.
+
+### 3. Decisions & What Changed
+- **Backend (`bookly_backend_v2`)**:
+  - **Database Migration (`2026_11_07_100001_add_preorder_backorder_fields.php`)**:
+    - Added `release_date` (date, nullable) and `allow_backorder` (bool, default false) to `book_variants`.
+    - Updated PostgreSQL constraint `book_variants_stock_check`: `CHECK (stock_quantity >= 0 OR allow_backorder = true OR release_date IS NOT NULL)`. Normal physical items are strictly protected against overselling; only pre-orders and back-orders can decrement into negative stock.
+    - Added `is_preorder` (bool, default false), `is_backorder` (bool, default false), and `expected_date` (date, nullable) to `order_items` snapshot.
+    - Added `is_waiting_stock` (bool, default false) and `expected_ship_date` (date, nullable) to `orders`.
+  - **Configuration**:
+    - Added `'backorder_estimated_wait' => env('BACKORDER_ESTIMATED_WAIT', '2–3 weeks')` to `config/shop.php`.
+  - **Cart & Checkout**:
+    - `CartService` permits adding and holding items that are pre-orders or back-orders without on-hand stock blocking.
+    - `CheckoutService` flags `is_waiting_stock = true` when an order includes pre-orders or back-orders. Expected ship date is calculated as the maximum of any pre-order release date and the back-order estimated wait.
+    - Shipping policy: Single combined shipment (no split shipping). Checkout displays "Ships when all items are ready (from <latest date>)".
+    - Both KHQR and Cash on Delivery (COD) payment methods work seamlessly.
+  - **Cancellation Policy**:
+    - Customer can cancel any waiting pre-order/backorder order anytime before dispatch (`OrderStatus::Processing` or `OrderStatus::Paid` with `is_waiting_stock = true`), automatically releasing reserved stock.
+  - **FIFO Allocation & Restocking (`PreorderAllocationService`)**:
+    - When new stock arrives (via staff restock, stock edit, cancellation return), inventory is allocated to waiting orders strictly in FIFO order (`placed_at ASC, id ASC`).
+    - When all lines in an order become ready, the order is marked `is_waiting_stock = false`, and staff receive an admin notification plus Telegram alert: "Order X is ready to ship".
+  - **Automated Pre-order Release & Notifications**:
+    - Console command `preorders:check-releases` scheduled hourly in `App\Support\MaintenanceTasks`.
+    - Automatically checks when a pre-order release date has arrived and emails customers `PreorderReleasedNotification`.
+    - When staff change/delay a release date in admin, `PreorderDelayedNotification` email is dispatched to all affected customers with the reason and new expected date.
+  - **Staff Catalog & Orders Management**:
+    - Variant admin supports editing `release_date`, `allow_backorder`, and optional `delay_note`.
+    - Staff orders API supports filtering by `status=waiting`.
+  - **OpenAPI & Docs**:
+    - Updated `public/openapi.yaml` and `docs/API.md`.
+
+- **Frontend (`bookly_frontend`)**:
+  - **Catalog & Book Details (`BookDetailPage.tsx`, `FormatPicker.tsx`)**:
+    - Pre-order format displays "Pre-order" badge with release date and "Pre-order now" CTA button with "Ships from <release_date>" banner.
+    - Back-order format (0 stock with back-order allowed) displays "Back-order" badge and "Order now" CTA button with "Ships in about 2–3 weeks" banner.
+  - **Checkout Page (`CheckoutPage.tsx`)**:
+    - Single shipment notice banner appears during checkout if the cart contains pre-orders or back-orders, informing the customer: "Ships when all items are ready (from <latest date>)".
+  - **Admin Orders & Catalog (`OrdersAdminPage.tsx`, `VariantDialog.tsx`)**:
+    - Orders admin includes a "Waiting" filter tab and visual "Waiting for stock / release" badge.
+    - Variant dialog allows staff to manage `release_date`, toggle back-order allowance, and specify a `delay_note` for customer notifications.
+  - **Internationalization**:
+    - Complete, natural English (`en.ts`) and Khmer (`km.ts`) translations for all pre-order, back-order, single shipment notices, and admin options.
+  - **Contract & Types**:
+    - Generated updated TypeScript types from OpenAPI (`src/api/schema.d.ts`).
+
+### 4. Check Results
+- **Backend (`bookly_backend_v2`)**:
+  - `php artisan test`: 842 passed, 0 failed (16,887 assertions).
+  - `vendor/bin/pint --test`: PASSED (100% PSR-12 code style clean).
+  - `ApiContractTest`: PASSED (3 passed, 29 assertions).
+- **Frontend (`bookly_frontend`)**:
+  - `npm run lint`: PASSED (0 errors, 1 pre-existing warning).
+  - `npm run typecheck`: PASSED (0 TypeScript errors).
+  - `npm test`: 97 passed, 1 skipped (583 tests passed).
+  - `npm run build`: PASSED (production bundle built in 17s).
+
+### 5. Action Required by Danish
+1. **Review and Merge Backend PR**:
+   - Merge `feature/preorder-backorder` into `main` on `bookly_backend_v2`.
+   - Migration `2026_11_07_100001_add_preorder_backorder_fields.php` will run automatically on Render.
+2. **Review and Merge Frontend PR**:
+   - Merge `feature/preorder-backorder` into `main` on `bookly_frontend` (Vercel builds and deploys automatically).
+3. **Smoke Verification**:
+   - Edit a book in `/admin/books`, set a variant's `release_date` to a future date, and confirm "Pre-order" appears in the storefront.
+   - Set another variant to 0 stock with "Allow back-orders" enabled, and confirm "Order now, ships in about 2–3 weeks" appears.
+   - Add both to cart and proceed to checkout: verify "Ships when all items are ready" banner.
+   - Place an order and verify it appears with the "Waiting for stock / release" badge in `/admin/orders?status=waiting`.
+
+---
+
 # Bookly Phase 2 — Ebooks (protected browser reader)
 
 ## Summary for Danish
@@ -274,8 +354,3 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
   - Formatted and placed the comprehensive `## Summary for Danish` at the very top of `PROGRESS.md`.
 - Decisions I made: Documented Symfony transitive audit advisories as requested by prompt constraints.
 - NEEDS DANISH: Create PRs, review according to recommended merge order, and run quick smoke checks.
-
-
-
-
-

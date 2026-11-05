@@ -42,4 +42,6 @@ return [
     'ebook_device_remove_wait' => 'You can remove another device on :date. Contact us if you need it sooner.',
     'ebook_not_owned' => 'Buy this ebook to read it all. You can read the free preview.',
     'ebook_not_ready' => 'This ebook is being prepared. Please try again in a few minutes.',
+    'ships_when_ready_from' => 'Ships when all items are ready (from :date)',
+    'ships_when_ready_wait' => 'Ships when all items are ready (in about :wait)',
 ];

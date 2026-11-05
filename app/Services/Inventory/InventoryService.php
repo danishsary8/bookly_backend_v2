@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderReturn;
 use App\Models\StaffUser;
 use App\Models\StockAlert;
+use App\Services\Orders\PreorderAllocationService;
 use Illuminate\Support\Facades\DB;
 
 /** The only place stock changes, so every change has a matching inventory_movements row. */
@@ -31,6 +32,9 @@ class InventoryService
             $this->log($locked, $delta, $reason, $staff);
             if ($before <= 0 && $newQuantity > 0) {
                 $this->onStockRestored($locked);
+            }
+            if ($delta > 0) {
+                app(PreorderAllocationService::class)->allocateForVariant($locked);
             }
             $variant->setRawAttributes($locked->getAttributes(), true);
         });
@@ -80,6 +84,9 @@ class InventoryService
             if ($before <= 0 && $newQuantity > 0) {
                 $this->onStockRestored($locked);
             }
+            if ($quantity > 0) {
+                app(PreorderAllocationService::class)->allocateForVariant($locked);
+            }
 
             $variant->setRawAttributes($locked->getAttributes(), true);
 
@@ -97,6 +104,9 @@ class InventoryService
         if ($before <= 0 && $variant->stock_quantity > 0) {
             $this->onStockRestored($variant);
         }
+        if ($quantity > 0) {
+            app(PreorderAllocationService::class)->allocateForVariant($variant);
+        }
     }
 
     /** Puts returned copies back into stock when a return is refunded. */
@@ -108,6 +118,9 @@ class InventoryService
         $this->log($variant, $quantity, InventoryReason::ReturnIn, $staff, 'return', $return->id);
         if ($before <= 0 && $variant->stock_quantity > 0) {
             $this->onStockRestored($variant);
+        }
+        if ($quantity > 0) {
+            app(PreorderAllocationService::class)->allocateForVariant($variant);
         }
     }
 

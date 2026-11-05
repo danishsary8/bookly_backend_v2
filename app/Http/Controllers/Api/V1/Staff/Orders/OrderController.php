@@ -20,7 +20,11 @@ class OrderController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $data = $request->validate([
-            'status' => ['nullable', Rule::enum(OrderStatus::class)],
+            'status' => ['nullable', 'string', function ($attribute, $value, $fail) {
+                if ($value !== 'waiting' && OrderStatus::tryFrom($value) === null) {
+                    $fail('The selected status is invalid.');
+                }
+            }],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'q' => ['nullable', 'string', 'max:190'],
             'from' => ['nullable', 'date'],
@@ -33,7 +37,13 @@ class OrderController extends Controller
         return StaffOrderResource::collection(
             Order::query()
                 ->with(['customer', 'items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon'])
-                ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+                ->when($data['status'] ?? null, function ($q, $status) {
+                    if ($status === 'waiting') {
+                        $q->where('is_waiting_stock', true);
+                    } else {
+                        $q->where('status', $status);
+                    }
+                })
                 ->when($data['payment_method'] ?? null, fn ($q, $method) => $q->where('payment_method', $method))
                 ->when($term, fn ($q) => $q->where(fn ($w) => $w
                     ->where('order_number', 'ilike', $term)

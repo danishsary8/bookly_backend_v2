@@ -21,12 +21,15 @@ class Order extends Model
         'coupon_id', 'status', 'subtotal', 'discount_amount', 'shipping_fee', 'tax_amount', 'total_amount',
         'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note', 'is_gift', 'gift_message',
         'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
+        'is_waiting_stock', 'expected_ship_date',
     ];
 
     protected function casts(): array
     {
         return [
             'is_gift' => 'boolean',
+            'is_waiting_stock' => 'boolean',
+            'expected_ship_date' => 'date',
             'status' => OrderStatus::class,
             'payment_method' => PaymentMethod::class,
             'subtotal' => 'decimal:2',

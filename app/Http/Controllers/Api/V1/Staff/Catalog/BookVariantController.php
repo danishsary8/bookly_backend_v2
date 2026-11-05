@@ -10,8 +10,10 @@ use App\Models\Book;
 use App\Models\BookVariant;
 use App\Services\Admin\AuditLogger;
 use App\Services\Inventory\InventoryService;
+use App\Services\Orders\PreorderAllocationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -61,6 +63,13 @@ class BookVariantController extends Controller
             $this->checkStaffPrice($request, $variant->price_usd, $data['price_usd']);
         }
 
+        $oldRelease = $variant->release_date?->format('Y-m-d');
+        $newRelease = array_key_exists('release_date', $data) && $data['release_date']
+            ? Carbon::parse($data['release_date'])->format('Y-m-d')
+            : null;
+        $delayNote = $data['delay_note'] ?? null;
+        unset($data['delay_note']);
+
         DB::transaction(function () use ($variant, $data, $request) {
             $before = $variant->getAttributes();
 
@@ -77,6 +86,10 @@ class BookVariantController extends Controller
                 $this->audit->custom($request->user(), 'updated', $variant, array_intersect_key($before, $only), array_intersect_key($after, $only));
             }
         });
+
+        if ($newRelease !== null && $newRelease !== $oldRelease && ($oldRelease === null || $newRelease > $oldRelease)) {
+            app(PreorderAllocationService::class)->delayPreorder($variant, $newRelease, $delayNote);
+        }
 
         return new StaffBookVariantResource($variant);
     }
@@ -119,10 +132,13 @@ class BookVariantController extends Controller
     private function rules(): array
     {
         return [
-            'stock_quantity' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
+            'stock_quantity' => ['sometimes', 'integer', 'min:-1000000', 'max:1000000'],
             'low_stock_threshold' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
             'cover_image_url' => ['nullable', 'url:http,https', 'max:500'],
             'is_active' => ['sometimes', 'boolean'],
+            'release_date' => ['nullable', 'date'],
+            'allow_backorder' => ['sometimes', 'boolean'],
+            'delay_note' => ['nullable', 'string', 'max:500'],
         ];
     }
 }
