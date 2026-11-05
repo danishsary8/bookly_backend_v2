@@ -15,6 +15,17 @@ working with today's settings.
 - Later notes from you (kept): 100+ demo books with good stock; "buy this book, get a free sticker/highlight pen"
   offer (phase 5). Khmer: new `catalogFilters` group (Antigravity).
 
+## LATER — your setup list (on hold until you say "let's do it")
+- [ ] Ebooks: create a PRIVATE Cloudflare R2 bucket + API keys → Render: EBOOK_DISK=r2_private, R2_PRIVATE_BUCKET,
+  R2_PRIVATE_ENDPOINT, R2_PRIVATE_ACCESS_KEY_ID, R2_PRIVATE_SECRET_ACCESS_KEY → redeploy → upload a test PDF.
+- [ ] Google Maps key (steps in "Delivery map pin" below).
+- [ ] Render: check APP_DEBUG=false.
+- [ ] Bakong token: renew before 1 Feb 2027.
+- [ ] Vercel Analytics: Enable (if not done).
+- [ ] Live checks (Parts 2–3 below) after each merge.
+- [ ] Own domain (optional, ~$10–15/year).
+- [ ] Decide whether to run the sample books seeder anywhere besides local.
+
 ## YOUR GUIDE (2026-11-05) — start here, top to bottom
 
 Everything below is your part. All code is done. Tick as you go.
