@@ -852,6 +852,7 @@ paths:
       - { name: school_grade, in: query, schema: { type: integer, minimum: 1, maximum: 12 } }
       - { name: level, in: query, schema: { type: string, enum: [A1, A2, B1, B2, C1, C2] } }
       - { name: has_ebook, in: query, schema: { type: boolean } }
+      - { name: coming_soon, in: query, schema: { type: boolean }, description: 'At least one active format has a future release_date' }
       - { name: facets, in: query, schema: { type: boolean }, description: 'Adds `facets` {formats, languages, categories (top-level id), school_grades, levels, with_age} = book counts with the other filters applied' }
       - name: sort
         in: query
@@ -864,6 +865,7 @@ paths:
           - price_desc
           - best_selling
           - most_reviewed
+          - release_soon
           - title
           - rating
       - name: ids
@@ -1007,6 +1009,30 @@ paths:
                   data:
                     $ref: '#/components/schemas/BookDetail'
                     nullable: true
+  /catalog/rows:
+    get:
+      tags: [Catalog]
+      summary: Automatic catalogue shelves (cached 15 minutes)
+      parameters:
+      - { name: category_id, in: query, schema: { type: integer }, description: 'Only best_sellers in this category and its descendants' }
+      responses:
+        '200':
+          description: Nonempty rows with up to 12 currently visible books each
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, total, books]
+                      properties:
+                        id: { type: string, enum: [best_sellers, new_arrivals, coming_soon, ebook_deals] }
+                        total: { type: integer }
+                        books: { type: array, maxItems: 12, items: { $ref: '#/components/schemas/BookCard' } }
+        '422': { $ref: '#/components/responses/Validation' }
   /catalog/recommendations:
     get:
       tags: [Public]

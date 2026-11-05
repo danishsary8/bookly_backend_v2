@@ -17,6 +17,10 @@ Phase 5 is in progress on `feature/shop-extras` in both repositories. Nothing ha
 
 ## Work
 
+- Part A committed in both repos. Focused backend signals: 5 passed; frontend cards: 7 passed; price suggestion: 1 passed. Full backend run: 853 passed (before B tests were added). Frontend full run: 591 passed, 3 existing skips; lint 0 errors (one existing VisitorAnalytics refresh warning). Build overlapped subsequent B edits and must be rerun. No push until final checks.
+- Part B: catalogue row/filter and OpenAPI route tests 8 passed; frontend row/link tests 2 passed. Best-selling catalogue sort uses 30 days to match home/category shelves. Price bounds apply to the selected format (or ebook when has_ebook), preventing an expensive ebook qualifying through a cheap paperback. Cache stores plain ids/totals, rechecks visibility on each read, and expires in 15 minutes.
+- Test-run decision: run backend tests serially against the local test database. An accidental overlap initially caused missing-table errors; rerunning the signal suite alone passed.
+
 - Read repository instructions, READMEs, design tokens, roadmap, handoff worklog and approved v3 design. Both working trees were clean.
 - Fetched both remotes and created the requested branches from current `origin/main`.
 

@@ -1,5 +1,7 @@
 # API Reference (v1)
 
+`GET /catalog/rows`: public, catalogue rate limit; optional `category_id` gives only best sellers in that category and descendants. `data` contains nonempty `{id, total, books}` rows, at most 12 books each. Fixed ids: `best_sellers` (quantities in non-cancelled, non-deleted orders placed in 30 days, positive sales only), `new_arrivals` (newest books), `coming_soon` (active future format release, soonest first), `ebook_deals` (active ebooks strictly under $5, cheapest first). Ids/totals cache 15 minutes; visibility, prices and stock are read fresh. Total is the cached matching count. Frontend translates titles. `GET /books` adds `coming_soon=1` and `sort=release_soon`; `best_selling` now uses the same 30-day period as the row.
+
 Shop signals: book cards/detail expose nullable `sold_count` (copies in non-cancelled, non-deleted orders in the last 90 days, minimum 5, cached one hour). `low_stock_remaining` on cards, variants and cart lines is a real count from 1 through `config/shop.php` `low_stock_badge` (default 5), otherwise null. Cards use the cheapest active format (id breaks price ties); variants/cart use that format. Digital, pre-order, backorder and out-of-stock formats never advertise low stock. Existing `offer.ends_at` is the source for a Limited label; open-ended percentage offers must not display it.
 
 Base URL: `/api/v1`. Send `Accept: application/json`. Authenticated calls send `Authorization: Bearer <token>`.

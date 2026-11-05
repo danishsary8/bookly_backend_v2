@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\CartReminderController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
+use App\Http\Controllers\Api\V1\Catalog\CatalogRowsController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
 use App\Http\Controllers\Api\V1\Catalog\CollectionController;
 use App\Http\Controllers\Api\V1\Catalog\PublisherController;
@@ -85,6 +86,7 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 | Public catalog (no login needed)
 */
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
+Route::get('/catalog/rows', CatalogRowsController::class)->middleware('throttle:catalog');
 Route::get('/catalog/recommendations', [BookController::class, 'recommendations'])->middleware('throttle:catalog');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
 Route::get('/books/{book}/next-volume', [BookController::class, 'nextVolume'])->whereNumber('book');
