@@ -19,7 +19,7 @@ class SupportToolsController extends Controller
     public function store(Request $request)
     {
         $model = SupportQuickReply::create($request->validate($this->rules()));
-        app(AuditLogger::class)->custom($request->user(), 'created', $model, null, $model->getAttributes());
+        app(AuditLogger::class)->custom($request->user(), 'created', $model, null, ['template_created' => true]);
 
         return response()->json(['data' => $model], 201);
     }
@@ -28,14 +28,19 @@ class SupportToolsController extends Controller
     {
         $before = $reply->getAttributes();
         $reply->update($request->validate($this->rules()));
-        app(AuditLogger::class)->custom($request->user(), 'updated', $reply, $before, $reply->getAttributes());
+        // Templates can accidentally contain personal details; audit changes without copying their text into logs.
+        app(AuditLogger::class)->custom($request->user(), 'updated', $reply, null, [
+            'title_changed' => $before['title'] !== $reply->title,
+            'english_changed' => $before['body_en'] !== $reply->body_en,
+            'khmer_changed' => $before['body_km'] !== $reply->body_km,
+        ]);
 
         return response()->json(['data' => $reply]);
     }
 
     public function destroy(Request $request, SupportQuickReply $reply)
     {
-        app(AuditLogger::class)->custom($request->user(), 'deleted', $reply, $reply->getAttributes(), null);
+        app(AuditLogger::class)->custom($request->user(), 'deleted', $reply, ['template_deleted' => true], null);
         $reply->delete();
 
         return response()->noContent();

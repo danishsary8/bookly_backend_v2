@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Support;
 
+use App\Models\AdminAuditLog;
 use App\Models\Customer;
 use App\Models\StaffUser;
 use App\Models\SupportConversation;
@@ -117,6 +118,12 @@ class SupportChatTest extends TestCase
         $this->assertNotNull($old->fresh()->anonymised_at);
         $this->assertNotEquals('Personal detail', $old->messages()->first()->body);
         $this->assertEquals($owner->id, $recent->fresh()->customer_id);
+        $staff = StaffUser::factory()->withTwoFactor()->create();
+        $staff->forceFill(['support_telegram_user_id' => 42])->save();
+        $this->assertArrayNotHasKey('support_telegram_user_id', $staff->toArray());
+        $this->asToken($staff->createToken('test', $staff->tokenAbilities())->plainTextToken);
+        $this->postJson("/api/v1/staff/support/conversations/{$old->id}/assign", ['staff_id' => $staff->id])->assertUnprocessable();
+        $this->postJson("/api/v1/staff/support/conversations/{$old->id}/status", ['status' => 'open'])->assertUnprocessable();
     }
 
     public function test_message_quota_and_demo_writes_are_enforced(): void
@@ -147,6 +154,9 @@ class SupportChatTest extends TestCase
         $reply = $this->postJson('/api/v1/staff/support/quick-replies', $template)->assertCreated()->json('data.id');
         $this->patchJson("/api/v1/staff/support/quick-replies/$reply", [...$template, 'title' => 'Updated'])->assertOk();
         $this->deleteJson("/api/v1/staff/support/quick-replies/$reply")->assertNoContent();
+        $audit = AdminAuditLog::where('entity_type', 'support_quick_reply')->get()->toJson();
+        $this->assertStringNotContainsString($template['body_en'], $audit);
+        $this->assertStringNotContainsString('Your parcel', $audit);
         $this->postJson('/api/v1/staff/support/telegram-users', ['staff_id' => $staff->id, 'telegram_user_id' => 42])->assertForbidden();
         $this->asToken($token)->getJson('/api/v1/staff/support/conversations')->assertForbidden();
     }

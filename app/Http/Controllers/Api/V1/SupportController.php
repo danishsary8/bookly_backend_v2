@@ -138,6 +138,9 @@ class SupportController extends Controller
         }
         DB::transaction(function () use ($conversation, $input) {
             $model = SupportConversation::lockForUpdate()->findOrFail($conversation);
+            if ($model->anonymised_at) {
+                throw ValidationException::withMessages(['staff_id' => __('support.closed')]);
+            }
             $model->assigned_staff_id = $input['staff_id'];
             $model->version++;
             $model->save();

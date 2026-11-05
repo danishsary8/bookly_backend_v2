@@ -76,13 +76,13 @@ return new class extends Migration
 
         // Preserve explicit role customisation, granting support only to staff who already handle orders.
         DB::table('staff_users')->whereNotNull('permissions')->orderBy('id')->each(function ($staff) {
-            $permissions = json_decode($staff->permissions, true);
+            $permissions = json_decode($staff->permissions, true) ?? [];
             if (in_array('orders:manage', $permissions, true) && ! in_array('support:manage', $permissions, true)) {
                 DB::table('staff_users')->where('id', $staff->id)->update(['permissions' => json_encode([...$permissions, 'support:manage'])]);
             }
         });
         DB::table('personal_access_tokens')->where('tokenable_type', 'App\\Models\\StaffUser')->orderBy('id')->each(function ($token) {
-            $abilities = json_decode($token->abilities, true);
+            $abilities = json_decode((string) $token->abilities, true) ?? [];
             if (in_array('orders:manage', $abilities, true) && ! in_array('support:manage', $abilities, true)) {
                 DB::table('personal_access_tokens')->where('id', $token->id)->update(['abilities' => json_encode([...$abilities, 'support:manage'])]);
             }
