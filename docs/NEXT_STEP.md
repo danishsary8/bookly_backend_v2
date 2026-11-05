@@ -1,6 +1,29 @@
 # Next step
 
-## Now (2026-10-15)
+## Current state (2026-11-06 — Antigravity overnight handoff to Claude Code)
+
+### 1. Overnight Deliverables Completed (Branch: `feature/antigravity-overnight`)
+All tasks (A0 through A9) from `ANTIGRAVITY_PROMPT.md` are 100% finished, tested, committed, and pushed.
+- **Backend HEAD Commit:** `f661d20` on `feature/antigravity-overnight` (825 passed tests, Pint clean).
+- **Frontend HEAD Commit:** `239aff3` on `feature/antigravity-overnight` (567 passed tests, lint & build clean).
+- **Local Database:** Migrated up to `2026_11_05_100004_install_starter_categories` and seeded with 132 realistic books across all 12 categories via `SampleCatalogSeeder` (idempotent, 100% verified).
+
+### 2. Immediate Owner / Claude Action (Merges)
+Danish reviews and merges:
+1. Backend PR: https://github.com/danishsary8/bookly_backend_v2/compare/main...feature/antigravity-overnight
+   Wait for Render deploy to show "Live".
+2. Frontend PR: https://github.com/danishsary8/bookly_frontend/compare/main...feature/antigravity-overnight
+   Wait for Vercel deploy to show "Ready".
+
+### 3. Next Engineering Phase: v3 Phase 2 (Ebooks)
+- Design draft created: `docs/superpowers/specs/2026-11-06-ebooks-design-DRAFT.md`.
+- Read section 10 and confirm with Danish:
+  1. PDF master recommendation (preserves exact Khmer typography and ligatures on mobile).
+  2. Cloudflare R2 bucket setup (zero egress fee).
+  3. Device limit policy (max 3 devices, 30-day deregistration window).
+- Once approved, proceed to implement schema migrations and the browser-only canvas streaming reader.
+
+## Earlier (2026-10-15)
 Security review done; the fixes wait for the owner's merge (order and owner steps in the frontend repo's
 docs/NEXT_STEP.md): `fix/otp-wrong-guess-limit` first, then each pair backend → frontend, `fix/backup-public-key`,
 then the two `docs/security-review` branches. After merging: make the backup key (DEPLOYMENT.md → 1b) and run the

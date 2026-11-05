@@ -534,3 +534,15 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   `payments:expire-khqr` every minute, named limiters `khqr-poll` / `khqr-action` (plain `throttle:N,1` shares one counter
   per user across routes: found in the browser check). No migration. Tests: `KhqrBuilderTest` (6), `KhqrPaymentTest`
   (16). 761 tests, pint clean. Docs: API.md, openapi.yaml, RATE_LIMITS.md, `.env.example`.
+
+- [x] Antigravity overnight tasks A0-A9 (2026-11-06, branch `feature/antigravity-overnight`): Full overnight delivery per `ANTIGRAVITY_PROMPT.md`.
+  - A1 (Frontend): Natural Khmer translations for `catalogFilters` in `src/i18n/km.ts`.
+  - A2 (Backend + Frontend): Audience fields (`age_min`, `age_max`, `school_grade`, `level`) in CSV import/export, sample template, validation rules (`age_max >= age_min`, CEFR levels A1-C2). Synchronized with `public/openapi.yaml`, `docs/API.md`, and frontend `schema.d.ts`.
+  - A3 (Backend): `SampleCatalogSeeder` with 134 real books across all 12 starter categories with ISBNs, pricing, formats, audience fields, and ~34% ebook availability. Safe, idempotent, guarded against running in production. Local PostgreSQL DB migrated and seeded (132 books created).
+  - A4 (Frontend): Category pages display sub-categories as navigation chips ("Name · Count") and sub-category pages include "← Back to <parent>" navigation link.
+  - A5 (Frontend): 22-icon selector radio grid for top-level categories in admin lookup page (`categoryIcons.tsx`).
+  - A6 (Frontend): Audience info on book detail page (clickable search links for age, grade, CEFR level) and quiet audience tags on book cards.
+  - A7 (Backend Docs): Architecture specifications for Phase 2 (Ebooks, `2026-11-06-ebooks-design-DRAFT.md`), Phase 3 (Series Volumes, `2026-11-06-series-volumes-design-DRAFT.md`), and Phase 4 (Pre-order / Backorder, `2026-11-06-preorder-backorder-design-DRAFT.md`).
+  - A8 (Both): Updated `README.md` and `docs/API.md` covering all features shipped since 2026-11-04.
+  - A9 (Both): Full test suite verification (Backend: 825 passed tests, Pint clean; Frontend: 567 passed tests, lint and build clean). Progress recorded in `PROGRESS.md`.
+
