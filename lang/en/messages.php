@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'rating_delivered' => 'You can rate an order after it is delivered.',
+    'rating_window' => 'The seven-day editing period has ended.',
+    'rating_once' => 'This order already has a rating. Edit that rating instead.',
+    'low_order_rating' => 'Order :number received :stars out of 5 stars.',
     'low_gift_stock' => 'Low gift stock: :name has :stock left.',
     'reading_lists_limit' => 'You can have up to 20 reading lists.',
     'reading_list_books_limit' => 'A reading list can contain up to 200 books.',

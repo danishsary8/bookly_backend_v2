@@ -558,3 +558,5 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
 - Phase 5 Part E: shareable reading lists with locked limits, public/private access, staff picks, plain notes, list management and batch add-to-cart. Export/closed-account cleanup included. Reading-list, route and contract tests pass; browser matrix 390/1280 light/dark has axe 0 and no overflow. Final check totals tracked in PROGRESS.md.
 
 - Phase 5 final verification: PostgreSQL 871 tests / 17,138 assertions, Pint clean. Frontend lint 0 errors, typecheck, 603 passing tests (3 existing skips), build passed. Real local Playwright home/cart/public-list matrix 390/1280, light/dark: 12 checks, axe 0, no overflow; batch-cart and share interactions verified. No production calls/settings. Final owner handoff is at the top of PROGRESS.md.
+
+- Phase 6 ratings: owner/delivered/once/seven-day checks, hidden comments, genuine cached store badge, dashboard insights, low alerts and shared accessible input. First full run 875 backend / 606 frontend tests passed. Existing Symfony audit advisories patched; final dependency checks and browser matrix pending. See PROGRESS.md.

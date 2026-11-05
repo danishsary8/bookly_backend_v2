@@ -99,6 +99,24 @@ components:
     NoContent:
       description: Done, no body
   schemas:
+    OrderRating:
+      type: object
+      properties:
+        id: { type: integer }
+        order_id: { type: integer }
+        order_number: { type: string, nullable: true }
+        stars: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, nullable: true, maxLength: 500 }
+        is_comment_hidden: { type: boolean }
+        created_at: { type: string, format: date-time }
+        editable_until: { type: string, format: date-time }
+        can_edit: { type: boolean }
+    StoreRating:
+      type: object
+      nullable: true
+      properties:
+        count: { type: integer, minimum: 10 }
+        average: { type: number }
     ReadingList:
       type: object
       properties:
@@ -802,6 +820,60 @@ security:
   - bearer: []
 
 paths:
+  /store-rating:
+    get:
+      tags: [Catalog]
+      summary: Real order rating average/count, null below ten ratings; cached one hour
+      responses:
+        '200':
+          description: No comments or customer data
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/StoreRating' } } }
+  /orders/{id}/rating:
+    get:
+      tags: [Customer]
+      summary: Own order rating or null; another customer receives 404
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': &OrderRatingResponse
+          description: Rating; hidden comments are null
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { allOf: [{ $ref: '#/components/schemas/OrderRating' }], nullable: true } } }
+    post:
+      tags: [Customer]
+      summary: Rate own delivered order once (10 writes/minute, demo refused)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: &OrderRatingInput
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [stars], properties: { stars: { type: integer, minimum: 1, maximum: 5 }, comment: { type: string, maxLength: 500, nullable: true } } }
+      responses: { '201': *OrderRatingResponse, '422': { $ref: '#/components/responses/Validation' } }
+    patch:
+      tags: [Customer]
+      summary: Edit within seven days of the original rating; hiding is preserved
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: *OrderRatingInput
+      responses: { '200': *OrderRatingResponse, '422': { $ref: '#/components/responses/Validation' } }
+  /staff/ratings:
+    get:
+      tags: [Staff operations]
+      summary: Ratings list (reviews manage or admin)
+      parameters: [{ name: stars, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }, { $ref: '#/components/parameters/PerPage' }]
+      responses:
+        '200':
+          description: Paginated ratings
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/OrderRating' } } } }
+  /staff/ratings/{id}/hide:
+    post:
+      tags: [Staff operations]
+      summary: Hide comment without removing its stars (reviews manage or admin); audited
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': *OrderRatingResponse }
   /ping:
     get: { tags: [Public], summary: 'Liveness check', security: [], responses: { '200': { description: '{"status":"ok","version":"v1"}' } } }
   /health:

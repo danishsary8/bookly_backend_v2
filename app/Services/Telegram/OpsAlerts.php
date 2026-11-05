@@ -19,6 +19,11 @@ use Throwable;
  */
 class OpsAlerts
 {
+    public function lowOrderRating(Order $order, int $stars): void
+    {
+        $this->send(__('messages.low_order_rating', ['number' => $order->order_number, 'stars' => $stars]), staff: true);
+    }
+
     public static function enabled(): bool
     {
         return (string) config('services.ops_alerts.token') !== '' && self::chats(staff: true) !== [];
