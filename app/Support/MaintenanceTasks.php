@@ -32,6 +32,8 @@ class MaintenanceTasks
             // KHQR orders not paid in time: cancelled, stock back (KHQR payments design 3.4).
             // One friendly email for carts left alone for a day (App\Services\Marketing\CartReminders).
             ['name' => 'cart-reminders', 'command' => 'cart:remind', 'parameters' => [], 'cron' => '5 * * * *'],
+            // Ebook PDFs are turned into page images a batch at a time (App\Services\Ebooks\EbookPages).
+            ['name' => 'ebook-pages', 'command' => 'ebooks:render', 'parameters' => [], 'cron' => '* * * * *'],
             ['name' => 'khqr-expire', 'command' => 'payments:expire-khqr', 'parameters' => [], 'cron' => '* * * * *'],
             ['name' => 'demo-reset', 'command' => 'demo:reset', 'parameters' => [], 'cron' => '0 * * * *'],
         ];

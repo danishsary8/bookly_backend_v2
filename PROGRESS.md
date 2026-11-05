@@ -1,3 +1,70 @@
+# Bookly Phase 2 — Ebooks (protected browser reader)
+
+## Summary for Danish
+
+### 1. Pull Request Links
+- **Backend PR**: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/ebook-reader
+- **Frontend PR**: https://github.com/danishsary8/bookly_frontend/pull/new/feature/ebook-reader
+
+### 2. Merge Order
+**Merge backend first, wait for Render to deploy and run migrations, then merge frontend to Vercel.**
+- **Why**: The backend introduces the new ebook database tables (`ebook_files`, `ebook_devices`, `ebook_progress`), new private storage disk configuration (`r2_private`), staff upload/management API, page rendering background command, customer reading/watermarking endpoints, and updated OpenAPI schema. The frontend reader, admin ebook panel, and account library rely directly on these backend endpoints.
+
+### 3. What Changed
+- **Backend (`bookly_backend_v2`)**:
+  - **Database Migration**: Added tables `ebook_files` (master PDF storage, status processing/ready/failed, page counts, preview limit overrides), `ebook_devices` (SHA-256 hashed device IDs, max 3 devices per customer, 30-day removal cooldown), and `ebook_progress` (composite primary key customer_id + book_id, reading page).
+  - **Storage & Disks**: Configured `r2_private` S3 disk in `config/filesystems.php` (reading `R2_PRIVATE_BUCKET`, `R2_PRIVATE_ENDPOINT`, `R2_PRIVATE_ACCESS_KEY_ID`, `R2_PRIVATE_SECRET_ACCESS_KEY`, falling back to `R2_*`). Private disk set to `config('filesystems.ebook_disk')`.
+  - **Staff Management**: Endpoints `GET/POST/PATCH/DELETE /staff/books/{book}/ebook` for PDF uploads (max 50 MB, strictly starts with `%PDF-` and `.pdf` extension, page counting, folder cleanup on re-upload) and preview page limit overrides. `POST /staff/customers/{customer}/ebook-devices/reset` to reset customer devices with audit logging.
+  - **Rendering Command**: Added `ebooks:render {--seconds=25}` scheduled in `App\Support\MaintenanceTasks` running every minute. Renders oldest processing ebooks in 15-page batches using `pdftoppm` (with automatic PHP fallback on hosts without poppler) to `{path}/pages/{n}.jpg`. Added `gd` and `poppler-utils` to Dockerfile, and increased upload/post size in `php.ini`.
+  - **Ownership & Reading**: Verification that customer owns an ebook variant in a paid/processing/shipped/delivered order. Added `GET /me/ebooks`, `GET /reader/{book}`, `GET /reader/{book}/pages/{n}` with GD server-side diagonal low-opacity watermark ("Bookly · {email} · {order_number}"), `X-Reader-Device` header validation (max 3 devices, 4th -> 409), and `PUT /reader/{book}/progress`. Public preview endpoints `GET /reader/{book}/preview` and `/reader/{book}/preview/pages/{n}` with watermark ("Bookly · free preview").
+  - **Docs & OpenAPI**: Updated `public/openapi.yaml` and `docs/API.md`.
+
+- **Frontend (`bookly_frontend`)**:
+  - **Reader Page (`/read/:bookId` and `/read/:bookId/preview`)**: Immersive HTML5 `<canvas>` reader that streams watermarked JPEG page images (the browser never receives the raw PDF). Features previous/next controls, page slider, zoom in/out, fit width, dark/light/sepia surround themes, resume at last read page, preloading next page, debounced progress saving, keyboard shortcuts (arrows, PageUp/Down, space, Home, End, Escape), and anti-piracy protections (blocked right-click context menu, text selection, Ctrl/Cmd+S/P/C shortcuts, and CSS `@media print` hidden).
+  - **Friendly States**: Tailored screens for "Not owned" (preview CTA + buy book button), "Device limit reached" (link to manage devices), "Preparing your ebook" (processing spinner), and errors.
+  - **Catalog CTAs**: Updated `BookDetailPage` to display "Read a free preview" and "Read now" buttons when ebooks are available or owned.
+  - **Account Library (`/account/ebooks`)**: Added "My ebooks" section to the account layout showing reading progress bars ("Page X of Y · Z% complete"), "Continue reading" buttons, and registered devices list with device names, active timestamps, "This device" badge, and 30-day device removal cooldown.
+  - **Admin Ebook Panel**: Added Ebook section to `BookEditPage` with file upload, upload progress bar, status polling while processing, preview page override input, and ebook removal with confirmation. Added "Reset ebook devices" button to `CustomerAdminPage`.
+  - **Internationalization**: Complete, natural English (`en.ts`) and Khmer (`km.ts`) translations for all ebook reader, account, and device management interfaces.
+  - **Contract & Tests**: Regenerated TypeScript schema from OpenAPI. Unit tests for ReaderPage, MyEbooksPage, and Admin Ebook controls.
+
+### 4. Check Results
+- **Backend (`bookly_backend_v2`)**:
+  - `php artisan test`: 833 passed, 0 failed (16,813 assertions).
+  - `vendor/bin/pint --test`: PASSED (100% PSR-12 code style clean).
+  - OpenAPI contract test: PASSED.
+- **Frontend (`bookly_frontend`)**:
+  - `npm run lint`: PASSED (0 errors, 1 warning on unrelated analytics helper).
+  - `npm run typecheck`: PASSED (0 TypeScript errors).
+  - `npm test`: 95 passed, 1 skipped (579 tests passed).
+  - `npm run build`: PASSED (production bundle built in 17s).
+
+### 5. HUMAN Steps (Action Required by Danish)
+1. **Create Cloudflare R2 Private Bucket**:
+   - Log in to Cloudflare Dashboard → R2 Object Storage.
+   - Create a new bucket named e.g. `bookly-ebooks-private` (keep it **PRIVATE**; do NOT connect a public domain or enable public access).
+   - Generate an R2 API Token with Object Read & Write permissions for this bucket.
+2. **Configure Environment Variables in Render**:
+   - In Render Dashboard under `bookly_backend_v2` Environment:
+     - `EBOOK_DISK=r2_private`
+     - `R2_PRIVATE_BUCKET=bookly-ebooks-private`
+     - `R2_PRIVATE_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`
+     - `R2_PRIVATE_ACCESS_KEY_ID=<token-access-key-id>`
+     - `R2_PRIVATE_SECRET_ACCESS_KEY=<token-secret-access-key>`
+3. **Redeploy Backend**:
+   - Merge the backend PR to `main` and trigger a deploy on Render.
+   - The migration `2026_11_06_100001_create_ebook_tables.php` will run automatically.
+4. **Deploy Frontend**:
+   - Merge the frontend PR to `main` (Vercel builds and deploys automatically).
+5. **Smoke Verification**:
+   - Log in as staff to `/admin/books`, edit a book, and upload a test PDF in the Ebook panel.
+   - Verify page rendering runs and status turns to "Ready (N pages)".
+   - Order the book or test with customer account, open `/read/{id}`, and verify page streaming and watermarking ("Bookly · email · order_number") on both phone (390px) and laptop.
+   - Test free preview at `/read/{id}/preview` without signing in.
+   - Verify device registration and removal in `/account/ebooks`.
+
+---
+
 # Overnight progress (Antigravity, 2026-11-05 → 06)
 
 ## Summary for Danish
