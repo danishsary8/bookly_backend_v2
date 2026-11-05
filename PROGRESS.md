@@ -1,3 +1,42 @@
+# Summary for Danish
+
+Phase 5 Parts A–E are implemented on `feature/shop-extras` in both repositories. All final checks passed; branches are ready for Danish's review.
+
+- Backend review link: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/shop-extras
+- Frontend review link: https://github.com/danishsary8/bookly_frontend/pull/new/feature/shop-extras
+- Merge order: backend first, wait for Render, then frontend. Danish handles merges and hosting.
+- Changed: real stock/sales signals and optional unsaved .99 price suggestions; cached catalogue shelves and coming-soon filters; transaction-safe purchase gifts and staff tools; cart delivery estimates; private/public reading lists and staff picks. API specification, generated frontend types, documentation, tests and EN/KM text are included.
+- Backend final: `php artisan test --compact` **871 passed, 17,138 assertions** on local PostgreSQL; `vendor/bin/pint --test` passed. Includes API contracts, ownership/limits/rate limits and independent-process last-gift concurrency.
+- Frontend final: lint **0 errors** (one existing VisitorAnalytics refresh warning), typecheck passed, **603 tests passed** (3 existing opt-in skips unchanged), build passed using the local API. No tests were weakened or newly skipped.
+- Browser final: Playwright against real local API/data, home/cart/public list at **390/1280 px × light/dark**: all **12 checks**, axe WCAG 2.1 A/AA **0 violations**, no horizontal overflow. Shelf focus scrolling, View all, gift/delivery/progress, clipboard/Facebook/Telegram sharing and batch Add all to cart were exercised. Final repeat was completed across the paced matrix and a focused 1280-dark rerun; report contains all 12 combinations. Artifacts: frontend `test-results/shop-extras/report.json` and screenshots (ignored).
+- Decisions: one gift plus the existing monetary offer-or-coupon winner; first eligible gift offer by id, matching pre-discount quantity/subtotal, no gift when stock is insufficient. Digital purchases with a physical gift use existing shipping rates. Card scarcity uses the cheapest active format; no digital/preorder/backorder scarcity. Best sellers use 30 days; social proof uses 90 days and an hourly cache. Full rationale follows below.
+- Danish: review the branches and the two additive migrations; merge backend first, wait for Render, then frontend. Create real gift inventory in **Gifts**, create/activate a gift offer in **Offers**, and mark public reading lists in **Staff picks** if desired. No new keys or hosting settings are required. Never roll back the gift migration once gift offers/snapshots are in use; its guard preserves that history.
+- Production, hosting and external service settings were untouched. No live site/API calls were made. Browser verification used a dedicated local database; full backend tests used their separate local test database.
+
+## Decisions
+
+- Gift delivery decision revised during implementation: gifts also qualify for digital-only carts. A gift makes the order a physical shipment using existing delivery rates. Stock reservation happens before final totals, so a lost last gift cannot leave a phantom delivery charge. Earlier physical-only approach was removed before the part was completed.
+
+- Current task instructions override the older request to stop for confirmation in repository guidance.
+- Low-stock card counts refer to the cheapest active format (id breaks price ties), so a cheap ebook never advertises scarcity from a different physical format. Detail and cart counts refer to the selected format.
+- Sales proof counts quantities in non-cancelled, non-deleted orders placed within 90 days, as requested. Pending orders count; this is order volume, not paid revenue. Cache plain aggregate data for one hour without checkout invalidation.
+- Gift selection will be independent of the existing monetary winner: at most one eligible gift offer plus either the winning percentage offer or coupon. Quantity/subtotal eligibility uses matching cart lines before discounts; lowest eligible gift offer id wins. Gift inventory must be locked and rechecked during checkout.
+- New customer copy must describe estimates and existing delivery rules. No fabricated sales, ratings, deadlines, or stored price changes.
+
+## Work
+
+- Part A committed in both repos. Focused backend signals: 5 passed; frontend cards: 7 passed; price suggestion: 1 passed. Full backend run: 853 passed (before B tests were added). Frontend full run: 591 passed, 3 existing skips; lint 0 errors (one existing VisitorAnalytics refresh warning). Build overlapped subsequent B edits and must be rerun. No push until final checks.
+- Part B: catalogue row/filter and OpenAPI route tests 8 passed; frontend row/link tests 2 passed. Best-selling catalogue sort uses 30 days to match home/category shelves. Price bounds apply to the selected format (or ebook when has_ebook), preventing an expensive ebook qualifying through a cheap paperback. Cache stores plain ids/totals, rechecks visibility on each read, and expires in 15 minutes.
+- Test-run decision: run backend tests serially against the local test database. An accidental overlap initially caused missing-table errors; rerunning the signal suite alone passed.
+
+- Read repository instructions, READMEs, design tokens, roadmap, handoff worklog and approved v3 design. Both working trees were clean.
+- Fetched both remotes and created the requested branches from current `origin/main`.
+
+
+---
+
+## Prior phase record
+
 # Bookly Phase 3 — Series volumes (manga, comics, multi-part books)
 
 ## Summary for Danish
@@ -418,3 +457,15 @@ Good morning Danish! All tasks from `ANTIGRAVITY_PROMPT.md` (A0 through A9) have
   - Formatted and placed the comprehensive `## Summary for Danish` at the very top of `PROGRESS.md`.
 - Decisions I made: Documented Symfony transitive audit advisories as requested by prompt constraints.
 - NEEDS DANISH: Create PRs, review according to recommended merge order, and run quick smoke checks.
+
+## Part C verification
+Gift checkout/admin/coupon tests: 5 passed. Independent PostgreSQL checkout race plus gift and API contract tests: 8 passed (66 assertions before the added coupon test). Offer schema/admin, catalogue rows and route documentation regression tests: 22 passed; Pint passed. Frontend gift lines and offer form: 10 passed; existing checkout/offer tests: 18 passed. Final browser/full suite still pending. Digital-only carts can receive gifts and use the existing physical delivery rates; depleted gifts are removed before totals. Snapshot names are plain text in UI and documents.
+
+## Part D
+Cart now calls the existing checkout preview for delivery fees, dates and free-delivery progress. Saved addresses override an area estimate; unknown backorders suppress calendar promises; preorders start the delivery calendar on release. Backend estimate/contract checks: 4 passed; Pint passed; frontend typecheck passed. Browser matrix pending.
+
+## Part E and browser verification
+Reading lists implemented with customer/list row locks, ownership 404s, plain text validation, 20 lists/200 books limits, 20 writes/minute, immutable slugs, public first-name-only resources, staff picks, batch add-to-cart, export and account-closure cleanup. Add-all chooses the same cheapest available format as catalogue actions, skips books already in cart and reports actual added/skipped counts. Shared demo writes are refused to prevent persistent public visitor content. Public lists hide immediately when private or owner closed/deactivated.
+Backend reading-list/route/contract checks: 13 passed. Frontend public-list and manager checks: 3 passed. A controlled-checkbox test caught deferred event access; the handler now captures the boolean before scheduling the mutation.
+Browser: dedicated local PostgreSQL database bookshop_v2_extras_browser_test, API 127.0.0.1:8015, Vite 127.0.0.1:5185. scripts/check-shop-extras.mjs exercised home automatic rows + View all + keyboard focus scrolling; cart real gift, delivery estimate and free-delivery progress; public list first name, escaped text, Facebook/Telegram URLs and clipboard sharing. Initial full matrix: 390 and 1280 px, light and dark, all 12 page checks axe WCAG 2.1 A/AA 0 violations, no horizontal overflow. Screenshots/report in frontend test-results/shop-extras (ignored). Added batch-cart interaction and paced the repeat matrix to respect catalogue rate limits. No external requests allowed by the browser check. Runtime imagery review caught obsolete KHQR coming-soon cart copy; corrected EN/KM.
+Final full checks are being repeated after fixture/schema corrections. Existing tests were updated to supply real auto-row and preview fixtures; assertions preserved. OpenAPI nullable delivery amounts now use allOf so generated types match actual null responses.

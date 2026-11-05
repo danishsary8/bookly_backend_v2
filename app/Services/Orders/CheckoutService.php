@@ -25,6 +25,7 @@ use App\Services\Offers\DiscountChoice;
 use App\Services\Offers\LineDiscounts;
 use App\Services\Offers\LiveOffer;
 use App\Services\Offers\OfferService;
+use App\Services\Offers\PurchaseGifts;
 use App\Services\Payments\KhqrPaymentService;
 use App\Services\Telegram\CustomerOrderUpdates;
 use App\Services\Telegram\OpsAlerts;
@@ -47,14 +48,19 @@ class CheckoutService
      * Totals for the current cart, without placing anything. Delivery is priced for the given address,
      * else the customer's default address, else the provinces fee (never quote less than checkout charges).
      */
-    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null): array
+    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null, ?string $deliveryArea = null): array
     {
         $addresses = CustomerAddress::where('customer_id', $customer->id);
         $address = $addressId !== null
             ? ((clone $addresses)->find($addressId) ?? throw ValidationException::withMessages(['address_id' => __('messages.checkout_choose_address')]))
             : (clone $addresses)->where('is_default', true)->first();
 
-        return $this->totals($customer, $this->carts->summary($customer), $couponCode, $address);
+        $hasAddress = $address !== null;
+        if ($address === null && $deliveryArea !== null) {
+            $address = new CustomerAddress(['city' => $deliveryArea === 'phnom_penh' ? 'Phnom Penh' : 'Provinces']);
+        }
+
+        return [...$this->totals($customer, $this->carts->summary($customer), $couponCode, $address), 'has_delivery_address' => $hasAddress];
     }
 
     /**
@@ -98,7 +104,8 @@ class CheckoutService
                 Coupon::where('code', CouponService::normalize($couponCode))->lockForUpdate()->first();
             }
             $live = $this->lockBestLiveOffer($summary);
-            $totals = $this->totals($customer, $summary, $couponCode, $address, $live);
+            $freeGift = app(PurchaseGifts::class)->select($summary, reserve: true);
+            $totals = $this->totals($customer, $summary, $couponCode, $address, $live, $freeGift, true);
             $offer = $totals['choice']->winningOffer();
 
             // O1 = A: the customer saw this offer; if it no longer wins (ended, used up, paused), place nothing.
@@ -129,6 +136,7 @@ class CheckoutService
             // 5. Create the order with a copy of the address and today's prices.
             $order = Order::create([
                 'customer_id' => $customer->id,
+                'free_gift' => $freeGift,
                 'order_number' => OrderNumber::generate(),
                 'idempotency_key' => $idempotencyKey,
                 'shipping_address_id' => $address->id,
@@ -260,8 +268,11 @@ class CheckoutService
     }
 
     /** @param  list<LiveOffer>|null  $live  checkout passes the offers it locked; the preview uses the cached list */
-    private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address, ?array $live = null): array
+    private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address, ?array $live = null, ?array $freeGift = null, bool $giftReserved = false): array
     {
+        if (! $giftReserved) {
+            $freeGift = app(PurchaseGifts::class)->select($summary);
+        }
         $subtotal = $summary['subtotal_cents'];
         $coupon = null;
         $couponDiscount = 0;
@@ -281,7 +292,7 @@ class CheckoutService
         $discount = $choice->discountCents;
         $coupon = $choice->coupon;
 
-        $requiresShipping = $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
+        $requiresShipping = $freeGift !== null || $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
         $area = DeliveryArea::for($address);
         $province = $address ? DeliveryArea::detectProvince($address->city, $address->state) : null;
         $provinceCode = $province['code'] ?? null;
@@ -324,6 +335,11 @@ class CheckoutService
             }
         }
         $latestReleaseDate = $preorderDates !== [] ? max($preorderDates) : null;
+        if ($hasBackorder) {
+            $estimatedDelivery = null; // No calendar promise until stock has a known arrival date.
+        } elseif ($hasPreorder && $latestReleaseDate && $requiresShipping) {
+            $estimatedDelivery = DeliveryArea::estimate(now()->parse($latestReleaseDate)->startOfDay(), $address?->city, $address?->state);
+        }
         $shippingNotice = null;
         if ($hasPreorder && $latestReleaseDate) {
             $shippingNotice = __('messages.ships_when_ready_from', ['date' => $latestReleaseDate]);
@@ -354,6 +370,7 @@ class CheckoutService
             'has_backorder' => $hasBackorder,
             'expected_ship_date' => $latestReleaseDate,
             'shipping_notice' => $shippingNotice,
+            'free_gift' => $freeGift,
         ];
     }
 

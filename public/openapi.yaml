@@ -99,6 +99,50 @@ components:
     NoContent:
       description: Done, no body
   schemas:
+    ReadingList:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        title: { type: string, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 2000 }
+        is_public: { type: boolean }
+        is_staff_pick: { type: boolean }
+        owner_first_name: { type: string, description: 'First name only; never email or full customer data' }
+        books:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            properties:
+              book: { $ref: '#/components/schemas/BookCard' }
+              position: { type: integer }
+              note: { type: string, nullable: true }
+    ReadingListInput:
+      type: object
+      properties:
+        title: { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 2000, nullable: true }
+        is_public: { type: boolean }
+    FreeGift:
+      type: object
+      nullable: true
+      properties:
+        id: { type: integer }
+        offer_id: { type: integer }
+        name_en: { type: string }
+        name_km: { type: string }
+        quantity: { type: integer }
+        limited: { type: boolean }
+    Gift:
+      type: object
+      properties:
+        id: { type: integer }
+        name_en: { type: string, maxLength: 100 }
+        name_km: { type: string, maxLength: 100 }
+        image_url: { type: string, nullable: true }
+        stock: { type: integer, minimum: 0 }
+        is_active: { type: boolean }
     Error:
       type: object
       properties:
@@ -298,6 +342,8 @@ components:
     CheckoutPreview:
       type: object
       properties:
+        has_delivery_address: { type: boolean, description: 'A saved address was selected or defaulted; otherwise delivery_area is an estimate choice only.' }
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         subtotal: { $ref: '#/components/schemas/Amount' }
         discount: { $ref: '#/components/schemas/Amount' }
         shipping_fee: { $ref: '#/components/schemas/Amount' }
@@ -311,8 +357,8 @@ components:
         delivery_area: { type: string, enum: [phnom_penh, provinces], nullable: true, description: 'Area the shipping fee was priced for; null when the customer has no address yet (the provinces fee is quoted)' }
         can_checkout: { type: boolean }
         is_free_shipping: { type: boolean }
-        free_shipping_threshold: { $ref: '#/components/schemas/Amount', nullable: true }
-        amount_needed_for_free_shipping: { $ref: '#/components/schemas/Amount', nullable: true }
+        free_shipping_threshold: { allOf: [{ $ref: '#/components/schemas/Amount' }], nullable: true }
+        amount_needed_for_free_shipping: { allOf: [{ $ref: '#/components/schemas/Amount' }], nullable: true }
         province_code: { type: string, nullable: true }
         province_name: { type: string, nullable: true }
         estimated_delivery: { $ref: '#/components/schemas/EstimatedDelivery', nullable: true }
@@ -416,6 +462,8 @@ components:
         in_stock: { type: boolean }
         rating_avg: { type: number, nullable: true }
         review_count: { type: integer }
+        sold_count: { type: integer, nullable: true, minimum: 5, description: 'Copies ordered in the last 90 days excluding cancelled and deleted orders; cached hourly. Null below 5.' }
+        low_stock_remaining: { type: integer, nullable: true, description: 'Remaining copies of the cheapest active format when physical, released and between 1 and shop.low_stock_badge; otherwise null.' }
         offer: { $ref: '#/components/schemas/BookOffer' }
         series_order: { type: integer, nullable: true }
     OfferReportRow:
@@ -467,6 +515,7 @@ components:
         allow_backorder: { type: boolean }
         is_preorder: { type: boolean }
         is_backorder: { type: boolean }
+        low_stock_remaining: { type: integer, nullable: true, description: 'Physical stock from 1 through shop.low_stock_badge; null for digital, preorders, backorders and out of stock.' }
     BookDetail:
       allOf:
         - $ref: '#/components/schemas/BookCard'
@@ -520,6 +569,7 @@ components:
     Cart:
       type: object
       properties:
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         items:
           type: array
@@ -538,6 +588,7 @@ components:
               line_total_khr: { $ref: '#/components/schemas/Riel' }
               issues: { type: array, items: { $ref: '#/components/schemas/CartIssue' } }
               in_offer: { type: boolean, description: 'True when the automatic offer in `pricing.offer` discounts this line.' }
+              low_stock_remaining: { type: integer, nullable: true, description: 'Real low-stock count for this format; null when no badge applies.' }
         item_count: { type: integer }
         subtotal_usd: { $ref: '#/components/schemas/Money' }
         subtotal_khr: { $ref: '#/components/schemas/Riel' }
@@ -571,6 +622,7 @@ components:
     Order:
       type: object
       properties:
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         order_number: { type: string, example: ORD-20261003-7K2QX }
         status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
@@ -628,6 +680,7 @@ components:
       type: object
       description: 'What an invoice or packing slip prints. KHR uses the rate in force when the order was placed (null when no rate was set then), so a reprint never changes.'
       properties:
+        free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         order_number: { type: string, example: ORD-20261003-7K2QX }
         status: { type: string, enum: [pending, paid, processing, shipped, delivered, cancelled, returned] }
@@ -848,6 +901,7 @@ paths:
       - { name: school_grade, in: query, schema: { type: integer, minimum: 1, maximum: 12 } }
       - { name: level, in: query, schema: { type: string, enum: [A1, A2, B1, B2, C1, C2] } }
       - { name: has_ebook, in: query, schema: { type: boolean } }
+      - { name: coming_soon, in: query, schema: { type: boolean }, description: 'At least one active format has a future release_date' }
       - { name: facets, in: query, schema: { type: boolean }, description: 'Adds `facets` {formats, languages, categories (top-level id), school_grades, levels, with_age} = book counts with the other filters applied' }
       - name: sort
         in: query
@@ -860,6 +914,7 @@ paths:
           - price_desc
           - best_selling
           - most_reviewed
+          - release_soon
           - title
           - rating
       - name: ids
@@ -1003,6 +1058,169 @@ paths:
                   data:
                     $ref: '#/components/schemas/BookDetail'
                     nullable: true
+  /staff/gifts:
+    get:
+      tags: [Staff]
+      security: [{ bearer: [] }]
+      summary: List gifts (catalog view or admin)
+      responses:
+        '200':
+          description: Gifts outside the book catalogue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Gift' } }
+    post:
+      tags: [Staff]
+      security: [{ bearer: [] }]
+      summary: Create a gift (admin only, audited)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Gift' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/Gift' } } }
+  /staff/gifts/{gift}:
+    patch:
+      tags: [Staff]
+      security: [{ bearer: [] }]
+      summary: Edit gift or stock under a row lock (admin only, audited)
+      parameters:
+      - { name: gift, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Gift' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/Gift' } } }
+  /lists/staff-picks:
+    get:
+      tags: [Catalog]
+      summary: Up to six public staff-pick lists from active customers
+      responses:
+        '200': &ReadingListsResponse
+          description: Reading lists with currently visible books
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/ReadingList' } } } }
+  /lists/{slug}:
+    get:
+      tags: [Catalog]
+      summary: Public reading list; private, closed-owner and missing lists return 404
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': &ReadingListResponse
+          description: Reading list
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/ReadingList' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /lists/{slug}/cart:
+    post:
+      tags: [Customer]
+      summary: Add one cheapest available format per visible public-list book; skip existing or unavailable books (20/min)
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Honest added and skipped counts; existing cart rules apply
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: object, properties: { added: { type: integer }, skipped: { type: integer } } } } }
+  /reading-lists:
+    get:
+      tags: [Customer]
+      summary: Own reading lists (verified customer)
+      responses: { '200': *ReadingListsResponse }
+    post:
+      tags: [Customer]
+      summary: Create a list (max 20; writes 20/minute; demo writes refused)
+      requestBody: &ReadingListBody
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReadingListInput' }
+      responses: { '201': *ReadingListResponse, '422': { $ref: '#/components/responses/Validation' } }
+  /reading-lists/{id}:
+    patch:
+      tags: [Customer]
+      summary: Edit own list; private also clears staff-pick status
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: *ReadingListBody
+      responses: { '200': *ReadingListResponse, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Customer]
+      summary: Delete own list and entries
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '204': { $ref: '#/components/responses/NoContent' } }
+  /reading-lists/{id}/books:
+    post:
+      tags: [Customer]
+      summary: Add/update visible book (max 200); optional plain note and position 0-199
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [book_id], properties: { book_id: { type: integer }, note: { type: string, nullable: true, maxLength: 1000 }, position: { type: integer, minimum: 0, maximum: 199 } } }
+      responses: { '200': *ReadingListResponse, '422': { $ref: '#/components/responses/Validation' } }
+  /reading-lists/{id}/books/{book}:
+    delete:
+      tags: [Customer]
+      summary: Remove book from own list
+      parameters: [{ $ref: '#/components/parameters/Id' }, { name: book, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': *ReadingListResponse }
+  /staff/reading-lists:
+    get:
+      tags: [Staff operations]
+      summary: Latest 100 public lists (catalog view or admin); private lists never included
+      responses: { '200': *ReadingListsResponse }
+  /staff/reading-lists/{id}:
+    patch:
+      tags: [Staff operations]
+      summary: Mark/unmark a public list as staff pick (catalog view or admin, audited, 20 writes/minute)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [is_staff_pick], properties: { is_staff_pick: { type: boolean } } }
+      responses: { '200': *ReadingListResponse }
+  /catalog/rows:
+    get:
+      tags: [Catalog]
+      summary: Automatic catalogue shelves (cached 15 minutes)
+      parameters:
+      - { name: category_id, in: query, schema: { type: integer }, description: 'Only best_sellers in this category and its descendants' }
+      responses:
+        '200':
+          description: Nonempty rows with up to 12 currently visible books each
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, total, books]
+                      properties:
+                        id: { type: string, enum: [best_sellers, new_arrivals, coming_soon, ebook_deals] }
+                        total: { type: integer }
+                        books: { type: array, maxItems: 12, items: { $ref: '#/components/schemas/BookCard' } }
+        '422': { $ref: '#/components/responses/Validation' }
   /catalog/recommendations:
     get:
       tags: [Public]
@@ -1717,7 +1935,7 @@ paths:
         '204': { $ref: '#/components/responses/NoContent' }
 
   /checkout/preview:
-    post: { tags: [Checkout & orders], summary: 'Totals for the cart (subtotal, discount, shipping, tax, total in USD and KHR)', description: 'Delivery is priced for address_id, else the default address: Phnom Penh 1.50 USD, the provinces 3.00 USD (SHIPPING_FEE_PHNOM_PENH / SHIPPING_FEE_PROVINCES).', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'address_id is not one of your addresses, or a bad coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
+    post: { tags: [Checkout & orders], summary: 'Totals and delivery estimate for the cart', description: 'Saved address_id or default address takes precedence; without one, optional delivery_area selects the existing Phnom Penh/provinces rates and calendar. Does not reserve inventory.', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_area: { type: string, enum: [phnom_penh, provinces] }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'Invalid area, address or coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
       tags:
@@ -2187,7 +2405,7 @@ paths:
     delete: { tags: [Staff operations], summary: '(admin) Delete (its book list goes with it). Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /staff/offers:
     get: { tags: [Staff operations], summary: 'List automatic offers (q = name, status = live|scheduled|paused|ended|used_up|no_books, per_page). Staff with catalog:view and admins', responses: { '200': { description: 'Offers: all columns, status, targets [{type, id, label, in_trash}], orders_count' } } }
-    post: { tags: [Staff operations], summary: '(admin) Create (name, applies_to all|selected, min_quantity 2-20, percent_off 0.01-50, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all). Audited; the live-offers cache is cleared', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Staff operations], summary: '(admin) Create automatic offer', description: 'name, type buy_n_percent (default) or gift, applies_to all|selected, min_quantity 2-20 (gift 1-20, default 1), percent_off 0.01-50 (gift 0), gift_id required for gift, gift_quantity 1-100 default 1, min_subtotal optional positive matching subtotal instead of min_quantity for gifts, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all. Gift and monetary winners are independent; one gift plus one monetary discount. Audited.', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
   /staff/offers/{id}:
     get: { tags: [Staff operations], summary: 'One offer', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Offer } } }
     patch: { tags: [Staff operations], summary: '(admin) Update any field; pause/resume with is_active; targets replace the list when sent; switching to all drops them. used_count is read-only', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }

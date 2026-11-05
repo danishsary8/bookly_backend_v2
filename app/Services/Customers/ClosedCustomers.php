@@ -5,6 +5,7 @@ namespace App\Services\Customers;
 use App\Enums\OrderStatus;
 use App\Enums\ReturnStatus;
 use App\Models\Customer;
+use App\Models\ReadingList;
 use App\Models\VerificationToken;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -53,6 +54,7 @@ class ClosedCustomers
             $customer->tokens()->delete();
             $customer->reviews()->delete();
             $customer->wishlistBooks()->detach();
+            ReadingList::where('customer_id', $customer->id)->delete();
             $customer->cart()->delete();
             $customer->delete();
         });

@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'low_stock_badge' => 5,
+
     // The website's address, for links in staff alerts (e.g. https://bookly-frontend-five.vercel.app). Optional.
     'url' => env('SHOP_URL'),
 

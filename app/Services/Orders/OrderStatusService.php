@@ -10,6 +10,7 @@ use App\Models\StaffUser;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Inventory\InventoryService;
+use App\Services\Offers\PurchaseGifts;
 use App\Services\Telegram\CustomerOrderUpdates;
 use App\Support\SafeNotifier;
 use Illuminate\Support\Facades\DB;
@@ -145,5 +146,6 @@ class OrderStatusService
         }
 
         $order->payments()->where('status', PaymentStatus::Pending)->update(['status' => PaymentStatus::Failed]);
+        app(PurchaseGifts::class)->restore($order);
     }
 }

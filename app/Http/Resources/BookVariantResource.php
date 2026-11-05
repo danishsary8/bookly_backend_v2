@@ -18,6 +18,7 @@ class BookVariantResource extends JsonResource
             'price_usd' => $this->price_usd,
             'price_khr' => app(CurrencyService::class)->usdToKhr($this->price_usd),
             'in_stock' => $this->isAvailable(),
+            'low_stock_remaining' => $this->lowStockBadge(),
             'cover_image_url' => $this->cover_image_url,
             'release_date' => $this->release_date?->format('Y-m-d'),
             'allow_backorder' => (bool) $this->allow_backorder,

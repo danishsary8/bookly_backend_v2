@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\CartReminderController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
+use App\Http\Controllers\Api\V1\Catalog\CatalogRowsController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
 use App\Http\Controllers\Api\V1\Catalog\CollectionController;
 use App\Http\Controllers\Api\V1\Catalog\PublisherController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\OrderPaymentController;
 use App\Http\Controllers\Api\V1\Customer\PhoneCodeController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
+use App\Http\Controllers\Api\V1\Customer\ReadingListController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customer\SessionController as CustomerSessionController;
@@ -65,6 +67,7 @@ use App\Http\Controllers\Api\V1\Staff\Orders\OrderController as StaffOrderContro
 use App\Http\Controllers\Api\V1\Staff\Orders\OrderDocumentController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CollectionController as StaffCollectionController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\GiftController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\OfferController as StaffOfferController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
@@ -85,6 +88,9 @@ Route::post('/telegram/webhook', TelegramWebhookController::class);
 | Public catalog (no login needed)
 */
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
+Route::get('/lists/staff-picks', [ReadingListController::class, 'staffPicks'])->middleware('throttle:catalog');
+Route::get('/lists/{slug}', [ReadingListController::class, 'publicShow'])->middleware('throttle:catalog');
+Route::get('/catalog/rows', CatalogRowsController::class)->middleware('throttle:catalog');
 Route::get('/catalog/recommendations', [BookController::class, 'recommendations'])->middleware('throttle:catalog');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book');
 Route::get('/books/{book}/next-volume', [BookController::class, 'nextVolume'])->whereNumber('book');
@@ -223,6 +229,15 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::delete('/reviews/{review}', [CustomerReviewController::class, 'destroy'])->whereNumber('review')->middleware('not.demo');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
+    Route::get('/reading-lists', [ReadingListController::class, 'index']);
+    Route::middleware(['throttle:20,1', 'not.demo'])->group(function () {
+        Route::post('/lists/{slug}/cart', [ReadingListController::class, 'addAll']);
+        Route::post('/reading-lists', [ReadingListController::class, 'store']);
+        Route::patch('/reading-lists/{list}', [ReadingListController::class, 'update'])->whereNumber('list');
+        Route::delete('/reading-lists/{list}', [ReadingListController::class, 'destroy'])->whereNumber('list');
+        Route::post('/reading-lists/{list}/books', [ReadingListController::class, 'addBook'])->whereNumber('list');
+        Route::delete('/reading-lists/{list}/books/{book}', [ReadingListController::class, 'removeBook'])->whereNumber(['list', 'book']);
+    });
     Route::post('/wishlist', [WishlistController::class, 'store']);
     Route::patch('/wishlist/{book}', [WishlistController::class, 'update'])->whereNumber('book');
     Route::delete('/wishlist/{book}', [WishlistController::class, 'destroy'])->whereNumber('book');
@@ -317,6 +332,9 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/collections', [StaffCollectionController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/collections/{collection}', [StaffCollectionController::class, 'show'])->whereNumber('collection')->middleware('ability:catalog:view,admin');
     Route::get('/offers', [StaffOfferController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/reading-lists', [ReadingListController::class, 'staffIndex'])->middleware('ability:catalog:view,admin');
+    Route::patch('/reading-lists/{list}', [ReadingListController::class, 'staffPick'])->whereNumber('list')->middleware(['ability:catalog:view,admin', 'throttle:20,1']);
+    Route::get('/gifts', [GiftController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/offers/{offer}', [StaffOfferController::class, 'show'])->whereNumber('offer')->middleware('ability:catalog:view,admin');
     Route::get('/books/{book}/ebook', [EbookFileController::class, 'show'])->middleware('ability:catalog:manage,admin');
     Route::post('/books/{book}/ebook', [EbookFileController::class, 'store'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
@@ -383,6 +401,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::patch('/collections/{collection}', [StaffCollectionController::class, 'update'])->whereNumber('collection');
         Route::delete('/collections/{collection}', [StaffCollectionController::class, 'destroy'])->whereNumber('collection');
         Route::post('/offers', [StaffOfferController::class, 'store']);
+        Route::post('/gifts', [GiftController::class, 'store']);
+        Route::patch('/gifts/{gift}', [GiftController::class, 'update'])->whereNumber('gift');
         Route::patch('/offers/{offer}', [StaffOfferController::class, 'update'])->whereNumber('offer');
         Route::delete('/offers/{offer}', [StaffOfferController::class, 'destroy'])->whereNumber('offer');
 

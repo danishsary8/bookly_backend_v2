@@ -57,6 +57,7 @@ class OpsAlerts
             $pin,
             $note,
             $gift,
+            $order->free_gift ? 'Include: '.$order->free_gift['name_en'].' ×'.$order->free_gift['quantity'] : null,
             'Payment: cash on delivery',
             $shop !== '' ? "Open: {$shop}/admin/orders/{$order->id}" : null,
         ])), staff: true);

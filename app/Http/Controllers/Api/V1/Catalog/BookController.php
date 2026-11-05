@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\BookDetailResource;
 use App\Http\Resources\BookResource;
 use App\Models\Book;
+use App\Models\BookVariant;
 use App\Models\Category;
 use App\Services\Catalog\RecommendationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,10 +21,10 @@ use Illuminate\Validation\Rule;
 
 class BookController extends Controller
 {
-    public const SORTS = ['relevance', 'newest', 'price_asc', 'price_desc', 'title', 'rating', 'best_selling', 'most_reviewed'];
+    public const SORTS = ['relevance', 'newest', 'price_asc', 'price_desc', 'title', 'rating', 'best_selling', 'most_reviewed', 'release_soon'];
 
     /** "Best selling" counts copies in orders placed in this many days (cancelled orders don't count). */
-    public const BEST_SELLING_DAYS = 90;
+    public const BEST_SELLING_DAYS = 30;
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -62,6 +63,7 @@ class BookController extends Controller
             'school_grade' => ['nullable', 'integer', 'min:1', 'max:12'],
             'level' => ['nullable', 'string', Rule::in(Book::LEVELS)],
             'has_ebook' => ['nullable', 'boolean'],
+            'coming_soon' => ['nullable', 'boolean'],
             'facets' => ['nullable', 'boolean'],
             'author_id' => ['nullable', 'integer'],
             'series_id' => ['nullable', 'integer'],
@@ -90,26 +92,34 @@ class BookController extends Controller
             ->when($filters['school_grade'] ?? null, fn (Builder $q, $grade) => $q->where('school_grade', $grade))
             ->when($filters['level'] ?? null, fn (Builder $q, $level) => $q->where('level', $level))
             ->when($request->boolean('has_ebook'), fn (Builder $q) => $q->whereHas('activeVariants', fn ($v) => $v->where('format', BookFormat::Ebook->value)))
+            ->when($request->boolean('coming_soon'), fn (Builder $q) => $q->whereHas('activeVariants', fn ($v) => $v->where('release_date', '>', today())))
             ->when($filters['author_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('authors', fn ($a) => $a->whereKey($id)))
             ->when($filters['series_id'] ?? null, fn (Builder $q, $id) => $q->where('series_id', $id))
             ->when($filters['publisher_id'] ?? null, fn (Builder $q, $id) => $q->where('publisher_id', $id))
             ->when($filters['language'] ?? null, fn (Builder $q, $lang) => $q->where('language', 'ilike', addcslashes($lang, '%_')))
             ->when($filters['format'] ?? null, fn (Builder $q, $format) => $q->whereHas('activeVariants', fn ($v) => $v->where('format', $format)))
-            ->when(isset($filters['min_price']), fn (Builder $q) => $q->whereHas('activeVariants', fn ($v) => $v->where('price_usd', '>=', $filters['min_price'])))
-            ->when(isset($filters['max_price']), fn (Builder $q) => $q->whereHas('activeVariants', fn ($v) => $v->where('price_usd', '<=', $filters['max_price'])))
+            ->when(isset($filters['min_price']) || isset($filters['max_price']), fn (Builder $q) => $q->whereHas('activeVariants', fn ($v) => $v
+                ->when($filters['format'] ?? null, fn ($v, $format) => $v->where('format', $format))
+                ->when($request->boolean('has_ebook') && ! isset($filters['format']), fn ($v) => $v->where('format', 'ebook'))
+                ->when(isset($filters['min_price']), fn ($v) => $v->where('price_usd', '>=', $filters['min_price']))
+                ->when(isset($filters['max_price']), fn ($v) => $v->where('price_usd', '<=', $filters['max_price']))))
             ->when($request->boolean('in_stock'), fn (Builder $q) => $q->whereHas('activeVariants', fn ($v) => $v->where(fn ($w) => $w
                 ->where('stock_quantity', '>', 0)
                 ->orWhereIn('format', [BookFormat::Ebook->value, BookFormat::Audiobook->value]))));
 
         $page = function (Builder $query, callable $byRelevance) use ($sort, $filters) {
+            $priceSort = isset($filters['format']) || ($filters['has_ebook'] ?? false)
+                ? BookVariant::query()->selectRaw('MIN(price_usd)')->whereColumn('book_id', 'books.id')->where('is_active', true)->where('format', $filters['format'] ?? 'ebook')
+                : 'min_price';
             match ($sort) {
                 'relevance' => $byRelevance($query),
-                'price_asc' => $query->orderBy('min_price'),
-                'price_desc' => $query->orderByDesc('min_price'),
+                'price_asc' => $query->orderBy($priceSort),
+                'price_desc' => $query->orderByDesc($priceSort),
                 'title' => $query->orderBy('title'),
                 'rating' => $query->orderByRaw('rating_avg DESC NULLS LAST'),
                 'most_reviewed' => $query->orderByDesc('review_count'),
                 'best_selling' => $query->orderByDesc(self::copiesSold()),
+                'release_soon' => $query->orderByRaw('(SELECT MIN(release_date) FROM book_variants WHERE book_id = books.id AND is_active = true AND release_date > CURRENT_DATE) ASC NULLS LAST'),
                 default => $query->latest(),
             };
 
@@ -216,6 +226,7 @@ class BookController extends Controller
             ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
             ->whereColumn('book_variants.book_id', 'books.id')
             ->whereNotIn('orders.status', [OrderStatus::Cancelled->value])
+            ->whereNull('orders.deleted_at')
             ->where('orders.placed_at', '>=', now()->subDays(self::BEST_SELLING_DAYS))
             ->selectRaw('COALESCE(SUM(order_items.quantity), 0)');
     }

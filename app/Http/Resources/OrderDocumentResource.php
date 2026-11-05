@@ -38,6 +38,7 @@ class OrderDocumentResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'free_gift' => $this->free_gift,
             'order_number' => $this->order_number,
             'status' => $this->status->value,
             'placed_at' => $this->placed_at,

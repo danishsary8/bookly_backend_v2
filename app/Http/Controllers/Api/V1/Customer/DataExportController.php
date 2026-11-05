@@ -13,6 +13,7 @@ use App\Http\Resources\StockAlertResource;
 use App\Http\Resources\StoreCreditResource;
 use App\Models\Coupon;
 use App\Models\NewsletterSubscriber;
+use App\Models\ReadingList;
 use App\Models\StockAlert;
 use App\Services\Cart\CartService;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +37,10 @@ class DataExportController extends Controller
 
         $data = [
             'exported_at' => now()->toIso8601String(),
+            'reading_lists' => ReadingList::where('customer_id', $customer->id)->with('books')->get()->map(fn ($list) => [
+                'title' => $list->title, 'description' => $list->description, 'slug' => $list->slug, 'is_public' => $list->is_public,
+                'books' => $list->books->map(fn ($book) => ['book_id' => $book->id, 'position' => $book->pivot->position, 'note' => $book->pivot->note]),
+            ]),
             'profile' => (new CustomerResource($customer))->resolve($request),
             'addresses' => AddressResource::collection($customer->addresses()->orderBy('id')->get())->resolve($request),
             'cart' => (new CartResource($carts->summary($customer)))->resolve($request),

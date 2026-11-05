@@ -546,3 +546,15 @@ php artisan serve   # GET http://localhost:8000/api/v1/ping
   - A8 (Both): Updated `README.md` and `docs/API.md` covering all features shipped since 2026-11-04.
   - A9 (Both): Full test suite verification (Backend: 825 passed tests, Pint clean; Frontend: 567 passed tests, lint and build clean). Progress recorded in `PROGRESS.md`.
 
+
+- Phase 5 Part A in progress on feature/shop-extras: real low-stock and hourly sales signals, API documentation and regression tests. Full checks pending; see PROGRESS.md.
+
+- Phase 5 Part B: /catalog/rows, coming_soon and release_soon, 30-day best sellers and format-specific price bounds. Focused row/OpenAPI tests 8 passed; final suite pending.
+
+- Phase 5 Part C: gift inventory, gift offer winner, locked checkout reservation/cancel restoration, snapshots and alerts; independent-process last-gift race verified. Staff gifts API and contract documentation added. See PROGRESS.md for checks.
+
+- Phase 5 Part D: checkout preview area choice and saved-address flag, honest preorder/backorder dates; delivery estimate and contract tests pass.
+
+- Phase 5 Part E: shareable reading lists with locked limits, public/private access, staff picks, plain notes, list management and batch add-to-cart. Export/closed-account cleanup included. Reading-list, route and contract tests pass; browser matrix 390/1280 light/dark has axe 0 and no overflow. Final check totals tracked in PROGRESS.md.
+
+- Phase 5 final verification: PostgreSQL 871 tests / 17,138 assertions, Pint clean. Frontend lint 0 errors, typecheck, 603 passing tests (3 existing skips), build passed. Real local Playwright home/cart/public-list matrix 390/1280, light/dark: 12 checks, axe 0, no overflow; batch-cart and share interactions verified. No production calls/settings. Final owner handoff is at the top of PROGRESS.md.
