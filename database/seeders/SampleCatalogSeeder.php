@@ -12,6 +12,8 @@ use App\Support\StarterCategories;
 use Illuminate\Database\Seeder;
 
 /**
+ * @deprecated Use Database\Seeders\RealCatalogSeeder instead. This legacy seeder contains synthetic ISBNs.
+ *
  * Realistic sample catalogue (120+ books) for local development and demos.
  *
  *   php artisan db:seed --class=SampleCatalogSeeder
@@ -23,6 +25,7 @@ class SampleCatalogSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->command?->warn('SampleCatalogSeeder is deprecated. Please use RealCatalogSeeder for verified catalog data.');
         if (app()->isProduction() && ! config('app.demo_seed_allowed')) {
             $this->command?->error('SampleCatalogSeeder does not run in production. To fill a public demo site once, set DEMO_SEED_ALLOWED=true, run it, then remove the variable.');
 

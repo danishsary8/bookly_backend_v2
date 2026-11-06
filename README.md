@@ -157,15 +157,15 @@ php artisan db:seed --class=DemoSeeder   # 20 books, 5 customers, sample orders
 php artisan serve                        # open http://localhost:8000/docs
 ```
 
-### Sample catalogue (local/demo only)
+### Real catalogue data (local/demo only)
 
-To seed a realistic catalogue of 120+ books across every starter category with good stock, audience fields and realistic prices:
+To seed a comprehensive, verified catalogue of 500+ books across every starter category with verified ISBNs, covers, stock, audience fields and realistic prices:
 
 ```bash
-php artisan db:seed --class=SampleCatalogSeeder
+php artisan db:seed --class=RealCatalogSeeder
 ```
 
-> ⚠️ Danish decides whether to run this anywhere other than local.
+> ⚠️ Danish decides whether to run this anywhere other than local. (The legacy `SampleCatalogSeeder` is deprecated).
 
 Demo accounts: `demo@bookly.test` (customer), `admin@bookly.test` and `staff@bookly.test` (staff). Password for all: `Password123!`. Staff set up two-factor login the first time they sign in.
 
