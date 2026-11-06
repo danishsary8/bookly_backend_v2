@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssistantFaq;
 use App\Services\Admin\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AssistantKnowledgeController extends Controller
@@ -17,21 +18,28 @@ class AssistantKnowledgeController extends Controller
 
     public function unanswered()
     {
-        return response()->json(['data' => DB::table('assistant_unanswered')->orderByDesc('last_seen')->paginate(25)]);
+        $page = DB::table('assistant_unanswered')->select('id', 'question', 'count', 'last_seen')->orderByDesc('last_seen')->paginate(25);
+        $page->getCollection()->transform(fn ($row) => [
+            'id' => (int) $row->id, 'question' => $row->question, 'count' => (int) $row->count,
+            'last_seen' => Carbon::parse($row->last_seen, 'UTC')->toIso8601String(),
+        ]);
+
+        return response()->json(['data' => $page]);
     }
 
     public function store(Request $request, AuditLogger $audit)
     {
         $input = $request->validate($this->rules());
-        $faq = DB::transaction(function () use ($input) {
+        $faq = DB::transaction(function () use ($input, $request, $audit) {
             $faq = AssistantFaq::create(collect($input)->except('unanswered_id')->all());
             if (isset($input['unanswered_id'])) {
                 DB::table('assistant_unanswered')->where('id', $input['unanswered_id'])->delete();
             }
 
-            return $faq;
+            $audit->custom($request->user(), 'created', $faq, null, ['faq_created' => true]);
+
+            return $faq->refresh();
         });
-        $audit->custom($request->user(), 'created', $faq, null, ['faq_created' => true]);
 
         return response()->json(['data' => $faq], 201);
     }

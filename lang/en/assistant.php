@@ -13,6 +13,7 @@ return [
     'returns' => 'Eligible physical books can be returned within :days days after delivery. See the return policy for conditions.',
     'ebook' => 'Read purchased ebooks in your browser on up to three registered devices. Downloads are not offered.',
     'account' => 'Use Forgot password on the sign-in page to reset your password. You can manage sessions in Account → Security.',
+    'register' => 'Create an account and verify your email or phone to shop.',
     'contact' => 'Our team is available Monday to Saturday, :opens–:closes Phnom Penh time, and closed Sunday. See our contact page for contact details.',
     'books' => 'Here are matching books from our catalogue.',
     'unknown' => 'I could not understand that. Would you like to talk to a person?',

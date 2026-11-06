@@ -23,7 +23,7 @@ class RulesEngine implements AssistantEngine
             return $this->order($question, $customer);
         }
         foreach (AssistantFaq::where('is_active', true)->cursor() as $faq) {
-            foreach ($faq->keywords ?? [] as $keyword) {
+            foreach ([$faq->question_en, $faq->question_km, ...($faq->keywords ?? [])] as $keyword) {
                 $needle = $this->text->normalize((string) $keyword);
                 if ($needle !== '' && $this->matches($normalized, [$needle])) {
                     $faq->increment('hits');
@@ -51,6 +51,7 @@ class RulesEngine implements AssistantEngine
             'payment' => [['payment', 'pay', 'khqr', 'bakong', 'cash on delivery', 'ទូទាត់', 'បង់ប្រាក់'], '/checkout'],
             'returns' => [['return', 'refund', 'ត្រឡប់', 'បង្វិលប្រាក់'], '/returns-policy'],
             'ebook' => [['ebook', 'read online', 'download', 'device', 'អេឡិចត្រូនិក', 'ឧបករណ៍'], '/account/ebooks'],
+            'register' => [['create account', 'create an account', 'register', 'sign up', 'បង្កើតគណនី', 'ចុះឈ្មោះ'], '/register'],
             'account' => [['password', 'account', 'session', 'ពាក្យសម្ងាត់', 'គណនី'], '/account/security'],
             'contact' => [['contact', 'hours', 'open time', 'ទំនាក់ទំនង', 'ម៉ោង'], '/contact'],
             'thanks' => [['thank', 'thanks', 'អរគុណ'], null],

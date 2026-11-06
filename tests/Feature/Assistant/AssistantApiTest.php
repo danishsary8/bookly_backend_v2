@@ -52,6 +52,7 @@ class AssistantApiTest extends TestCase
         $this->seed(AssistantFaqSeeder::class);
         $this->seed(AssistantFaqSeeder::class);
         $this->assertSame(25, AssistantFaq::count());
+        $this->postJson('/api/v1/assistant', ['question' => 'How do I create an account?'])->assertOk()->assertJsonPath('data.intent', 'faq');
         $this->withHeader('Accept-Language', 'km')->postJson('/api/v1/assistant', ['question' => 'បញ្ជីអាន'])->assertOk()->assertJsonPath('data.intent', 'faq');
         $this->assertSame(1, AssistantFaq::where('question_en', 'How do reading lists work?')->first()->hits);
     }
@@ -62,8 +63,10 @@ class AssistantApiTest extends TestCase
         $this->asToken($this->staffToken());
         $item = $this->getJson('/api/v1/staff/assistant/unanswered')->assertOk()->json('data.data.0');
         $this->assertStringNotContainsString('reader@example.test', $item['question']);
+        $this->assertArrayNotHasKey('fingerprint', $item);
+        $this->assertMatchesRegularExpression('/T.*[+-]00:00$/', $item['last_seen']);
         $faq = ['question_en' => 'A puzzle?', 'question_km' => 'សំណួរមួយ?', 'answer_en' => 'Please contact our team.', 'answer_km' => 'សូមទាក់ទងក្រុមការងាររបស់យើង។', 'keywords' => ['strange puzzle', 'សំណួរមួយ'], 'is_active' => true, 'unanswered_id' => $item['id']];
-        $this->postJson('/api/v1/staff/assistant/faqs', $faq)->assertCreated();
+        $this->postJson('/api/v1/staff/assistant/faqs', $faq)->assertCreated()->assertJsonPath('data.hits', 0);
         $this->assertDatabaseMissing('assistant_unanswered', ['id' => $item['id']]);
         $this->postJson('/api/v1/assistant', ['question' => 'strange puzzle'])->assertOk()->assertJsonPath('data.text', $faq['answer_en']);
     }
