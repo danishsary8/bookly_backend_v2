@@ -5,6 +5,7 @@ namespace Tests\Feature\Platform;
 use App\Models\Customer;
 use App\Services\Maintenance\DueMaintenance;
 use App\Support\MaintenanceTasks;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -86,6 +87,17 @@ class DueMaintenanceTest extends TestCase
 
         Carbon::setTestNow('2026-10-12 15:07:00'); // a random afternoon request after midnight
         $this->assertSame(['daily'], $runner->runDue());
+        $this->assertSame(2, Cache::get('test:daily-ran'));
+    }
+
+    public function test_job_timezone_uses_the_scheduled_local_time(): void
+    {
+        $task = ['name' => 'local-daily', 'command' => 'test:daily', 'parameters' => [], 'cron' => '0 20 * * *', 'timezone' => 'Asia/Phnom_Penh'];
+        $runner = new DueMaintenance([$task]);
+        Carbon::setTestNow('2026-10-11 12:59:00 UTC');
+        $runner->runDue();
+        Carbon::setTestNow('2026-10-11 13:10:00 UTC');
+        $this->assertSame(['local-daily'], $runner->runDue());
         $this->assertSame(2, Cache::get('test:daily-ran'));
     }
 
@@ -191,7 +203,10 @@ class DueMaintenanceTest extends TestCase
 
         foreach (MaintenanceTasks::all() as $task) {
             $this->assertStringContainsString($task['command'], $output);
-            $this->assertStringContainsString($task['cron'], $output);
+            $event = collect(app(Schedule::class)->events())->first(fn ($event) => str_contains($event->command ?? '', $task['command']));
+            $this->assertNotNull($event);
+            $this->assertSame($task['cron'], $event->expression);
+            $this->assertSame($task['timezone'] ?? config('app.timezone'), $event->timezone);
         }
     }
 

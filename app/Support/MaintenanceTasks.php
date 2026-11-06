@@ -14,6 +14,7 @@ class MaintenanceTasks
     public static function all(): array
     {
         return [
+            ['name' => 'staff-daily-summary', 'command' => 'ops:daily-summary', 'parameters' => [], 'cron' => '0 20 * * *', 'timezone' => 'Asia/Phnom_Penh'],
             ['name' => 'support-retention', 'command' => 'support:anonymise', 'parameters' => [], 'cron' => '0 0 * * *'],
             ['name' => 'support-mail', 'command' => 'support:send-emails', 'parameters' => [], 'cron' => '* * * * *'],
             // Expired API tokens stop working at expiry; this just keeps the table small. (Our own command: Sanctum's

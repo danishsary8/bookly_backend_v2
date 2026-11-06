@@ -4,6 +4,8 @@ Phase 9 is in progress on `feature/dashboard-v2`; this branch is not ready to me
 
 Phase 9 decision: 90 days means the current shop day and the previous 89 shop days; 12 months ends on the current shop day and starts 12 calendar months before tomorrow, with leap-day overflow avoided. The previous comparison has the same number of days. Stock purchase planning must account for the fact that checkout has already deducted reserved preorder/backorder quantities; adding waiting demand again would overstate purchases.
 
+The daily staff summary uses 20:00 Asia/Phnom_Penh and the existing web-request maintenance catch-up. A unique database date is claimed before contacting Telegram, so concurrent workers and uncertain network failures cannot send duplicates. This deliberately gives at-most-once delivery: a failed or ambiguous Telegram attempt will not be retried that day. If the bot or staff group is unconfigured, nothing is sent or claimed; configuration remains Danish's responsibility. Summary revenue follows the existing cash-basis dashboard, and no customer details are included.
+
 Phase 10 finding: the existing return credit is a one-use coupon, not a wallet or balance ledger. Prepaid gift cards require a proper balance ledger and partial-spend/cancellation/refund semantics; using the coupon would risk losing unused paid value.
 
 ## Previous handoff
