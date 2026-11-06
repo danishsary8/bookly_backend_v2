@@ -1,6 +1,16 @@
 # Summary for Danish
 
-Phases 8–10 are in progress. Both repositories started `feature/assistants` directly from the latest `origin/main`; ratings and support chat were already merged there. This is a working handoff, not a release-ready statement. Final branch links, checks and deployment instructions will replace it as work is verified.
+Phases 8–10 are in progress. Phase 8 is implemented and verified; phases 9 and 10 remain outstanding. Both repositories started `feature/assistants` directly from the latest `origin/main`; ratings and support chat were already merged there. No pull requests have been opened.
+
+Review links for Phase 8:
+- Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/assistants
+- Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/assistants
+
+Intended merge order once all phases are finished: assistants backend → wait for Render Live → assistants frontend → dashboard-v2 backend → wait for Render Live → dashboard-v2 frontend → gift-cards-referrals backend → wait for Render Live → gift-cards-referrals frontend. The latter four branches are not ready yet.
+
+Phase 8 checks: backend PostgreSQL suite **897 passed / 17,401 assertions** and Pint passed; frontend **617 passed, 3 existing opt-in skips**, lint with zero errors, typecheck and build passed. Local browser smoke covered English/light/1280 and Khmer/dark/390, customer assistant and human handoff, staff answers and knowledge screen: six axe audits, zero violations and no horizontal overflow. Initial FAQs require the optional, idempotent `AssistantFaqSeeder`; they are not automatically seeded on deployment. No external services or production data were used.
+
+Phase 10 discovery: existing store credit is a one-use fixed-amount coupon, not a balance ledger. Its unused value can be lost on redemption, so prepaid gift cards cannot safely reuse it as a wallet. A real balance ledger with partial-spend and cancellation/refund handling is required before enabling gift-card money flows; existing return-credit coupons must remain compatible.
 
 Phase 8 decisions: use deterministic local rules and the existing catalogue/dashboard/order services; never send questions to external services. Keep fallback records free of email addresses and phone numbers and retain only a short normalized question. Keep staff analytics behind the same abilities as their source pages. FAQs are seeded explicitly and idempotently, never automatically on production deployment. The human-support handoff must preserve the visitor's question without sending it until they choose to do so.
 
