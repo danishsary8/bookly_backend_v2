@@ -6,6 +6,8 @@ Phase 9 decision: 90 days means the current shop day and the previous 89 shop da
 
 The daily staff summary uses 20:00 Asia/Phnom_Penh and the existing web-request maintenance catch-up. A unique database date is claimed before contacting Telegram, so concurrent workers and uncertain network failures cannot send duplicates. This deliberately gives at-most-once delivery: a failed or ambiguous Telegram attempt will not be retried that day. If the bot or staff group is unconfigured, nothing is sent or claimed; configuration remains Danish's responsibility. Summary revenue follows the existing cash-basis dashboard, and no customer details are included.
 
+Dashboard definitions: books and ebooks count copies in non-cancelled orders by placement date; payment-method amounts are placed order totals, not money collected. Reminder recovery includes only sent, identifiable reminders whose seven-day observation window is complete and counts a later non-cancelled order, without claiming the reminder caused it. Multiple reminders count separately. Unknown delivery locations stay unknown in the Phnom Penh/province analysis. Gift orders may overlap coupon or offer orders. The purchase list groups physical formats by book, reports waiting demand separately, and replenishes net stock to its threshold. PostgreSQL indexes for recovery are created concurrently outside a migration transaction to avoid blocking ordinary writes during index creation.
+
 Phase 10 finding: the existing return credit is a one-use coupon, not a wallet or balance ledger. Prepaid gift cards require a proper balance ledger and partial-spend/cancellation/refund semantics; using the coupon would risk losing unused paid value.
 
 ## Previous handoff

@@ -33,7 +33,7 @@ class ReportsWorkbook
 
     private Style $percent;
 
-    public function __construct(private readonly ReportsService $reports)
+    public function __construct(private readonly ReportsService $reports, private readonly DashboardInsightsService $insights)
     {
         $this->title = (new Style)->withFontBold(true)->withFontSize(14);
         $this->head = (new Style)->withFontBold(true)->withBackgroundColor('E8ECF4');
@@ -61,6 +61,7 @@ class ReportsWorkbook
             'Orders' => fn () => $this->orders($start, $end),
             'Coupons and refunds' => fn () => $this->coupons($start, $end),
             'Offers' => fn () => $this->offers($start, $end),
+            'Analysis' => fn () => $this->analysis($start, $end),
         ];
 
         $first = true;
@@ -77,6 +78,42 @@ class ReportsWorkbook
         }
 
         $writer->close();
+    }
+
+    /** @return list<list<Cell>> */
+    private function analysis(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $data = $this->insights->insights($start, $end);
+        $recovery = $data['cart_reminder_recovery'];
+        $promotions = $data['promotions'];
+        $rows = [
+            [$this->text('Dashboard analysis', $this->title)],
+            $this->header(['Measure', 'Value']),
+            [$this->text('Repeat customer rate'), $this->number($data['repeat_customer_rate']['percent'], $this->percent)],
+            [$this->text('Matured reminders sent'), $this->number($recovery['sent'])],
+            [$this->text('Reminders followed by an order'), $this->number($recovery['recovered'])],
+            [$this->text('Reminder recovery rate'), $this->number($recovery['percent'], $this->percent)],
+            [$this->text('Orders with offers'), $this->number($promotions['offer_orders'])],
+            [$this->text('Orders with coupons'), $this->number($promotions['coupon_orders'])],
+            [$this->text('Orders with free gifts'), $this->number($promotions['gift_orders'])],
+            [$this->text('Average order rating'), $this->number($data['order_ratings']['average'])],
+            [$this->text('Order rating count'), $this->number($data['order_ratings']['count'])],
+            [$this->text('Phnom Penh orders'), $this->number($data['delivery_areas']['phnom_penh'])],
+            [$this->text('Province orders'), $this->number($data['delivery_areas']['provinces'])],
+            [$this->text('Unknown location orders'), $this->number($data['delivery_areas']['unknown'])],
+            [],
+            $this->header(['Payment method', 'Orders', 'Placed order total USD', 'Share %']),
+        ];
+        foreach ($data['payment_methods'] as $payment) {
+            $rows[] = [$this->text($payment['method']), $this->number($payment['orders']), $this->number($payment['total_usd'], $this->usd), $this->number($payment['percent'], $this->percent)];
+        }
+        $rows[] = [];
+        $rows[] = $this->header(['Province', 'Orders', 'Placed order total USD']);
+        foreach ($data['provinces'] as $province) {
+            $rows[] = [$this->text($province['name']), $this->number($province['orders']), $this->number($province['total_usd'], $this->usd)];
+        }
+
+        return $rows;
     }
 
     /** @return list<list<Cell>> */

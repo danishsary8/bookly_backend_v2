@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Models\Offer;
 use App\Models\Order;
 use App\Models\OrderReturn;
+use App\Models\StaffUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -55,6 +56,78 @@ class DashboardInsightsTest extends TestCase
         $order->update(['placed_at' => Carbon::parse($utc, 'UTC')]);
 
         return $order;
+    }
+
+    public function test_recovery_uses_complete_seven_day_windows_and_real_orders(): void
+    {
+        $customer = Customer::factory()->create();
+        $order = $this->deliveredOrder($customer, [[$this->physical(), 1]]);
+        $this->placedAt($order, '2026-10-03 08:00:00');
+        foreach (['2026-10-01 08:00:00', '2026-10-09 08:00:00'] as $sentAt) {
+            DB::table('marketing_outbox')->insert(['kind' => 'cart_reminder', 'customer_id' => $customer->id, 'email' => 'reader@example.test', 'locale' => 'en', 'payload' => '{}', 'status' => 'sent', 'sent_at' => $sentAt, 'created_at' => $sentAt, 'updated_at' => $sentAt]);
+        }
+
+        $recovery = $this->insights('period=30d')['cart_reminder_recovery'];
+        $this->assertSame(1, $recovery['sent']);
+        $this->assertSame(1, $recovery['recovered']);
+        $this->assertSame(100.0, (float) $recovery['percent']);
+    }
+
+    public function test_payment_methods_report_non_cancelled_placed_order_amounts(): void
+    {
+        $customer = Customer::factory()->create();
+        $cod = $this->deliveredOrder($customer, [[$this->physical('10.00'), 1]]);
+        $cod->update(['payment_method' => 'cod']);
+        $khqr = $this->deliveredOrder($customer, [[$this->physical('30.00'), 1]]);
+        $khqr->update(['payment_method' => 'khqr']);
+        $cancelled = $this->deliveredOrder($customer, [[$this->physical('50.00'), 1]]);
+        $cancelled->update(['status' => OrderStatus::Cancelled]);
+
+        $rows = collect($this->insights()['payment_methods'])->keyBy('method');
+        $this->assertSame('10.00', $rows['cod']['total_usd']);
+        $this->assertSame(25.0, (float) $rows['cod']['percent']);
+        $this->assertSame('30.00', $rows['khqr']['total_usd']);
+        $this->assertSame(75.0, (float) $rows['khqr']['percent']);
+    }
+
+    public function test_recovery_excludes_cancelled_and_orders_at_the_seven_day_boundary(): void
+    {
+        $customer = Customer::factory()->create();
+        $cancelled = $this->deliveredOrder($customer, [[$this->physical(), 1]]);
+        $this->placedAt($cancelled, '2026-10-02 08:00:00')->update(['status' => OrderStatus::Cancelled]);
+        $later = $this->deliveredOrder($customer, [[$this->physical(), 1]]);
+        $this->placedAt($later, '2026-10-08 08:00:00');
+        DB::table('marketing_outbox')->insert(['kind' => 'cart_reminder', 'customer_id' => $customer->id, 'email' => 'reader@example.test', 'locale' => 'en', 'payload' => '{}', 'status' => 'sent', 'sent_at' => '2026-10-01 08:00:00', 'created_at' => now(), 'updated_at' => now()]);
+
+        $recovery = $this->insights('period=30d')['cart_reminder_recovery'];
+        $this->assertSame(1, $recovery['sent']);
+        $this->assertSame(0, $recovery['recovered']);
+    }
+
+    public function test_empty_recovery_and_gift_orders_are_counted_independently_of_coupons(): void
+    {
+        $customer = Customer::factory()->create();
+        $order = $this->deliveredOrder($customer, [[$this->physical(), 1]]);
+        $order->update(['free_gift' => ['name_en' => 'Sticker', 'quantity' => 1]]);
+        $data = $this->insights();
+        $this->assertSame(1, $data['promotions']['gift_orders']);
+        $this->assertSame(0, $data['cart_reminder_recovery']['sent']);
+        $this->assertSame(0.0, (float) $data['cart_reminder_recovery']['percent']);
+    }
+
+    public function test_attention_counts_and_activity_exclude_audit_payloads(): void
+    {
+        $order = $this->deliveredOrder(Customer::factory()->create(), [[$this->physical(), 1]]);
+        $order->update(['status' => OrderStatus::Processing, 'is_waiting_stock' => true]);
+        $staff = StaffUser::factory()->create();
+        DB::table('admin_audit_logs')->insert(['staff_user_id' => $staff->id, 'action' => 'order.updated', 'entity_type' => 'order', 'entity_id' => $order->id, 'before_data' => '{"internal":"value"}', 'created_at' => now()]);
+
+        $data = $this->insights();
+        $this->assertSame(1, $data['attention']['waiting_orders']);
+        $this->assertSame(0, $data['attention']['open_chats']);
+        $this->assertSame('order.updated', $data['activity'][0]['action']);
+        $this->assertArrayNotHasKey('before_data', $data['activity'][0]);
+        $this->assertArrayNotHasKey('after_data', $data['activity'][0]);
     }
 
     public function test_trend_has_one_row_per_day_with_the_previous_period_alongside(): void
@@ -128,9 +201,10 @@ class DashboardInsightsTest extends TestCase
         $this->assertSame('siem_reap', $provinces['Siem Reap']['code']);
         $this->assertSame(1, $provinces['Unknown']['orders']);
         $this->assertNull($provinces['Unknown']['code']);
+        $this->assertSame(['phnom_penh' => 1, 'provinces' => 1, 'unknown' => 1], $data['delivery_areas']);
 
         $this->assertSame([
-            'orders' => 3, 'offer_orders' => 1, 'offer_discount_usd' => '1.20', 'coupon_orders' => 1, 'coupon_discount_usd' => '2.00', 'plain_orders' => 1,
+            'orders' => 3, 'offer_orders' => 1, 'offer_discount_usd' => '1.20', 'coupon_orders' => 1, 'coupon_discount_usd' => '2.00', 'gift_orders' => 0, 'plain_orders' => 1,
         ], $data['promotions']);
         $this->assertEquals(['customers' => 2, 'returning' => 1, 'percent' => 50.0], $data['repeat_customer_rate']);
     }

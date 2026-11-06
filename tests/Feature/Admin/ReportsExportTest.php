@@ -74,7 +74,8 @@ class ReportsExportTest extends TestCase
 
         $sheets = $this->download();
 
-        $this->assertSame(['Summary', 'Sales by day', 'Top books', 'Top customers', 'Orders', 'Coupons and refunds', 'Offers'], array_keys($sheets));
+        $this->assertSame(['Summary', 'Sales by day', 'Top books', 'Top customers', 'Orders', 'Coupons and refunds', 'Offers', 'Analysis'], array_keys($sheets));
+        $this->assertSame(0, (int) collect($sheets['Analysis'])->first(fn ($row) => ($row[0] ?? '') === 'Matured reminders sent')[1]);
 
         $summary = collect($sheets['Summary'])->keyBy(fn ($row) => $row[0] ?? '');
         $this->assertSame(25.0, (float) $summary['Gross revenue (delivered orders)'][1]);  // a real number, not text
