@@ -38,7 +38,7 @@ class RealCatalogSeeder extends Seeder
         // Ensure category tree is installed first
         StarterCategories::install();
 
-        $csvPath = base_path('data/catalog/books.csv');
+        $csvPath = config('catalog.csv_path') ?: base_path('data/catalog/books.csv');
         if (! File::exists($csvPath)) {
             $this->command?->error("Catalog CSV not found at {$csvPath}. Run 'php artisan catalog:build' first.");
 

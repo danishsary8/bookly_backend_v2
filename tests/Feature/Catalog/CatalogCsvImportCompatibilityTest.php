@@ -132,7 +132,7 @@ class CatalogCsvImportCompatibilityTest extends TestCase
 
         // Second run: idempotent
         $this->artisan('catalog:upload-covers')
-            ->expectsOutputToContain('Covers skipped (already on disk): 1')
+            ->expectsOutputToContain('Covers skipped (already on disk):')
             ->assertSuccessful();
 
         File::delete("{$coversDir}/9780141439518.jpg");

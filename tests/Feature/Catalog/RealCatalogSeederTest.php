@@ -24,14 +24,17 @@ class RealCatalogSeederTest extends TestCase
         parent::setUp();
         Http::preventStrayRequests();
 
-        $this->tempCsvPath = base_path('data/catalog/books.csv');
+        $this->tempCsvPath = storage_path('app/fixture_test_books.csv');
         $this->tempCoversDir = storage_path('app/catalog-covers');
 
-        File::ensureDirectoryExists(base_path('data/catalog'));
+        File::ensureDirectoryExists(storage_path('app'));
         File::ensureDirectoryExists($this->tempCoversDir);
 
         Storage::fake('public');
-        config(['filesystems.media_disk' => 'public']);
+        config([
+            'filesystems.media_disk' => 'public',
+            'catalog.csv_path' => $this->tempCsvPath,
+        ]);
     }
 
     public function test_production_refuses_unless_explicitly_allowed(): void
