@@ -1,6 +1,22 @@
 # Summary for Danish
 
-Phase 9 is in progress on `feature/dashboard-v2`; this branch is not ready to merge. Phase 8 is available for review on `feature/assistants` in both repositories. Phase 10 has not been implemented. The intended order remains assistants backend → wait for Render Live → assistants frontend → dashboard backend → wait for Render Live → dashboard frontend → gift cards/referrals backend → wait for Render Live → gift cards/referrals frontend.
+Phase 9 is implemented and verified on `feature/dashboard-v2`. Phase 8 was already merged into both `origin/main` branches while this work was underway; those main branches were integrated here with normal merge commits. Phase 10 has not been implemented and its branches have not been created. No pull requests were opened.
+
+Review links:
+- Dashboard backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-v2
+- Dashboard frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/dashboard-v2
+- Earlier assistants backend (already merged): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/assistants
+- Earlier assistants frontend (already merged): https://github.com/danishsary8/bookly_frontend/pull/new/feature/assistants
+
+Merge order: **dashboard backend → wait for Render Live → dashboard frontend**. For the later Phase 10, merge its backend → wait for Render Live → its frontend after that work is complete. Danish performs all merges and hosting configuration.
+
+Changes: longer reporting periods and six KPI cards; sales and payment analysis with genuine seven-day reminder recovery, gift counts and delivery areas; recent orders with permission-checked, confirmed actions; attention and staff activity; printable report and an Excel analysis sheet; grouped stock purchase list with CSV; audit action filter; and the daily staff summary. OpenAPI, API docs, regenerated types and EN/KM dictionary entries are included. Existing staff screens and staff exports remain English under the established staff-language policy.
+
+Final checks: backend PostgreSQL **912 passed / 17,505 assertions**, Pint passed; frontend **629 passed, 3 existing opt-in skips**, lint zero errors, typecheck and build passed. Lint retains one existing VisitorAnalytics fast-refresh warning. The contract tests are included in the full backend suite. The first concurrent full run hit a local PostgreSQL timeout and stalled frontend test; the affected backend tests passed individually, and the complete suites passed when run separately. A prior frontend run exposed a translation structure issue, which was fixed and covered by the passing suite.
+
+Local browser smoke after integration: dashboard, purchase list and printable report in EN/light/1280 and KM/dark/390 (staff area remains English), six axe WCAG 2.1 A/AA audits with zero violations and no page overflow; keyboard focus checked on the purchase table. Test servers were stopped. Both branches merged cleanly with the fetched `origin/main`; because main was already an ancestor, the requested no-commit merge reported already up to date.
+
+Human steps: review and merge backend first, allow the existing deployment process to apply the two new migrations, wait for Render Live, then merge frontend. If daily Telegram summaries are desired, confirm the existing staff group and alerts bot are configured; no settings were accessed or changed here. The summary uses at-most-once delivery: an unsuccessful or ambiguous Telegram attempt is logged without provider details and is not retried that day.
 
 Phase 9 decision: 90 days means the current shop day and the previous 89 shop days; 12 months ends on the current shop day and starts 12 calendar months before tomorrow, with leap-day overflow avoided. The previous comparison has the same number of days. Stock purchase planning must account for the fact that checkout has already deducted reserved preorder/backorder quantities; adding waiting demand again would overstate purchases.
 

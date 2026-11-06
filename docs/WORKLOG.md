@@ -574,3 +574,7 @@ All branch gates passed: ratings backend875/17,164 assertions and frontend607; i
 - Started feature/assistants from origin/main in both repositories after confirming ratings and support chat were already present. Added a replaceable local rules engine, bilingual intent matching, owner-scoped order lookup, catalogue filters, staff ability checks, FAQ management, redacted unanswered aggregation and explicit idempotent FAQ seeder.
 - Existing support bubble now starts with the automatic assistant and offers an explicit prefilled human handoff; staff have a header panel, Ctrl-K destination and knowledge screen. No external model or provider calls. Matched backend/API route, contract, owner/privacy/rate-limit tests and focused frontend interaction tests passed; full branch gates and local smoke follow.
 - See PROGRESS.md for all decisions and final handoff; nothing was deployed and .env files remain untouched.
+
+## Phase 9 ? Dashboard v2 (feature/dashboard-v2)
+
+Added genuine sales and recovery analysis, purchase planning, printable/Excel report data, attention and audit activity, and a once-daily Phnom Penh staff summary. Integrated the newly merged assistants work. PostgreSQL: 912 tests passed / 17,505 assertions; Pint passed. Local browser smoke and remaining decisions are recorded in PROGRESS.md.
