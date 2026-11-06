@@ -144,6 +144,15 @@ class DashboardTest extends TestCase
             ->assertJsonPath('data.comparison.period.to', '2025-10-10');
     }
 
+    public function test_twelve_month_period_clamps_leap_day_without_overflow(): void
+    {
+        $this->travelTo(Carbon::parse('2024-02-28 05:00:00', 'UTC'));
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=12m')->assertOk()
+            ->assertJsonPath('data.period.from', '2023-02-28')
+            ->assertJsonPath('data.period.to', '2024-02-28');
+    }
+
     public function test_change_percent_against_a_previous_period_with_sales(): void
     {
         // August (31 days) is compared with July 1-31: the old order was placed 30 July, add one delivered 15 July.
