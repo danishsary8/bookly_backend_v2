@@ -6,12 +6,13 @@
         "english-learning",
         "self-help",
         "business",
-        "non-fiction"
+        "non-fiction",
+        "comics-manga"
     ],
     "verified_isbns": [],
-    "books_count": 461,
-    "covers_count": 187,
-    "missing_covers_count": 79,
-    "needs_review_count": 14,
-    "updated_at": "2026-11-06T17:48:29+00:00"
+    "books_count": 518,
+    "covers_count": 231,
+    "missing_covers_count": 92,
+    "needs_review_count": 17,
+    "updated_at": "2026-11-06T17:52:59+00:00"
 }
