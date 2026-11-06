@@ -8,6 +8,8 @@ The daily staff summary uses 20:00 Asia/Phnom_Penh and the existing web-request 
 
 Dashboard definitions: books and ebooks count copies in non-cancelled orders by placement date; payment-method amounts are placed order totals, not money collected. Reminder recovery includes only sent, identifiable reminders whose seven-day observation window is complete and counts a later non-cancelled order, without claiming the reminder caused it. Multiple reminders count separately. Unknown delivery locations stay unknown in the Phnom Penh/province analysis. Gift orders may overlap coupon or offer orders. The purchase list groups physical formats by book, reports waiting demand separately, and replenishes net stock to one above the threshold so the low-stock alert clears. PostgreSQL indexes for recovery are created concurrently outside a migration transaction to avoid blocking ordinary writes during index creation.
 
+Recent-order shortcuts require order-management permission and confirmation. They are hidden for orders waiting for stock and for unpaid pending KHQR orders, so the shortcut cannot advance them prematurely; the existing API still enforces the transition.
+
 Phase 10 finding: the existing return credit is a one-use coupon, not a wallet or balance ledger. Prepaid gift cards require a proper balance ledger and partial-spend/cancellation/refund semantics; using the coupon would risk losing unused paid value.
 
 ## Phase 8 handoff

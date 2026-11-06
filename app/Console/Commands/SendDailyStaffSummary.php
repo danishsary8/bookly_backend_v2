@@ -10,6 +10,7 @@ use App\Services\Telegram\OpsAlerts;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SendDailyStaffSummary extends Command
 {
@@ -52,7 +53,11 @@ class SendDailyStaffSummary extends Command
         // Claim before calling Telegram: an uncertain network response must not create duplicate alerts.
         $claimed = DB::table('staff_daily_summaries')->insertOrIgnore(['summary_date' => $day->toDateString(), 'created_at' => now()]);
         if ($claimed === 1) {
-            $alerts->sendDirect($chat, $message);
+            $result = $alerts->sendDirect($chat, $message);
+            if (! $result['ok']) {
+                // Provider descriptions may contain the request URL; keep only a numeric status.
+                Log::warning('Staff daily summary could not be delivered', ['status' => (int) ($result['status'] ?? 0)]);
+            }
         }
 
         return self::SUCCESS;
