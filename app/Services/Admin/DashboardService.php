@@ -75,6 +75,8 @@ class DashboardService
                     ->merge((clone $placed)->selectRaw('status, COUNT(*) AS n')->groupBy('status')->pluck('n', 'status')->map(fn ($n) => (int) $n))
                     ->all(),
                 'new_customers' => $now['new_customers'],
+                'books_sold' => $now['books_sold'],
+                'ebooks_sold' => $now['ebooks_sold'],
                 'best_sellers' => $this->bestSellers($from, $to),
                 'top_categories' => $this->topCategories($from, $to),
                 'open_returns' => OrderReturn::whereIn('status', [ReturnStatus::Requested, ReturnStatus::Approved])->count(),
@@ -94,6 +96,8 @@ class DashboardService
                     'average_order_value_khr' => $this->khr($before['average_order_value']),
                     'orders_placed' => $before['orders_placed'],
                     'new_customers' => $before['new_customers'],
+                    'books_sold' => $before['books_sold'],
+                    'ebooks_sold' => $before['ebooks_sold'],
                     'change_percent' => [
                         'gross_revenue' => $this->change($now['gross'], $before['gross']),
                         'refunds' => $this->change($now['refunds'], $before['refunds']),
@@ -102,6 +106,8 @@ class DashboardService
                         'average_order_value' => $this->change($now['average_order_value'], $before['average_order_value']),
                         'orders_placed' => $this->change($now['orders_placed'], $before['orders_placed']),
                         'new_customers' => $this->change($now['new_customers'], $before['new_customers']),
+                        'books_sold' => $this->change($now['books_sold'], $before['books_sold']),
+                        'ebooks_sold' => $this->change($now['ebooks_sold'], $before['ebooks_sold']),
                     ],
                 ];
             }
@@ -130,6 +136,13 @@ class DashboardService
         $gross = Money::toCents($delivered->total);
         $count = (int) $delivered->n;
 
+        $copies = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->whereNull('orders.deleted_at')->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->where('orders.placed_at', '>=', $from)->where('orders.placed_at', '<', $to)
+            ->selectRaw('COALESCE(SUM(order_items.quantity), 0) AS total, COALESCE(SUM(CASE WHEN COALESCE(order_items.format, book_variants.format) = ? THEN order_items.quantity ELSE 0 END), 0) AS ebooks', [BookFormat::Ebook->value])->first();
+
         return [
             'gross' => $gross,
             'refunds' => Money::toCents(OrderReturn::where('status', ReturnStatus::Refunded)->whereBetween('resolved_at', [$from, $to->subSecond()])->sum('refund_amount')),
@@ -138,6 +151,8 @@ class DashboardService
             'orders_placed' => Order::whereBetween('placed_at', [$from, $to->subSecond()])->count(),
             // Unfinished sign-ups aren't customers yet.
             'new_customers' => Customer::verified()->whereBetween('created_at', [$from, $to->subSecond()])->count(),
+            'books_sold' => (int) $copies->total,
+            'ebooks_sold' => (int) $copies->ebooks,
         ];
     }
 

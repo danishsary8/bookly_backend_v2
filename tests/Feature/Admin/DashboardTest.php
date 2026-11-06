@@ -89,6 +89,24 @@ class DashboardTest extends TestCase
         $this->assertSame(2, $data['low_stock'][0]['stock_quantity']);
     }
 
+    public function test_copy_totals_exclude_cancelled_orders_and_compare_ebook_copies(): void
+    {
+        $ebook = BookVariant::factory()->format(BookFormat::Ebook)->create();
+        $order = $this->deliveredOrder(Customer::factory()->create(), [[$ebook, 3]]);
+        $order->update(['placed_at' => now()]);
+        $cancelled = $this->deliveredOrder(Customer::factory()->create(), [[$ebook, 4]]);
+        $cancelled->update(['status' => OrderStatus::Cancelled, 'placed_at' => now()]);
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()
+            ->assertJsonPath('data.books_sold', 4)
+            ->assertJsonPath('data.ebooks_sold', 3)
+            ->assertJsonPath('data.comparison.ebooks_sold', 0)
+            ->assertJsonPath('data.comparison.change_percent.ebooks_sold', 100);
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/insights?period=today')->assertOk()
+            ->assertJsonPath('data.trend.0.books_sold', 4)
+            ->assertJsonPath('data.trend.0.ebooks_sold', 3);
+    }
+
     public function test_daily_sales_rows_are_zero_filled_in_shop_days(): void
     {
         $rows = collect($this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/sales?period=7d')->assertOk()

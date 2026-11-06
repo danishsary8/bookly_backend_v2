@@ -97,6 +97,10 @@ class DashboardInsightsService
                 'previous_average_order_usd' => Money::format($prev['average'] ?? 0),
                 'new_customers' => $day['customers'],
                 'previous_new_customers' => $prev['customers'] ?? 0,
+                'books_sold' => $day['books'],
+                'previous_books_sold' => $prev['books'] ?? 0,
+                'ebooks_sold' => $day['ebooks'],
+                'previous_ebooks_sold' => $prev['ebooks'] ?? 0,
             ];
         }
 
@@ -123,6 +127,13 @@ class DashboardInsightsService
             ->where(fn ($q) => $q->whereNotNull('email_verified_at')->orWhereNotNull('phone_verified_at'))
             ->whereBetween('created_at', [$from, $to])
             ->selectRaw($day('created_at').' AS day, COUNT(*) AS n', [$tz])->groupBy('day')->pluck('n', 'day');
+        $copies = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->whereNull('orders.deleted_at')->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->whereBetween('orders.placed_at', [$from, $to])
+            ->selectRaw($day('orders.placed_at').' AS day, SUM(order_items.quantity) AS books, SUM(CASE WHEN COALESCE(order_items.format, book_variants.format) = ? THEN order_items.quantity ELSE 0 END) AS ebooks', [$tz, BookFormat::Ebook->value])
+            ->groupBy('day')->get()->keyBy('day');
 
         $rows = [];
         for ($d = $start; $d->lt($end); $d = $d->addDay()) {
@@ -135,6 +146,8 @@ class DashboardInsightsService
                 'orders' => (int) ($placed[$key] ?? 0),
                 'average' => $count > 0 ? intdiv($gross, $count) : 0,
                 'customers' => (int) ($customers[$key] ?? 0),
+                'books' => (int) ($copies[$key]->books ?? 0),
+                'ebooks' => (int) ($copies[$key]->ebooks ?? 0),
             ];
         }
 
