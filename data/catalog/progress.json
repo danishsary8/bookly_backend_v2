@@ -4,12 +4,13 @@
         "khmer-books",
         "khmer-school",
         "english-learning",
-        "self-help"
+        "self-help",
+        "business"
     ],
     "verified_isbns": [],
-    "books_count": 357,
-    "covers_count": 110,
-    "missing_covers_count": 52,
-    "needs_review_count": 8,
-    "updated_at": "2026-11-06T17:37:12+00:00"
+    "books_count": 394,
+    "covers_count": 135,
+    "missing_covers_count": 64,
+    "needs_review_count": 11,
+    "updated_at": "2026-11-06T17:42:52+00:00"
 }

@@ -108,6 +108,14 @@ class BuildCatalog extends Command
 
             foreach ($categoryData as $item) {
                 $isbn = ! empty($item['isbn']) ? preg_replace('/[^0-9X]/i', '', $item['isbn']) : null;
+                if ($isbn === null && ! empty($item['variants'])) {
+                    foreach ($item['variants'] as $v) {
+                        if (! empty($v['isbn'])) {
+                            $isbn = preg_replace('/[^0-9X]/i', '', $v['isbn']);
+                            break;
+                        }
+                    }
+                }
                 $title = $item['title'];
                 $firstAuthor = is_array($item['authors']) ? ($item['authors'][0] ?? '') : $item['authors'];
 
@@ -172,75 +180,117 @@ class BuildCatalog extends Command
 
                 // Build CSV rows (Paperback and/or Hardcover physical formats only)
                 $authorStr = is_array($item['authors']) ? implode('; ', $item['authors']) : $item['authors'];
-                $categoryName = $item['category_name'] ?? $this->resolveCategoryName($item['category_slug'] ?? $catSlug);
+                $categoryName = ! empty($item['categories'])
+                    ? (is_array($item['categories']) ? implode('; ', $item['categories']) : $item['categories'])
+                    : ($item['category_name'] ?? $this->resolveCategoryName($item['category_slug'] ?? $catSlug));
 
-                $paperbackPrice = $item['paperback_price'] ?? null;
-                $hardcoverPrice = $item['hardcover_price'] ?? null;
+                if (! empty($item['variants'])) {
+                    foreach ($item['variants'] as $variant) {
+                        $skuCounter++;
+                        $vFormat = strtolower($variant['format'] ?? 'paperback');
+                        $vIsbn = ! empty($variant['isbn']) ? preg_replace('/[^0-9X]/i', '', $variant['isbn']) : '';
+                        $vPrice = isset($variant['price']) ? (float) $variant['price'] : 12.00;
+                        $vStock = isset($variant['stock']) ? (string) $variant['stock'] : (string) rand(15, 40);
+                        $vSku = $variant['sku'] ?? sprintf('BK-%05d-%s', $skuCounter, $vFormat === 'hardcover' ? 'HC' : 'PB');
 
-                // 1. Paperback row
-                if ($paperbackPrice !== null) {
-                    $skuCounter++;
-                    $allBooks[] = [
-                        'book_id' => '',
-                        'title' => $title,
-                        'authors' => $authorStr,
-                        'categories' => $categoryName,
-                        'series' => $item['series'] ?? '',
-                        'series_order' => $item['series_order'] ?? '',
-                        'publisher' => $item['publisher'] ?? '',
-                        'language' => $item['language'] ?? 'English',
-                        'page_count' => $item['page_count'] ?? '',
-                        'publish_date' => $item['publish_date'] ?? '',
-                        'description' => $item['description'] ?? '',
-                        'status' => 'live',
-                        'publish_at' => '',
-                        'age_min' => $item['age_min'] ?? '',
-                        'age_max' => $item['age_max'] ?? '',
-                        'school_grade' => $item['school_grade'] ?? '',
-                        'level' => $item['level'] ?? '',
-                        'format' => 'paperback',
-                        'sku' => sprintf('BK-%05d-PB', $skuCounter),
-                        'isbn' => $isbn ?? '',
-                        'price_usd' => number_format((float) $paperbackPrice, 2, '.', ''),
-                        'stock_quantity' => (string) ($item['stock_quantity'] ?? rand(15, 40)),
-                        'low_stock_threshold' => '5',
-                        'is_active' => '1',
-                        'cover_image_url' => $coverUrl,
-                        'notes' => $item['notes'] ?? '',
-                    ];
-                }
+                        $allBooks[] = [
+                            'book_id' => '',
+                            'title' => $title,
+                            'authors' => $authorStr,
+                            'categories' => $categoryName,
+                            'series' => $item['series'] ?? '',
+                            'series_order' => $item['series_order'] ?? '',
+                            'publisher' => $item['publisher'] ?? '',
+                            'language' => $item['language'] ?? 'English',
+                            'page_count' => $item['page_count'] ?? '',
+                            'publish_date' => $item['publish_date'] ?? '',
+                            'description' => $item['description'] ?? '',
+                            'status' => 'live',
+                            'publish_at' => '',
+                            'age_min' => $item['age_min'] ?? '',
+                            'age_max' => $item['age_max'] ?? '',
+                            'school_grade' => $item['school_grade'] ?? '',
+                            'level' => $item['level'] ?? '',
+                            'format' => $vFormat,
+                            'sku' => $vSku,
+                            'isbn' => $vIsbn,
+                            'price_usd' => number_format($vPrice, 2, '.', ''),
+                            'stock_quantity' => $vStock,
+                            'low_stock_threshold' => '5',
+                            'is_active' => '1',
+                            'cover_image_url' => $coverUrl,
+                            'notes' => $item['notes'] ?? '',
+                        ];
+                    }
+                } else {
+                    $paperbackPrice = $item['paperback_price'] ?? null;
+                    $hardcoverPrice = $item['hardcover_price'] ?? null;
 
-                // 2. Hardcover row (optional)
-                if ($hardcoverPrice !== null) {
-                    $skuCounter++;
-                    $allBooks[] = [
-                        'book_id' => '',
-                        'title' => $title,
-                        'authors' => $authorStr,
-                        'categories' => $categoryName,
-                        'series' => $item['series'] ?? '',
-                        'series_order' => $item['series_order'] ?? '',
-                        'publisher' => $item['publisher'] ?? '',
-                        'language' => $item['language'] ?? 'English',
-                        'page_count' => $item['page_count'] ?? '',
-                        'publish_date' => $item['publish_date'] ?? '',
-                        'description' => $item['description'] ?? '',
-                        'status' => 'live',
-                        'publish_at' => '',
-                        'age_min' => $item['age_min'] ?? '',
-                        'age_max' => $item['age_max'] ?? '',
-                        'school_grade' => $item['school_grade'] ?? '',
-                        'level' => $item['level'] ?? '',
-                        'format' => 'hardcover',
-                        'sku' => sprintf('BK-%05d-HC', $skuCounter),
-                        'isbn' => $isbn ?? '',
-                        'price_usd' => number_format((float) $hardcoverPrice, 2, '.', ''),
-                        'stock_quantity' => (string) ($item['hardcover_stock'] ?? rand(15, 30)),
-                        'low_stock_threshold' => '5',
-                        'is_active' => '1',
-                        'cover_image_url' => $coverUrl,
-                        'notes' => $item['notes'] ?? '',
-                    ];
+                    // 1. Paperback row
+                    if ($paperbackPrice !== null) {
+                        $skuCounter++;
+                        $allBooks[] = [
+                            'book_id' => '',
+                            'title' => $title,
+                            'authors' => $authorStr,
+                            'categories' => $categoryName,
+                            'series' => $item['series'] ?? '',
+                            'series_order' => $item['series_order'] ?? '',
+                            'publisher' => $item['publisher'] ?? '',
+                            'language' => $item['language'] ?? 'English',
+                            'page_count' => $item['page_count'] ?? '',
+                            'publish_date' => $item['publish_date'] ?? '',
+                            'description' => $item['description'] ?? '',
+                            'status' => 'live',
+                            'publish_at' => '',
+                            'age_min' => $item['age_min'] ?? '',
+                            'age_max' => $item['age_max'] ?? '',
+                            'school_grade' => $item['school_grade'] ?? '',
+                            'level' => $item['level'] ?? '',
+                            'format' => 'paperback',
+                            'sku' => sprintf('BK-%05d-PB', $skuCounter),
+                            'isbn' => $isbn ?? '',
+                            'price_usd' => number_format((float) $paperbackPrice, 2, '.', ''),
+                            'stock_quantity' => (string) ($item['stock_quantity'] ?? rand(15, 40)),
+                            'low_stock_threshold' => '5',
+                            'is_active' => '1',
+                            'cover_image_url' => $coverUrl,
+                            'notes' => $item['notes'] ?? '',
+                        ];
+                    }
+
+                    // 2. Hardcover row (optional)
+                    if ($hardcoverPrice !== null) {
+                        $skuCounter++;
+                        $allBooks[] = [
+                            'book_id' => '',
+                            'title' => $title,
+                            'authors' => $authorStr,
+                            'categories' => $categoryName,
+                            'series' => $item['series'] ?? '',
+                            'series_order' => $item['series_order'] ?? '',
+                            'publisher' => $item['publisher'] ?? '',
+                            'language' => $item['language'] ?? 'English',
+                            'page_count' => $item['page_count'] ?? '',
+                            'publish_date' => $item['publish_date'] ?? '',
+                            'description' => $item['description'] ?? '',
+                            'status' => 'live',
+                            'publish_at' => '',
+                            'age_min' => $item['age_min'] ?? '',
+                            'age_max' => $item['age_max'] ?? '',
+                            'school_grade' => $item['school_grade'] ?? '',
+                            'level' => $item['level'] ?? '',
+                            'format' => 'hardcover',
+                            'sku' => sprintf('BK-%05d-HC', $skuCounter),
+                            'isbn' => $item['hardcover_isbn'] ?? '',
+                            'price_usd' => number_format((float) $hardcoverPrice, 2, '.', ''),
+                            'stock_quantity' => (string) ($item['hardcover_stock'] ?? rand(15, 30)),
+                            'low_stock_threshold' => '5',
+                            'is_active' => '1',
+                            'cover_image_url' => $coverUrl,
+                            'notes' => $item['notes'] ?? '',
+                        ];
+                    }
                 }
             }
 
