@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\CartReminderController;
 use App\Http\Controllers\Api\V1\Catalog\AuthorController;
 use App\Http\Controllers\Api\V1\Catalog\BookController;
@@ -46,6 +47,7 @@ use App\Http\Controllers\Api\V1\Staff\Admin\OrderExportController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ReportsController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffHealthController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
+use App\Http\Controllers\Api\V1\Staff\AssistantKnowledgeController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookBulkController;
@@ -72,6 +74,7 @@ use App\Http\Controllers\Api\V1\Staff\Promotions\GiftController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\OfferController as StaffOfferController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
+use App\Http\Controllers\Api\V1\Staff\StaffAssistantController;
 use App\Http\Controllers\Api\V1\Staff\StaffNewsletterController;
 use App\Http\Controllers\Api\V1\Staff\StaffSessionController;
 use App\Http\Controllers\Api\V1\Staff\SupportToolsController;
@@ -87,6 +90,7 @@ Route::post('/demo/token', DemoTokenController::class)->middleware('throttle:dem
 // The Bookly Telegram bot's updates (Telegram signs each one with the webhook secret).
 Route::post('/telegram/webhook', TelegramWebhookController::class);
 Route::post('/support/guest', [SupportController::class, 'guest'])->middleware('throttle:support-guest');
+Route::post('/assistant', [AssistantController::class, 'ask'])->middleware('throttle:assistant');
 
 /*
 | Public catalog (no login needed)
@@ -285,6 +289,14 @@ Route::prefix('staff/auth')->group(function () {
 | Staff features: staff + admin can create/edit, deletes are admin-only.
 */
 Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2fa'])->group(function () {
+    Route::post('/assistant', [StaffAssistantController::class, 'ask'])->middleware('throttle:assistant');
+    Route::prefix('assistant')->middleware(['ability:support:manage,admin', 'throttle:assistant'])->group(function () {
+        Route::get('/faqs', [AssistantKnowledgeController::class, 'index']);
+        Route::get('/unanswered', [AssistantKnowledgeController::class, 'unanswered']);
+        Route::post('/faqs', [AssistantKnowledgeController::class, 'store']);
+        Route::patch('/faqs/{faq}', [AssistantKnowledgeController::class, 'update'])->whereNumber('faq');
+        Route::delete('/faqs/{faq}', [AssistantKnowledgeController::class, 'destroy'])->whereNumber('faq');
+    });
     Route::prefix('support')->middleware('ability:support:manage,admin')->group(function () {
         Route::get('/conversations', [SupportController::class, 'index']);
         Route::get('/conversations/{conversation}', [SupportController::class, 'show'])->whereNumber('conversation');

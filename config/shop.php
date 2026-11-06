@@ -6,6 +6,9 @@ return [
     // The website's address, for links in staff alerts (e.g. https://bookly-frontend-five.vercel.app). Optional.
     'url' => env('SHOP_URL'),
 
+    // Mirrors the owner-confirmed contact hours shown by the storefront.
+    'support_hours' => ['opens' => '08:00', 'closes' => '18:00'],
+
     // Charged once per order when it contains any physical format (hardcover/paperback), by the delivery address's
     // area (App\Services\Orders\DeliveryArea). Digital-only orders ship free.
     'shipping_fees' => [

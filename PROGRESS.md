@@ -1,5 +1,23 @@
 # Summary for Danish
 
+Phases 8–10 are in progress. Phase 8 is implemented and verified; phases 9 and 10 remain outstanding. Both repositories started `feature/assistants` directly from the latest `origin/main`; ratings and support chat were already merged there. No pull requests have been opened.
+
+Review links for Phase 8:
+- Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/assistants
+- Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/assistants
+
+Intended merge order once all phases are finished: assistants backend → wait for Render Live → assistants frontend → dashboard-v2 backend → wait for Render Live → dashboard-v2 frontend → gift-cards-referrals backend → wait for Render Live → gift-cards-referrals frontend. The latter four branches are not ready yet.
+
+Phase 8 checks: backend PostgreSQL suite **897 passed / 17,401 assertions** and Pint passed; frontend **617 passed, 3 existing opt-in skips**, lint with zero errors, typecheck and build passed. Local browser smoke covered English/light/1280 and Khmer/dark/390, customer assistant and human handoff, staff answers and knowledge screen: six axe audits, zero violations and no horizontal overflow. Initial FAQs require the optional, idempotent `AssistantFaqSeeder`; they are not automatically seeded on deployment. No external services or production data were used.
+
+Phase 10 discovery: existing store credit is a one-use fixed-amount coupon, not a balance ledger. Its unused value can be lost on redemption, so prepaid gift cards cannot safely reuse it as a wallet. A real balance ledger with partial-spend and cancellation/refund handling is required before enabling gift-card money flows; existing return-credit coupons must remain compatible.
+
+Phase 8 decisions: use deterministic local rules and the existing catalogue/dashboard/order services; never send questions to external services. Keep fallback records free of email addresses and phone numbers and retain only a short normalized question. Keep staff analytics behind the same abilities as their source pages. FAQs are seeded explicitly and idempotently, never automatically on production deployment. The human-support handoff must preserve the visitor's question without sending it until they choose to do so.
+
+## Previous handoff
+
+# Summary for Danish
+
 Phases 6 and 7 are implemented, reviewed and verified. All four feature branches are ready for review; no pull requests were opened and nothing was merged into main or deployed.
 
 Review links:
@@ -551,3 +569,5 @@ Findings fixed: explicit linked Telegram staff identity and group mapping; webho
 Browser: full8 EN/KM x light/dark x390/1280 passed,32 page audits(customer/staff/closed-rating/guest),axe WCAG2.1A/AA0 and no overflow. Three real guest submissions respected the per-IP quota; guest forms checked in all8. After normal merges, focused EN/light1280 and KM/dark390 repeated real customer/staff/closed-rating flows plus guest form,8 audits axe0. Existing staff area stays English by policy, customer and guest UI use both languages. Real email/Telegram providers intentionally not called; fake integration tests verify delivery and permission logic. Reports and screenshots in frontend test-results/support and support-smoke are ignored.
 
 Final combined backend verification: php artisan test --compact passed887 tests/17,324 assertions on local PostgreSQL with test-only512M; vendor/bin/pint --test passed; composer audit --no-interaction found no advisories. Route sanity covers20 support routes and6 ratings routes. No new skips or weakened assertions. A final frontend privacy review also scoped order-rating caches by customer and clears them at sign-out/session expiry; this is applied to feature/ratings first and merged forward normally.
+
+Phase 8 verification update: backend QA now checks response contracts, hides the unanswered fingerprint, uses ISO timestamps, redacts Khmer-digit and zero-width-obfuscated phone numbers, and matches seeded FAQs by their full question as well as keywords. Catalogue parsing honours strict under-price limits, Khmer numerals and category/language/grade/level/format filters. The customer assistant is lazy-loaded to protect storefront startup. The mobile staff header was adjusted after a 390px smoke test found overflow. FAQ seed is manual and idempotent; backend support hours mirror the existing owner-confirmed storefront hours and must be updated together if changed. Full final gates and smoke are still running.
