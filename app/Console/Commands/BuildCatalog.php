@@ -306,6 +306,20 @@ class BuildCatalog extends Command
             $progress['updated_at'] = now()->toIso8601String();
             File::put($progressFile, json_encode($progress, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
+            // Ensure ISBN uniqueness across rows (an ISBN can belong to only one physical variant)
+            $seenIsbns = [];
+            foreach ($allBooks as &$bookRow) {
+                $rowIsbn = trim($bookRow['isbn'] ?? '');
+                if ($rowIsbn !== '') {
+                    if (isset($seenIsbns[$rowIsbn])) {
+                        $bookRow['isbn'] = '';
+                    } else {
+                        $seenIsbns[$rowIsbn] = true;
+                    }
+                }
+            }
+            unset($bookRow);
+
             $this->writeCsv("{$this->catalogDir}/books.csv", self::HEADERS, $allBooks);
             $this->writeCsv("{$this->catalogDir}/needs_review.csv", ['isbn', 'title', 'author', 'reason', 'source_url'], array_values($needsReview));
             $this->writeCsv("{$this->catalogDir}/missing_covers.csv", ['isbn', 'title', 'reason'], array_values($missingCovers));
