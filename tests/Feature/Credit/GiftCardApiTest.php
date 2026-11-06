@@ -124,7 +124,7 @@ class GiftCardApiTest extends TestCase
     public function test_future_unpaid_and_cancelled_cards_are_not_delivered(): void
     {
         $card = $this->card(Customer::factory()->create());
-        $card->update(['send_on' => now()->addDay()->toDateString()]);
+        $card->update(['send_on' => now(config('shop.timezone'))->addDay()->toDateString()]);
         app(GiftDelivery::class)->send($card->id);
         $card->update(['send_on' => today()->toDateString(), 'status' => 'pending_payment']);
         app(GiftDelivery::class)->send($card->id);
