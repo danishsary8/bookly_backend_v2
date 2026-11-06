@@ -8,6 +8,10 @@ Gift-code decision: derive each 16-character code using a domain-separated HMAC 
 
 Internal redemption locks the card and journals the credit in the same transaction; PostgreSQL tests exercise two independent customers racing for one card. Ten failed attempts lock the customer for an hour, with failures committed even though redemption fails. This internal service is not a customer API: purchase/payment confirmation, request rate limits, demo-safe routes, delivery, checkout spending and referral controls are still required before release. Focused ledger, code and redemption tests pass; full quality gates and browser checks have not yet been run for Phase 10.
 
+Payment/accounting finding: the existing KHQR service is tied to an order and derives its QR amount from `orders.total_amount`; dashboard and reports also treat that amount as cash-basis revenue, while returns issue one-use coupons. Wallet-funded checkout therefore needs explicit external-payment and credit allocations, cancellation restoration, fair partial-return allocation and corresponding reporting changes. Reusing the current total or coupon flow without those changes could misstate revenue or lose paid value. Test-mode KHQR must never activate paid gift value in production.
+
+The existing order KHQR amount/currency comparison is now shared as a small matcher, with the existing KHQR payment tests passing. A gift-specific payment flow still needs to use it; no payment-confirmation endpoint or simulated gift payment has been exposed.
+
 ## Phase 9 handoff
 
 Review links:
