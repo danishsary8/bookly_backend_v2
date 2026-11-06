@@ -99,6 +99,48 @@ components:
     NoContent:
       description: Done, no body
   schemas:
+    AssistantResponse:
+      type: object
+      required: [intent, text, link, books, handoff]
+      properties:
+        intent: { type: string }
+        text: { type: string }
+        link: { type: string, nullable: true }
+        books: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/BookCard' } }
+        handoff: { type: boolean }
+    AssistantFaq:
+      type: object
+      required: [id, question_en, question_km, answer_en, answer_km, keywords, is_active, hits]
+      properties:
+        id: { type: integer }
+        question_en: { type: string, maxLength: 300 }
+        question_km: { type: string, maxLength: 300 }
+        answer_en: { type: string, maxLength: 2000 }
+        answer_km: { type: string, maxLength: 2000 }
+        keywords: { type: array, items: { type: string } }
+        is_active: { type: boolean }
+        hits: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AssistantFaqInput:
+      type: object
+      required: [question_en, question_km, answer_en, answer_km, keywords, is_active]
+      properties:
+        question_en: { type: string, maxLength: 300 }
+        question_km: { type: string, maxLength: 300 }
+        answer_en: { type: string, maxLength: 2000 }
+        answer_km: { type: string, maxLength: 2000 }
+        keywords: { type: array, minItems: 1, maxItems: 20, items: { type: string, maxLength: 100 } }
+        is_active: { type: boolean }
+        unanswered_id: { type: integer }
+    AssistantUnanswered:
+      type: object
+      required: [id, question, count, last_seen]
+      properties:
+        id: { type: integer }
+        question: { type: string, maxLength: 300 }
+        count: { type: integer }
+        last_seen: { type: string, format: date-time }
     SupportMessage:
       type: object
       required: [id, sender, body, is_internal, created_at, read_at]
@@ -866,6 +908,54 @@ security:
   - bearer: []
 
 paths:
+  /assistant:
+    post:
+      tags: [Public]
+      security: []
+      summary: Ask the local automatic assistant (optional customer token for own orders)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [question], properties: { question: { type: string, maxLength: 300 } } } } } }
+      responses:
+        '200': { description: Answer, content: { application/json: { schema: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/AssistantResponse' } } } } } }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Too many questions }
+  /staff/assistant:
+    post:
+      tags: [Staff operations]
+      summary: Ask for staff data, filtered by the staff member's abilities
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [question], properties: { question: { type: string, maxLength: 300 } } } } } }
+      responses:
+        '200': { description: Answer, content: { application/json: { schema: { type: object, properties: { data: { type: object, required: [intent, text, link], properties: { intent: { type: string }, text: { type: string }, link: { type: string, nullable: true } } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { description: Too many questions }
+  /staff/assistant/faqs:
+    get:
+      tags: [Staff operations]
+      summary: List bilingual assistant FAQs, including hit counts
+      parameters: [{ name: page, in: query, schema: { type: integer, minimum: 1 } }]
+      responses: { '200': { description: Paginated FAQs, content: { application/json: { schema: { type: object, properties: { data: { type: object, required: [data, current_page, last_page], properties: { data: { type: array, items: { $ref: '#/components/schemas/AssistantFaq' } }, current_page: { type: integer }, last_page: { type: integer } } } } } } } }, '403': { $ref: '#/components/responses/Forbidden' } }
+    post:
+      tags: [Staff operations]
+      summary: Create an FAQ, optionally resolving an unanswered question
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AssistantFaqInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/AssistantFaq' } } } } } }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /staff/assistant/faqs/{id}:
+    patch:
+      tags: [Staff operations]
+      summary: Update a bilingual FAQ
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AssistantFaqInput' } } } }
+      responses: { '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/AssistantFaq' } } } } } }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+    delete:
+      tags: [Staff operations]
+      summary: Delete a bilingual FAQ
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /staff/assistant/unanswered:
+    get:
+      tags: [Staff operations]
+      summary: List redacted unanswered questions and counts
+      parameters: [{ name: page, in: query, schema: { type: integer, minimum: 1 } }]
+      responses: { '200': { description: Paginated redacted questions, content: { application/json: { schema: { type: object, properties: { data: { type: object, required: [data, current_page, last_page], properties: { data: { type: array, items: { $ref: '#/components/schemas/AssistantUnanswered' } }, current_page: { type: integer }, last_page: { type: integer } } } } } } } }, '403': { $ref: '#/components/responses/Forbidden' } }
   /support/guest:
     post:
       tags: [Customer]

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Assistant\AssistantEngine;
+use App\Services\Assistant\RulesEngine;
 use App\Services\CurrencyService;
 use App\Services\KhrRateHistory;
 use App\Services\Telegram\TelegramBot;
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(AssistantEngine::class, RulesEngine::class);
         // One instance per request so the exchange rate is read once, not per book.
         $this->app->scoped(CurrencyService::class);
         $this->app->scoped(KhrRateHistory::class);
@@ -111,6 +114,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Public book list: text search costs the database more than browsing.
         RateLimiter::for('support-guest', fn (Request $request) => Limit::perHour(3)->by('support-guest|'.$request->ip()));
+        RateLimiter::for('assistant', function (Request $request) {
+            $user = $request->user('sanctum');
+
+            return Limit::perMinute(20)->by($user ? 'assistant|'.get_class($user).'|'.$user->getKey() : 'assistant|ip|'.$request->ip());
+        });
         RateLimiter::for('support-messages', fn (Request $request) => Limit::perMinute(20)->by('support-write|'.get_class($request->user()).'|'.$request->user()->id));
         RateLimiter::for('catalog', fn (Request $request) => $request->filled('q')
             ? Limit::perMinute(60)->by('catalog-search|'.$request->ip())
