@@ -1,6 +1,10 @@
 # Summary for Danish
 
-Phase 9 is implemented and verified on `feature/dashboard-v2`. Phase 8 was already merged into both `origin/main` branches while this work was underway; those main branches were integrated here with normal merge commits. Phase 10 has not been implemented and its branches have not been created. No pull requests were opened.
+Phase 10 is in progress on `feature/gift-cards-referrals` in both repositories, started from the latest `origin/main` after Phase 9 was merged. It is not ready to merge. Gift cards and referrals remain off by default. No pull requests were opened.
+
+Phase 10 decision: return credits currently use one-use coupons, not a wallet. Preserve those existing coupons and introduce a separate, integer-cent wallet with an append-only journal, row locking, idempotent references and an enforced nonnegative balance. Gift cards and referrals will not be exposed until checkout, cancellation, payment confirmation, redemption and abuse controls are fully integrated and tested.
+
+## Phase 9 handoff
 
 Review links:
 - Dashboard backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-v2
