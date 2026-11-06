@@ -10,12 +10,13 @@
         "comics-manga",
         "kids",
         "young-adult",
-        "education"
+        "education",
+        "arts-hobbies"
     ],
     "verified_isbns": [],
-    "books_count": 625,
-    "covers_count": 305,
-    "missing_covers_count": 125,
+    "books_count": 645,
+    "covers_count": 320,
+    "missing_covers_count": 130,
     "needs_review_count": 20,
-    "updated_at": "2026-11-06T18:01:12+00:00"
+    "updated_at": "2026-11-06T18:03:01+00:00"
 }
