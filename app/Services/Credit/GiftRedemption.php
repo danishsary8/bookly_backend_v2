@@ -12,7 +12,7 @@ class GiftRedemption
 {
     public function __construct(private readonly GiftCode $codes, private readonly CreditWallet $wallet) {}
 
-    /** The caller must enforce request throttles and the account's failed-attempt lock. */
+    /** Request-level customer and IP throttles must also be enforced by the eventual API route. */
     public function redeem(Customer $customer, string $code): int
     {
         if (! config('shop.gift_cards_enabled')) {
@@ -23,17 +23,26 @@ class GiftRedemption
         }
 
         $code = strtoupper(trim($code));
-        if (! preg_match('/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}$/', $code)) {
-            throw new DomainException('Gift card cannot be redeemed.');
-        }
-        $fingerprint = $this->codes->fingerprint($code);
+        $valid = (bool) preg_match('/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}$/', $code);
+        $fingerprint = $this->codes->fingerprint($valid ? $code : str_repeat('A', 16));
 
-        return DB::transaction(function () use ($customer, $fingerprint) {
+        $result = DB::transaction(function () use ($customer, $fingerprint, $valid) {
+            DB::table('gift_redemption_attempts')->insertOrIgnore(['customer_id' => $customer->id, 'created_at' => now(), 'updated_at' => now()]);
+            $attempt = DB::table('gift_redemption_attempts')->where('customer_id', $customer->id)->lockForUpdate()->first();
+            if ($attempt->locked_until !== null && now()->lessThan($attempt->locked_until)) {
+                return null;
+            }
+            $failures = $attempt->locked_until !== null ? 0 : (int) $attempt->failures;
             $card = DB::table('gift_cards')->where('code_hash', $fingerprint)->lockForUpdate()->first();
             $stored = $card?->code_hash ?? str_repeat('0', 64);
-            if (! hash_equals($stored, $fingerprint) || ! $card || $card->status !== 'active'
+            if (! hash_equals($stored, $fingerprint) || ! $valid || ! $card || $card->status !== 'active'
                 || $card->paid_at === null || $card->expires_at === null || now()->greaterThanOrEqualTo($card->expires_at)) {
-                throw new DomainException('Gift card cannot be redeemed.');
+                $failures++;
+                DB::table('gift_redemption_attempts')->where('customer_id', $customer->id)->update([
+                    'failures' => $failures, 'locked_until' => $failures >= 10 ? now()->addHour() : null, 'updated_at' => now(),
+                ]);
+
+                return null;
             }
 
             $balance = $this->wallet->move($customer, (int) $card->amount_cents, 'gift-card:'.$card->id);
@@ -41,8 +50,15 @@ class GiftRedemption
                 'status' => 'redeemed', 'redeemed_by_customer_id' => $customer->id,
                 'redeemed_at' => now(), 'updated_at' => now(),
             ]);
+            DB::table('gift_redemption_attempts')->where('customer_id', $customer->id)->update(['failures' => 0, 'locked_until' => null, 'updated_at' => now()]);
 
             return $balance;
         });
+
+        if ($result === null) {
+            throw new DomainException('Gift card cannot be redeemed.');
+        }
+
+        return $result;
     }
 }

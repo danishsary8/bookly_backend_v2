@@ -6,7 +6,7 @@ Phase 10 decision: return credits currently use one-use coupons, not a wallet. P
 
 Gift-code decision: derive each 16-character code using a domain-separated HMAC of the card identifier, then store only a separately domain-separated lookup HMAC and the last four characters. This permits scheduled delivery without storing the redeemable code. It depends on keeping the existing application key stable; rotating that key requires an explicit migration plan before cards exist.
 
-Internal redemption now locks the card and journals the credit in the same transaction; PostgreSQL tests exercise two independent customers racing for one card. This internal service is not a customer API: purchase/payment confirmation, the failure lock and rate limits, demo-safe routes, delivery, checkout spending and referral controls are still required before release. Focused ledger, code and redemption tests pass; full quality gates and browser checks have not yet been run for Phase 10.
+Internal redemption locks the card and journals the credit in the same transaction; PostgreSQL tests exercise two independent customers racing for one card. Ten failed attempts lock the customer for an hour, with failures committed even though redemption fails. This internal service is not a customer API: purchase/payment confirmation, request rate limits, demo-safe routes, delivery, checkout spending and referral controls are still required before release. Focused ledger, code and redemption tests pass; full quality gates and browser checks have not yet been run for Phase 10.
 
 ## Phase 9 handoff
 

@@ -62,4 +62,29 @@ class GiftRedemptionTest extends TestCase
         $this->expectException(NotFoundHttpException::class);
         app(GiftRedemption::class)->redeem(Customer::factory()->create(), 'ABCDEFGHIJKLMNOP');
     }
+
+    public function test_ten_failed_attempts_lock_the_customer_for_one_hour(): void
+    {
+        config(['shop.gift_cards_enabled' => true]);
+        $customer = Customer::factory()->create()->fresh();
+        $validCode = $this->card($customer, 'active');
+        for ($i = 0; $i < 10; $i++) {
+            try {
+                app(GiftRedemption::class)->redeem($customer, 'invalid');
+                $this->fail('An invalid code must fail.');
+            } catch (DomainException $exception) {
+                $this->assertSame('Gift card cannot be redeemed.', $exception->getMessage());
+            }
+        }
+        try {
+            app(GiftRedemption::class)->redeem($customer, $validCode);
+            $this->fail('A locked customer must not redeem.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Gift card cannot be redeemed.', $exception->getMessage());
+        }
+        $this->assertDatabaseCount('credit_ledger_entries', 0);
+        $this->travel(61)->minutes();
+        $this->assertSame(2000, app(GiftRedemption::class)->redeem($customer, $validCode));
+        $this->assertDatabaseHas('gift_redemption_attempts', ['customer_id' => $customer->id, 'failures' => 0, 'locked_until' => null]);
+    }
 }
