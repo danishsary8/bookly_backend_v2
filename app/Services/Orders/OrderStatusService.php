@@ -83,7 +83,7 @@ class OrderStatusService
             $from = $locked->status;
 
             if ($customer && $from !== OrderStatus::Pending) {
-                if (! (($locked->is_waiting_stock && in_array($from, [OrderStatus::Paid, OrderStatus::Processing], true)) || ($from === OrderStatus::Paid && $locked->credit_used_cents > 0 && $locked->externalPaymentAmount() === '0.00'))) {
+                if (! ($locked->is_waiting_stock && in_array($from, [OrderStatus::Paid, OrderStatus::Processing], true))) {
                     throw ValidationException::withMessages(['status' => 'This order can no longer be cancelled. Please contact support.']);
                 }
             }

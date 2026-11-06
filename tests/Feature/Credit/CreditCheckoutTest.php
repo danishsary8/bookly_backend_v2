@@ -16,6 +16,7 @@ use App\Services\Orders\OrderStatusService;
 use App\Services\Returns\ReturnService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Tests\Concerns\BuildsOrders;
 use Tests\TestCase;
 
@@ -72,10 +73,17 @@ class CreditCheckoutTest extends TestCase
         app(CreditWallet::class)->move($this->customer, 2000, 'gift-test');
         $this->cart();
         $this->checkout('khqr')->assertCreated()->assertJsonPath('data.status', 'paid')
-            ->assertJsonPath('data.payment_status', 'succeeded')->assertJsonPath('data.payment_due_usd', '0.00');
+            ->assertJsonPath('data.payment_status', 'succeeded')->assertJsonPath('data.payment_due_usd', '0.00')->assertJsonPath('data.can_cancel', false);
         $this->assertSame(1000, app(CreditWallet::class)->balance($this->customer));
         $this->assertDatabaseCount('payments', 0);
-        app(OrderStatusService::class)->cancelByCustomer(Order::sole());
+        // Paid ebooks already grant access: wallet funding must not create a self-service refund loophole.
+        try {
+            app(OrderStatusService::class)->cancelByCustomer(Order::sole());
+            $this->fail('Paid credit orders must use the existing paid-order cancellation policy.');
+        } catch (ValidationException) {
+            $this->assertSame(1000, app(CreditWallet::class)->balance($this->customer));
+        }
+        app(OrderStatusService::class)->changeByStaff(Order::sole(), OrderStatus::Cancelled, StaffUser::factory()->create());
         $this->assertSame(2000, app(CreditWallet::class)->balance($this->customer));
     }
 

@@ -75,7 +75,7 @@ class OrderResource extends JsonResource
                 'latitude' => $this->shipping_latitude !== null ? (float) $this->shipping_latitude : null,
                 'longitude' => $this->shipping_longitude !== null ? (float) $this->shipping_longitude : null,
             ],
-            'can_cancel' => $this->status === OrderStatus::Pending || ($this->is_waiting_stock && in_array($this->status, [OrderStatus::Paid, OrderStatus::Processing], true)) || ($this->status === OrderStatus::Paid && $this->credit_used_cents > 0 && $this->externalPaymentAmount() === '0.00'),
+            'can_cancel' => $this->status === OrderStatus::Pending || ($this->is_waiting_stock && in_array($this->status, [OrderStatus::Paid, OrderStatus::Processing], true)),
             'delivery_note' => $this->delivery_note,
             'is_gift' => (bool) $this->is_gift,
             'gift_message' => $this->gift_message,
