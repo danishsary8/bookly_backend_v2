@@ -9,12 +9,13 @@
         "non-fiction",
         "comics-manga",
         "kids",
-        "young-adult"
+        "young-adult",
+        "education"
     ],
     "verified_isbns": [],
-    "books_count": 597,
-    "covers_count": 282,
-    "missing_covers_count": 120,
-    "needs_review_count": 18,
-    "updated_at": "2026-11-06T17:59:12+00:00"
+    "books_count": 625,
+    "covers_count": 305,
+    "missing_covers_count": 125,
+    "needs_review_count": 20,
+    "updated_at": "2026-11-06T18:01:12+00:00"
 }
