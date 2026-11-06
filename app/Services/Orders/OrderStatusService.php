@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\StaffUser;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Services\Admin\AuditLogger;
+use App\Services\Credit\CreditWallet;
 use App\Services\Inventory\InventoryService;
 use App\Services\Offers\PurchaseGifts;
 use App\Services\Telegram\CustomerOrderUpdates;
@@ -81,7 +82,7 @@ class OrderStatusService
             $from = $locked->status;
 
             if ($customer && $from !== OrderStatus::Pending) {
-                if (! ($locked->is_waiting_stock && in_array($from, [OrderStatus::Paid, OrderStatus::Processing], true))) {
+                if (! (($locked->is_waiting_stock && in_array($from, [OrderStatus::Paid, OrderStatus::Processing], true)) || ($from === OrderStatus::Paid && $locked->credit_used_cents > 0 && $locked->externalPaymentAmount() === '0.00'))) {
                     throw ValidationException::withMessages(['status' => 'This order can no longer be cancelled. Please contact support.']);
                 }
             }
@@ -146,6 +147,9 @@ class OrderStatusService
         }
 
         $order->payments()->where('status', PaymentStatus::Pending)->update(['status' => PaymentStatus::Failed]);
+        if ($order->credit_used_cents > 0) {
+            app(CreditWallet::class)->move($order->customer, $order->credit_used_cents, 'order-cancel:'.$order->id);
+        }
         app(PurchaseGifts::class)->restore($order);
     }
 }

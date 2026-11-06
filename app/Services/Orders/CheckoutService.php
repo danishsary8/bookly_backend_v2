@@ -19,6 +19,7 @@ use App\Notifications\LowStockNotification;
 use App\Notifications\OrderPlacedNotification;
 use App\Services\Cart\CartService;
 use App\Services\Cart\CouponService;
+use App\Services\Credit\CreditWallet;
 use App\Services\Inventory\InventoryService;
 use App\Services\Offers\CartPricing;
 use App\Services\Offers\DiscountChoice;
@@ -48,7 +49,7 @@ class CheckoutService
      * Totals for the current cart, without placing anything. Delivery is priced for the given address,
      * else the customer's default address, else the provinces fee (never quote less than checkout charges).
      */
-    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null, ?string $deliveryArea = null): array
+    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null, ?string $deliveryArea = null, bool $useCredit = false): array
     {
         $addresses = CustomerAddress::where('customer_id', $customer->id);
         $address = $addressId !== null
@@ -60,7 +61,11 @@ class CheckoutService
             $address = new CustomerAddress(['city' => $deliveryArea === 'phnom_penh' ? 'Phnom Penh' : 'Provinces']);
         }
 
-        return [...$this->totals($customer, $this->carts->summary($customer), $couponCode, $address), 'has_delivery_address' => $hasAddress];
+        $totals = $this->totals($customer, $this->carts->summary($customer), $couponCode, $address);
+        $balance = app(CreditWallet::class)->balance($customer);
+        $credit = $useCredit && $this->creditEnabled() ? min($balance, $totals['total_cents']) : 0;
+
+        return [...$totals, 'has_delivery_address' => $hasAddress, 'credit_balance_cents' => $balance, 'credit_used_cents' => $credit, 'payment_due_cents' => $totals['total_cents'] - $credit];
     }
 
     /**
@@ -68,11 +73,11 @@ class CheckoutService
      *
      * @return array{order: Order, created: bool} created=false when the idempotency key was already used
      */
-    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $isGift = false, ?string $giftMessage = null): array
+    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $isGift = false, ?string $giftMessage = null, bool $useCredit = false): array
     {
         $crossedLowStock = [];
 
-        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $isGift, $giftMessage, &$crossedLowStock) {
+        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $isGift, $giftMessage, $useCredit, &$crossedLowStock) {
             // 1. Lock the cart: concurrent checkouts by the same customer run one after another.
             $cart = $this->carts->cartFor($customer);
             Cart::whereKey($cart->id)->lockForUpdate()->first();
@@ -132,6 +137,10 @@ class CheckoutService
                 }
             }
             $expectedShipDate = $preorderDates !== [] ? max($preorderDates) : null;
+            $wallet = app(CreditWallet::class);
+            $credit = $useCredit && $this->creditEnabled() ? min($wallet->balance($customer, lock: true), $totals['total_cents']) : 0;
+            // A fully funded order needs no QR or cash collection; its journal is the payment evidence.
+            $fullyFunded = $credit > 0 && $credit === $totals['total_cents'];
 
             // 5. Create the order with a copy of the address and today's prices.
             $order = Order::create([
@@ -156,12 +165,13 @@ class CheckoutService
                 'offer_name' => $offer?->offer->name,
                 'offer_min_quantity' => $offer?->offer->minQuantity,
                 'offer_percent_off' => $offer?->offer->percentOff,
-                'status' => OrderStatus::Pending,
+                'status' => $fullyFunded ? OrderStatus::Paid : OrderStatus::Pending,
                 'subtotal' => Money::format($totals['subtotal_cents']),
                 'discount_amount' => Money::format($totals['discount_cents']),
                 'shipping_fee' => Money::format($totals['shipping_cents']),
                 'tax_amount' => '0.00',
                 'total_amount' => Money::format($totals['total_cents']),
+                'credit_used_cents' => $credit,
                 'currency' => 'USD',
                 'payment_method' => $paymentMethod,
                 'placed_at' => now(),
@@ -171,6 +181,10 @@ class CheckoutService
                 'is_waiting_stock' => $isWaitingStock,
                 'expected_ship_date' => $expectedShipDate,
             ]);
+
+            if ($credit > 0) {
+                $wallet->move($customer, -$credit, 'order:'.$order->id);
+            }
 
             foreach ($summary['lines'] as $line) {
                 $item = $line['item'];
@@ -197,13 +211,13 @@ class CheckoutService
                 Offer::whereKey($offer->offer->id)->increment('used_count'); // the row is locked (lockBestLiveOffer)
             }
 
-            $order->statusHistory()->create(['status' => OrderStatus::Pending, 'note' => 'Order placed.']);
-            if ($paymentMethod === PaymentMethod::Khqr) {
+            $order->statusHistory()->create(['status' => $order->status, 'note' => 'Order placed.']);
+            if (! $fullyFunded && $paymentMethod === PaymentMethod::Khqr) {
                 app(KhqrPaymentService::class)->start($order); // the first QR (USD); the order waits for payment
-            } else {
+            } elseif (! $fullyFunded) {
                 $order->payments()->create([
                     'provider' => PaymentProvider::Cod,
-                    'amount' => $order->total_amount,
+                    'amount' => $order->externalPaymentAmount(),
                     'currency' => 'USD',
                     'status' => PaymentStatus::Pending,
                 ]);
@@ -216,7 +230,7 @@ class CheckoutService
 
         if ($result['created']) {
             // A KHQR order announces itself when it is paid (KhqrPaymentService), not before.
-            if ($paymentMethod !== PaymentMethod::Khqr) {
+            if ($paymentMethod !== PaymentMethod::Khqr || $result['order']->status === OrderStatus::Paid) {
                 self::announce($result['order']);
             }
 
@@ -230,6 +244,11 @@ class CheckoutService
         }
 
         return $result;
+    }
+
+    private function creditEnabled(): bool
+    {
+        return (bool) config('shop.gift_cards_enabled') || (bool) config('shop.referrals_enabled');
     }
 
     /**

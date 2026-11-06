@@ -8,6 +8,7 @@ use App\Enums\PaymentStatus;
 use App\Services\CurrencyService;
 use App\Services\Orders\DeliveryArea;
 use App\Services\Payments\KhqrPaymentService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,7 +23,7 @@ class OrderResource extends JsonResource
             'status' => $this->status->value,
             'payment_method' => $this->payment_method->value,
             // A paid QR wins over newer QR rows that were closed as failed (KHQR: one row per QR).
-            'payment_status' => $this->whenLoaded('payments', fn () => ($this->payments->firstWhere('status', PaymentStatus::Succeeded) ?? $this->payments->sortByDesc('id')->first())?->status->value),
+            'payment_status' => $this->whenLoaded('payments', fn () => $this->credit_used_cents > 0 && $this->externalPaymentAmount() === '0.00' ? ($this->status === OrderStatus::Cancelled || $this->status === OrderStatus::Returned ? 'refunded' : 'succeeded') : ($this->payments->firstWhere('status', PaymentStatus::Succeeded) ?? $this->payments->sortByDesc('id')->first())?->status->value),
             // KHQR orders waiting for payment: when the time to pay ends (the shop shows "Pay now" until then).
             'payment_due_at' => $this->payment_method === PaymentMethod::Khqr && $this->status === OrderStatus::Pending
                 ? app(KhqrPaymentService::class)->deadline($this->resource)->toIso8601String()
@@ -50,6 +51,8 @@ class OrderResource extends JsonResource
             'shipping_fee_usd' => $this->shipping_fee,
             'tax_usd' => $this->tax_amount,
             'total_usd' => $this->total_amount,
+            'credit_used_usd' => Money::format($this->credit_used_cents),
+            'payment_due_usd' => $this->externalPaymentAmount(),
             'total_khr' => app(CurrencyService::class)->usdToKhr($this->total_amount),
             'coupon_code' => $this->whenLoaded('coupon', fn () => $this->coupon?->code),
             // The automatic offer used, from the copy saved at order time (stays when the offer is edited or deleted).
@@ -72,7 +75,7 @@ class OrderResource extends JsonResource
                 'latitude' => $this->shipping_latitude !== null ? (float) $this->shipping_latitude : null,
                 'longitude' => $this->shipping_longitude !== null ? (float) $this->shipping_longitude : null,
             ],
-            'can_cancel' => $this->status === OrderStatus::Pending || ($this->is_waiting_stock && in_array($this->status, [OrderStatus::Paid, OrderStatus::Processing], true)),
+            'can_cancel' => $this->status === OrderStatus::Pending || ($this->is_waiting_stock && in_array($this->status, [OrderStatus::Paid, OrderStatus::Processing], true)) || ($this->status === OrderStatus::Paid && $this->credit_used_cents > 0 && $this->externalPaymentAmount() === '0.00'),
             'delivery_note' => $this->delivery_note,
             'is_gift' => (bool) $this->is_gift,
             'gift_message' => $this->gift_message,

@@ -12,6 +12,7 @@ use App\Models\OrderReturn;
 use App\Models\StaffUser;
 use App\Notifications\ReturnUpdatedNotification;
 use App\Services\Admin\AuditLogger;
+use App\Services\Credit\CreditWallet;
 use App\Services\Inventory\InventoryService;
 use App\Services\Orders\OrderStatusService;
 use App\Support\Money;
@@ -172,16 +173,25 @@ class ReturnService
             $previous = $order->returns()->where('status', ReturnStatus::Refunded)->with('items.orderItem')->get();
             $allItems = $previous->flatMap->items->concat($locked->items);
             $refund = Money::format($this->refundCents($order, $allItems) - $previous->sum(fn ($r) => Money::toCents($r->refund_amount)));
+            // Restore the prepaid share to its original wallet, never convert gift value into cash.
+            // Cumulative allocation prevents penny drift across several partial returns.
+            $orderCents = Money::toCents($order->total_amount);
+            $creditRefund = $orderCents > 0 ? intdiv($this->refundCents($order, $allItems) * $order->credit_used_cents, $orderCents) - $previous->sum('credit_refund_cents') : 0;
+            if ($creditRefund > 0) {
+                app(CreditWallet::class)->move($order->customer, $creditRefund, 'order-return:'.$locked->id);
+            }
+            $externalRefund = Money::format(Money::toCents($refund) - $creditRefund);
 
             foreach ($locked->items as $item) {
                 $this->inventory->restockFromReturn($item->orderItem->book_variant_id, $item->quantity, $locked, $staff);
             }
 
-            $coupon = $method === 'store_credit' ? $this->storeCredit($locked->customer_id, $refund) : null;
+            $coupon = $method === 'store_credit' && Money::toCents($externalRefund) > 0 ? $this->storeCredit($locked->customer_id, $externalRefund) : null;
 
             $locked->update([
                 'status' => ReturnStatus::Refunded,
                 'refund_amount' => $refund,
+                'credit_refund_cents' => $creditRefund,
                 'refund_method' => $method,
                 'refund_reference' => $method === 'bank_transfer' ? $reference : null,
                 'refunded_by_staff_id' => $staff->id,

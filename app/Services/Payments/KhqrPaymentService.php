@@ -215,7 +215,7 @@ class KhqrPaymentService
 
     private function createQr(Order $order, string $currency): Payment
     {
-        $amount = $currency === 'USD' ? (string) $order->total_amount : $this->currency->usdToKhr((string) $order->total_amount);
+        $amount = $currency === 'USD' ? $order->externalPaymentAmount() : $this->currency->usdToKhr($order->externalPaymentAmount());
         if ($amount === null) {
             throw ValidationException::withMessages(['currency' => 'Paying in riel is not available right now (no exchange rate). Please pay in USD.']);
         }

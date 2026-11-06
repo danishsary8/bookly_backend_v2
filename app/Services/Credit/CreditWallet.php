@@ -10,6 +10,13 @@ use InvalidArgumentException;
 /** Monetary movements are idempotent, and the balance and journal change under one row lock. */
 class CreditWallet
 {
+    public function balance(Customer $customer, bool $lock = false): int
+    {
+        $query = DB::table('credit_wallets')->where('customer_id', $customer->id);
+
+        return (int) ($lock ? $query->lockForUpdate() : $query)->value('balance_cents');
+    }
+
     public function move(Customer $customer, int $amountCents, string $reference): int
     {
         if ($amountCents === 0 || $reference === '' || strlen($reference) > 120) {

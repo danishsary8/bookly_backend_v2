@@ -30,6 +30,8 @@ class ReturnResource extends JsonResource
             'refund_amount_usd' => $this->refund_amount
                 ?? Money::format(app(ReturnService::class)->refundCents($this->order, $this->items)),
             'is_refund_final' => $this->refund_amount !== null,
+            'credit_refund_usd' => Money::format((int) $this->credit_refund_cents),
+            'external_refund_usd' => $this->refund_amount === null ? null : Money::format(Money::toCents($this->refund_amount) - (int) $this->credit_refund_cents),
             // cash | bank_transfer | store_credit; null before the refund and for refunds made before it was recorded.
             'refund_method' => $this->refund_method,
             'refund_reference' => $this->refund_reference,
