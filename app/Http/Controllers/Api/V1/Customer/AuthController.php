@@ -11,6 +11,7 @@ use App\Notifications\AccountSecurityNotice;
 use App\Rules\Turnstile;
 use App\Services\Auth\EmailClaims;
 use App\Services\Auth\OtpService;
+use App\Services\Credit\Referrals;
 use App\Services\Customers\UnverifiedCustomers;
 use App\Services\Telegram\TelegramBot;
 use App\Support\PasswordRules;
@@ -55,6 +56,8 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'verify_by' => ['nullable', Rule::in(['email', 'telegram'])],
             'locale' => ['nullable', 'string', Rule::in(['en', 'km'])],
+            'referral_code' => ['nullable', 'string', 'max:16'],
+            'referral_device' => ['nullable', 'string', 'max:64'],
             'turnstile_token' => [new Turnstile($request->ip())],
         ]);
         if ($byTelegram && ! TelegramBot::enabled()) {
@@ -87,6 +90,9 @@ class AuthController extends Controller
                     $customer->tokens()->delete();
                 }
                 $customer->save();
+                if ($existing === null) {
+                    app(Referrals::class)->attribute($customer, $data['referral_code'] ?? null, $data['referral_device'] ?? null);
+                }
                 if (! $byTelegram) {
                     $this->otp->issue($customer, VerificationPurpose::EmailVerify);
                 }

@@ -45,8 +45,10 @@ class CreditCheckoutTest extends TestCase
 
     private function checkout(string $method = 'cod')
     {
+        $due = $this->postJson('/api/v1/checkout/preview', ['use_credit' => true])->json('data.payment_due.usd');
+
         return $this->withHeader('Idempotency-Key', 'wallet-checkout-1')->postJson('/api/v1/checkout', [
-            'address_id' => $this->address->id, 'payment_method' => $method, 'use_credit' => true,
+            'address_id' => $this->address->id, 'payment_method' => $method, 'use_credit' => true, 'expected_payment_due_usd' => $due,
         ]);
     }
 
@@ -75,6 +77,18 @@ class CreditCheckoutTest extends TestCase
         $this->assertDatabaseCount('payments', 0);
         app(OrderStatusService::class)->cancelByCustomer(Order::sole());
         $this->assertSame(2000, app(CreditWallet::class)->balance($this->customer));
+    }
+
+    public function test_changed_balance_rejects_the_order_instead_of_silently_increasing_external_payment(): void
+    {
+        app(CreditWallet::class)->move($this->customer, 300, 'gift-test');
+        $this->cart();
+        app(CreditWallet::class)->move($this->customer, -300, 'another-tab');
+        $this->withHeader('Idempotency-Key', 'wallet-changed-1')->postJson('/api/v1/checkout', [
+            'address_id' => $this->address->id, 'payment_method' => 'cod', 'use_credit' => true, 'expected_payment_due_usd' => '7.00',
+        ])->assertUnprocessable()->assertJsonValidationErrors('use_credit');
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('cart_items', 1);
     }
 
     public function test_disabled_flags_do_not_spend_a_balance(): void

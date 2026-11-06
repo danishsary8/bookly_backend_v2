@@ -90,6 +90,21 @@ class DashboardInsightsTest extends TestCase
         $this->assertSame(75.0, (float) $rows['khqr']['percent']);
     }
 
+    public function test_payment_analysis_separates_prepaid_credit_from_external_tenders(): void
+    {
+        $customer = Customer::factory()->create();
+        $mixed = $this->deliveredOrder($customer, [[$this->physical('10.00'), 1]]);
+        $mixed->update(['payment_method' => 'cod', 'credit_used_cents' => 300]);
+        $full = $this->deliveredOrder($customer, [[$this->physical('10.00'), 1]]);
+        $full->update(['payment_method' => 'khqr', 'credit_used_cents' => 1000]);
+        $rows = collect($this->insights()['payment_methods'])->keyBy('method');
+        $this->assertSame('7.00', $rows['cod']['total_usd']);
+        $this->assertSame('13.00', $rows['wallet']['total_usd']);
+        $this->assertSame(2, $rows['wallet']['orders']);
+        $this->assertFalse($rows->has('khqr'));
+        $this->assertSame(100.0, (float) $rows->sum('percent'));
+    }
+
     public function test_recovery_excludes_cancelled_and_orders_at_the_seven_day_boundary(): void
     {
         $customer = Customer::factory()->create();

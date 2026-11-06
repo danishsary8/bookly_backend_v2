@@ -11,6 +11,8 @@ class ReturnResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $allocation = $this->refund_amount === null ? app(ReturnService::class)->refundAllocation($this->order, $this->items) : ['total' => Money::toCents($this->refund_amount), 'credit' => (int) $this->credit_refund_cents];
+
         return [
             'id' => $this->id,
             'order_id' => $this->order_id,
@@ -28,10 +30,10 @@ class ReturnResource extends JsonResource
             ])->values(),
             // Before the refund this is an estimate; once refunded it is the amount actually paid back.
             'refund_amount_usd' => $this->refund_amount
-                ?? Money::format(app(ReturnService::class)->refundCents($this->order, $this->items)),
+                ?? Money::format($allocation['total']),
             'is_refund_final' => $this->refund_amount !== null,
-            'credit_refund_usd' => Money::format((int) $this->credit_refund_cents),
-            'external_refund_usd' => $this->refund_amount === null ? null : Money::format(Money::toCents($this->refund_amount) - (int) $this->credit_refund_cents),
+            'credit_refund_usd' => Money::format($allocation['credit']),
+            'external_refund_usd' => Money::format($allocation['total'] - $allocation['credit']),
             // cash | bank_transfer | store_credit; null before the refund and for refunds made before it was recorded.
             'refund_method' => $this->refund_method,
             'refund_reference' => $this->refund_reference,

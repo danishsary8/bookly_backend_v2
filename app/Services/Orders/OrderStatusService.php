@@ -10,6 +10,7 @@ use App\Models\StaffUser;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Credit\CreditWallet;
+use App\Services\Credit\Referrals;
 use App\Services\Inventory\InventoryService;
 use App\Services\Offers\PurchaseGifts;
 use App\Services\Telegram\CustomerOrderUpdates;
@@ -151,5 +152,6 @@ class OrderStatusService
             app(CreditWallet::class)->move($order->customer, $order->credit_used_cents, 'order-cancel:'.$order->id);
         }
         app(PurchaseGifts::class)->restore($order);
+        app(Referrals::class)->voidForOrder($order);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Enums\ReturnStatus;
 use App\Models\OrderReturn;
 use App\Notifications\Concerns\SendsAfterResponse;
+use App\Support\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -43,7 +44,10 @@ class ReturnUpdatedNotification extends Notification implements ShouldQueue
         if ($return->status === ReturnStatus::Refunded) {
             $mail->line(__('mail.refund_amount', ['amount' => $return->refund_amount]));
             $coupon = $return->storeCreditCoupon;
-            match ($return->refund_method) {
+            if ($return->credit_refund_cents > 0) {
+                $mail->line(__('credit.wallet_refunded', ['amount' => Money::format($return->credit_refund_cents)]));
+            }
+            match (Money::toCents($return->refund_amount) > (int) $return->credit_refund_cents ? $return->refund_method : null) {
                 'cash' => $mail->line(__('mail.refund_cash')),
                 'bank_transfer' => $mail->line(filled($return->refund_reference)
                     ? __('mail.refund_bank_transfer_reference', ['reference' => $return->refund_reference])

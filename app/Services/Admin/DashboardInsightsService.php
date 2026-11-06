@@ -355,11 +355,17 @@ class DashboardInsightsService
         return ['sent' => $sent, 'recovered' => $recovered, 'percent' => $sent ? round(100 * $recovered / $sent, 1) : 0.0];
     }
 
-    /** Payment amounts are order totals at placement, not collected cash or net revenue. */
+    /** Tender allocations at placement; prepaid credit is not another external payment. */
     private function paymentMethods(CarbonImmutable $start, CarbonImmutable $end): array
     {
         $rows = $this->placedOrders($start, $end)->groupBy('payment_method')
-            ->selectRaw('payment_method, COUNT(*) AS orders, COALESCE(SUM(total_amount), 0) AS total')->get();
+            ->selectRaw('payment_method, COUNT(*) FILTER (WHERE total_amount * 100 > credit_used_cents) AS orders, COALESCE(SUM(total_amount - credit_used_cents / 100.0), 0) AS total, COALESCE(SUM(credit_used_cents), 0) AS credit, COUNT(*) FILTER (WHERE credit_used_cents > 0) AS credit_orders')->get();
+        $credit = (int) $rows->sum('credit');
+        $creditOrders = (int) $rows->sum('credit_orders');
+        $rows = $rows->filter(fn ($row) => (int) $row->orders > 0)->values();
+        if ($credit > 0) {
+            $rows->push((object) ['payment_method' => 'wallet', 'orders' => $creditOrders, 'total' => Money::format($credit)]);
+        }
         $total = $rows->sum(fn ($row) => Money::toCents($row->total));
 
         return $rows->map(fn ($row) => [

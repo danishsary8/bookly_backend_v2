@@ -30,6 +30,7 @@ class GiftPayment
         if (! $payment || ! in_array($payment->status, ['pending', 'expired'], true) || KhqrPaymentService::mode() !== 'bakong') {
             return $card->status;
         }
+        DB::table('gift_card_payments')->where('id', $payment->id)->update(['last_checked_at' => now()]);
         try {
             $transaction = $this->bakong->checkByMd5($payment->provider_transaction_id);
         } catch (BakongUnavailable) {

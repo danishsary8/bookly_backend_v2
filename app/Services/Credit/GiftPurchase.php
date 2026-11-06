@@ -56,6 +56,7 @@ class GiftPurchase
                 'buyer_customer_id' => $buyer->id, 'amount_cents' => $amountCents, 'recipient_name' => $recipientName,
                 'recipient_email' => $recipientEmail, 'message' => $message, 'send_on' => $sendOn,
                 'idempotency_key' => $idempotencyKey, 'created_at' => now(), 'updated_at' => now(),
+                'locale' => $lockedBuyer->preferredLocale(),
             ]);
             $code = $this->codes->forId($id);
             DB::table('gift_cards')->where('id', $id)->update(['code_hash' => $this->codes->fingerprint($code), 'last_four' => substr($code, -4)]);

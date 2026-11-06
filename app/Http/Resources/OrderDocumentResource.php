@@ -47,7 +47,7 @@ class OrderDocumentResource extends JsonResource
             'is_gift' => (bool) $this->is_gift,
             'gift_message' => $this->gift_message,
             'payment_method' => $this->payment_method->value,
-            'payment_status' => $this->payments->sortByDesc('id')->first()?->status->value,
+            'payment_status' => $this->credit_used_cents > 0 && $this->externalPaymentAmount() === '0.00' ? (in_array($this->status, [OrderStatus::Cancelled, OrderStatus::Returned], true) ? 'refunded' : 'succeeded') : $this->payments->sortByDesc('id')->first()?->status->value,
             'customer' => [
                 'name' => $this->customer?->name,
                 'email' => $this->customer?->email,

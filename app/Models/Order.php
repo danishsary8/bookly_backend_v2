@@ -23,7 +23,7 @@ class Order extends Model
         'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note', 'is_gift', 'gift_message',
         'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
         'is_waiting_stock', 'expected_ship_date',
-        'free_gift', 'credit_used_cents',
+        'free_gift', 'credit_used_cents', 'referral_discount_cents',
     ];
 
     protected function casts(): array
@@ -31,6 +31,7 @@ class Order extends Model
         return [
             'is_gift' => 'boolean',
             'credit_used_cents' => 'integer',
+            'referral_discount_cents' => 'integer',
             'free_gift' => 'array',
             'is_waiting_stock' => 'boolean',
             'expected_ship_date' => 'date',

@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Order;
 use App\Notifications\Concerns\SendsAfterResponse;
+use App\Support\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -42,13 +43,16 @@ class OrderPlacedNotification extends Notification implements ShouldQueue
 
         $mail->line(__('mail.shipping', ['amount' => $order->shipping_fee]))
             ->line(__('mail.total', ['amount' => $order->total_amount]))
-            ->line(__('mail.payment_cod'))
+            ->line($order->credit_used_cents > 0 ? __('credit.wallet_paid', ['amount' => Money::format($order->credit_used_cents)]) : __('mail.payment_cod'))
             ->line(__('mail.delivery_to', [
                 'recipient' => $order->shipping_recipient_name,
                 'address' => $order->shipping_address_line1,
                 'city' => $order->shipping_city,
                 'country' => $order->shipping_country,
             ]));
+        if ($order->credit_used_cents > 0) {
+            $mail->line(__('credit.external_due', ['amount' => $order->externalPaymentAmount()]));
+        }
 
         $shop = rtrim((string) (config('shop.url') ?: config('app.url')), '/');
         if ($shop !== '') {

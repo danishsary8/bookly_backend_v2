@@ -20,6 +20,7 @@ use App\Notifications\OrderPlacedNotification;
 use App\Services\Cart\CartService;
 use App\Services\Cart\CouponService;
 use App\Services\Credit\CreditWallet;
+use App\Services\Credit\Referrals;
 use App\Services\Inventory\InventoryService;
 use App\Services\Offers\CartPricing;
 use App\Services\Offers\DiscountChoice;
@@ -73,11 +74,11 @@ class CheckoutService
      *
      * @return array{order: Order, created: bool} created=false when the idempotency key was already used
      */
-    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $isGift = false, ?string $giftMessage = null, bool $useCredit = false): array
+    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $isGift = false, ?string $giftMessage = null, bool $useCredit = false, ?int $expectedPaymentDueCents = null): array
     {
         $crossedLowStock = [];
 
-        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $isGift, $giftMessage, $useCredit, &$crossedLowStock) {
+        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $isGift, $giftMessage, $useCredit, $expectedPaymentDueCents, &$crossedLowStock) {
             // 1. Lock the cart: concurrent checkouts by the same customer run one after another.
             $cart = $this->carts->cartFor($customer);
             Cart::whereKey($cart->id)->lockForUpdate()->first();
@@ -121,7 +122,14 @@ class CheckoutService
             $lineTotals = $summary['lines']->mapWithKeys(fn ($line) => [$line['item']->id => $line['line_total_cents']])->all();
             $lineDiscounts = $offer !== null
                 ? LineDiscounts::forOffer($lineTotals, $offer)
-                : LineDiscounts::forCoupon($lineTotals, $totals['coupon'] ? $totals['discount_cents'] : 0);
+                : LineDiscounts::forCoupon($lineTotals, $totals['coupon'] ? $totals['discount_cents'] - $totals['referral_discount_cents'] : 0);
+            $remaining = [];
+            foreach ($lineTotals as $id => $amount) {
+                $remaining[$id] = $amount - ($lineDiscounts[$id] ?? 0);
+            }
+            foreach (LineDiscounts::forCoupon($remaining, $totals['referral_discount_cents']) as $id => $amount) {
+                $lineDiscounts[$id] = ($lineDiscounts[$id] ?? 0) + $amount;
+            }
 
             $isWaitingStock = false;
             $preorderDates = [];
@@ -139,6 +147,9 @@ class CheckoutService
             $expectedShipDate = $preorderDates !== [] ? max($preorderDates) : null;
             $wallet = app(CreditWallet::class);
             $credit = $useCredit && $this->creditEnabled() ? min($wallet->balance($customer, lock: true), $totals['total_cents']) : 0;
+            if ($useCredit && $expectedPaymentDueCents !== null && $expectedPaymentDueCents !== $totals['total_cents'] - $credit) {
+                throw ValidationException::withMessages(['use_credit' => __('credit.balance_changed')]);
+            }
             // A fully funded order needs no QR or cash collection; its journal is the payment evidence.
             $fullyFunded = $credit > 0 && $credit === $totals['total_cents'];
 
@@ -172,6 +183,7 @@ class CheckoutService
                 'tax_amount' => '0.00',
                 'total_amount' => Money::format($totals['total_cents']),
                 'credit_used_cents' => $credit,
+                'referral_discount_cents' => $totals['referral_discount_cents'],
                 'currency' => 'USD',
                 'payment_method' => $paymentMethod,
                 'placed_at' => now(),
@@ -185,6 +197,7 @@ class CheckoutService
             if ($credit > 0) {
                 $wallet->move($customer, -$credit, 'order:'.$order->id);
             }
+            app(Referrals::class)->placed($order);
 
             foreach ($summary['lines'] as $line) {
                 $item = $line['item'];
@@ -310,6 +323,8 @@ class CheckoutService
         $choice = DiscountChoice::pick($this->pricing->bestOffer($summary, $live), $coupon, $couponDiscount);
         $discount = $choice->discountCents;
         $coupon = $choice->coupon;
+        $referralDiscount = app(Referrals::class)->discount($customer, $subtotal - $discount, $address, lock: $giftReserved);
+        $discount += $referralDiscount;
 
         $requiresShipping = $freeGift !== null || $summary['lines']->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
         $area = DeliveryArea::for($address);
@@ -370,6 +385,7 @@ class CheckoutService
         return [
             'subtotal_cents' => $subtotal,
             'discount_cents' => $discount,
+            'referral_discount_cents' => $referralDiscount,
             'shipping_cents' => $shipping,
             'standard_shipping_cents' => $standardShipping,
             'is_free_shipping' => $isFreeShipping,

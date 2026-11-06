@@ -13,6 +13,7 @@ use App\Models\StaffUser;
 use App\Notifications\ReturnUpdatedNotification;
 use App\Services\Admin\AuditLogger;
 use App\Services\Credit\CreditWallet;
+use App\Services\Credit\Referrals;
 use App\Services\Inventory\InventoryService;
 use App\Services\Orders\OrderStatusService;
 use App\Support\Money;
@@ -166,21 +167,18 @@ class ReturnService
     {
         return $this->resolve($return, $staff, [ReturnStatus::Approved], function (OrderReturn $locked) use ($staff, $note, $method, $reference) {
             $order = Order::whereKey($locked->order_id)->lockForUpdate()->firstOrFail();
+            app(Referrals::class)->voidForOrder($order);
             $locked->load('items.orderItem.variant');
 
             // Calculated over all refunded returns of the order, minus what was already paid back,
             // so several partial refunds add up exactly to the full amount (no rounding drift).
-            $previous = $order->returns()->where('status', ReturnStatus::Refunded)->with('items.orderItem')->get();
-            $allItems = $previous->flatMap->items->concat($locked->items);
-            $refund = Money::format($this->refundCents($order, $allItems) - $previous->sum(fn ($r) => Money::toCents($r->refund_amount)));
-            // Restore the prepaid share to its original wallet, never convert gift value into cash.
-            // Cumulative allocation prevents penny drift across several partial returns.
-            $orderCents = Money::toCents($order->total_amount);
-            $creditRefund = $orderCents > 0 ? intdiv($this->refundCents($order, $allItems) * $order->credit_used_cents, $orderCents) - $previous->sum('credit_refund_cents') : 0;
+            $allocation = $this->refundAllocation($order, $locked->items);
+            $refund = Money::format($allocation['total']);
+            $creditRefund = $allocation['credit'];
             if ($creditRefund > 0) {
                 app(CreditWallet::class)->move($order->customer, $creditRefund, 'order-return:'.$locked->id);
             }
-            $externalRefund = Money::format(Money::toCents($refund) - $creditRefund);
+            $externalRefund = Money::format($allocation['external']);
 
             foreach ($locked->items as $item) {
                 $this->inventory->restockFromReturn($item->orderItem->book_variant_id, $item->quantity, $locked, $staff);
@@ -205,6 +203,18 @@ class ReturnService
                 $this->orderStatuses->markReturned($order, $staff, "All returnable items refunded (return #{$locked->id}).");
             }
         });
+    }
+
+    /** The same cumulative allocation is shown to staff before they make an external refund. */
+    public function refundAllocation(Order $order, Collection $items): array
+    {
+        $previous = $order->returns()->where('status', ReturnStatus::Refunded)->with('items.orderItem')->get();
+        $cumulative = $this->refundCents($order, $previous->flatMap->items->concat($items));
+        $total = $cumulative - $previous->sum(fn ($r) => Money::toCents($r->refund_amount));
+        $orderCents = Money::toCents($order->total_amount);
+        $credit = $orderCents > 0 ? intdiv($cumulative * (int) $order->credit_used_cents, $orderCents) - $previous->sum('credit_refund_cents') : 0;
+
+        return ['total' => $total, 'credit' => $credit, 'external' => $total - $credit];
     }
 
     /** A one-use fixed-amount coupon for one customer, valid until the end of the same day 12 months later (shop time). */

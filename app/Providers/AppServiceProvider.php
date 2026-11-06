@@ -103,6 +103,11 @@ class AppServiceProvider extends ServiceProvider
         // KHQR payment page (KHQR payments design 3.3): the page asks every 3 seconds (20 a minute; 60 leaves room for
         // several tabs). Its buttons have their own counter, so the polling never uses up Simulate or the riel QR.
         RateLimiter::for('khqr-poll', fn (Request $request) => Limit::perMinute(60)->by('khqr-poll|'.$who($request)));
+        RateLimiter::for('gift-poll', fn (Request $request) => Limit::perMinute(20)->by('gift-poll|'.$who($request)));
+        RateLimiter::for('gift-redeem', fn (Request $request) => [
+            Limit::perMinute(5)->by('gift-redeem-customer|'.$request->user()->id),
+            Limit::perHour(20)->by('gift-redeem-ip|'.$request->ip()),
+        ]);
         RateLimiter::for('khqr-action', fn (Request $request) => Limit::perMinute(10)->by('khqr-action|'.$who($request)));
 
         // Trying coupon codes. Wrong codes in a row also lock checking for 15 minutes (CouponCheckController).

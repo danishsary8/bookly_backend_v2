@@ -5,6 +5,7 @@ namespace App\Services\Telegram;
 use App\Models\BookVariant;
 use App\Models\Order;
 use App\Models\Review;
+use App\Support\Money;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -65,6 +66,7 @@ class OpsAlerts
         $this->send(implode("\n", array_filter([
             "🛒 New order {$order->order_number}",
             "Total: {$order->total_amount} USD ({$order->items->sum('quantity')} items)",
+            $order->credit_used_cents > 0 ? 'Paid with credit: '.Money::format($order->credit_used_cents).' USD; external payment: '.$order->externalPaymentAmount().' USD' : null,
             ...$lines->take(10)->all(),
             $lines->count() > 10 ? '• … and '.($lines->count() - 10).' more lines' : null,
             $customerLine,
