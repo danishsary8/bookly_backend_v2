@@ -1,11 +1,15 @@
 {
     "completed_categories": [
-        "fiction"
+        "fiction",
+        "khmer-books",
+        "khmer-school",
+        "english-learning",
+        "self-help"
     ],
     "verified_isbns": [],
-    "books_count": 140,
-    "covers_count": 50,
-    "missing_covers_count": 20,
-    "needs_review_count": 0,
-    "updated_at": "2026-11-06T17:28:04+00:00"
+    "books_count": 357,
+    "covers_count": 110,
+    "missing_covers_count": 52,
+    "needs_review_count": 8,
+    "updated_at": "2026-11-06T17:37:12+00:00"
 }
