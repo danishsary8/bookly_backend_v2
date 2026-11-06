@@ -137,7 +137,7 @@ class ReferralsTest extends TestCase
     public function test_unfinished_referred_signups_can_still_be_pruned(): void
     {
         [, $friend] = $this->pair();
-        $friend->update(['email_verified_at' => null, 'phone_verified_at' => null, 'created_at' => now()->subDays(4)]);
+        $friend->forceFill(['email_verified_at' => null, 'phone_verified_at' => null, 'created_at' => now()->subDays(4)])->save();
         app(UnverifiedCustomers::class)->prune();
         $this->assertDatabaseMissing('customers', ['id' => $friend->id]);
         $this->assertDatabaseMissing('referrals', ['friend_customer_id' => $friend->id]);
