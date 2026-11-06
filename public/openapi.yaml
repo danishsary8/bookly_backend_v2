@@ -3045,6 +3045,40 @@ paths:
       description: 'trend: one row per day of the period with the same day index of the previous period (net revenue, orders placed, average delivered order, new verified customers). dead_stock: printed formats in stock with no copy in a non-cancelled order in the last 60 days (count, copies, value at selling price, top 10 by value with last_sold_at). stock_value: printed active copies in stock at selling price (no cost price exists). top_authors: top 10 by copies in orders placed. provinces: top 10 by orders placed, province detected from the order address ("Unknown" when not found). promotions: orders with an offer / a coupon / neither. repeat_customer_rate: customers who ordered in the period and before it. Cancelled and deleted orders never count. 5-minute cache.'
       parameters: [ { $ref: '#/components/parameters/Period' }, { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' } ]
       responses: { '200': { description: Insights }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /staff/dashboard/purchases:
+    get:
+      tags: [Admin]
+      summary: '(admin) Physical stock purchase list, including waiting reservations'
+      description: 'Stock is already reduced by checkout reservations. Quantity to buy replenishes net stock to the threshold, without adding waiting quantities twice.'
+      parameters:
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses:
+        '200':
+          description: Purchase list or CSV
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [book_id, title, variant_id, format, sku, stock_quantity, low_stock_threshold, waiting_quantity, quantity_to_buy]
+                      properties:
+                        book_id: { type: integer }
+                        title: { type: string }
+                        variant_id: { type: integer }
+                        format: { type: string }
+                        sku: { type: string }
+                        stock_quantity: { type: integer }
+                        low_stock_threshold: { type: integer }
+                        waiting_quantity: { type: integer }
+                        quantity_to_buy: { type: integer }
+            text/csv: { schema: { type: string } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
   /staff/dashboard/counts:
     get:
       tags: [Staff operations]

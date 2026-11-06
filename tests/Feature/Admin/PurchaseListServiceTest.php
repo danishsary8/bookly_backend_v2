@@ -8,12 +8,13 @@ use App\Models\BookVariant;
 use App\Models\Customer;
 use App\Services\Admin\PurchaseListService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsStaff;
 use Tests\Concerns\BuildsOrders;
 use Tests\TestCase;
 
 class PurchaseListServiceTest extends TestCase
 {
-    use BuildsOrders, RefreshDatabase;
+    use ActsAsStaff, BuildsOrders, RefreshDatabase;
 
     public function test_reserved_demand_is_reported_without_counting_it_twice(): void
     {
@@ -41,5 +42,19 @@ class PurchaseListServiceTest extends TestCase
 
         $this->assertSame(2, $row['waiting_quantity']);
         $this->assertSame(0, $row['quantity_to_buy']);
+    }
+
+    public function test_only_admins_can_fetch_and_export_the_purchase_list(): void
+    {
+        $variant = $this->physical(stock: 0);
+        $variant->book->update(['title' => '=formula']);
+
+        $this->asToken($this->staffToken())->getJson('/api/v1/staff/dashboard/purchases')->assertForbidden();
+        $admin = $this->staffToken(admin: true);
+        $this->asToken($admin)->getJson('/api/v1/staff/dashboard/purchases')->assertOk()
+            ->assertJsonPath('data.0.quantity_to_buy', 5);
+        $csv = $this->asToken($admin)->get('/api/v1/staff/dashboard/purchases?format=csv')->assertOk()->streamedContent();
+        $this->assertStringContainsString("'=formula", $csv);
+        $this->asToken($admin)->getJson('/api/v1/staff/dashboard/purchases?format=pdf')->assertUnprocessable();
     }
 }
