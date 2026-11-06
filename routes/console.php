@@ -13,5 +13,5 @@ Artisan::command('inspire', function () {
 // App\Support\MaintenanceTasks. Where a scheduler runs (`schedule:work`) this schedules them; on the free host, which
 // has none, App\Services\Maintenance\DueMaintenance runs the same list from web requests.
 foreach (MaintenanceTasks::all() as $task) {
-    Schedule::command($task['command'], $task['parameters'])->cron($task['cron']);
+    Schedule::command($task['command'], $task['parameters'])->cron($task['cron'])->timezone($task['timezone'] ?? config('app.timezone'));
 }

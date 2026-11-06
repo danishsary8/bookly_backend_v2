@@ -68,7 +68,8 @@ class DueMaintenance
     {
         $lastKey = 'maintenance:last-run:'.$task['name'];
 
-        $shouldHaveRun = Carbon::instance((new CronExpression($task['cron']))->getPreviousRunDate(now(), 0, true));
+        $localNow = now()->setTimezone($task['timezone'] ?? config('app.timezone'));
+        $shouldHaveRun = Carbon::instance((new CronExpression($task['cron']))->getPreviousRunDate($localNow, 0, true));
         $last = Cache::get($lastKey);
         if ($last !== null && Carbon::parse($last)->gte($shouldHaveRun)) {
             return false;

@@ -416,6 +416,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::get('/dashboard/summary', [DashboardController::class, 'summary'])->middleware('throttle:admin-analytics');
         Route::get('/dashboard/sales', [DashboardController::class, 'sales'])->middleware('throttle:admin-analytics');
         Route::get('/dashboard/insights', [DashboardController::class, 'insights'])->middleware('throttle:admin-analytics');
+        Route::get('/dashboard/purchases', [DashboardController::class, 'purchases'])->middleware('throttle:admin-analytics');
         Route::get('/orders/export', OrderExportController::class)->middleware('throttle:10,1');
 
         Route::prefix('reports')->middleware('throttle:admin-analytics')->group(function () {

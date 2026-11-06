@@ -1,5 +1,37 @@
 # Summary for Danish
 
+Phase 9 is implemented and verified on `feature/dashboard-v2`. Phase 8 was already merged into both `origin/main` branches while this work was underway; those main branches were integrated here with normal merge commits. Phase 10 has not been implemented and its branches have not been created. No pull requests were opened.
+
+Review links:
+- Dashboard backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-v2
+- Dashboard frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/dashboard-v2
+- Earlier assistants backend (already merged): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/assistants
+- Earlier assistants frontend (already merged): https://github.com/danishsary8/bookly_frontend/pull/new/feature/assistants
+
+Merge order: **dashboard backend → wait for Render Live → dashboard frontend**. For the later Phase 10, merge its backend → wait for Render Live → its frontend after that work is complete. Danish performs all merges and hosting configuration.
+
+Changes: longer reporting periods and six KPI cards; sales and payment analysis with genuine seven-day reminder recovery, gift counts and delivery areas; recent orders with permission-checked, confirmed actions; attention and staff activity; printable report and an Excel analysis sheet; grouped stock purchase list with CSV; audit action filter; and the daily staff summary. OpenAPI, API docs, regenerated types and EN/KM dictionary entries are included. Existing staff screens and staff exports remain English under the established staff-language policy.
+
+Final checks: backend PostgreSQL **912 passed / 17,505 assertions**, Pint passed; frontend **629 passed, 3 existing opt-in skips**, lint zero errors, typecheck and build passed. Lint retains one existing VisitorAnalytics fast-refresh warning. The contract tests are included in the full backend suite. The first concurrent full run hit a local PostgreSQL timeout and stalled frontend test; the affected backend tests passed individually, and the complete suites passed when run separately. A prior frontend run exposed a translation structure issue, which was fixed and covered by the passing suite.
+
+Local browser smoke after integration: dashboard, purchase list and printable report in EN/light/1280 and KM/dark/390 (staff area remains English), six axe WCAG 2.1 A/AA audits with zero violations and no page overflow; keyboard focus checked on the purchase table. Test servers were stopped. Both branches merged cleanly with the fetched `origin/main`; because main was already an ancestor, the requested no-commit merge reported already up to date.
+
+Human steps: review and merge backend first, allow the existing deployment process to apply the two new migrations, wait for Render Live, then merge frontend. If daily Telegram summaries are desired, confirm the existing staff group and alerts bot are configured; no settings were accessed or changed here. The summary uses at-most-once delivery: an unsuccessful or ambiguous Telegram attempt is logged without provider details and is not retried that day.
+
+Phase 9 decision: 90 days means the current shop day and the previous 89 shop days; 12 months ends on the current shop day and starts 12 calendar months before tomorrow, with leap-day overflow avoided. The previous comparison has the same number of days. Stock purchase planning must account for the fact that checkout has already deducted reserved preorder/backorder quantities; adding waiting demand again would overstate purchases.
+
+The daily staff summary uses 20:00 Asia/Phnom_Penh and the existing web-request maintenance catch-up. A unique database date is claimed before contacting Telegram, so concurrent workers and uncertain network failures cannot send duplicates. This deliberately gives at-most-once delivery: a failed or ambiguous Telegram attempt will not be retried that day. If the bot or staff group is unconfigured, nothing is sent or claimed; configuration remains Danish's responsibility. Summary revenue follows the existing cash-basis dashboard; printed copies in waiting orders are labelled as such, not as unfulfilled stock; no customer details are included.
+
+Dashboard definitions: books and ebooks count copies in non-cancelled orders by placement date; payment-method amounts are placed order totals, not money collected. Reminder recovery includes only sent, identifiable reminders whose seven-day observation window is complete and counts a later non-cancelled order, without claiming the reminder caused it. Multiple reminders count separately. Unknown delivery locations stay unknown in the Phnom Penh/province analysis. Gift orders may overlap coupon or offer orders. The purchase list groups physical formats by book, reports waiting demand separately, and replenishes net stock to one above the threshold so the low-stock alert clears. PostgreSQL indexes for recovery are created concurrently outside a migration transaction to avoid blocking ordinary writes during index creation.
+
+Recent-order shortcuts require order-management permission and confirmation. They are hidden for orders waiting for stock and for unpaid pending KHQR orders, so the shortcut cannot advance them prematurely; the existing API still enforces the transition.
+
+Phase 10 finding: the existing return credit is a one-use coupon, not a wallet or balance ledger. Prepaid gift cards require a proper balance ledger and partial-spend/cancellation/refund semantics; using the coupon would risk losing unused paid value.
+
+## Phase 8 handoff
+
+# Summary for Danish
+
 Phases 8–10 are in progress. Phase 8 is implemented and verified; phases 9 and 10 remain outstanding. Both repositories started `feature/assistants` directly from the latest `origin/main`; ratings and support chat were already merged there. No pull requests have been opened.
 
 Review links for Phase 8:
@@ -13,7 +45,6 @@ Phase 8 checks: backend PostgreSQL suite **897 passed / 17,401 assertions** and 
 Phase 10 discovery: existing store credit is a one-use fixed-amount coupon, not a balance ledger. Its unused value can be lost on redemption, so prepaid gift cards cannot safely reuse it as a wallet. A real balance ledger with partial-spend and cancellation/refund handling is required before enabling gift-card money flows; existing return-credit coupons must remain compatible.
 
 Phase 8 decisions: use deterministic local rules and the existing catalogue/dashboard/order services; never send questions to external services. Keep fallback records free of email addresses and phone numbers and retain only a short normalized question. Keep staff analytics behind the same abilities as their source pages. FAQs are seeded explicitly and idempotently, never automatically on production deployment. The human-support handoff must preserve the visitor's question without sending it until they choose to do so.
-
 ## Previous handoff
 
 # Summary for Danish
@@ -569,5 +600,3 @@ Findings fixed: explicit linked Telegram staff identity and group mapping; webho
 Browser: full8 EN/KM x light/dark x390/1280 passed,32 page audits(customer/staff/closed-rating/guest),axe WCAG2.1A/AA0 and no overflow. Three real guest submissions respected the per-IP quota; guest forms checked in all8. After normal merges, focused EN/light1280 and KM/dark390 repeated real customer/staff/closed-rating flows plus guest form,8 audits axe0. Existing staff area stays English by policy, customer and guest UI use both languages. Real email/Telegram providers intentionally not called; fake integration tests verify delivery and permission logic. Reports and screenshots in frontend test-results/support and support-smoke are ignored.
 
 Final combined backend verification: php artisan test --compact passed887 tests/17,324 assertions on local PostgreSQL with test-only512M; vendor/bin/pint --test passed; composer audit --no-interaction found no advisories. Route sanity covers20 support routes and6 ratings routes. No new skips or weakened assertions. A final frontend privacy review also scoped order-rating caches by customer and clears them at sign-out/session expiry; this is applied to feature/ratings first and merged forward normally.
-
-Phase 8 verification update: backend QA now checks response contracts, hides the unanswered fingerprint, uses ISO timestamps, redacts Khmer-digit and zero-width-obfuscated phone numbers, and matches seeded FAQs by their full question as well as keywords. Catalogue parsing honours strict under-price limits, Khmer numerals and category/language/grade/level/format filters. The customer assistant is lazy-loaded to protect storefront startup. The mobile staff header was adjusted after a 390px smoke test found overflow. FAQ seed is manual and idempotent; backend support hours mirror the existing owner-confirmed storefront hours and must be updated together if changed. Full final gates and smoke are still running.

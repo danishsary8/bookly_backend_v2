@@ -45,8 +45,54 @@ class DashboardInsightsService
                 'promotions' => $this->promotions($start, $end),
                 'repeat_customer_rate' => $this->repeatCustomerRate($start, $end),
                 'order_ratings' => $this->orderRatings($start, $end),
+                'cart_reminder_recovery' => $this->cartReminderRecovery($start, $end),
+                'payment_methods' => $this->paymentMethods($start, $end),
+                'attention' => $this->attention(),
+                'activity' => $this->recentActivity(),
+                'delivery_areas' => $this->deliveryAreas($start, $end),
             ];
         });
+    }
+
+    private function attention(): array
+    {
+        $counts = $this->counts();
+
+        return [
+            'pending_orders' => $counts['pending_orders'],
+            'open_returns' => $counts['open_returns'],
+            'low_stock' => $counts['low_stock'],
+            'waiting_orders' => DB::table('orders')->whereNull('deleted_at')->where('is_waiting_stock', true)
+                ->whereIn('status', [OrderStatus::Pending->value, OrderStatus::Paid->value, OrderStatus::Processing->value])->count(),
+            'recent_reviews' => DB::table('reviews')->where('created_at', '>=', now()->subDays(7))->count(),
+            'open_chats' => DB::table('support_conversations')->whereIn('status', ['open', 'pending'])->count(),
+        ];
+    }
+
+    private function recentActivity(): array
+    {
+        return DB::table('admin_audit_logs as log')->leftJoin('staff_users as staff', 'staff.id', '=', 'log.staff_user_id')
+            ->orderByDesc('log.created_at')->orderByDesc('log.id')->limit(10)
+            ->get(['log.id', 'log.action', 'log.entity_type', 'log.entity_id', 'log.created_at', 'staff.name as staff_name'])
+            ->map(fn ($row) => [
+                'id' => $row->id, 'action' => $row->action, 'entity_type' => $row->entity_type,
+                'entity_id' => $row->entity_id, 'staff_name' => $row->staff_name,
+                'created_at' => CarbonImmutable::parse($row->created_at, 'UTC')->toIso8601ZuluString(),
+            ])->all();
+    }
+
+    private function deliveryAreas(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $counts = ['phnom_penh' => 0, 'provinces' => 0, 'unknown' => 0];
+        $rows = $this->placedOrders($start, $end)->groupBy('shipping_city', 'shipping_state')
+            ->selectRaw('shipping_city, shipping_state, COUNT(*) AS orders')->get();
+        foreach ($rows as $row) {
+            $province = DeliveryArea::detectProvince($row->shipping_city, $row->shipping_state);
+            $key = $province === null ? 'unknown' : ($province['code'] === 'phnom_penh' ? 'phnom_penh' : 'provinces');
+            $counts[$key] += (int) $row->orders;
+        }
+
+        return $counts;
     }
 
     /** Menu badges for every staff member (owner 5A): small, cached for a minute. */
@@ -97,6 +143,10 @@ class DashboardInsightsService
                 'previous_average_order_usd' => Money::format($prev['average'] ?? 0),
                 'new_customers' => $day['customers'],
                 'previous_new_customers' => $prev['customers'] ?? 0,
+                'books_sold' => $day['books'],
+                'previous_books_sold' => $prev['books'] ?? 0,
+                'ebooks_sold' => $day['ebooks'],
+                'previous_ebooks_sold' => $prev['ebooks'] ?? 0,
             ];
         }
 
@@ -123,6 +173,13 @@ class DashboardInsightsService
             ->where(fn ($q) => $q->whereNotNull('email_verified_at')->orWhereNotNull('phone_verified_at'))
             ->whereBetween('created_at', [$from, $to])
             ->selectRaw($day('created_at').' AS day, COUNT(*) AS n', [$tz])->groupBy('day')->pluck('n', 'day');
+        $copies = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->whereNull('orders.deleted_at')->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->whereBetween('orders.placed_at', [$from, $to])
+            ->selectRaw($day('orders.placed_at').' AS day, SUM(order_items.quantity) AS books, SUM(CASE WHEN COALESCE(order_items.format, book_variants.format) = ? THEN order_items.quantity ELSE 0 END) AS ebooks', [$tz, BookFormat::Ebook->value])
+            ->groupBy('day')->get()->keyBy('day');
 
         $rows = [];
         for ($d = $start; $d->lt($end); $d = $d->addDay()) {
@@ -135,6 +192,8 @@ class DashboardInsightsService
                 'orders' => (int) ($placed[$key] ?? 0),
                 'average' => $count > 0 ? intdiv($gross, $count) : 0,
                 'customers' => (int) ($customers[$key] ?? 0),
+                'books' => (int) ($copies[$key]->books ?? 0),
+                'ebooks' => (int) ($copies[$key]->ebooks ?? 0),
             ];
         }
 
@@ -260,6 +319,7 @@ class DashboardInsightsService
             .'COALESCE(SUM(discount_amount) FILTER (WHERE offer_id IS NOT NULL OR offer_name IS NOT NULL), 0) AS offer_discount, '
             .'COUNT(*) FILTER (WHERE coupon_id IS NOT NULL) AS coupon_orders, '
             .'COALESCE(SUM(discount_amount) FILTER (WHERE coupon_id IS NOT NULL), 0) AS coupon_discount, '
+            .'COUNT(*) FILTER (WHERE free_gift IS NOT NULL) AS gift_orders, '
             .'COUNT(*) AS orders'
         )->first();
         $offer = Money::toCents($row->offer_discount);
@@ -271,8 +331,43 @@ class DashboardInsightsService
             'offer_discount_usd' => Money::format($offer),
             'coupon_orders' => (int) $row->coupon_orders,
             'coupon_discount_usd' => Money::format($coupon),
+            'gift_orders' => (int) $row->gift_orders,
             'plain_orders' => (int) $row->orders - (int) $row->offer_orders - (int) $row->coupon_orders,
         ];
+    }
+
+    /** Only reminders with a complete seven-day observation window are included. */
+    private function cartReminderRecovery(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $base = DB::table('marketing_outbox as reminder')->where('reminder.kind', 'cart_reminder')
+            ->where('reminder.status', 'sent')->whereNotNull('reminder.customer_id')
+            ->where('reminder.sent_at', '>=', $start->utc())->where('reminder.sent_at', '<', $end->utc())
+            ->where('reminder.sent_at', '<=', now()->subDays(7));
+        $sent = (clone $base)->count();
+        $recovered = (clone $base)->whereExists(function ($query) {
+            $query->selectRaw('1')->from('orders')
+                ->whereColumn('orders.customer_id', 'reminder.customer_id')
+                ->whereNull('orders.deleted_at')->where('orders.status', '!=', OrderStatus::Cancelled->value)
+                ->whereColumn('orders.placed_at', '>=', 'reminder.sent_at')
+                ->whereRaw("orders.placed_at < reminder.sent_at + interval '7 days'");
+        })->count();
+
+        return ['sent' => $sent, 'recovered' => $recovered, 'percent' => $sent ? round(100 * $recovered / $sent, 1) : 0.0];
+    }
+
+    /** Payment amounts are order totals at placement, not collected cash or net revenue. */
+    private function paymentMethods(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $rows = $this->placedOrders($start, $end)->groupBy('payment_method')
+            ->selectRaw('payment_method, COUNT(*) AS orders, COALESCE(SUM(total_amount), 0) AS total')->get();
+        $total = $rows->sum(fn ($row) => Money::toCents($row->total));
+
+        return $rows->map(fn ($row) => [
+            'method' => $row->payment_method,
+            'orders' => (int) $row->orders,
+            'total_usd' => Money::format(Money::toCents($row->total)),
+            'percent' => $total > 0 ? round(100 * Money::toCents($row->total) / $total, 1) : 0.0,
+        ])->sortBy('method')->values()->all();
     }
 
     /** Of the customers who placed an order in the period, the share who had also ordered before it. 0.0-100.0. */

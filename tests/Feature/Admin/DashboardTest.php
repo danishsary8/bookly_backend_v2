@@ -89,6 +89,24 @@ class DashboardTest extends TestCase
         $this->assertSame(2, $data['low_stock'][0]['stock_quantity']);
     }
 
+    public function test_copy_totals_exclude_cancelled_orders_and_compare_ebook_copies(): void
+    {
+        $ebook = BookVariant::factory()->format(BookFormat::Ebook)->create();
+        $order = $this->deliveredOrder(Customer::factory()->create(), [[$ebook, 3]]);
+        $order->update(['placed_at' => now()]);
+        $cancelled = $this->deliveredOrder(Customer::factory()->create(), [[$ebook, 4]]);
+        $cancelled->update(['status' => OrderStatus::Cancelled, 'placed_at' => now()]);
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()
+            ->assertJsonPath('data.books_sold', 4)
+            ->assertJsonPath('data.ebooks_sold', 3)
+            ->assertJsonPath('data.comparison.ebooks_sold', 0)
+            ->assertJsonPath('data.comparison.change_percent.ebooks_sold', 100);
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/insights?period=today')->assertOk()
+            ->assertJsonPath('data.trend.0.books_sold', 4)
+            ->assertJsonPath('data.trend.0.ebooks_sold', 3);
+    }
+
     public function test_daily_sales_rows_are_zero_filled_in_shop_days(): void
     {
         $rows = collect($this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/sales?period=7d')->assertOk()
@@ -127,6 +145,30 @@ class DashboardTest extends TestCase
         // Nothing in the week before: "new" is reported as 100.0, an unchanged zero as 0.0 (never a division by zero).
         $this->assertSame(100.0, (float) $data['gross_revenue']);
         $this->assertSame(100.0, (float) $data['orders_placed']);
+    }
+
+    public function test_longer_periods_use_shop_days_and_equal_length_comparisons(): void
+    {
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=90d')->assertOk()
+            ->assertJsonPath('data.period.from', '2026-07-13')
+            ->assertJsonPath('data.period.to', '2026-10-10')
+            ->assertJsonPath('data.comparison.period.from', '2026-04-14')
+            ->assertJsonPath('data.comparison.period.to', '2026-07-12');
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=12m')->assertOk()
+            ->assertJsonPath('data.period.from', '2025-10-11')
+            ->assertJsonPath('data.period.to', '2026-10-10')
+            ->assertJsonPath('data.comparison.period.from', '2024-10-11')
+            ->assertJsonPath('data.comparison.period.to', '2025-10-10');
+    }
+
+    public function test_twelve_month_period_clamps_leap_day_without_overflow(): void
+    {
+        $this->travelTo(Carbon::parse('2024-02-28 05:00:00', 'UTC'));
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=12m')->assertOk()
+            ->assertJsonPath('data.period.from', '2023-02-28')
+            ->assertJsonPath('data.period.to', '2024-02-28');
     }
 
     public function test_change_percent_against_a_previous_period_with_sales(): void
