@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,13 +23,15 @@ class Order extends Model
         'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note', 'is_gift', 'gift_message',
         'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
         'is_waiting_stock', 'expected_ship_date',
-        'free_gift',
+        'free_gift', 'credit_used_cents', 'referral_discount_cents',
     ];
 
     protected function casts(): array
     {
         return [
             'is_gift' => 'boolean',
+            'credit_used_cents' => 'integer',
+            'referral_discount_cents' => 'integer',
             'free_gift' => 'array',
             'is_waiting_stock' => 'boolean',
             'expected_ship_date' => 'date',
@@ -46,6 +49,11 @@ class Order extends Model
     }
 
     protected $hidden = ['idempotency_key'];
+
+    public function externalPaymentAmount(): string
+    {
+        return Money::format(Money::toCents($this->total_amount) - $this->credit_used_cents);
+    }
 
     /** What OrderDocumentResource (invoice, packing slip) reads; deleted books still print. */
     public static function documentRelations(): array

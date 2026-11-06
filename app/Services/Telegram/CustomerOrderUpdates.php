@@ -142,7 +142,7 @@ class CustomerOrderUpdates
                 : implode("\n", array_filter([
                     '🎉 <b>Order Delivered!</b>',
                     "Order: <b>#{$safeOrderNumber}</b>",
-                    "Total collected: <b>\${$safeTotal} USD</b>",
+                    ($order->credit_used_cents > 0 ? 'Order total' : 'Total collected').": <b>\${$safeTotal} USD</b>",
                     'Thank you for choosing Bookly! We hope you enjoy reading your books.',
                     "<a href=\"{$safeUrl}\">View receipt & order details</a>",
                 ])),

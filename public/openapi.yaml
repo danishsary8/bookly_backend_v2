@@ -448,6 +448,10 @@ components:
     CheckoutPreview:
       type: object
       properties:
+        credit_balance: { $ref: '#/components/schemas/Amount' }
+        credit_used: { $ref: '#/components/schemas/Amount' }
+        payment_due: { $ref: '#/components/schemas/Amount' }
+        referral_discount: { $ref: '#/components/schemas/Amount' }
         has_delivery_address: { type: boolean, description: 'A saved address was selected or defaulted; otherwise delivery_area is an estimate choice only.' }
         free_gift: { $ref: '#/components/schemas/FreeGift' }
         subtotal: { $ref: '#/components/schemas/Amount' }
@@ -728,6 +732,8 @@ components:
     Order:
       type: object
       properties:
+        credit_used_usd: { $ref: '#/components/schemas/Money' }
+        payment_due_usd: { $ref: '#/components/schemas/Money' }
         free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         order_number: { type: string, example: ORD-20261003-7K2QX }
@@ -786,6 +792,8 @@ components:
       type: object
       description: 'What an invoice or packing slip prints. KHR uses the rate in force when the order was placed (null when no rate was set then), so a reprint never changes.'
       properties:
+        credit_used_usd: { $ref: '#/components/schemas/Money' }
+        payment_due_usd: { $ref: '#/components/schemas/Money' }
         free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
         order_number: { type: string, example: ORD-20261003-7K2QX }
@@ -833,6 +841,8 @@ components:
     Return:
       type: object
       properties:
+        credit_refund_usd: { $ref: '#/components/schemas/Money' }
+        external_refund_usd: { type: string, nullable: true }
         id: { type: integer }
         order_id: { type: integer }
         order_number: { type: string }
@@ -904,10 +914,208 @@ components:
             stock_quantity: { type: integer }
             is_active: { type: boolean }
 
+    GiftCard:
+      type: object
+      required: [id, amount_usd, recipient_name, recipient_email, message, send_on, status, last_four, expires_at, can_reveal, email_sent_at, email_failed_at]
+      properties:
+        id: { type: integer }
+        amount_usd: { type: string }
+        recipient_name: { type: string }
+        recipient_email: { type: string }
+        message: { type: string, nullable: true }
+        send_on: { type: string, format: date }
+        status: { type: string, enum: [pending_payment, active, redeemed, cancelled, expired] }
+        last_four: { type: string, nullable: true }
+        expires_at: { type: string, nullable: true }
+        can_reveal: { type: boolean }
+        email_sent_at: { type: string, nullable: true }
+        email_failed_at: { type: string, nullable: true }
+    GiftPurchaseInput:
+      type: object
+      required: [amount_usd, recipient_name, recipient_email, send_on]
+      properties:
+        amount_usd: { type: string, description: '5.00 through 200.00 USD, at most two decimal places' }
+        recipient_name: { type: string, maxLength: 120 }
+        recipient_email: { type: string, format: email, maxLength: 190 }
+        message: { type: string, nullable: true, maxLength: 300, description: 'Plain text, escaped on display' }
+        send_on: { type: string, format: date, description: 'Today through 90 days ahead in shop timezone' }
+    GiftPaymentState:
+      type: object
+      required: [data, payment]
+      properties:
+        data: { $ref: '#/components/schemas/GiftCard' }
+        payment:
+          type: object
+          nullable: true
+          required: [qr_payload, expires_at, mode]
+          properties:
+            qr_payload: { type: string }
+            expires_at: { type: string }
+            mode: { type: string, enum: [test, bakong] }
+    ReferralStatus:
+      type: string
+      enum: [pending, qualified, rewarded, void]
+    ReferralSummary:
+      type: object
+      required: [code, friend_discount_usd, reward_usd, balance_usd, history, current_page, last_page]
+      properties:
+        code: { type: string }
+        friend_discount_usd: { type: string }
+        reward_usd: { type: string }
+        balance_usd: { type: string }
+        current_page: { type: integer }
+        last_page: { type: integer }
+        history:
+          type: array
+          items:
+            type: object
+            required: [id, status, reward_cents, created_at, rewarded_at]
+            properties:
+              id: { type: integer }
+              status: { $ref: '#/components/schemas/ReferralStatus' }
+              reward_cents: { type: integer }
+              created_at: { type: string }
+              rewarded_at: { type: string, nullable: true }
+
 security:
   - bearer: []
 
 paths:
+  /shop/features:
+    get:
+      tags: [Public]
+      security: []
+      summary: 'Available optional money features; both disabled by default'
+      responses:
+        '200':
+          description: Feature flags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [gift_cards, referrals]
+                    properties:
+                      gift_cards: { type: boolean }
+                      referrals: { type: boolean }
+  /me/gift-cards:
+    get:
+      tags: [Customer]
+      summary: 'Buyer purchases and wallet balance, 20 per page; verified non-demo customers only'
+      responses:
+        '200':
+          description: Purchases
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, balance_usd, current_page, last_page]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GiftCard' } }
+                  balance_usd: { type: string }
+                  current_page: { type: integer }
+                  last_page: { type: integer }
+        '404': { description: Feature disabled }
+    post:
+      tags: [Customer]
+      summary: 'Create an unpaid USD KHQR purchase; no credit funding or simulated activation'
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 100 } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GiftPurchaseInput' } } } }
+      responses:
+        '201': { description: 'Pending purchase (same buyer/key/details replays existing purchase)', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/GiftCard' } } } } } }
+        '422': { description: Invalid details or purchase unavailable }
+        '404': { description: Feature disabled }
+  /me/gift-cards/{id}/payment:
+    get:
+      tags: [Customer]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      summary: 'Buyer-only verified payment polling, 20/min; late payments require staff refund review'
+      responses:
+        '200': { description: Payment state, content: { application/json: { schema: { $ref: '#/components/schemas/GiftPaymentState' } } } }
+        '404': { description: Disabled or not owned }
+  /me/gift-cards/{id}/reveal:
+    post:
+      tags: [Customer]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      summary: 'Reveal active code exactly once; response is never cached'
+      responses:
+        '200': { description: Code, content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { code: { type: string } } } } } } } }
+        '422': { description: Already shown or not active }
+        '404': { description: Disabled or not owned }
+  /me/gift-cards/redeem:
+    post:
+      tags: [Customer]
+      summary: 'Single-use redemption to wallet; 5/min/customer, 20/hour/IP and one-hour lock after ten failures'
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [gift_code], properties: { gift_code: { type: string, maxLength: 64, writeOnly: true } } } } } }
+      responses:
+        '200': { description: New balance, content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { balance_usd: { type: string } } } } } } } }
+        '422': { description: 'Generic failure; no validity/status disclosure' }
+        '429': { description: Rate limited }
+        '404': { description: Feature disabled }
+  /me/referrals:
+    get:
+      tags: [Customer]
+      summary: 'Email-verified non-demo customer referral code and paged status list; no friend personal data'
+      parameters: [{ name: X-Bookly-Device, in: header, schema: { type: string, maxLength: 64 } }]
+      responses:
+        '200': { description: Referrals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/ReferralSummary' } } } } } }
+        '404': { description: Feature disabled }
+  /staff/gift-cards:
+    get:
+      tags: [Admin]
+      summary: 'Admin-only paged cards and funding/redeemed/unredeemed/refund-review totals; code hashes omitted'
+      parameters:
+        - { name: last_four, in: query, schema: { type: string, minLength: 4, maxLength: 4 } }
+        - { name: buyer_id, in: query, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: string, enum: [pending_payment, active, redeemed, cancelled, expired] } }
+      responses:
+        '200': { description: 'Paged card records and totals (amounts in USD)' }
+        '404': { description: Feature disabled }
+  /staff/gift-cards/{id}:
+    get:
+      tags: [Admin]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      summary: 'Admin-only card details and payment status; no redeemable code'
+      responses:
+        '200': { description: Card and payment state }
+        '404': { description: Disabled or missing }
+  /staff/gift-cards/{id}/cancel:
+    post:
+      tags: [Admin]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      summary: 'Cancel pending/active card with audit; paid cancellations require manual refund'
+      responses:
+        '200': { description: Card and payment state }
+        '422': { description: Not cancellable }
+        '404': { description: Disabled or missing }
+  /staff/gift-cards/{id}/resend:
+    post:
+      tags: [Admin]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      summary: 'Explicit audited resend to original recipient, active cards only; one-hour cooldown; respects send date'
+      responses:
+        '200': { description: Card and delivery status }
+        '422': { description: Unavailable or cooldown }
+        '404': { description: Disabled or missing }
+  /staff/referrals:
+    get:
+      tags: [Admin]
+      summary: 'Admin-only paged referrals and credited/unrecovered totals'
+      parameters: [{ name: status, in: query, schema: { $ref: '#/components/schemas/ReferralStatus' } }]
+      responses:
+        '200': { description: Referrals and statistics }
+        '404': { description: Feature disabled }
+  /staff/referrals/{id}/void:
+    post:
+      tags: [Admin]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      summary: 'Audited void; recover available reward credit once and report any already-spent remainder'
+      responses:
+        '200': { description: Referral }
+        '404': { description: Disabled or missing }
   /assistant:
     post:
       tags: [Public]
@@ -1812,6 +2020,8 @@ paths:
               - password
               - password_confirmation
               properties:
+                referral_code: { type: string, maxLength: 16 }
+                referral_device: { type: string, maxLength: 64 }
                 name:
                   type: string
                 email:
@@ -2404,7 +2614,7 @@ paths:
         '204': { $ref: '#/components/responses/NoContent' }
 
   /checkout/preview:
-    post: { tags: [Checkout & orders], summary: 'Totals and delivery estimate for the cart', description: 'Saved address_id or default address takes precedence; without one, optional delivery_area selects the existing Phnom Penh/provinces rates and calendar. Does not reserve inventory.', requestBody: { content: { application/json: { schema: { type: object, properties: { coupon_code: { type: string }, address_id: { type: integer }, delivery_area: { type: string, enum: [phnom_penh, provinces] }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'Invalid area, address or coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
+    post: { tags: [Checkout & orders], summary: 'Totals and delivery estimate for the cart', description: 'Saved address_id or default address takes precedence; without one, optional delivery_area selects the existing Phnom Penh/provinces rates and calendar. Does not reserve inventory.', requestBody: { content: { application/json: { schema: { type: object, properties: { use_credit: { type: boolean }, coupon_code: { type: string }, address_id: { type: integer }, delivery_area: { type: string, enum: [phnom_penh, provinces] }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'Invalid area, address or coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
       tags:
@@ -2432,6 +2642,8 @@ paths:
               - address_id
               - payment_method
               properties:
+                expected_payment_due_usd: { type: string, description: 'Required when use_credit is true; reject changed due amount rather than silently charging more' }
+                use_credit: { type: boolean, default: false }
                 address_id:
                   type: integer
                 payment_method:

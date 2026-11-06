@@ -29,8 +29,9 @@ class CheckoutController extends Controller
             'address_id' => ['nullable', 'integer'],
             'delivery_note' => ['nullable', 'string', 'max:300'],
             'delivery_area' => ['nullable', Rule::in(['phnom_penh', 'provinces'])],
+            'use_credit' => ['sometimes', 'boolean'],
         ]);
-        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null, $data['delivery_area'] ?? null);
+        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null, $data['delivery_area'] ?? null, (bool) ($data['use_credit'] ?? false));
 
         $money = fn (int $cents) => ['usd' => Money::format($cents), 'khr' => $currency->usdToKhr(Money::format($cents))];
 
@@ -38,9 +39,13 @@ class CheckoutController extends Controller
             'subtotal' => $money($totals['subtotal_cents']),
             'has_delivery_address' => $totals['has_delivery_address'],
             'discount' => $money($totals['discount_cents']),
+            'referral_discount' => $money($totals['referral_discount_cents']),
             'shipping_fee' => $money($totals['shipping_cents']),
             'tax' => $money($totals['tax_cents']),
             'total' => $money($totals['total_cents']),
+            'credit_balance' => $money($totals['credit_balance_cents']),
+            'credit_used' => $money($totals['credit_used_cents']),
+            'payment_due' => $money($totals['payment_due_cents']),
             // Only when the coupon won; a valid coupon that lost to an offer is in coupon_not_used.
             'coupon_code' => $totals['coupon']?->code,
             'applied' => $totals['choice']->applied,
@@ -90,6 +95,8 @@ class CheckoutController extends Controller
             'gift_message' => ['nullable', 'string', 'max:200'],
             // The offer the customer saw in the preview; 422 if it no longer applies (spec 4.9, O1 = A).
             'offer_id' => ['nullable', 'integer'],
+            'use_credit' => ['sometimes', 'boolean'],
+            'expected_payment_due_usd' => ['required_if:use_credit,true', 'nullable', 'string', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
         ]);
 
         $method = PaymentMethod::from($data['payment_method']);
@@ -111,6 +118,8 @@ class CheckoutController extends Controller
             $method,
             $isGift,
             $giftMessage === '' ? null : $giftMessage,
+            (bool) ($data['use_credit'] ?? false),
+            isset($data['expected_payment_due_usd']) ? Money::toCents($data['expected_payment_due_usd']) : null,
         );
 
         $order->load(['items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon', 'statusHistory']);

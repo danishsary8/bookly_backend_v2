@@ -31,7 +31,7 @@ class OrderDocumentResource extends JsonResource
         $payment = $this->payments->sortByDesc('id')->first()?->status;
         $open = ! in_array($this->status, [OrderStatus::Cancelled, OrderStatus::Delivered, OrderStatus::Returned], true);
         $collect = $this->payment_method === PaymentMethod::Cod && $open && in_array($payment, [null, PaymentStatus::Pending], true)
-            ? (string) $this->total_amount : '0.00';
+            ? $this->externalPaymentAmount() : '0.00';
         $refunded = Money::format($this->returns
             ->filter(fn ($r) => $r->status === ReturnStatus::Refunded)
             ->sum(fn ($r) => Money::toCents($r->refund_amount)));
@@ -47,7 +47,7 @@ class OrderDocumentResource extends JsonResource
             'is_gift' => (bool) $this->is_gift,
             'gift_message' => $this->gift_message,
             'payment_method' => $this->payment_method->value,
-            'payment_status' => $this->payments->sortByDesc('id')->first()?->status->value,
+            'payment_status' => $this->credit_used_cents > 0 && $this->externalPaymentAmount() === '0.00' ? (in_array($this->status, [OrderStatus::Cancelled, OrderStatus::Returned], true) ? 'refunded' : 'succeeded') : $this->payments->sortByDesc('id')->first()?->status->value,
             'customer' => [
                 'name' => $this->customer?->name,
                 'email' => $this->customer?->email,
@@ -84,6 +84,8 @@ class OrderDocumentResource extends JsonResource
             'shipping_fee_usd' => $this->shipping_fee,
             'tax_usd' => $this->tax_amount,
             'total_usd' => $this->total_amount,
+            'credit_used_usd' => Money::format((int) $this->credit_used_cents),
+            'payment_due_usd' => $this->externalPaymentAmount(),
             'refunded_usd' => $refunded,
             'amount_to_collect_usd' => $collect,
             'khr' => $rate ? [

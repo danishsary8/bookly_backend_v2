@@ -5,6 +5,7 @@ namespace App\Services\Telegram;
 use App\Models\BookVariant;
 use App\Models\Order;
 use App\Models\Review;
+use App\Support\Money;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +20,16 @@ use Throwable;
  */
 class OpsAlerts
 {
+    public function giftCardPaid(int $cardId): void
+    {
+        $this->send("Gift card #{$cardId} paid / បានទូទាត់កាតអំណោយ #{$cardId}", staff: true);
+    }
+
+    public function giftCardLatePayment(int $cardId): void
+    {
+        $this->send("Gift card #{$cardId} payment arrived after expiry; review and refund. / ការទូទាត់កាតអំណោយ #{$cardId} មកក្រោយផុតកំណត់ សូមពិនិត្យ និងសងប្រាក់។", staff: true);
+    }
+
     public function lowOrderRating(Order $order, int $stars): void
     {
         $this->send(__('messages.low_order_rating', ['number' => $order->order_number, 'stars' => $stars]), staff: true);
@@ -55,6 +66,7 @@ class OpsAlerts
         $this->send(implode("\n", array_filter([
             "🛒 New order {$order->order_number}",
             "Total: {$order->total_amount} USD ({$order->items->sum('quantity')} items)",
+            $order->credit_used_cents > 0 ? 'Paid with credit: '.Money::format($order->credit_used_cents).' USD; external payment: '.$order->externalPaymentAmount().' USD' : null,
             ...$lines->take(10)->all(),
             $lines->count() > 10 ? '• … and '.($lines->count() - 10).' more lines' : null,
             $customerLine,

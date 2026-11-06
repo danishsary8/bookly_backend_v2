@@ -17,6 +17,7 @@ use App\Services\Orders\OrderStatusService;
 use App\Services\Payments\Khqr\BakongClient;
 use App\Services\Payments\Khqr\BakongUnavailable;
 use App\Services\Payments\Khqr\KhqrBuilder;
+use App\Services\Payments\Khqr\KhqrTransactionMatcher;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -154,7 +155,7 @@ class KhqrPaymentService
                 'provider' => 'bakong', 'event_type' => 'check_transaction_by_md5', 'event_id' => $payment->provider_transaction_id,
                 'payload' => json_encode($transaction), 'created_at' => now(),
             ]);
-            if (! $this->matches($payment, $transaction)) {
+            if (! KhqrTransactionMatcher::matches((string) $payment->amount, $payment->currency, $transaction)) {
                 report(new \RuntimeException("KHQR payment {$payment->id}: Bakong amount or currency does not match the QR."));
 
                 return $order; // not counted; the log keeps Bakong's answer for staff
@@ -206,13 +207,6 @@ class KhqrPaymentService
         return $order;
     }
 
-    private function matches(Payment $payment, array $transaction): bool
-    {
-        return strtoupper((string) ($transaction['currency'] ?? '')) === $payment->currency
-            && is_numeric($transaction['amount'] ?? null)
-            && Money::toCents((string) $transaction['amount']) === Money::toCents((string) $payment->amount);
-    }
-
     /** @return Collection<int, Payment> newest first */
     private function pendingQrs(Order $order)
     {
@@ -221,7 +215,7 @@ class KhqrPaymentService
 
     private function createQr(Order $order, string $currency): Payment
     {
-        $amount = $currency === 'USD' ? (string) $order->total_amount : $this->currency->usdToKhr((string) $order->total_amount);
+        $amount = $currency === 'USD' ? $order->externalPaymentAmount() : $this->currency->usdToKhr($order->externalPaymentAmount());
         if ($amount === null) {
             throw ValidationException::withMessages(['currency' => 'Paying in riel is not available right now (no exchange rate). Please pay in USD.']);
         }

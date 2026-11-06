@@ -3,10 +3,12 @@
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureCustomerEmailIsVerified;
 use App\Http\Middleware\EnsureNotDemoAccount;
+use App\Http\Middleware\EnsureShopFeature;
 use App\Http\Middleware\EnsureStaffTwoFactorEnabled;
 use App\Http\Middleware\RunDueMaintenance;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetAppLocaleFromHeader;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -33,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(AssignRequestId::class);
         $middleware->append(SecurityHeaders::class);
         $middleware->throttleApi('api');
+        $middleware->prependToPriorityList(AuthenticatesRequests::class, EnsureShopFeature::class);
 
         // There is no "login" page to redirect guests to: API requests get a JSON 401 instead, even from a browser tab.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/');
@@ -50,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified.customer' => EnsureCustomerEmailIsVerified::class,
             'staff.2fa' => EnsureStaffTwoFactorEnabled::class,
             'not.demo' => EnsureNotDemoAccount::class,
+            'shop.feature' => EnsureShopFeature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
