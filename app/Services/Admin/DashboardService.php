@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
  */
 class DashboardService
 {
-    public const PERIODS = ['today', '7d', '30d', 'custom'];
+    public const PERIODS = ['today', '7d', '30d', '90d', '12m', 'custom'];
 
     private const MAX_DAYS = 366;
 
@@ -38,6 +38,8 @@ class DashboardService
             'today' => [$today, $today->addDay()],
             '7d' => [$today->subDays(6), $today->addDay()],
             '30d' => [$today->subDays(29), $today->addDay()],
+            '90d' => [$today->subDays(89), $today->addDay()],
+            '12m' => [$today->addDay()->subYearNoOverflow(), $today->addDay()],
             'custom' => [CarbonImmutable::parse($from, $tz)->startOfDay(), CarbonImmutable::parse($to, $tz)->startOfDay()->addDay()],
         };
 

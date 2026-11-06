@@ -129,6 +129,21 @@ class DashboardTest extends TestCase
         $this->assertSame(100.0, (float) $data['orders_placed']);
     }
 
+    public function test_longer_periods_use_shop_days_and_equal_length_comparisons(): void
+    {
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=90d')->assertOk()
+            ->assertJsonPath('data.period.from', '2026-07-13')
+            ->assertJsonPath('data.period.to', '2026-10-10')
+            ->assertJsonPath('data.comparison.period.from', '2026-04-14')
+            ->assertJsonPath('data.comparison.period.to', '2026-07-12');
+
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=12m')->assertOk()
+            ->assertJsonPath('data.period.from', '2025-10-11')
+            ->assertJsonPath('data.period.to', '2026-10-10')
+            ->assertJsonPath('data.comparison.period.from', '2024-10-11')
+            ->assertJsonPath('data.comparison.period.to', '2025-10-10');
+    }
+
     public function test_change_percent_against_a_previous_period_with_sales(): void
     {
         // August (31 days) is compared with July 1-31: the old order was placed 30 July, add one delivered 15 July.

@@ -1,5 +1,15 @@
 # Summary for Danish
 
+Phase 9 is in progress on `feature/dashboard-v2`; this branch is not ready to merge. Phase 8 is available for review on `feature/assistants` in both repositories. Phase 10 has not been implemented. The intended order remains assistants backend → wait for Render Live → assistants frontend → dashboard backend → wait for Render Live → dashboard frontend → gift cards/referrals backend → wait for Render Live → gift cards/referrals frontend.
+
+Phase 9 decision: 90 days means the current shop day and the previous 89 shop days; 12 months ends on the current shop day and starts 12 calendar months before tomorrow, with leap-day overflow avoided. The previous comparison has the same number of days. Stock purchase planning must account for the fact that checkout has already deducted reserved preorder/backorder quantities; adding waiting demand again would overstate purchases.
+
+Phase 10 finding: the existing return credit is a one-use coupon, not a wallet or balance ledger. Prepaid gift cards require a proper balance ledger and partial-spend/cancellation/refund semantics; using the coupon would risk losing unused paid value.
+
+## Previous handoff
+
+# Summary for Danish
+
 Phases 6 and 7 are implemented, reviewed and verified. All four feature branches are ready for review; no pull requests were opened and nothing was merged into main or deployed.
 
 Review links:

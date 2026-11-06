@@ -65,7 +65,7 @@ components:
     Period:
       name: period
       in: query
-      schema: { type: string, enum: [today, 7d, 30d, custom], default: 30d }
+      schema: { type: string, enum: [today, 7d, 30d, 90d, 12m, custom], default: 30d }
     From:
       name: from
       in: query
