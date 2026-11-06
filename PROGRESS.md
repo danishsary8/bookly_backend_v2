@@ -1,6 +1,24 @@
 # Summary for Danish
 
-Phase 10 implementation is complete on `feature/gift-cards-referrals` in both repositories. Verification: backend PostgreSQL 959 passed / 17,752 assertions and Pint passed; frontend 641 passed with 3 existing opt-in skips. Browser smoke passed both viewport/theme/language combinations with eight axe audits, zero violations and no horizontal overflow. Frontend lint, typecheck and build also passed. The final backend rerun is running after preserving the existing paid-order cancellation rules; branches have not been pushed yet. Gift cards and referrals remain off by default. No pull requests were opened.
+Phase 10 is implemented and ready for review on `feature/gift-cards-referrals` in both repositories. Gift cards and referrals remain OFF by default. No pull requests were opened, nothing was merged into main, and no production services or settings were accessed.
+
+Review / merge links:
+- Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/gift-cards-referrals
+- Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/gift-cards-referrals
+
+Merge order: **backend -> wait for Render Live -> frontend**. Assistants (Phase 8) and dashboard v2 (Phase 9) are already in the latest origin/main; both new branches contain that main and passed the no-commit merge check without conflicts.
+
+What changed: gift purchases funded only by verified KHQR payments; one-time codes and scheduled EN/KM email; guarded single-use redemption; a locked, idempotent cent-based wallet; optional credit checkout with accurate external payment, cancellation and partial-return allocations; admin card management, audit and liabilities; signup referral attribution, first-order discounts, seven-day rewards, abuse checks, monthly caps and audited voids. Customer/admin pages, hidden customer navigation while off, EN/KM text, OpenAPI, API docs and generated frontend types are included. Existing return-credit coupons remain compatible.
+
+Checks on the final code: backend PostgreSQL **959 passed / 17,754 assertions**, including contracts and independent-process redemption/spend races; Pint passed. Frontend **641 passed, 3 existing opt-in skips**, lint zero errors (one existing VisitorAnalytics warning), typecheck and build passed. The complete frontend run used `npm test -- --maxWorkers=2` after the default-worker run showed signup/cover-editor failures under local contention; no test timeout, assertion or skip was relaxed. Feature responses now fail closed unless explicit boolean flags enable them.
+
+Quick browser smoke: `npx playwright test e2e/credit-smoke.spec.ts`, two passing tests covering gift purchase/test-mode behaviour, customer referrals, admin cards/referrals and disabled-feature guidance at **1280px / English / light** and **390px / Khmer / dark**. Eight axe WCAG 2.1 A/AA audits: **zero violations**, no horizontal overflow, keyboard focus checked. Browser data was synthetic and API responses were intercepted; external requests were blocked. Backend money rules were tested separately against local PostgreSQL with providers mocked. The local smoke server was stopped.
+
+Decisions: prepaid value uses a separate wallet rather than losing unused value through one-use coupons. Credit never buys gift cards. Checkout rejects a changed external amount instead of silently charging more. Fully funded orders use the existing paid-order cancellation policy, including ebooks; allowed cancellations restore credit. Returns restore the prepaid share to the wallet. Referral discounts combine with the ordinary winning offer/coupon on a qualifying first order; reward caps include later voids. Already-spent voided rewards are reported for review rather than making balances negative or creating hidden future charges. Gift liability includes active cards plus wallet balances. See the implementation notes and docs/API.md for details.
+
+Human steps: review and merge backend first, let the existing deployment apply the nine new migrations, wait for Render Live, then merge frontend. Enable `GIFT_CARDS_ENABLED=true` and/or `REFERRALS_ENABLED=true` on Render only when you decide; gift funding requires the existing real Bakong mode and cannot activate in test mode. Keep APP_KEY stable (rotation needs an explicit card-code migration plan). Maintenance runs from web traffic through the existing catch-up system; due email/rewards do not require a scheduler. Mail delivery is claimed once before sending: staff explicitly resend after failed/uncertain delivery. Paid cancelled/late gift payments require manual refund review. No hosting, bank, email or Telegram settings were changed.
+
+## Historical Phase 10 implementation notes
 
 Phase 10 decision: return credits currently use one-use coupons, not a wallet. Preserve those existing coupons and introduce a separate, integer-cent wallet with an append-only journal, row locking, idempotent references and an enforced nonnegative balance. Gift cards and referrals will not be exposed until checkout, cancellation, payment confirmation, redemption and abuse controls are fully integrated and tested.
 
