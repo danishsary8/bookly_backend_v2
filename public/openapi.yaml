@@ -3049,7 +3049,7 @@ paths:
     get:
       tags: [Admin]
       summary: '(admin) Physical stock purchase list, including waiting reservations'
-      description: 'Stock is already reduced by checkout reservations. Quantity to buy replenishes net stock to the threshold, without adding waiting quantities twice.'
+      description: 'Stock is already reduced by checkout reservations. Quantity to buy replenishes net stock to one above the low-stock threshold, without adding waiting quantities twice.'
       parameters:
         - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
       responses:

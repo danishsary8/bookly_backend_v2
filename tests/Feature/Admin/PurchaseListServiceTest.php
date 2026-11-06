@@ -29,7 +29,7 @@ class PurchaseListServiceTest extends TestCase
 
         $this->assertCount(1, $rows);
         $this->assertSame(4, $rows[$variant->id]['waiting_quantity']);
-        $this->assertSame(7, $rows[$variant->id]['quantity_to_buy']);
+        $this->assertSame(8, $rows[$variant->id]['quantity_to_buy']);
     }
 
     public function test_waiting_future_release_is_visible_even_when_reserved_stock_is_above_threshold(): void
@@ -52,7 +52,7 @@ class PurchaseListServiceTest extends TestCase
         $this->asToken($this->staffToken())->getJson('/api/v1/staff/dashboard/purchases')->assertForbidden();
         $admin = $this->staffToken(admin: true);
         $this->asToken($admin)->getJson('/api/v1/staff/dashboard/purchases')->assertOk()
-            ->assertJsonPath('data.0.quantity_to_buy', 5);
+            ->assertJsonPath('data.0.quantity_to_buy', 6);
         $csv = $this->asToken($admin)->get('/api/v1/staff/dashboard/purchases?format=csv')->assertOk()->streamedContent();
         $this->assertStringContainsString("'=formula", $csv);
         $this->asToken($admin)->getJson('/api/v1/staff/dashboard/purchases?format=pdf')->assertUnprocessable();

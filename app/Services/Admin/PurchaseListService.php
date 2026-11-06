@@ -39,7 +39,7 @@ class PurchaseListService
                 'stock_quantity' => (int) $row->stock_quantity,
                 'low_stock_threshold' => (int) $row->low_stock_threshold,
                 'waiting_quantity' => (int) ($row->waiting_quantity ?? 0),
-                'quantity_to_buy' => max(0, (int) $row->low_stock_threshold - (int) $row->stock_quantity),
+                'quantity_to_buy' => max(0, (int) $row->low_stock_threshold + 1 - (int) $row->stock_quantity),
             ])->all();
     }
 }

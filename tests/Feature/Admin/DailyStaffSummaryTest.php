@@ -2,15 +2,18 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Enums\OrderStatus;
+use App\Models\Customer;
 use App\Services\Telegram\OpsAlerts;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Mockery;
+use Tests\Concerns\BuildsOrders;
 use Tests\TestCase;
 
 class DailyStaffSummaryTest extends TestCase
 {
-    use RefreshDatabase;
+    use BuildsOrders, RefreshDatabase;
 
     protected function tearDown(): void
     {
@@ -22,8 +25,10 @@ class DailyStaffSummaryTest extends TestCase
     {
         config(['services.ops_alerts.token' => 'test-only', 'services.ops_alerts.staff_chat_id' => '123']);
         Carbon::setTestNow('2026-10-10 13:05:00 UTC'); // 20:05 in Phnom Penh
+        $order = $this->deliveredOrder(Customer::factory()->create(), [[$this->physical(), 2]]);
+        $order->update(['status' => OrderStatus::Processing, 'is_waiting_stock' => true]);
         $alerts = Mockery::mock(OpsAlerts::class);
-        $alerts->shouldReceive('sendDirect')->once()->with('123', Mockery::on(fn ($message) => str_contains($message, '2026-10-10') && str_contains($message, '$0.00')))->andReturn(['ok' => true]);
+        $alerts->shouldReceive('sendDirect')->once()->with('123', Mockery::on(fn ($message) => str_contains($message, '2026-10-10') && str_contains($message, '$20.00') && str_contains($message, 'Printed copies in waiting orders') && str_contains($message, ': 2')))->andReturn(['ok' => true]);
         $this->app->instance(OpsAlerts::class, $alerts);
 
         $this->artisan('ops:daily-summary')->assertSuccessful();

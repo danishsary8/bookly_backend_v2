@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\BookFormat;
 use App\Enums\OrderStatus;
 use App\Services\Admin\DashboardInsightsService;
 use App\Services\Admin\DashboardService;
@@ -30,13 +31,20 @@ class SendDailyStaffSummary extends Command
         $counts = $insights->counts();
         $waiting = DB::table('orders')->whereNull('deleted_at')->where('is_waiting_stock', true)
             ->whereIn('status', [OrderStatus::Pending->value, OrderStatus::Paid->value, OrderStatus::Processing->value])->count();
+        $waitingCopies = DB::table('order_items')->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->whereNull('orders.deleted_at')->where('orders.is_waiting_stock', true)
+            ->whereIn('orders.status', [OrderStatus::Pending->value, OrderStatus::Paid->value, OrderStatus::Processing->value])
+            ->whereIn(DB::raw('COALESCE(order_items.format, book_variants.format)'), [BookFormat::Paperback->value, BookFormat::Hardcover->value])
+            ->sum('order_items.quantity');
         $chats = DB::table('support_conversations')->whereIn('status', ['open', 'pending'])->count();
 
         $message = implode("\n", [
             "Bookly — {$day->toDateString()} (Phnom Penh)",
             "Today / ថ្ងៃនេះ: {$current['orders_placed']} orders / ការបញ្ជាទិញ, $".$current['revenue']['net_usd'].' net revenue / ចំណូលសុទ្ធ',
             "Yesterday / ម្សិលមិញ: {$previous['orders_placed']} orders / ការបញ្ជាទិញ, $".$previous['revenue']['net_usd'].' net revenue / ចំណូលសុទ្ធ',
-            "Waiting for stock / រង់ចាំស្តុក: {$waiting}",
+            "Waiting orders / ការបញ្ជាទិញរង់ចាំស្តុក: {$waiting}",
+            "Printed copies in waiting orders / សៀវភៅបោះពុម្ពក្នុងការបញ្ជាទិញរង់ចាំ: {$waitingCopies}",
             "Low stock / ស្តុកជិតអស់: {$counts['low_stock']}",
             "Open chats / ការជជែកមិនទាន់បិទ: {$chats}",
         ]);
