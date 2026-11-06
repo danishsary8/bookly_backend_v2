@@ -1,0 +1,22 @@
+{
+    "completed_categories": [
+        "fiction",
+        "khmer-books",
+        "khmer-school",
+        "english-learning",
+        "self-help",
+        "business",
+        "non-fiction",
+        "comics-manga",
+        "kids",
+        "young-adult",
+        "education",
+        "arts-hobbies"
+    ],
+    "verified_isbns": [],
+    "books_count": 645,
+    "covers_count": 320,
+    "missing_covers_count": 130,
+    "needs_review_count": 20,
+    "updated_at": "2026-11-06T18:03:01+00:00"
+}

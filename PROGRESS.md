@@ -1,5 +1,45 @@
 # Summary for Danish
 
+Real catalogue data implementation is complete on `feature/real-catalog-data`.
+PR / Review link: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/real-catalog-data
+
+### Volume & Verification Counts
+- **Total catalogue items (physical book variants)**: 645 (528 unique verified book titles)
+- **Top-Level Category Breakdown**:
+  - Fiction & classics: 70 titles (140 variants: 70 paperback + 70 hardcover)
+  - Khmer books: 38 titles (38 variants)
+  - Khmer school books (Grade 7–12 + exam prep): 42 titles (42 variants)
+  - English learning (coursebooks, grammar, readers, IELTS/TOEFL, dictionaries): 42 titles (42 variants)
+  - Self-help & growth: 48 titles (95 variants: 48 paperback + 47 hardcover)
+  - Business & money: 37 titles (37 variants)
+  - Non-fiction: 67 titles (67 variants)
+  - Comics & manga: 57 titles (57 variants)
+  - Kids: 49 titles (49 variants)
+  - Young adult: 30 titles (30 variants)
+  - Education & reference: 28 titles (28 variants)
+  - Arts & hobbies: 20 titles (20 variants)
+- **Cover Images**:
+  - Verified, downloaded & optimized (max 900px tall, ≤ 250 KB JPEG): **320 covers** (`data/catalog/covers_manifest.csv`)
+  - Missing covers (imported with empty cover URL): **130 covers** (`data/catalog/missing_covers.csv`)
+- **Needs Review**: **20 items** (`data/catalog/needs_review.csv`, failed checksum or unverified ISBNs — excluded from import)
+
+### Human Steps (In Order)
+1. **Merge**: Review and merge `feature/real-catalog-data` into `main` (verified: branch merges cleanly into `origin/main` without conflicts).
+2. **Import or Seed**:
+   - Option A (Admin UI): Navigate to **Admin → Books → Import** and upload `data/catalog/books.csv`.
+   - Option B (Local / Staging): Run `php artisan db:seed --class=RealCatalogSeeder` (idempotent, physical variants only, respects `DEMO_SEED_ALLOWED` production guard).
+3. **Upload Covers**: When ready to push local cover images to Cloudflare R2 / S3:
+   - Configure local `.env` with R2 settings (`MEDIA_DISK=r2`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_URL`).
+   - Test with dry-run mode: `php artisan catalog:upload-covers --dry-run`
+   - Run live upload: `php artisan catalog:upload-covers`
+4. **Review**:
+   - Review `data/catalog/needs_review.csv` for skipped titles (contains exact failure reasons: checksum failure or unindexed ISBN).
+   - Review `data/catalog/missing_covers.csv` for titles imported without covers.
+
+---
+
+## Previous: Phase 10 Handoff
+
 Phase 10 is implemented and ready for review on `feature/gift-cards-referrals` in both repositories. Gift cards and referrals remain OFF by default. No pull requests were opened, nothing was merged into main, and no production services or settings were accessed.
 
 Review / merge links:
