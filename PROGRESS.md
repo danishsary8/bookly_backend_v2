@@ -1,5 +1,19 @@
 # Summary for Danish
 
+Real catalogue data implementation is in progress on `feature/real-catalog-data`.
+Review link: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/real-catalog-data
+
+Current status:
+- Batch 1 (Fiction & classics) completed: 70 verified titles (140 physical formats), 50 covers downloaded & optimized, 0 needs review.
+- Data generator (`catalog:build {--category=} {--resume}`), covers uploader (`catalog:upload-covers`), and `RealCatalogSeeder` built and tested.
+- Unit and Feature test suites passing cleanly.
+
+Next batch: Batch 2 (Khmer books) & Batch 3 (Khmer school books Grade 7–12).
+
+---
+
+## Previous: Phase 10 Handoff
+
 Phase 10 is implemented and ready for review on `feature/gift-cards-referrals` in both repositories. Gift cards and referrals remain OFF by default. No pull requests were opened, nothing was merged into main, and no production services or settings were accessed.
 
 Review / merge links:

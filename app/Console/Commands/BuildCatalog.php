@@ -395,7 +395,7 @@ class BuildCatalog extends Command
      *
      * @return array{code: int, body: ?string, error?: string}
      */
-    private function curlGet(string $url, bool $followLocation = false): array
+    private function curlGet(string $url, bool $followLocation = true): array
     {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -406,8 +406,8 @@ class BuildCatalog extends Command
 
         // Check common CA bundles on Windows
         $caPaths = [
-            'E:\xampp\phpMyAdmin\vendor\composer\ca-bundle\res\cacert.pem',
-            'E:\xampp\perl\vendor\lib\Mozilla\CA\cacert.pem',
+            'E:/xampp/phpMyAdmin/vendor/composer/ca-bundle/res/cacert.pem',
+            'E:/xampp/perl/vendor/lib/Mozilla/CA/cacert.pem',
         ];
         foreach ($caPaths as $ca) {
             if (File::exists($ca)) {
