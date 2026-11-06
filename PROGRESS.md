@@ -4,6 +4,8 @@ Phase 10 is in progress on `feature/gift-cards-referrals` in both repositories, 
 
 Phase 10 decision: return credits currently use one-use coupons, not a wallet. Preserve those existing coupons and introduce a separate, integer-cent wallet with an append-only journal, row locking, idempotent references and an enforced nonnegative balance. Gift cards and referrals will not be exposed until checkout, cancellation, payment confirmation, redemption and abuse controls are fully integrated and tested.
 
+Gift-code decision: derive each 16-character code using a domain-separated HMAC of the card identifier, then store only a separately domain-separated lookup HMAC and the last four characters. This permits scheduled delivery without storing the redeemable code. It depends on keeping the existing application key stable; rotating that key requires an explicit migration plan before cards exist.
+
 ## Phase 9 handoff
 
 Review links:
