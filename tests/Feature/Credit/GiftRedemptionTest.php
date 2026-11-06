@@ -5,6 +5,7 @@ namespace Tests\Feature\Credit;
 use App\Models\Customer;
 use App\Services\Credit\GiftCode;
 use App\Services\Credit\GiftRedemption;
+use Database\Seeders\DemoSeeder;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -86,5 +87,33 @@ class GiftRedemptionTest extends TestCase
         $this->travel(61)->minutes();
         $this->assertSame(2000, app(GiftRedemption::class)->redeem($customer, $validCode));
         $this->assertDatabaseHas('gift_redemption_attempts', ['customer_id' => $customer->id, 'failures' => 0, 'locked_until' => null]);
+    }
+
+    public function test_demo_and_unverified_customers_cannot_redeem(): void
+    {
+        config(['shop.gift_cards_enabled' => true]);
+        $buyer = Customer::factory()->create()->fresh();
+        $code = $this->card($buyer, 'active');
+        $unverified = Customer::factory()->unverified()->create()->fresh();
+        $demo = Customer::factory()->create(['email' => DemoSeeder::EMAIL])->fresh();
+        foreach ([$unverified, $demo] as $customer) {
+            try {
+                app(GiftRedemption::class)->redeem($customer, $code);
+                $this->fail('This account cannot redeem credit.');
+            } catch (DomainException $exception) {
+                $this->assertSame('Gift card cannot be redeemed.', $exception->getMessage());
+            }
+        }
+        $this->assertDatabaseCount('credit_ledger_entries', 0);
+    }
+
+    public function test_expired_card_cannot_be_redeemed(): void
+    {
+        config(['shop.gift_cards_enabled' => true]);
+        $customer = Customer::factory()->create()->fresh();
+        $code = $this->card($customer, 'active');
+        DB::table('gift_cards')->update(['expires_at' => now()->subSecond()]);
+        $this->expectException(DomainException::class);
+        app(GiftRedemption::class)->redeem($customer, $code);
     }
 }
