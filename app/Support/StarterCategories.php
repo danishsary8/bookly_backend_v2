@@ -89,15 +89,15 @@ class StarterCategories
             $changes = [];
             // Only fill gaps: never rename, never move a category staff already placed, never re-parent a top-level one
             // that has children of its own (the tree stays two levels).
-            if ($parentId !== null && $existing->parent_id === null && $existing->id !== $parentId
+            if ($parentId !== null && property_exists($existing, 'parent_id') && $existing->parent_id === null && $existing->id !== $parentId
                 && ! DB::table('categories')->where('parent_id', $existing->id)->exists()) {
                 $changes['parent_id'] = $parentId;
                 $changes['sort_order'] = $order;
             }
-            if ($icon !== null && $existing->icon === null) {
+            if ($icon !== null && property_exists($existing, 'icon') && $existing->icon === null) {
                 $changes['icon'] = $icon;
             }
-            if ($existing->deleted_at !== null) {
+            if (property_exists($existing, 'deleted_at') && $existing->deleted_at !== null) {
                 $changes['deleted_at'] = null;
             }
             if ($changes !== []) {
