@@ -572,6 +572,8 @@ components:
         in_stock: { type: boolean }
         rating_avg: { type: number, nullable: true }
         review_count: { type: integer }
+        reader_rating: { type: number, nullable: true, minimum: 1, maximum: 5, description: 'A public score staff entered for the book (one decimal), shown with its source until customers review it.' }
+        reader_rating_source: { type: string, nullable: true, maxLength: 60, description: 'Where reader_rating comes from, e.g. Goodreads. Null when reader_rating is null.' }
         sold_count: { type: integer, nullable: true, minimum: 5, description: 'Copies ordered in the last 90 days excluding cancelled and deleted orders; cached hourly. Null below 5.' }
         low_stock_remaining: { type: integer, nullable: true, description: 'Remaining copies of the cheapest active format when physical, released and between 1 and shop.low_stock_badge; otherwise null.' }
         offer: { $ref: '#/components/schemas/BookOffer' }

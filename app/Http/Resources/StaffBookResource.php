@@ -17,6 +17,8 @@ class StaffBookResource extends JsonResource
             'age_min' => $this->age_min,
             'age_max' => $this->age_max,
             'school_grade' => $this->school_grade,
+            'reader_rating' => $this->reader_rating !== null ? round((float) $this->reader_rating, 1) : null,
+            'reader_rating_source' => $this->reader_rating_source,
             'level' => $this->level,
             'page_count' => $this->page_count,
             'publish_date' => $this->publish_date?->toDateString(),

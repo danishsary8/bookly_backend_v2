@@ -34,6 +34,9 @@ class BookResource extends JsonResource
             'in_stock' => $variants->contains(fn ($v) => $v->isAvailable()),
             'rating_avg' => $this->rating_avg !== null ? round((float) $this->rating_avg, 1) : null,
             'review_count' => (int) ($this->review_count ?? 0),
+            // A public score staff entered with its source ("4.3", "Goodreads"); the storefront shows it until customers review.
+            'reader_rating' => $this->reader_rating !== null ? round((float) $this->reader_rating, 1) : null,
+            'reader_rating_source' => $this->reader_rating !== null ? $this->reader_rating_source : null,
             'low_stock_remaining' => $primary?->lowStockBadge(),
             'sold_count' => app(SalesSignals::class)->count((int) $this->id),
             // The best live automatic offer for this book ("Buy 2, save 15%"), or null.

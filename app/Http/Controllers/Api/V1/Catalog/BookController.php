@@ -116,7 +116,8 @@ class BookController extends Controller
                 'price_asc' => $query->orderBy($priceSort),
                 'price_desc' => $query->orderByDesc($priceSort),
                 'title' => $query->orderBy('title'),
-                'rating' => $query->orderByRaw('rating_avg DESC NULLS LAST'),
+                // Customer reviews first; a book without any falls back to its Reader rating.
+                'rating' => $query->orderByRaw('COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.book_id = books.id AND r.is_approved = true), books.reader_rating) DESC NULLS LAST'),
                 'most_reviewed' => $query->orderByDesc('review_count'),
                 'best_selling' => $query->orderByDesc(self::copiesSold()),
                 'release_soon' => $query->orderByRaw('(SELECT MIN(release_date) FROM book_variants WHERE book_id = books.id AND is_active = true AND release_date > CURRENT_DATE) ASC NULLS LAST'),

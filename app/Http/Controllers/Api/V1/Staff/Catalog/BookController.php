@@ -211,6 +211,9 @@ class BookController extends Controller
             'age_max' => ['nullable', 'integer', 'min:0', 'max:18', Rule::when($request->filled('age_min'), 'gte:age_min')],
             'school_grade' => ['nullable', 'integer', 'min:1', 'max:12'],
             'level' => ['nullable', 'string', Rule::in(Book::LEVELS)],
+            // Reader rating from a public source (optional): 1.0-5.0 with where it comes from.
+            'reader_rating' => ['nullable', 'numeric', 'min:1', 'max:5'],
+            'reader_rating_source' => ['nullable', 'string', 'max:60', 'required_with:reader_rating'],
             'publish_date' => ['nullable', 'date'],
             'author_ids' => ['sometimes', 'array'],
             'author_ids.*' => ['integer', 'distinct', 'exists:authors,id'],
