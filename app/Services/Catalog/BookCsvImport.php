@@ -49,7 +49,10 @@ class BookCsvImport
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly InventoryService $inventory,
-    ) {}
+        private ?CoverStorageService $covers = null,
+    ) {
+        $this->covers = $covers ?? app(CoverStorageService::class);
+    }
 
     /**
      * Reads the CSV into records keyed by their line-independent row number (2 = first data row).
@@ -299,7 +302,15 @@ class BookCsvImport
                     $book->fill($this->bookFields($given, $plan));
                     $book->save();
                     $this->syncRelations($book, $given, $plan);
-                    $variant->fill($this->variantFields($given, $plan));
+                    $variantFields = $this->variantFields($given, $plan);
+                    if (! empty($variantFields['cover_image_url'])) {
+                        $variantFields['cover_image_url'] = $this->covers->ingest(
+                            $variantFields['cover_image_url'],
+                            $variantFields['isbn'] ?? $variant->isbn,
+                            $variantFields['sku'] ?? $variant->sku
+                        );
+                    }
+                    $variant->fill($variantFields);
                     $variant->save();
                     if (isset($given['stock_quantity']) && ! $variant->format->isDigital() && (int) $given['stock_quantity'] !== $variant->stock_quantity) {
                         $this->inventory->setStock($variant, (int) $given['stock_quantity'], InventoryReason::Adjustment, $admin);
@@ -322,10 +333,18 @@ class BookCsvImport
                     $newBooks[$groupKey] = $book;
                     $this->audit->custom($admin, 'imported_new', $book, null, ['title' => $book->title]);
                 }
+                $variantFields = $this->variantFields($given, $plan);
+                if (! empty($variantFields['cover_image_url'])) {
+                    $variantFields['cover_image_url'] = $this->covers->ingest(
+                        $variantFields['cover_image_url'],
+                        $variantFields['isbn'] ?? null,
+                        $variantFields['sku'] ?? null
+                    );
+                }
                 $variant = $book->variants()->create([
                     'low_stock_threshold' => 5,
                     'is_active' => true,
-                    ...$this->variantFields($given, $plan),
+                    ...$variantFields,
                     'format' => strtolower($given['format']),
                     'stock_quantity' => 0,
                 ]);
