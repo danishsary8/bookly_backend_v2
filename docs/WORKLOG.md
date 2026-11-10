@@ -578,3 +578,11 @@ All branch gates passed: ratings backend875/17,164 assertions and frontend607; i
 ## Phase 9 ? Dashboard v2 (feature/dashboard-v2)
 
 Added genuine sales and recovery analysis, purchase planning, printable/Excel report data, attention and audit activity, and a once-daily Phnom Penh staff summary. Integrated the newly merged assistants work. PostgreSQL: 912 tests passed / 17,505 assertions; Pint passed. Local browser smoke and remaining decisions are recorded in PROGRESS.md.
+
+## Reader rating (feature/reader-rating, 2026-11-10)
+- Owner asked for a labelled "Reader rating" so Top rated works before customers review (no invented customer reviews).
+- Migration `2026_11_10_000001`: `books.reader_rating` decimal(2,1) nullable, `books.reader_rating_source` varchar(60) nullable.
+- Public cards/detail and the staff book resource return both; staff create/update validate them (rating 1-5, source required with it).
+- `GET /books?sort=rating` orders by the approved-review average, else `reader_rating`, nulls last.
+- Test added in `PublicCatalogTest`. NOT run locally (this machine has PHP 8.3; the project needs 8.4) - rely on the Tests workflow.
+- Open: the admin book form (frontend) still needs the two inputs; until then set them through `PATCH /staff/books/{id}`.

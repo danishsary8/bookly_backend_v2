@@ -41,6 +41,23 @@ class PublicCatalogTest extends TestCase
             ->assertJsonStructure(['data' => [['id', 'title', 'authors', 'price_from_usd', 'price_from_khr', 'formats', 'in_stock', 'rating_avg', 'review_count']], 'links', 'meta']);
     }
 
+    public function test_reader_rating_shows_on_cards_and_ranks_books_without_reviews(): void
+    {
+        $plain = $this->book(['title' => 'No Score']);
+        $low = $this->book(['title' => 'Scored Low', 'reader_rating' => 3.9, 'reader_rating_source' => 'Goodreads']);
+        $high = $this->book(['title' => 'Scored High', 'reader_rating' => 4.6, 'reader_rating_source' => 'Goodreads']);
+
+        $this->getJson('/api/v1/books?sort=rating')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $high->id)
+            ->assertJsonPath('data.0.reader_rating', 4.6)
+            ->assertJsonPath('data.0.reader_rating_source', 'Goodreads')
+            ->assertJsonPath('data.1.id', $low->id)
+            ->assertJsonPath('data.2.id', $plain->id)
+            ->assertJsonPath('data.2.reader_rating', null)
+            ->assertJsonPath('data.2.reader_rating_source', null);
+    }
+
     public function test_full_text_search_ranks_matches(): void
     {
         $this->book(['title' => 'The Hobbit', 'description' => 'Dwarves and a dragon']);

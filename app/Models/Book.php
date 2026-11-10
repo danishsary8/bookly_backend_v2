@@ -22,6 +22,7 @@ class Book extends Model
     protected $fillable = [
         'title', 'description', 'status', 'publish_at', 'publisher_id', 'series_id', 'series_order',
         'language', 'page_count', 'publish_date', 'age_min', 'age_max', 'school_grade', 'level',
+        'reader_rating', 'reader_rating_source',
     ];
 
     /** English learning levels (CEFR), for the "level" filter. */
@@ -59,6 +60,7 @@ class Book extends Model
             'age_min' => 'integer',
             'age_max' => 'integer',
             'school_grade' => 'integer',
+            'reader_rating' => 'float',
         ];
     }
 
