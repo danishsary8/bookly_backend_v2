@@ -586,3 +586,9 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
 - `GET /books?sort=rating` orders by the approved-review average, else `reader_rating`, nulls last.
 - Test added in `PublicCatalogTest`. NOT run locally (this machine has PHP 8.3; the project needs 8.4) - rely on the Tests workflow.
 - Open: the admin book form (frontend) still needs the two inputs; until then set them through `PATCH /staff/books/{id}`.
+
+## Upcoming books (feature/upcoming-books, 2026-11-10)
+- Owner adds future titles as *scheduled* books; those are hidden from the shop, so the home "Coming soon" row stayed empty.
+- New `GET /catalog/upcoming` (UpcomingBooksController): pre-orders (visible + future variant release_date) and scheduled books with publish_at in the future, soonest first, max 12, with `coming_on` and `announced`.
+- Scheduled books stay non-public: no detail page, nothing buyable; the storefront card is not a link for them.
+- Test: `tests/Feature/Catalog/UpcomingBooksTest.php`. NOT run locally (PHP 8.3 here, project needs 8.4); rely on the Tests workflow.
