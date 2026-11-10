@@ -1876,6 +1876,29 @@ paths:
           application/json:
             schema: { type: object, required: [is_staff_pick], properties: { is_staff_pick: { type: boolean } } }
       responses: { '200': *ReadingListResponse }
+  /catalog/upcoming:
+    get:
+      tags: [Catalog]
+      summary: Coming soon books (pre-orders and scheduled books), soonest first
+      responses:
+        '200':
+          description: Up to 12 books. Pre-orders are visible books with an active format releasing later; announced books are scheduled to publish later and have no public detail page yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    maxItems: 12
+                    items:
+                      allOf:
+                      - $ref: '#/components/schemas/BookCard'
+                      - type: object
+                        required: [coming_on, announced]
+                        properties:
+                          coming_on: { type: string, format: date, nullable: true, description: 'The earlier of the first future release date and the publish date' }
+                          announced: { type: boolean, description: 'True for a scheduled book that is not public yet (no detail page, not buyable)' }
   /catalog/rows:
     get:
       tags: [Catalog]
