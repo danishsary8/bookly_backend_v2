@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CatalogRowsController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
 use App\Http\Controllers\Api\V1\Catalog\CollectionController;
+use App\Http\Controllers\Api\V1\Catalog\PromotionController;
 use App\Http\Controllers\Api\V1\Catalog\PublisherController;
 use App\Http\Controllers\Api\V1\Catalog\ReviewController as BookReviewController;
 use App\Http\Controllers\Api\V1\Catalog\SeriesController;
@@ -75,6 +76,7 @@ use App\Http\Controllers\Api\V1\Staff\Promotions\CollectionController as StaffCo
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\GiftController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\OfferController as StaffOfferController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\PromotionController as StaffPromotionController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Staff\StaffAssistantController;
@@ -136,6 +138,10 @@ Route::get('/publishers', [PublisherController::class, 'index']);
 // Seasonal collections (owner 2026-11-01): up to 2 live ones for the home page, and one by its web address.
 Route::get('/collections/live', [CollectionController::class, 'live'])->middleware('throttle:catalog');
 Route::get('/collections/{slug}', [CollectionController::class, 'show'])->where('slug', '[a-z0-9-]+')->middleware('throttle:catalog');
+// Promotion pop-up (owner 2026-11-12): the live promotion, and counters for "shown" and "button used".
+Route::get('/promotions/current', [PromotionController::class, 'current'])->middleware('throttle:catalog');
+Route::post('/promotions/{promotion}/view', [PromotionController::class, 'view'])->whereNumber('promotion')->middleware('throttle:30,1');
+Route::post('/promotions/{promotion}/click', [PromotionController::class, 'click'])->whereNumber('promotion')->middleware('throttle:30,1');
 Route::get('/series', [SeriesController::class, 'index']);
 Route::get('/series/{series}', [SeriesController::class, 'show'])->whereNumber('series');
 Route::get('/delivery/options', [DeliveryController::class, 'options']);
@@ -404,6 +410,12 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/collections', [StaffCollectionController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/collections/{collection}', [StaffCollectionController::class, 'show'])->whereNumber('collection')->middleware('ability:catalog:view,admin');
     Route::get('/offers', [StaffOfferController::class, 'index'])->middleware('ability:catalog:view,admin');
+    // Promotion pop-ups (owner 2026-11-12): staff who manage the catalogue run them; the money part stays the admin-only offer.
+    Route::get('/promotions', [StaffPromotionController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/promotions/{promotion}', [StaffPromotionController::class, 'show'])->whereNumber('promotion')->middleware('ability:catalog:view,admin');
+    Route::post('/promotions', [StaffPromotionController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/promotions/{promotion}', [StaffPromotionController::class, 'update'])->whereNumber('promotion')->middleware('ability:catalog:manage,admin');
+    Route::delete('/promotions/{promotion}', [StaffPromotionController::class, 'destroy'])->whereNumber('promotion')->middleware('ability:catalog:manage,admin');
     Route::get('/reading-lists', [ReadingListController::class, 'staffIndex'])->middleware('ability:catalog:view,admin');
     Route::patch('/reading-lists/{list}', [ReadingListController::class, 'staffPick'])->whereNumber('list')->middleware(['ability:catalog:view,admin', 'throttle:20,1']);
     Route::get('/gifts', [GiftController::class, 'index'])->middleware('ability:catalog:view,admin');

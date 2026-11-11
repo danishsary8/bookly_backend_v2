@@ -347,6 +347,32 @@ components:
         name: { type: string }
         description: { type: string, nullable: true }
         books_count: { type: integer }
+    Promotion:
+      type: object
+      nullable: true
+      description: 'What the shop pop-up announces. `offer` is the linked automatic offer while that offer is live, else null.'
+      properties:
+        id: { type: integer }
+        title_en: { type: string }
+        title_km: { type: string, nullable: true, description: 'Null: the shop shows title_en in Khmer too' }
+        body_en: { type: string, nullable: true }
+        body_km: { type: string, nullable: true }
+        image_url: { type: string, nullable: true }
+        cta_label_en: { type: string, nullable: true, description: 'Null: the shop''s own "Shop now"' }
+        cta_label_km: { type: string, nullable: true }
+        cta_url: { type: string, example: '/series/3', description: 'A path inside the shop' }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        offer:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            percent_off: { type: string, example: '20.00' }
+            min_quantity: { type: integer }
+            whole_series: { type: boolean }
+            free_delivery: { type: boolean }
+            target_label: { type: string, nullable: true }
     SeriesDetail:
       type: object
       properties:
@@ -2012,6 +2038,20 @@ paths:
           content:
             application/json:
               schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/SeasonalCollection' } } } }
+  /promotions/current:
+    get:
+      tags: [Catalog]
+      summary: 'The live promotion for the shop pop-up (switched on, started, not ended; the newest start wins), or data null'
+      responses:
+        '200':
+          description: The promotion, or null
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/Promotion' } } }
+  /promotions/{id}/view:
+    post: { tags: [Catalog], summary: 'Count one showing of the pop-up (no login; 30 a minute)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /promotions/{id}/click:
+    post: { tags: [Catalog], summary: 'Count one use of the pop-up button (no login; 30 a minute)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '404': { $ref: '#/components/responses/NotFound' } } }
   /collections/{slug}:
     get:
       tags: [Catalog]
@@ -3132,6 +3172,13 @@ paths:
     get: { tags: [Staff operations], summary: 'One coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Coupon } } }
     patch: { tags: [Staff operations], summary: '(admin) Update coupon', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' } } }
     delete: { tags: [Staff operations], summary: '(admin) Delete if unused, else 409', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' } } }
+  /staff/promotions:
+    get: { tags: [Staff operations], summary: 'Promotion pop-ups, newest first (per_page). Staff with catalog:view and admins. Each: all fields, offer_name, status (live|scheduled|hidden|ended), views, clicks, orders_count and revenue_usd of the linked offer while the promotion ran (cancelled orders left out)', responses: { '200': { description: Promotions } } }
+    post: { tags: [Staff operations], summary: 'Create (catalog:manage or admin): title_en, title_km?, body_en/km? max 500, image_url? https, cta_label_en/km? max 40, cta_url? a path inside the shop starting with / (default /books), offer_id? an existing offer, starts_at?, ends_at? after starts_at, is_active? default false. Audited', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/promotions/{id}:
+    get: { tags: [Staff operations], summary: 'One promotion with its results', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Promotion } } }
+    patch: { tags: [Staff operations], summary: 'Update any field, e.g. is_active to show or hide (catalog:manage or admin). Audited (no row when nothing changed)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Staff operations], summary: 'Delete (catalog:manage or admin). Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /staff/collections:
     get: { tags: [Staff operations], summary: 'Seasonal collections (q = title, per_page). Staff with catalog:view and admins. Each: all fields, status (live|scheduled|ended|hidden), books [{id, title, in_trash}] in order', responses: { '200': { description: Collections } } }
     post: { tags: [Staff operations], summary: '(admin) Create (title_en, slug? made from title_en, title_km?, description_en/km? max 300, starts_at?, ends_at? after starts_at, is_active? default false, position?, books? ordered book ids max 60, each existing and not in the trash). "live" is reserved. Audited', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }

@@ -645,3 +645,14 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
   `GET /series/{id}` gains `set_offer` (percent, free delivery, end, volumes, full/set price, saving).
   Staff: a set offer must target series only. OpenAPI updated.
 - Tests: `SetOfferTest` (4); three exact-array assertions in BookOfferFieldTest/CartPricingTest gained the two flags.
+
+## Promotion pop-ups (main, 2026-11-12) — promotions step 2 of 3
+- New table `promotions` (migration `2026_11_12_000002`): title/body EN+KM, image_url, button label EN+KM, cta_url (a
+  path inside the shop), optional offer_id, starts_at, ends_at, is_active (default false), views, clicks.
+- Public: `GET /promotions/current` (the newest live one, or null; the linked offer's numbers only while that offer is
+  live), `POST /promotions/{id}/view` and `/click` (counters, 30 a minute, no login).
+- Staff: `GET/POST /staff/promotions`, `GET/PATCH/DELETE /staff/promotions/{id}`. View: catalog:view; create, change,
+  show/hide, delete: catalog:manage or admin (owner: "staff or admin can manage it"). A promotion only announces; the
+  money part is the linked offer, still admin-only. Each row carries results: views, clicks, and the linked offer's
+  orders and revenue while the promotion ran (cancelled orders left out). Audited. OpenAPI updated.
+- Tests: `tests/Feature/Marketing/PromotionTest.php` (4). Full suite 991 passed, Pint passed.
