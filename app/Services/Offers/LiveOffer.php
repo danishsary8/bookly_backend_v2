@@ -12,6 +12,7 @@ final class LiveOffer
      * @param  list<int>  $bookIds
      * @param  list<int>  $categoryIds
      * @param  list<int>  $seriesIds
+     * @param  array<int, list<int>>  $seriesBooks  set offers only: series id => the ids of its books on sale
      */
     public function __construct(
         public readonly int $id,
@@ -29,6 +30,9 @@ final class LiveOffer
         public readonly array $categoryIds = [],
         public readonly array $seriesIds = [],
         public readonly ?string $targetLabel = null,
+        public readonly bool $wholeSeries = false,  // a set offer: every volume of a target series, in one order
+        public readonly bool $freeDelivery = false,
+        public readonly array $seriesBooks = [],
     ) {}
 
     /** Spec 4.1: started, not ended, not used up, and (all books or at least one target left). */
@@ -42,6 +46,10 @@ final class LiveOffer
 
     public function hasBooks(): bool
     {
+        if ($this->wholeSeries) {
+            return array_filter($this->seriesBooks) !== [];
+        }
+
         return $this->appliesToAll || $this->bookIds !== [] || $this->categoryIds !== [] || $this->seriesIds !== [];
     }
 

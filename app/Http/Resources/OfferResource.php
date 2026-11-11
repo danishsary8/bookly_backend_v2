@@ -21,6 +21,8 @@ class OfferResource extends JsonResource
             'gift_id' => $offer->gift_id,
             'gift_quantity' => $offer->gift_quantity,
             'min_subtotal' => $offer->min_subtotal,
+            'whole_series' => (bool) $offer->whole_series,
+            'free_delivery' => (bool) $offer->free_delivery,
             'applies_to' => $offer->applies_to,
             'min_quantity' => $offer->min_quantity,
             'percent_off' => $offer->percent_off,

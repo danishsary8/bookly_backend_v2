@@ -80,7 +80,7 @@ class BookOfferFieldTest extends TestCase
             'ends_at' => '2030-01-01 00:00:00'], series: $this->holmes);
 
         $expected = ['id' => $offer->id, 'min_quantity' => 2, 'percent_off' => '15.00',
-            'ends_at' => '2030-01-01T00:00:00Z', 'target_label' => 'Sherlock Holmes'];
+            'ends_at' => '2030-01-01T00:00:00Z', 'target_label' => 'Sherlock Holmes', 'whole_series' => false, 'free_delivery' => false];
         $offers = $this->listOffers();
         $this->assertSame($expected, $offers[$a->id]);
         $this->assertSame($expected, $offers[$b->id]);

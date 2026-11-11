@@ -337,7 +337,9 @@ class CheckoutService
 
         $netSubtotalCents = max(0, $subtotal - $discount);
         $isFreeShipping = false;
-        if ($requiresShipping && $freeThresholdCents !== null && $netSubtotalCents >= $freeThresholdCents) {
+        // Free over the threshold, or when the offer that won gives free delivery (set offers, owner 2026-11-12).
+        $offerFreeDelivery = $choice->winningOffer()?->offer->freeDelivery ?? false;
+        if ($requiresShipping && ($offerFreeDelivery || ($freeThresholdCents !== null && $netSubtotalCents >= $freeThresholdCents))) {
             $isFreeShipping = true;
             $shipping = 0;
         } else {
@@ -345,7 +347,7 @@ class CheckoutService
         }
 
         $amountNeededForFreeShippingCents = ($requiresShipping && $freeThresholdCents !== null)
-            ? max(0, $freeThresholdCents - $netSubtotalCents)
+            ? ($offerFreeDelivery ? 0 : max(0, $freeThresholdCents - $netSubtotalCents))
             : null;
 
         $estimatedDelivery = $requiresShipping

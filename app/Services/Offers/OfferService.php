@@ -86,7 +86,23 @@ class OfferService
             'percent_off' => $best->percentOff,
             'ends_at' => $best->endsAtIso,
             'target_label' => $best->targetLabel,
+            'whole_series' => $best->wholeSeries,
+            'free_delivery' => $best->freeDelivery,
         ];
+    }
+
+    /** The live set offer ("buy the whole series") for this series with the biggest percent, or null. */
+    public function setOfferForSeries(int $seriesId): ?LiveOffer
+    {
+        $best = null;
+        foreach ($this->live() as $offer) {
+            if ($offer->wholeSeries && ($offer->seriesBooks[$seriesId] ?? []) !== []
+                && ($best === null || $offer->percentBasisPoints > $best->percentBasisPoints)) {
+                $best = $offer;
+            }
+        }
+
+        return $best;
     }
 
     public function forget(): void
@@ -138,17 +154,23 @@ class OfferService
             ->orderBy('t.id')
             ->get([
                 'o.id', 'o.name', 'o.applies_to', 'o.min_quantity', 'o.percent_off', 'o.starts_at', 'o.ends_at',
-                'o.max_orders', 'o.used_count',
+                'o.max_orders', 'o.used_count', 'o.whole_series', 'o.free_delivery',
                 't.book_id', 't.category_id', 't.series_id',
                 'b.deleted_at as book_deleted_at',
                 'c.name as category_name', 'c.deleted_at as category_deleted_at',
                 's.name as series_name', 's.deleted_at as series_deleted_at',
             ]);
 
-        return $rows->groupBy('id')->map(fn ($group) => $this->toLiveOffer($group))->values()->all();
+        // Set offers need each target series' books on sale (one query for all of them).
+        $setSeries = $rows->where('whole_series', true)->whereNotNull('series_id')->whereNull('series_deleted_at')->pluck('series_id')->unique()->values();
+        $seriesBooks = $setSeries->isEmpty() ? [] : Book::visible()->whereIn('series_id', $setSeries)->orderBy('id')->get(['id', 'series_id'])
+            ->groupBy('series_id')->map(fn ($books) => $books->pluck('id')->map(fn ($id) => (int) $id)->all())->all();
+
+        return $rows->groupBy('id')->map(fn ($group) => $this->toLiveOffer($group, $seriesBooks))->values()->all();
     }
 
-    private function toLiveOffer($group): LiveOffer
+    /** @param  array<int, list<int>>  $seriesBooks  series id => book ids on sale (set offers) */
+    private function toLiveOffer($group, array $seriesBooks = []): LiveOffer
     {
         $first = $group->first();
         $all = $first->applies_to === Offer::APPLIES_TO_ALL;
@@ -171,6 +193,10 @@ class OfferService
             }
         }
 
+        $set = (bool) $first->whole_series;
+        // A set offer shows "buy all N volumes": N is the size of its (smallest) series.
+        $setSize = $set && $series !== [] ? min(array_map(fn (int $id) => count($seriesBooks[$id] ?? []), $series)) : 0;
+
         $startsAt = $first->starts_at !== null ? now()->parse($first->starts_at) : null;
         $endsAt = $first->ends_at !== null ? now()->parse($first->ends_at) : null;
 
@@ -178,7 +204,7 @@ class OfferService
             id: (int) $first->id,
             name: $first->name,
             appliesToAll: $all,
-            minQuantity: (int) $first->min_quantity,
+            minQuantity: $setSize > 0 ? $setSize : (int) $first->min_quantity,
             percentOff: Money::format(Money::toCents($first->percent_off)),
             percentBasisPoints: Money::toCents($first->percent_off),
             startsAt: $startsAt?->getTimestamp(),
@@ -191,6 +217,9 @@ class OfferService
             seriesIds: $series,
             // Spec 6.1: a name only when the offer has exactly one target and it is a series or a category.
             targetLabel: count($labels) === 1 ? $labels[0] : null,
+            wholeSeries: $set,
+            freeDelivery: (bool) $first->free_delivery,
+            seriesBooks: $set ? array_intersect_key($seriesBooks, array_flip($series)) + array_fill_keys($series, []) : [],
         );
     }
 }

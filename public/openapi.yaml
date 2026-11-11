@@ -357,6 +357,22 @@ components:
         total_volumes: { type: integer, nullable: true }
         owned_count: { type: integer, nullable: true }
         in_cart_count: { type: integer, nullable: true }
+        set_offer:
+          type: object
+          nullable: true
+          description: 'The live set offer for this series (buy every volume in one order), or null. Prices use each volume''s lowest price.'
+          properties:
+            id: { type: integer }
+            percent_off: { type: string, example: '20.00' }
+            free_delivery: { type: boolean }
+            ends_at: { type: string, format: date-time, nullable: true }
+            volumes: { type: integer }
+            full_price_usd: { $ref: '#/components/schemas/Money' }
+            full_price_khr: { $ref: '#/components/schemas/Riel' }
+            set_price_usd: { $ref: '#/components/schemas/Money' }
+            set_price_khr: { $ref: '#/components/schemas/Riel' }
+            saving_usd: { $ref: '#/components/schemas/Money' }
+            saving_khr: { $ref: '#/components/schemas/Riel' }
         books: { type: array, items: { $ref: '#/components/schemas/BookCard' } }
     RatingSummary:
       type: object
@@ -506,6 +522,8 @@ components:
         percent_off: { type: string, example: '15.00' }
         ends_at: { type: string, format: date-time, nullable: true }
         target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
+        whole_series: { type: boolean, description: 'A set offer: applies only when every volume of the target series is in the cart; min_quantity is then the number of volumes.' }
+        free_delivery: { type: boolean, description: 'The order this offer applies to gets free delivery.' }
         discount_usd: { $ref: '#/components/schemas/Money' }
         discount_khr: { $ref: '#/components/schemas/Riel' }
     CartFreeShipping:
@@ -613,6 +631,8 @@ components:
         percent_off: { type: string, example: '15.00' }
         ends_at: { type: string, format: date-time, nullable: true }
         target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
+        whole_series: { type: boolean, description: 'A set offer: applies only when every volume of the target series is in the cart; min_quantity is then the number of volumes.' }
+        free_delivery: { type: boolean, description: 'The order this offer applies to gets free delivery.' }
     Variant:
       type: object
       properties:
@@ -730,6 +750,8 @@ components:
             add_quantity: { type: integer, example: 1 }
             percent_off: { type: string, example: '15.00' }
             target_label: { type: string, nullable: true }
+            whole_series: { type: boolean, description: 'Set offer: add_quantity is the number of volumes still missing from the series.' }
+            free_delivery: { type: boolean }
         free_shipping: { $ref: '#/components/schemas/CartFreeShipping' }
     Order:
       type: object
@@ -3111,7 +3133,7 @@ paths:
     delete: { tags: [Staff operations], summary: '(admin) Delete (its book list goes with it). Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /staff/offers:
     get: { tags: [Staff operations], summary: 'List automatic offers (q = name, status = live|scheduled|paused|ended|used_up|no_books, per_page). Staff with catalog:view and admins', responses: { '200': { description: 'Offers: all columns, status, targets [{type, id, label, in_trash}], orders_count' } } }
-    post: { tags: [Staff operations], summary: '(admin) Create automatic offer', description: 'name, type buy_n_percent (default) or gift, applies_to all|selected, min_quantity 2-20 (gift 1-20, default 1), percent_off 0.01-50 (gift 0), gift_id required for gift, gift_quantity 1-100 default 1, min_subtotal optional positive matching subtotal instead of min_quantity for gifts, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all. Gift and monetary winners are independent; one gift plus one monetary discount. Audited.', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Staff operations], summary: '(admin) Create automatic offer', description: 'name, type buy_n_percent (default) or gift, applies_to all|selected, min_quantity 2-20 (gift 1-20, default 1), percent_off 0.01-50 (gift 0), gift_id required for gift, gift_quantity 1-100 default 1, min_subtotal optional positive matching subtotal instead of min_quantity for gifts, starts_at?, ends_at? after starts_at, max_orders?, is_active?, targets [{type book|category|series, id}] 1-200 for selected, refused for all. whole_series? (set offer: every volume of the target series in one order; series targets only; min_quantity optional), free_delivery? (the order gets free delivery when the offer applies). Gift and monetary winners are independent; one gift plus one monetary discount. Audited.', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
   /staff/offers/{id}:
     get: { tags: [Staff operations], summary: 'One offer', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Offer } } }
     patch: { tags: [Staff operations], summary: '(admin) Update any field; pause/resume with is_active; targets replace the list when sent; switching to all drops them. used_count is read-only', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }

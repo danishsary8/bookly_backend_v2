@@ -64,7 +64,11 @@ class OfferController extends Controller
             $data['percent_off'] = '0.00';
             $data['min_quantity'] ??= 1;
         }
+        if ($data['whole_series'] ?? false) {
+            $data['min_quantity'] ??= 2; // not used by a set offer: the set is every volume of the series
+        }
         $targets = $this->targets($data);
+        $this->checkSet($data['whole_series'] ?? false, $data['applies_to'], $targets);
         $this->checkDates($data['starts_at'] ?? null, $data['ends_at'] ?? null);
 
         $offer = DB::transaction(function () use ($data, $targets) {
@@ -101,6 +105,12 @@ class OfferController extends Controller
         } elseif (! $offer->targets()->exists()) {
             throw ValidationException::withMessages(['targets' => 'Choose at least one book, category or series.']);
         }
+
+        $this->checkSet(
+            $data['whole_series'] ?? $offer->whole_series,
+            $appliesTo,
+            $newTargets ?? $offer->targets()->get()->map(fn ($target) => [$target->type().'_id' => $target->targetId()])->all(),
+        );
 
         $before = [...$offer->getAttributes(), 'targets' => $this->targetRows($offer)];
         DB::transaction(function () use ($offer, $data, $newTargets) {
@@ -143,6 +153,7 @@ class OfferController extends Controller
         $required = $offer ? 'sometimes' : 'required';
         $appliesTo = $request->input('applies_to', $offer?->applies_to);
         $gift = $request->input('type', $offer?->type) === 'gift';
+        $set = $request->boolean('whole_series', (bool) $offer?->whole_series);
 
         return [
             'name' => [$required, 'string', 'min:1', 'max:100'],
@@ -151,7 +162,9 @@ class OfferController extends Controller
             'gift_quantity' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'min_subtotal' => ['sometimes', 'nullable', 'numeric', 'min:0.01', 'max:99999999.99', 'decimal:0,2'],
             'applies_to' => [$required, Rule::in([Offer::APPLIES_TO_ALL, Offer::APPLIES_TO_SELECTED])],
-            'min_quantity' => [$gift ? 'sometimes' : $required, 'integer', $gift ? 'min:1' : 'min:2', 'max:20'],
+            'whole_series' => ['sometimes', 'boolean', Rule::prohibitedIf($gift && $request->boolean('whole_series'))],
+            'free_delivery' => ['sometimes', 'boolean'],
+            'min_quantity' => [$gift || $set ? 'sometimes' : $required, 'integer', $gift ? 'min:1' : 'min:2', 'max:20'],
             'percent_off' => [$gift ? 'sometimes' : $required, 'numeric', $gift ? 'in:0' : 'min:0.01', 'max:50', 'decimal:0,2'],
             'starts_at' => ['sometimes', 'nullable', 'date'],
             'ends_at' => ['sometimes', 'nullable', 'date'],
@@ -202,6 +215,18 @@ class OfferController extends Controller
     {
         return $offer->targets()->orderBy('id')->get()
             ->map(fn ($target) => $target->type().':'.$target->targetId())->all();
+    }
+
+    /** A set offer ("buy the whole series") only makes sense on chosen series. */
+    private function checkSet(bool $wholeSeries, string $appliesTo, array $targets): void
+    {
+        if (! $wholeSeries) {
+            return;
+        }
+        $onlySeries = $targets !== [] && collect($targets)->every(fn (array $target) => array_key_exists('series_id', $target));
+        if ($appliesTo !== Offer::APPLIES_TO_SELECTED || ! $onlySeries) {
+            throw ValidationException::withMessages(['whole_series' => 'A set offer must be for chosen series only (no single books or categories).']);
+        }
     }
 
     private function checkDates(mixed $startsAt, mixed $endsAt): void

@@ -632,3 +632,16 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
 - Local frontend uses an explicitly labeled, DEV-only fixture preview while connected to the live API. Top rated excludes scores below 3.5 rather than changing real ratings. Increased the cover-color wash and fixed ranked-row overflow.
 - Research and operational details: ../bookly_frontend/docs/TOP_RATED_DEMO.md. Goodreads averages/counts are documented as sourced snapshots, separately from synthetic customer reviews.
 - Validation: TopRatedDemoSeederTest passes (2 tests, 391 assertions); Pint passes; browser confirms ten rated rows and no overflow at desktop/tablet/mobile widths. Local database seeder completed; no production database was modified.
+
+## Set offers + free delivery (main, 2026-11-12) — promotions step 1 of 3
+- Owner decisions: the whole set in one order; reward = percent off + optional free delivery; work on `main`.
+- Migration `2026_11_12_000001`: `offers.whole_series`, `offers.free_delivery` (both default false).
+- `OfferCalculator`: a set offer applies to a target series only when every book on sale of that series is in the cart
+  (blocked lines don't count); every line of the series gets the percent. Nudge = volumes still missing.
+  `LiveOffer.seriesBooks` (series id => book ids) is loaded with the offers (one extra query, cached 60 s).
+- Free delivery: when the winning offer has `free_delivery`, checkout totals and the cart's `free_shipping` are free.
+  (If a coupon beats the offer, the offer's free delivery does not apply.)
+- API: `whole_series` + `free_delivery` on book `offer`, cart `pricing.offer` / `pricing.nudge`, staff offers;
+  `GET /series/{id}` gains `set_offer` (percent, free delivery, end, volumes, full/set price, saving).
+  Staff: a set offer must target series only. OpenAPI updated.
+- Tests: `SetOfferTest` (4); three exact-array assertions in BookOfferFieldTest/CartPricingTest gained the two flags.

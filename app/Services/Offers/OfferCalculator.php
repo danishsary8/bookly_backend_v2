@@ -14,6 +14,10 @@ final class OfferCalculator
      */
     public function evaluate(LiveOffer $offer, array $lines): OfferResult
     {
+        if ($offer->wholeSeries) {
+            return $this->evaluateSet($offer, $lines);
+        }
+
         $covered = array_filter($lines, fn (OfferLine $line) => ! $line->blocked
             && $offer->coversBook($line->bookId, $line->categoryIds, $line->seriesId));
 
@@ -29,6 +33,49 @@ final class OfferCalculator
         }
 
         return new OfferResult($offer, $units, array_sum($lineDiscounts), $lineDiscounts);
+    }
+
+    /**
+     * A set offer (owner 2026-11-12): a target series counts only when EVERY one of its books on sale is in the cart
+     * (blocked lines never count); then every line of that series gets X% off. Several complete series add up.
+     */
+    private function evaluateSet(LiveOffer $offer, array $lines): OfferResult
+    {
+        $units = 0;
+        $lineDiscounts = [];
+        foreach ($offer->seriesBooks as $seriesId => $bookIds) {
+            $inSeries = array_filter($lines, fn (OfferLine $line) => ! $line->blocked && $line->seriesId === $seriesId);
+            $have = array_unique(array_map(fn (OfferLine $line) => $line->bookId, $inSeries));
+            if ($bookIds === [] || array_diff($bookIds, $have) !== []) {
+                continue;
+            }
+            foreach ($inSeries as $line) {
+                $units += $line->quantity;
+                $lineDiscounts[$line->key] = intdiv($line->lineTotalCents * $offer->percentBasisPoints, 10000);
+            }
+        }
+
+        return new OfferResult($offer, $units, array_sum($lineDiscounts), $lineDiscounts);
+    }
+
+    /** Set offers: how many volumes the cart still misses of the series it is closest to completing (0: none started). */
+    private function missingForSet(LiveOffer $offer, array $lines): int
+    {
+        $least = 0;
+        foreach ($offer->seriesBooks as $seriesId => $bookIds) {
+            $have = [];
+            foreach ($lines as $line) {
+                if (! $line->blocked && $line->seriesId === $seriesId) {
+                    $have[] = $line->bookId;
+                }
+            }
+            $missing = count(array_diff($bookIds, $have));
+            if ($have !== [] && $missing > 0 && ($least === 0 || $missing < $least)) {
+                $least = $missing;
+            }
+        }
+
+        return $least;
     }
 
     /**
@@ -68,15 +115,21 @@ final class OfferCalculator
     {
         $pick = null;
         foreach ($offers as $offer) {
-            $units = $this->evaluate($offer, $lines)->coveredUnits;
-            if ($units < 1 || $units >= $offer->minQuantity) {
+            if ($offer->wholeSeries) {
+                // "Add 2 more volumes to complete the set": a started series that is not complete yet.
+                $add = $this->missingForSet($offer, $lines);
+            } else {
+                $units = $this->evaluate($offer, $lines)->coveredUnits;
+                $add = $units < 1 || $units >= $offer->minQuantity ? 0 : $offer->minQuantity - $units;
+            }
+            if ($add < 1) {
                 continue;
             }
             if ($applied !== null && $offer->percentBasisPoints <= $applied->offer->percentBasisPoints) {
                 continue;
             }
 
-            $candidate = ['offer' => $offer, 'add_quantity' => $offer->minQuantity - $units];
+            $candidate = ['offer' => $offer, 'add_quantity' => $add];
             if ($pick === null || $this->nudgeBeats($candidate, $pick)) {
                 $pick = $candidate;
             }

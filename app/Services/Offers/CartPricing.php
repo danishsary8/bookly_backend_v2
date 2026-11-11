@@ -65,27 +65,31 @@ class CartPricing
             'offer' => $offer,
             'nudge' => $nudge,
             'in_offer' => $inOffer,
-            'free_shipping' => self::freeShipping($summary['lines'], $subtotal - $discount),
+            'free_shipping' => self::freeShipping($summary['lines'], $subtotal - $discount, $offer?->offer->freeDelivery ?? false),
         ];
     }
 
     /**
      * Same rule as checkout (CheckoutService::totals): only when the cart has a printed book and free delivery is on;
-     * judged on subtotal minus discount.
+     * judged on subtotal minus discount. An applied offer with free delivery makes it free at any amount.
      *
      * @return array{threshold_cents: int, amount_needed_cents: int, is_free: bool}|null
      */
-    public static function freeShipping($lines, int $netSubtotalCents): ?array
+    public static function freeShipping($lines, int $netSubtotalCents, bool $offerFreeDelivery = false): ?array
     {
         $requiresShipping = $lines->contains(fn ($line) => ! $line['item']->variant->format->isDigital());
         $threshold = DeliveryArea::freeShippingThreshold();
 
-        if (! $requiresShipping || $threshold === null) {
+        if (! $requiresShipping || ($threshold === null && ! $offerFreeDelivery)) {
             return null;
         }
 
-        $thresholdCents = Money::toCents($threshold);
+        $thresholdCents = $threshold !== null ? Money::toCents($threshold) : 0;
         $net = max(0, $netSubtotalCents);
+        // The applied offer gives free delivery whatever the amount (owner 2026-11-12).
+        if ($offerFreeDelivery) {
+            return ['threshold_cents' => $thresholdCents, 'amount_needed_cents' => 0, 'is_free' => true];
+        }
 
         return [
             'threshold_cents' => $thresholdCents,

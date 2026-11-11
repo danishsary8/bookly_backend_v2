@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * An automatic offer: "buy at least `min_quantity` covered books, get `percent_off` % off every covered book".
+ * A set offer (`whole_series`) targets series instead: every volume of a series in one order gets the percent off.
+ * `free_delivery` adds free delivery to the order the offer applies to.
  * Rules: docs/superpowers/specs/2026-10-31-offers-design.md; the math lives in App\Services\Offers\OfferCalculator.
  */
 class Offer extends Model
@@ -22,7 +24,7 @@ class Offer extends Model
 
     protected $fillable = [
         'name', 'type', 'applies_to', 'min_quantity', 'percent_off', 'starts_at', 'ends_at', 'max_orders', 'is_active',
-        'gift_id', 'gift_quantity', 'min_subtotal',
+        'gift_id', 'gift_quantity', 'min_subtotal', 'whole_series', 'free_delivery',
     ];
 
     protected $attributes = [
@@ -43,6 +45,8 @@ class Offer extends Model
             'is_active' => 'boolean',
             'gift_quantity' => 'integer',
             'min_subtotal' => 'decimal:2',
+            'whole_series' => 'boolean',
+            'free_delivery' => 'boolean',
         ];
     }
 

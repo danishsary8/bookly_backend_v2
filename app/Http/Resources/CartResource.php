@@ -67,6 +67,8 @@ class CartResource extends JsonResource
                 'add_quantity' => $nudge['add_quantity'],
                 'percent_off' => $nudge['offer']->percentOff,
                 'target_label' => $nudge['offer']->targetLabel,
+                'whole_series' => $nudge['offer']->wholeSeries,
+                'free_delivery' => $nudge['offer']->freeDelivery,
             ],
             'free_shipping' => OfferPayload::freeShipping($pricing['free_shipping'], $currency),
         ];

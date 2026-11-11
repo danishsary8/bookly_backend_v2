@@ -22,6 +22,8 @@ final class OfferPayload
             'percent_off' => $result->offer->percentOff,
             'ends_at' => $result->offer->endsAtIso,
             'target_label' => $result->offer->targetLabel,
+            'whole_series' => $result->offer->wholeSeries,
+            'free_delivery' => $result->offer->freeDelivery,
             ...self::money($result->discountCents, 'discount', $currency),
         ];
     }
