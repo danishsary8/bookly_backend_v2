@@ -96,8 +96,11 @@ class CartController extends Controller
         $added = [];
         $skipped = [];
 
+        // `whole_set` (set offers): also add the volumes the customer already owns, so the cart holds the full set.
+        $wholeSet = $request->boolean('whole_set');
+
         foreach ($books as $book) {
-            if (in_array($book->id, $ownedBookIds, true)) {
+            if (! $wholeSet && in_array($book->id, $ownedBookIds, true)) {
                 continue;
             }
             if (in_array($book->id, $inCartBookIds, true)) {

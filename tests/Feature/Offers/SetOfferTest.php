@@ -128,6 +128,23 @@ class SetOfferTest extends TestCase
         $this->getJson('/api/v1/series/'.Series::factory()->create()->id)->assertOk()->assertJsonPath('data.set_offer', null);
     }
 
+    public function test_complete_the_set_can_add_volumes_the_customer_already_owns(): void
+    {
+        $this->setOffer();
+        $this->add($this->volumes[0]);
+        $this->asToken($this->token)->withHeader('Idempotency-Key', Str::random(24))
+            ->postJson('/api/v1/checkout', ['address_id' => $this->address->id, 'payment_method' => 'cod'])->assertCreated();
+        Order::sole()->update(['status' => 'delivered']);
+
+        // Default: only the two volumes not owned yet, so the set is not complete.
+        $this->asToken($this->token)->postJson("/api/v1/cart/series/{$this->batman->id}")->assertOk();
+        $this->asToken($this->token)->getJson('/api/v1/cart')->assertJsonCount(2, 'data.items')->assertJsonPath('data.pricing.offer', null);
+
+        // whole_set: the owned volume too, and the set offer applies.
+        $this->asToken($this->token)->postJson("/api/v1/cart/series/{$this->batman->id}", ['whole_set' => true])->assertOk();
+        $this->asToken($this->token)->getJson('/api/v1/cart')->assertJsonCount(3, 'data.items')->assertJsonPath('data.pricing.discount_usd', '6.00');
+    }
+
     public function test_admin_creates_a_set_offer_for_series_only(): void
     {
         $admin = $this->staffToken(admin: true);
