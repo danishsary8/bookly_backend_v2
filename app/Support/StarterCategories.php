@@ -23,14 +23,6 @@ class StarterCategories
             'khmer-novels' => 'Khmer novels', 'khmer-short-stories' => 'Khmer short stories', 'khmer-poetry' => 'Khmer poetry',
             'khmer-folktales' => 'Khmer folktales', 'khmer-history-culture' => 'Khmer history & culture',
         ]],
-        'khmer-school' => ['name' => 'Khmer school books', 'icon' => 'school', 'children' => [
-            'grade-7' => 'Grade 7', 'grade-8' => 'Grade 8', 'grade-9' => 'Grade 9', 'grade-10' => 'Grade 10',
-            'grade-11' => 'Grade 11', 'grade-12' => 'Grade 12', 'exam-prep' => 'Exam preparation',
-        ]],
-        'english-learning' => ['name' => 'English learning', 'icon' => 'graduation-cap', 'children' => [
-            'english-coursebooks' => 'Coursebooks (Oxford, Cambridge…)', 'grammar' => 'Grammar', 'vocabulary' => 'Vocabulary',
-            'graded-readers' => 'Graded readers', 'ielts-toefl' => 'IELTS & TOEFL', 'dictionaries' => 'Dictionaries',
-        ]],
         'self-help' => ['name' => 'Self-help & growth', 'icon' => 'sprout', 'children' => [
             'self-improvement' => 'Self-improvement', 'personal-development' => 'Personal development', 'productivity' => 'Productivity',
             'psychology' => 'Psychology', 'mindfulness' => 'Mindfulness', 'relationships' => 'Relationships',
@@ -54,9 +46,11 @@ class StarterCategories
         'young-adult' => ['name' => 'Young adult', 'icon' => 'sparkles', 'children' => [
             'ya-fiction' => 'YA fiction', 'ya-fantasy' => 'YA fantasy', 'ya-romance' => 'YA romance',
         ]],
-        'education' => ['name' => 'Education & reference', 'icon' => 'library', 'children' => [
-            'mathematics' => 'Mathematics', 'computers' => 'Computers & programming', 'other-languages' => 'Other languages',
-            'study-skills' => 'Study skills', 'reference' => 'Reference',
+        // Education (owner 2026-11-11): school subjects and language books only; grades live on each book (school_grade).
+        'education' => ['name' => 'Education', 'icon' => 'graduation-cap', 'children' => [
+            'mathematics' => 'Mathematics', 'physics' => 'Physics', 'chemistry' => 'Chemistry', 'biology' => 'Biology',
+            'world-history' => 'World history', 'geography' => 'Geography', 'english-books' => 'English books (Oxford, Cambridge…)',
+            'language-learning' => 'Language learning',
         ]],
         'arts-hobbies' => ['name' => 'Arts & hobbies', 'icon' => 'palette', 'children' => [
             'art-design' => 'Art & design', 'photography' => 'Photography', 'music' => 'Music', 'crafts' => 'Crafts & DIY', 'sports' => 'Sports',

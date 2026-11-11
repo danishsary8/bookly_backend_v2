@@ -154,6 +154,11 @@ php artisan db:seed --class=DemoSeeder --force
 ```
 Save the staff password it prints once. Then close the terminal.
 
+Education categories (once, owner 2026-11-11): same terminal setup, then first
+`php artisan catalog:education-categories --dry-run` to see which books move where, then without `--dry-run`.
+Education becomes Mathematics, Physics, Chemistry, Biology, World history, Geography, English books and Language
+learning; Grade 7–12, Exam preparation, English learning and Education & reference are removed after their books move.
+
 Demo reviews for books without a rating (optional, any time after DemoSeeder; fills the home Top 10): same terminal
 setup, then `php artisan db:seed --class=DemoReviewsSeeder --force`. It buys the books through the demo reviewers'
 accounts (real delivered orders, stock taken) and reviews them; it does nothing once 12 books have a rating.

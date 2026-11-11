@@ -41,8 +41,8 @@ class CategoryTreeTest extends TestCase
 
     public function test_the_starter_tree_is_installed_and_existing_categories_are_kept(): void
     {
-        // Installed in setUp, as the migration does: 12 top-level categories with children.
-        $this->assertSame(12, Category::topLevel()->count());
+        // Installed in setUp, as the migration does: 10 top-level categories with children.
+        $this->assertSame(10, Category::topLevel()->count());
         $this->assertSame('fiction', Category::where('slug', 'fantasy')->first()->parent->slug);
 
         // An existing category with a starter slug keeps its name and is placed under its parent; others stay put.

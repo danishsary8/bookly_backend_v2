@@ -615,3 +615,15 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
   array mailer, order alerts off while seeding). Idempotent. No schema change, no new route.
 - Reviews already allow a rating without a comment (`comment` nullable, max 2000) — unchanged.
 - Test: `tests/Feature/Platform/DemoReviewsSeederTest.php` (2).
+
+## Education categories (main, 2026-11-11)
+- Owner: remove Grade 7–12; Education = Mathematics, Physics, Chemistry, Biology, World history, Geography,
+  English books (Oxford, Cambridge…), Language learning — nothing else.
+- `StarterCategories::TREE`: `khmer-school` and `english-learning` groups removed; `education` renamed "Education" with
+  the eight subjects (10 top-level categories now).
+- New `catalog:education-categories {--dry-run}` (ReshapeEducationCategories): installs the subjects, renames Education,
+  moves books (grade books by the subject in their title; English learning → English books; other languages →
+  Language learning; the rest → Education), then soft-deletes the old categories. One transaction; idempotent.
+  Grades stay on each book (`school_grade`), so the shop's grade filter still works. Run on production: DEPLOYMENT.md F6.
+- `data/catalog/books.csv`: category names of the 112 affected rows changed to the new categories, so imports still work.
+- Tests: `ReshapeEducationCategoriesTest` (2); CategoryTreeTest (10 top-level) and the CSV import fixture updated.

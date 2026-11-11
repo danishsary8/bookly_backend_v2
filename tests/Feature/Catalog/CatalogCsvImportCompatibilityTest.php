@@ -50,7 +50,7 @@ class CatalogCsvImportCompatibilityTest extends TestCase
             '5', '1', 'https://example.com/cover.jpg', 'https://openlibrary.org',
         ]);
         fputcsv($handle, [
-            '', 'English Grammar in Use', 'Raymond Murphy', 'Grammar', '', '',
+            '', 'English Grammar in Use', 'Raymond Murphy', 'English books (Oxford, Cambridge…)', '', '',
             'Cambridge University Press', 'English', '380', '2019-01-24', 'Self-study grammar reference.',
             'live', '', '', '', '', 'B1',
             'paperback', 'TEST-IMP-PB-02', '9781108457651', '24.50', '20',
