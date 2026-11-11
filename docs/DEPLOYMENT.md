@@ -154,6 +154,10 @@ php artisan db:seed --class=DemoSeeder --force
 ```
 Save the staff password it prints once. Then close the terminal.
 
+Demo reviews for books without a rating (optional, any time after DemoSeeder; fills the home Top 10): same terminal
+setup, then `php artisan db:seed --class=DemoReviewsSeeder --force`. It buys the books through the demo reviewers'
+accounts (real delivered orders, stock taken) and reviews them; it does nothing once 12 books have a rating.
+
 ### F6b. Book cover images: Cloudflare R2 (free, 10 GB)
 Render's own disk is wiped at every deploy and restart, so uploaded covers must live elsewhere. R2 is Cloudflare's
 S3-compatible storage: 10 GB free, no download fees.

@@ -604,3 +604,14 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
 - Tests: `tests/Feature/Catalog/MirrorExternalCoversTest.php` (4: copy once for shared links, skip placeholders and
   non-images, dry run changes nothing, own and empty covers untouched). Full suite 976 passed locally (PHP 8.3 with
   `--ignore-platform-req=php`; CI runs the real PHP version), Pint passed.
+
+## Demo reviews for unrated books (main, 2026-11-11)
+- Owner: the home Top 10 showed 4 books "Not rated yet"; seed reviews for them. Owner asked for direct pushes to `main`.
+- New `Database\Seeders\DemoReviewsSeeder` (manual: `php artisan db:seed --class=DemoReviewsSeeder`; production only
+  with `DEMO_SEED_ALLOWED=true`, see docs/DEPLOYMENT.md F6). Needs the DemoSeeder reviewers (sokha, dara, malis,
+  vicheka) and an admin. Picks unrated visible books in the Top 10's order (rating sort, then newest) until 12 books
+  have a score; 2 reviews each, mostly 4–5 stars, some without a comment. Reviews need a delivered purchase, so each
+  reviewer's books go through the real cart → checkout → processing → shipped → delivered (clock moved back, mail to the
+  array mailer, order alerts off while seeding). Idempotent. No schema change, no new route.
+- Reviews already allow a rating without a comment (`comment` nullable, max 2000) — unchanged.
+- Test: `tests/Feature/Platform/DemoReviewsSeederTest.php` (2).
