@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Staff\Catalog;
 
+use App\Enums\OrderStatus;
 use App\Enums\StaffRole;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffBookResource;
@@ -11,6 +12,7 @@ use App\Services\Admin\StrictDeleteService;
 use App\Services\Catalog\RecommendationService;
 use App\Services\Telegram\OpsAlerts;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -21,6 +23,9 @@ use Illuminate\Validation\ValidationException;
 class BookController extends Controller
 {
     private const RELATIONS = ['authors', 'categories', 'variants'];
+
+    /** The window of the Books list's "sold" column, in days. */
+    private const SOLD_DAYS = 90;
 
     public function __construct(
         private readonly AuditLogger $audit,
@@ -35,20 +40,39 @@ class BookController extends Controller
             'q' => ['nullable', 'string', 'max:200'],
             'status' => ['nullable', 'string', Rule::in(['draft', 'scheduled', 'live'])],
             'trashed' => ['nullable', 'boolean'],
+            'sort' => ['nullable', 'string', Rule::in(['newest', 'most_sold', 'least_sold'])],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+        $sort = $data['sort'] ?? 'newest';
 
         return StaffBookResource::collection(
             Book::query()
                 ->with(self::RELATIONS)
+                // Copies sold in the last SOLD_DAYS days (owner 2026-11-12: see sales next to stock while editing).
+                ->select('books.*')->selectSub(self::copiesSold(), 'sold_recent')
                 ->when($request->boolean('trashed'), fn ($q) => $q->onlyTrashed())
                 ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
                 ->when($data['q'] ?? null, fn ($q, $term) => $q->where('title', 'ilike', '%'.addcslashes($term, '%_').'%'))
+                ->when($sort === 'most_sold', fn ($q) => $q->orderByDesc('sold_recent'))
+                ->when($sort === 'least_sold', fn ($q) => $q->orderBy('sold_recent'))
                 ->latest()
                 ->orderByDesc('id')
                 ->paginate($data['per_page'] ?? 20)
                 ->withQueryString()
         );
+    }
+
+    /** Copies of the book ordered in the last SOLD_DAYS days, cancelled and deleted orders left out (a sub-query). */
+    private static function copiesSold(): Builder
+    {
+        return DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->whereColumn('book_variants.book_id', 'books.id')
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->whereNull('orders.deleted_at')
+            ->where('orders.placed_at', '>=', now()->subDays(self::SOLD_DAYS))
+            ->selectRaw('COALESCE(SUM(order_items.quantity), 0)');
     }
 
     public function show(int $book): StaffBookResource

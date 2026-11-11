@@ -31,6 +31,8 @@ class StaffBookResource extends JsonResource
             'categories' => CategoryResource::collection($this->whenLoaded('categories')),
             'variants' => StaffBookVariantResource::collection($this->whenLoaded('variants')),
             'is_visible' => $this->whenLoaded('variants', fn () => $this->isPublic() && $this->variants->contains('is_active', true)),
+            // Only on the list (GET /staff/books): copies ordered in the last 90 days.
+            'sold_recent' => $this->when(isset($this->resource->sold_recent), fn () => (int) $this->resource->sold_recent),
             'deleted_at' => $this->deleted_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

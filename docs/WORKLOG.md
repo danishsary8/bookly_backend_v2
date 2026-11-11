@@ -656,3 +656,9 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
   money part is the linked offer, still admin-only. Each row carries results: views, clicks, and the linked offer's
   orders and revenue while the promotion ran (cancelled orders left out). Audited. OpenAPI updated.
 - Tests: `tests/Feature/Marketing/PromotionTest.php` (4). Full suite 991 passed, Pint passed.
+
+## Sales on the staff Books list (main, 2026-11-12) — promotions step 3 of 3
+- `GET /staff/books`: each row has `sold_recent` (copies ordered in the last 90 days, cancelled and deleted orders left
+  out) and `sort=newest|most_sold|least_sold`. OpenAPI updated. Test: `StaffBooksSoldTest`.
+- Slow sellers were already in the products report (`worst_sellers`, Reports page), so nothing new was needed there.
+- Promotion results live on the promotions list (step 2): views, clicks, the linked offer's orders and revenue.

@@ -2936,7 +2936,7 @@ paths:
           description: Login history list
 
   /staff/books:
-    get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, status, trashed)', responses: { '200': { description: Books } } }
+    get: { tags: [Staff catalog], summary: 'All books incl. hidden/deleted (q, status, trashed, sort newest|most_sold|least_sold). Each row has sold_recent: copies ordered in the last 90 days (cancelled orders left out)', responses: { '200': { description: Books } } }
     post: { tags: [Staff catalog], summary: 'Create a book (title, status, publish_at, publisher_id, series_id, author_ids, category_ids, ...)', responses: { '201': { description: Created } } }
   /staff/books/bulk:
     post: { tags: [Staff catalog], summary: 'Bulk update books (ids, add/remove categories, status, publish_at)', responses: { '200': { description: Updated } } }
