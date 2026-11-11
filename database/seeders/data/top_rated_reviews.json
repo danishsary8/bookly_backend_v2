@@ -1,0 +1,12 @@
+[
+  { "title": "Treasure Island", "ratings": [5, 5, 5, 4, 4, 4, 4] },
+  { "title": "The Hound of the Baskervilles", "ratings": [5, 5, 5, 5, 4, 4, 4, 4] },
+  { "title": "Pride and Prejudice", "ratings": [5, 5, 5, 5, 5, 5, 5, 4, 4] },
+  { "title": "A Study in Scarlet", "ratings": [5, 4, 4, 4, 4, 4, 3] },
+  { "title": "Emma", "ratings": [5, 5, 4, 4, 4, 4, 4, 4] },
+  { "title": "Frankenstein", "ratings": [5, 4, 4, 4, 4, 4, 3, 3] },
+  { "title": "The Lion, the Witch and the Wardrobe", "ratings": [5, 5, 5, 4, 4, 4, 4, 4, 4] },
+  { "title": "Dune", "ratings": [5, 5, 5, 5, 4, 4, 4, 4, 4, 4] },
+  { "title": "The Sea of Monsters", "ratings": [5, 5, 4, 4, 4, 4, 4] },
+  { "title": "The Name of the Wind", "ratings": [5, 5, 5, 5, 5, 5, 4, 4, 4] }
+]

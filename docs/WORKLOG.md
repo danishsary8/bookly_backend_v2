@@ -627,3 +627,8 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
   Grades stay on each book (`school_grade`), so the shop's grade filter still works. Run on production: DEPLOYMENT.md F6.
 - `data/catalog/books.csv`: category names of the 112 affected rows changed to the new categories, so imports still work.
 - Tests: `ReshapeEducationCategoriesTest` (2); CategoryTreeTest (10 top-level) and the CSV import fixture updated.
+## 2026-11-11 — Local Top rated review fixtures
+- Added TopRatedDemoSeeder with 7–10 original mock reviews for each of ten existing catalog books (82 new reviews). Dedicated demo customers and synthetic delivered-order lines preserve review ownership; reruns reuse records, existing reviews stay intact, and model events are disabled. Seeder only accepts local/testing environments.
+- Local frontend uses an explicitly labeled, DEV-only fixture preview while connected to the live API. Top rated excludes scores below 3.5 rather than changing real ratings. Increased the cover-color wash and fixed ranked-row overflow.
+- Research and operational details: ../bookly_frontend/docs/TOP_RATED_DEMO.md. Goodreads averages/counts are documented as sourced snapshots, separately from synthetic customer reviews.
+- Validation: TopRatedDemoSeederTest passes (2 tests, 391 assertions); Pint passes; browser confirms ten rated rows and no overflow at desktop/tablet/mobile widths. Local database seeder completed; no production database was modified.
