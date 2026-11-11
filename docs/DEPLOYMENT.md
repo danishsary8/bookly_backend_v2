@@ -179,6 +179,13 @@ S3-compatible storage: 10 GB free, no download fees.
 5. **Save Changes** (Render redeploys). Check: in the admin, upload a cover for a book; the returned `url` starts with
    your `R2_PUBLIC_URL` and the picture still shows after the next deploy. Covers uploaded **before** this change were on
    the wiped disk: upload them again.
+6. **Covers that still point to other websites** (for example `covers.openlibrary.org` from the catalogue import) can be
+   copied into R2 in one go. Render → your service → **Shell**:
+   `php artisan catalog:mirror-covers --dry-run` lists them without changing anything; then
+   `php artisan catalog:mirror-covers` downloads each link once (real JPEG/PNG/WebP images only, 1 KB to 5 MB), saves it
+   under `covers/YYYY/MM/` in R2 and points every book variant that used it at the copy. Links it could not copy are
+   listed with the reason and keep their old link. Safe to run again (copies are left alone). Options: `--limit=50`,
+   `--pause=300` (milliseconds between downloads).
 
 ### F7. Backups
 Neon keeps a restore window (point-in-time restore) on the free plan; for your own copy use `pg_dump` with the Neon

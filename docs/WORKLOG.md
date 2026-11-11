@@ -592,3 +592,15 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
 - New `GET /catalog/upcoming` (UpcomingBooksController): pre-orders (visible + future variant release_date) and scheduled books with publish_at in the future, soonest first, max 12, with `coming_on` and `announced`.
 - Scheduled books stay non-public: no detail page, nothing buyable; the storefront card is not a link for them.
 - Test: `tests/Feature/Catalog/UpcomingBooksTest.php`. NOT run locally (PHP 8.3 here, project needs 8.4); rely on the Tests workflow.
+
+## Mirror external covers to R2 (feature/mirror-covers, 2026-11-11)
+- Owner: covers show from `covers.openlibrary.org`; move them to R2 (option B, approved 2026-11-11).
+- New console command `catalog:mirror-covers` (`app/Console/Commands/MirrorExternalCovers.php`): every distinct
+  `book_variants.cover_image_url` that is http(s) and not on the media disk is downloaded once, checked (JPEG/PNG/WebP,
+  1 KB–5 MB; Open Library's tiny "no cover" placeholder is skipped), stored on `filesystems.media_disk` (R2 in production)
+  at `covers/YYYY/MM/<sha1(link)>.<ext>`, and every variant with that link is updated. `--dry-run`, `--limit`, `--pause`.
+  Failures are listed and keep the old link. No schema change, no new route (OpenAPI unchanged).
+- How to run on Render: docs/DEPLOYMENT.md F6b step 6.
+- Tests: `tests/Feature/Catalog/MirrorExternalCoversTest.php` (4: copy once for shared links, skip placeholders and
+  non-images, dry run changes nothing, own and empty covers untouched). Full suite 976 passed locally (PHP 8.3 with
+  `--ignore-platform-req=php`; CI runs the real PHP version), Pint passed.
