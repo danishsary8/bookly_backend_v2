@@ -51,4 +51,5 @@ return [
     'ebook_not_ready' => 'This ebook is being prepared. Please try again in a few minutes.',
     'ships_when_ready_from' => 'Ships when all items are ready (from :date)',
     'ships_when_ready_wait' => 'Ships when all items are ready (in about :wait)',
+    'cod_over_limit' => 'Cash on delivery is available for orders up to $:amount. Please pay this order by KHQR.',
 ];

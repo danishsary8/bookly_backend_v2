@@ -34,5 +34,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Off in tests unless a test turns them on, so totals in older tests stay as they were. -->
+        <env name="KHQR_DISCOUNT_PERCENT" value=""/>
+        <env name="COD_MAX_ORDER" value=""/>
     </php>
 </phpunit>

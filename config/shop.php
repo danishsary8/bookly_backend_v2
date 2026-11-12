@@ -29,6 +29,11 @@ return [
     // ship free (0.00 USD). Set to null or '0.00' to disable.
     'free_shipping_threshold' => env('FREE_SHIPPING_THRESHOLD', '50.00'),
 
+    // Paying by KHQR (owner 2026-11-12): a percent off the books after other discounts, and the most a cash on delivery
+    // order may cost (above it, KHQR only). Empty = off. Staff change both in admin (shop_settings overrides these).
+    'khqr_discount_percent' => env('KHQR_DISCOUNT_PERCENT', '3.00'),
+    'cod_max_order' => env('COD_MAX_ORDER', '80.00'),
+
     // Customers can request a return for physical formats up to this many days after delivery.
     'return_window_days' => (int) env('RETURN_WINDOW_DAYS', 7),
 

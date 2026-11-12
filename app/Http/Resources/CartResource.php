@@ -5,6 +5,8 @@ namespace App\Http\Resources;
 use App\Services\CurrencyService;
 use App\Services\Offers\CartPricing;
 use App\Services\Offers\PurchaseGifts;
+use App\Services\Rewards\RewardCoupons;
+use App\Services\Settings\ShopSettings;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -50,7 +52,17 @@ class CartResource extends JsonResource
             'can_checkout' => $this->resource['can_checkout'],
             'pricing' => $this->pricing($pricing, $currency),
             'free_gift' => app(PurchaseGifts::class)->select($this->resource),
+            // Owner 2026-11-12: KHQR's percent off (null when off), and the "next order" reward this cart would earn.
+            'khqr_discount_percent' => $this->khqrPercent(),
+            'reward' => app(RewardCoupons::class)->preview($this->resource['item_count'], $pricing['subtotal_cents'] - $pricing['discount_cents']),
         ];
+    }
+
+    private function khqrPercent(): ?string
+    {
+        $basisPoints = app(ShopSettings::class)->khqrDiscountBasisPoints();
+
+        return config('payments.khqr.enabled') && $basisPoints > 0 ? Money::format($basisPoints) : null;
     }
 
     private function pricing(array $pricing, CurrencyService $currency): array

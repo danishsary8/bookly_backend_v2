@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\Customer\ReadingListController;
 use App\Http\Controllers\Api\V1\Customer\ReferralController;
 use App\Http\Controllers\Api\V1\Customer\ReturnController;
 use App\Http\Controllers\Api\V1\Customer\ReviewController as CustomerReviewController;
+use App\Http\Controllers\Api\V1\Customer\RewardCouponController;
 use App\Http\Controllers\Api\V1\Customer\SessionController as CustomerSessionController;
 use App\Http\Controllers\Api\V1\Customer\SocialAuthController;
 use App\Http\Controllers\Api\V1\Customer\StockAlertController;
@@ -76,7 +77,9 @@ use App\Http\Controllers\Api\V1\Staff\Promotions\CollectionController as StaffCo
 use App\Http\Controllers\Api\V1\Staff\Promotions\CouponController as StaffCouponController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\GiftController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\OfferController as StaffOfferController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\PaymentSettingsController as StaffPaymentSettingsController;
 use App\Http\Controllers\Api\V1\Staff\Promotions\PromotionController as StaffPromotionController;
+use App\Http\Controllers\Api\V1\Staff\Promotions\RewardRuleController as StaffRewardRuleController;
 use App\Http\Controllers\Api\V1\Staff\Returns\ReturnController as StaffReturnController;
 use App\Http\Controllers\Api\V1\Staff\Reviews\ReviewController as StaffReviewController;
 use App\Http\Controllers\Api\V1\Staff\StaffAssistantController;
@@ -206,6 +209,7 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
     Route::post('/connections/{provider}', [ConnectionController::class, 'store'])->whereIn('provider', ['google', 'facebook'])->middleware(['not.demo', 'throttle:auth']);
     Route::delete('/connections/{provider}', [ConnectionController::class, 'destroy'])->whereIn('provider', ['google', 'facebook'])->middleware(['not.demo', 'throttle:auth']);
     Route::get('/store-credits', [StoreCreditController::class, 'index']);
+    Route::get('/coupons', [RewardCouponController::class, 'index']);
     // "Where you're signed in": devices with a sign-in, and signing them out (not for the shared demo account).
     Route::get('/sessions', [CustomerSessionController::class, 'index']);
     Route::post('/sessions/sign-out-others', [CustomerSessionController::class, 'destroyOthers'])->middleware(['not.demo', 'throttle:auth']);
@@ -416,6 +420,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/promotions', [StaffPromotionController::class, 'store'])->middleware('ability:catalog:manage,admin');
     Route::patch('/promotions/{promotion}', [StaffPromotionController::class, 'update'])->whereNumber('promotion')->middleware('ability:catalog:manage,admin');
     Route::delete('/promotions/{promotion}', [StaffPromotionController::class, 'destroy'])->whereNumber('promotion')->middleware('ability:catalog:manage,admin');
+    // Owner 2026-11-12: next-order reward rules and the KHQR discount / cash on delivery limit. Seen with catalog:view;
+    // changed by admins only (they give money away, like coupons and offers).
+    Route::get('/reward-rules', [StaffRewardRuleController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/settings/payments', [StaffPaymentSettingsController::class, 'show'])->middleware('ability:catalog:view,admin');
     Route::get('/reading-lists', [ReadingListController::class, 'staffIndex'])->middleware('ability:catalog:view,admin');
     Route::patch('/reading-lists/{list}', [ReadingListController::class, 'staffPick'])->whereNumber('list')->middleware(['ability:catalog:view,admin', 'throttle:20,1']);
     Route::get('/gifts', [GiftController::class, 'index'])->middleware('ability:catalog:view,admin');
@@ -490,6 +498,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::patch('/gifts/{gift}', [GiftController::class, 'update'])->whereNumber('gift');
         Route::patch('/offers/{offer}', [StaffOfferController::class, 'update'])->whereNumber('offer');
         Route::delete('/offers/{offer}', [StaffOfferController::class, 'destroy'])->whereNumber('offer');
+        Route::post('/reward-rules', [StaffRewardRuleController::class, 'store']);
+        Route::patch('/reward-rules/{rule}', [StaffRewardRuleController::class, 'update'])->whereNumber('rule');
+        Route::delete('/reward-rules/{rule}', [StaffRewardRuleController::class, 'destroy'])->whereNumber('rule');
+        Route::patch('/settings/payments', [StaffPaymentSettingsController::class, 'update']);
 
         Route::get('/newsletter/summary', [StaffNewsletterController::class, 'summary']);
         Route::get('/newsletter/campaigns', [StaffNewsletterController::class, 'indexCampaigns']);

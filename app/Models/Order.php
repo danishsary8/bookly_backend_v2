@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
@@ -23,7 +24,7 @@ class Order extends Model
         'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note', 'is_gift', 'gift_message',
         'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
         'is_waiting_stock', 'expected_ship_date',
-        'free_gift', 'credit_used_cents', 'referral_discount_cents',
+        'free_gift', 'credit_used_cents', 'referral_discount_cents', 'khqr_discount_cents',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class Order extends Model
             'is_gift' => 'boolean',
             'credit_used_cents' => 'integer',
             'referral_discount_cents' => 'integer',
+            'khqr_discount_cents' => 'integer',
             'free_gift' => 'array',
             'is_waiting_stock' => 'boolean',
             'expected_ship_date' => 'date',
@@ -102,5 +104,11 @@ class Order extends Model
     public function returns(): HasMany
     {
         return $this->hasMany(OrderReturn::class);
+    }
+
+    /** The reward coupon this order earned for the customer's next order (App\Services\Rewards\RewardCoupons). */
+    public function rewardCoupon(): HasOne
+    {
+        return $this->hasOne(Coupon::class, 'earned_by_order_id');
     }
 }

@@ -29,6 +29,7 @@ use App\Services\Offers\LiveOffer;
 use App\Services\Offers\OfferService;
 use App\Services\Offers\PurchaseGifts;
 use App\Services\Payments\KhqrPaymentService;
+use App\Services\Settings\ShopSettings;
 use App\Services\Telegram\CustomerOrderUpdates;
 use App\Services\Telegram\OpsAlerts;
 use App\Support\Money;
@@ -50,7 +51,7 @@ class CheckoutService
      * Totals for the current cart, without placing anything. Delivery is priced for the given address,
      * else the customer's default address, else the provinces fee (never quote less than checkout charges).
      */
-    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null, ?string $deliveryArea = null, bool $useCredit = false): array
+    public function quote(Customer $customer, ?string $couponCode = null, ?int $addressId = null, ?string $deliveryArea = null, bool $useCredit = false, ?PaymentMethod $paymentMethod = null): array
     {
         $addresses = CustomerAddress::where('customer_id', $customer->id);
         $address = $addressId !== null
@@ -62,11 +63,14 @@ class CheckoutService
             $address = new CustomerAddress(['city' => $deliveryArea === 'phnom_penh' ? 'Phnom Penh' : 'Provinces']);
         }
 
-        $totals = $this->totals($customer, $this->carts->summary($customer), $couponCode, $address);
+        $totals = $this->totals($customer, $this->carts->summary($customer), $couponCode, $address, paymentMethod: $paymentMethod);
         $balance = app(CreditWallet::class)->balance($customer);
         $credit = $useCredit && $this->creditEnabled() ? min($balance, $totals['total_cents']) : 0;
 
-        return [...$totals, 'has_delivery_address' => $hasAddress, 'credit_balance_cents' => $balance, 'credit_used_cents' => $credit, 'payment_due_cents' => $totals['total_cents'] - $credit];
+        $codMax = app(ShopSettings::class)->codMaxCents();
+
+        return [...$totals, 'has_delivery_address' => $hasAddress, 'credit_balance_cents' => $balance, 'credit_used_cents' => $credit, 'payment_due_cents' => $totals['total_cents'] - $credit,
+            'cod_max_cents' => $codMax, 'cod_allowed' => $codMax === null || $codMax >= $totals['cod_total_cents'] - $credit];
     }
 
     /**
@@ -111,7 +115,7 @@ class CheckoutService
             }
             $live = $this->lockBestLiveOffer($summary);
             $freeGift = app(PurchaseGifts::class)->select($summary, reserve: true);
-            $totals = $this->totals($customer, $summary, $couponCode, $address, $live, $freeGift, true);
+            $totals = $this->totals($customer, $summary, $couponCode, $address, $live, $freeGift, true, $paymentMethod);
             $offer = $totals['choice']->winningOffer();
 
             // O1 = A: the customer saw this offer; if it no longer wins (ended, used up, paused), place nothing.
@@ -122,12 +126,16 @@ class CheckoutService
             $lineTotals = $summary['lines']->mapWithKeys(fn ($line) => [$line['item']->id => $line['line_total_cents']])->all();
             $lineDiscounts = $offer !== null
                 ? LineDiscounts::forOffer($lineTotals, $offer)
-                : LineDiscounts::forCoupon($lineTotals, $totals['coupon'] ? $totals['discount_cents'] - $totals['referral_discount_cents'] : 0);
+                : LineDiscounts::forCoupon($lineTotals, $totals['coupon'] ? $totals['discount_cents'] - $totals['referral_discount_cents'] - $totals['khqr_discount_cents'] : 0);
             $remaining = [];
             foreach ($lineTotals as $id => $amount) {
                 $remaining[$id] = $amount - ($lineDiscounts[$id] ?? 0);
             }
             foreach (LineDiscounts::forCoupon($remaining, $totals['referral_discount_cents']) as $id => $amount) {
+                $lineDiscounts[$id] = ($lineDiscounts[$id] ?? 0) + $amount;
+                $remaining[$id] -= $amount;
+            }
+            foreach (LineDiscounts::forCoupon($remaining, $totals['khqr_discount_cents']) as $id => $amount) {
                 $lineDiscounts[$id] = ($lineDiscounts[$id] ?? 0) + $amount;
             }
 
@@ -152,6 +160,11 @@ class CheckoutService
             }
             // A fully funded order needs no QR or cash collection; its journal is the payment evidence.
             $fullyFunded = $credit > 0 && $credit === $totals['total_cents'];
+            // Cash on delivery only up to the shop's limit (owner 2026-11-12); above it the customer pays by KHQR.
+            $codMax = app(ShopSettings::class)->codMaxCents();
+            if ($paymentMethod === PaymentMethod::Cod && ! $fullyFunded && $codMax !== null && $codMax < $totals['total_cents'] - $credit) {
+                throw ValidationException::withMessages(['payment_method' => __('messages.cod_over_limit', ['amount' => Money::format($codMax)])]);
+            }
 
             // 5. Create the order with a copy of the address and today's prices.
             $order = Order::create([
@@ -184,6 +197,7 @@ class CheckoutService
                 'total_amount' => Money::format($totals['total_cents']),
                 'credit_used_cents' => $credit,
                 'referral_discount_cents' => $totals['referral_discount_cents'],
+                'khqr_discount_cents' => $totals['khqr_discount_cents'],
                 'currency' => 'USD',
                 'payment_method' => $paymentMethod,
                 'placed_at' => now(),
@@ -300,7 +314,7 @@ class CheckoutService
     }
 
     /** @param  list<LiveOffer>|null  $live  checkout passes the offers it locked; the preview uses the cached list */
-    private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address, ?array $live = null, ?array $freeGift = null, bool $giftReserved = false): array
+    private function totals(Customer $customer, array $summary, ?string $couponCode, ?CustomerAddress $address, ?array $live = null, ?array $freeGift = null, bool $giftReserved = false, ?PaymentMethod $paymentMethod = null): array
     {
         if (! $giftReserved) {
             $freeGift = app(PurchaseGifts::class)->select($summary);
@@ -336,6 +350,12 @@ class CheckoutService
         $freeThresholdCents = $freeThreshold !== null ? Money::toCents($freeThreshold) : null;
 
         $netSubtotalCents = max(0, $subtotal - $discount);
+        // Paying by KHQR (owner 2026-11-12): a percent off the books after the other discounts. Free delivery is decided
+        // before it, so choosing KHQR never costs the customer free delivery. `khqr_saving` is what KHQR would save.
+        $khqrSaving = (bool) config('payments.khqr.enabled')
+            ? intdiv($netSubtotalCents * app(ShopSettings::class)->khqrDiscountBasisPoints(), 10000)
+            : 0;
+        $khqrDiscount = $paymentMethod === PaymentMethod::Khqr ? $khqrSaving : 0;
         $isFreeShipping = false;
         // Free over the threshold, or when the offer that won gives free delivery (set offers, owner 2026-11-12).
         $offerFreeDelivery = $choice->winningOffer()?->offer->freeDelivery ?? false;
@@ -386,7 +406,7 @@ class CheckoutService
 
         return [
             'subtotal_cents' => $subtotal,
-            'discount_cents' => $discount,
+            'discount_cents' => $discount + $khqrDiscount, // every discount, KHQR included (orders.discount_amount)
             'referral_discount_cents' => $referralDiscount,
             'shipping_cents' => $shipping,
             'standard_shipping_cents' => $standardShipping,
@@ -394,7 +414,11 @@ class CheckoutService
             'free_shipping_threshold_cents' => $freeThresholdCents,
             'amount_needed_for_free_shipping_cents' => $amountNeededForFreeShippingCents,
             'tax_cents' => 0,
-            'total_cents' => $subtotal - $discount + $shipping,
+            'total_cents' => $subtotal - $discount - $khqrDiscount + $shipping,
+            'cod_total_cents' => $subtotal - $discount + $shipping,
+            'khqr_discount_cents' => $khqrDiscount,
+            'khqr_saving_cents' => $khqrSaving,
+            'khqr_discount_percent' => $khqrSaving > 0 ? Money::format(app(ShopSettings::class)->khqrDiscountBasisPoints()) : null,
             'requires_shipping' => $requiresShipping,
             'delivery_area' => $address ? $area : null,
             'province_code' => $provinceCode,

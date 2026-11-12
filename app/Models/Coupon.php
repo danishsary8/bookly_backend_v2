@@ -15,7 +15,7 @@ class Coupon extends Model
 
     protected $fillable = [
         'code', 'type', 'value', 'min_order_amount', 'max_uses', 'used_count', 'starts_at', 'expires_at', 'is_active',
-        'customer_id',
+        'customer_id', 'earned_by_order_id', 'reward_rule_id', 'max_discount', 'reminded_at',
     ];
 
     protected function casts(): array
@@ -29,6 +29,8 @@ class Coupon extends Model
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
             'is_active' => 'boolean',
+            'max_discount' => 'decimal:2',
+            'reminded_at' => 'datetime',
         ];
     }
 
@@ -46,7 +48,19 @@ class Coupon extends Model
     /** Store credit = a coupon locked to one customer (made by a store-credit refund). */
     public function isStoreCredit(): bool
     {
-        return $this->customer_id !== null;
+        return $this->customer_id !== null && $this->earned_by_order_id === null;
+    }
+
+    /** A reward coupon: earned by an order under a reward rule ("10% off your next order"). */
+    public function isReward(): bool
+    {
+        return $this->earned_by_order_id !== null;
+    }
+
+    /** The order that earned this reward coupon. */
+    public function earnedBy(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'earned_by_order_id');
     }
 
     /** Returns null when usable, otherwise the reason it cannot be applied. */
@@ -68,6 +82,9 @@ class Coupon extends Model
         $discount = $this->type === CouponType::Percentage
             ? intdiv($subtotalCents * Money::toCents($this->value), 10000)
             : Money::toCents($this->value);
+        if ($this->max_discount !== null) {
+            $discount = min($discount, Money::toCents($this->max_discount)); // reward coupons: "10%, at most $5"
+        }
 
         return min($discount, $subtotalCents);
     }

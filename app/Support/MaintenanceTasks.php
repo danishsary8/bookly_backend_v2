@@ -36,6 +36,8 @@ class MaintenanceTasks
             // The docs page lets visitors sign in as the shared demo customer: keep that account usable for the next one.
             // KHQR orders not paid in time: cancelled, stock back (KHQR payments design 3.4).
             // One friendly email for carts left alone for a day (App\Services\Marketing\CartReminders).
+            // "Your reward coupon ends in 3 days" (App\Services\Rewards\RewardCoupons).
+            ['name' => 'reward-reminders', 'command' => 'rewards:remind', 'parameters' => [], 'cron' => '20 * * * *'],
             ['name' => 'cart-reminders', 'command' => 'cart:remind', 'parameters' => [], 'cron' => '5 * * * *'],
             // Ebook PDFs are turned into page images a batch at a time (App\Services\Ebooks\EbookPages).
             ['name' => 'ebook-pages', 'command' => 'ebooks:render', 'parameters' => [], 'cron' => '* * * * *'],

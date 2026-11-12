@@ -3,6 +3,7 @@
 namespace App\Services\Orders;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Models\Offer;
 use App\Models\Order;
@@ -13,6 +14,7 @@ use App\Services\Credit\CreditWallet;
 use App\Services\Credit\Referrals;
 use App\Services\Inventory\InventoryService;
 use App\Services\Offers\PurchaseGifts;
+use App\Services\Rewards\RewardCoupons;
 use App\Services\Telegram\CustomerOrderUpdates;
 use App\Support\SafeNotifier;
 use Illuminate\Support\Facades\DB;
@@ -72,6 +74,7 @@ class OrderStatusService
         $from = $lockedOrder->status;
         $lockedOrder->payments()->where('status', PaymentStatus::Succeeded)->update(['status' => PaymentStatus::Refunded]);
         $lockedOrder->update(['status' => OrderStatus::Returned]);
+        app(RewardCoupons::class)->voidFor($lockedOrder);
         $lockedOrder->statusHistory()->create(['status' => OrderStatus::Returned, 'note' => $note, 'changed_by_staff_id' => $staff->id]);
         $this->audit->custom($staff, 'status_changed', $lockedOrder, ['status' => $from->value], ['status' => OrderStatus::Returned->value, 'note' => $note]);
     }
@@ -118,6 +121,11 @@ class OrderStatusService
             return $locked;
         });
 
+        // A reward coupon for the next order, once the money is in: paid by KHQR, or delivered (cash). After the commit.
+        if ($to === OrderStatus::Delivered || ($to === OrderStatus::Paid && $updated->payment_method === PaymentMethod::Khqr)) {
+            app(RewardCoupons::class)->issueFor($updated);
+        }
+
         // After the commit, so a mail outage can never undo or block the status change.
         if (OrderStatusChangedNotification::covers($to)) {
             SafeNotifier::toCustomer($updated->customer, new OrderStatusChangedNotification($updated, $to, $note));
@@ -153,5 +161,6 @@ class OrderStatusService
         }
         app(PurchaseGifts::class)->restore($order);
         app(Referrals::class)->voidForOrder($order);
+        app(RewardCoupons::class)->voidFor($order);
     }
 }

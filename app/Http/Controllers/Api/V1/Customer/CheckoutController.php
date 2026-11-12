@@ -30,8 +30,10 @@ class CheckoutController extends Controller
             'delivery_note' => ['nullable', 'string', 'max:300'],
             'delivery_area' => ['nullable', Rule::in(['phnom_penh', 'provinces'])],
             'use_credit' => ['sometimes', 'boolean'],
+            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
         ]);
-        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null, $data['delivery_area'] ?? null, (bool) ($data['use_credit'] ?? false));
+        $method = isset($data['payment_method']) ? PaymentMethod::from($data['payment_method']) : null;
+        $totals = $this->checkout->quote($request->user(), $data['coupon_code'] ?? null, $data['address_id'] ?? null, $data['delivery_area'] ?? null, (bool) ($data['use_credit'] ?? false), $method);
 
         $money = fn (int $cents) => ['usd' => Money::format($cents), 'khr' => $currency->usdToKhr(Money::format($cents))];
 
@@ -40,6 +42,13 @@ class CheckoutController extends Controller
             'has_delivery_address' => $totals['has_delivery_address'],
             'discount' => $money($totals['discount_cents']),
             'referral_discount' => $money($totals['referral_discount_cents']),
+            // Paying by KHQR (owner 2026-11-12): khqr_discount is in `discount` when payment_method is khqr; khqr_saving is
+            // what KHQR would save whatever was chosen (0 when KHQR or the discount is off).
+            'khqr_discount' => $money($totals['khqr_discount_cents']),
+            'khqr_saving' => $money($totals['khqr_saving_cents']),
+            'khqr_discount_percent' => $totals['khqr_discount_percent'],
+            'cod_max' => $totals['cod_max_cents'] === null ? null : $money($totals['cod_max_cents']),
+            'cod_allowed' => $totals['cod_allowed'],
             'shipping_fee' => $money($totals['shipping_cents']),
             'tax' => $money($totals['tax_cents']),
             'total' => $money($totals['total_cents']),

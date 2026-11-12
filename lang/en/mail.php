@@ -123,4 +123,14 @@ return [
     'preorder_released_intro' => 'Great news! Your pre-ordered book :title has officially released and your order :number is now being prepared for shipping.',
     'preorder_delayed_subject' => 'Release date update: :title',
     'preorder_delayed_intro' => 'The release date for your pre-ordered book :title has been updated to :date.',
+
+    // Reward coupons (next order)
+    'reward_earned_subject' => 'Thank you! :percent% off your next order',
+    'reward_earned_intro' => 'Thank you for your order. Here is :percent% off your next one.',
+    'reward_ending_subject' => 'Your :percent% coupon ends soon',
+    'reward_ending_intro' => 'Your :percent% coupon for your next order ends soon. Don\'t miss it.',
+    'reward_code' => 'Your code: **:code** (one use, only for your account).',
+    'reward_cap' => 'It takes up to $:amount off.',
+    'reward_until' => 'Use it by :date. Enter the code in your cart or at checkout.',
+    'reward_action' => 'Find your next book',
 ];
