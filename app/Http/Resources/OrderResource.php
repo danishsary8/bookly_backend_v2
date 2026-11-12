@@ -52,6 +52,9 @@ class OrderResource extends JsonResource
             'tax_usd' => $this->tax_amount,
             'total_usd' => $this->total_amount,
             'credit_used_usd' => Money::format($this->credit_used_cents),
+            'khqr_discount_usd' => Money::format((int) $this->khqr_discount_cents), // part of discount_usd
+            // The "next order" coupon this order earned (made when paid by KHQR or delivered); null until then.
+            'reward_coupon' => $this->rewardCouponPayload(),
             'payment_due_usd' => $this->externalPaymentAmount(),
             'total_khr' => app(CurrencyService::class)->usdToKhr($this->total_amount),
             'coupon_code' => $this->whenLoaded('coupon', fn () => $this->coupon?->code),
@@ -86,6 +89,23 @@ class OrderResource extends JsonResource
                 'note' => $h->note === 'Order placed.' ? __('messages.order_placed_note') : $h->note,
                 'created_at' => $h->created_at,
             ])->values()),
+        ];
+    }
+
+    /** @return array{code: string, percent_off: string, max_discount_usd: string|null, expires_at: string|null, is_usable: bool}|null */
+    private function rewardCouponPayload(): ?array
+    {
+        $coupon = $this->rewardCoupon;
+        if ($coupon === null) {
+            return null;
+        }
+
+        return [
+            'code' => $coupon->code,
+            'percent_off' => $coupon->value,
+            'max_discount_usd' => $coupon->max_discount,
+            'expires_at' => $coupon->expires_at?->toIso8601String(),
+            'is_usable' => $coupon->is_active && $coupon->used_count === 0 && ! $coupon->expires_at?->isPast(),
         ];
     }
 }

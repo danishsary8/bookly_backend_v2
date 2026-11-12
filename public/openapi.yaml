@@ -494,6 +494,11 @@ components:
         credit_used: { $ref: '#/components/schemas/Amount' }
         payment_due: { $ref: '#/components/schemas/Amount' }
         referral_discount: { $ref: '#/components/schemas/Amount' }
+        khqr_discount: { $ref: '#/components/schemas/Amount' }
+        khqr_saving: { $ref: '#/components/schemas/Amount' }
+        khqr_discount_percent: { type: string, nullable: true, example: '3.00', description: 'Percent off the books for paying by KHQR (after other discounts); null when off. khqr_discount (part of discount) is set when payment_method is khqr; khqr_saving is what KHQR would save either way. Free delivery is decided before it.' }
+        cod_max: { allOf: [ { $ref: '#/components/schemas/Amount' } ], nullable: true, description: 'Most a cash on delivery order may cost; null = no limit' }
+        cod_allowed: { type: boolean, description: 'False when this order is over cod_max: only KHQR then' }
         has_delivery_address: { type: boolean, description: 'A saved address was selected or defaulted; otherwise delivery_area is an estimate choice only.' }
         free_gift: { $ref: '#/components/schemas/FreeGift' }
         subtotal: { $ref: '#/components/schemas/Amount' }
@@ -728,6 +733,19 @@ components:
       type: object
       properties:
         free_gift: { $ref: '#/components/schemas/FreeGift' }
+        khqr_discount_percent: { type: string, nullable: true, example: '3.00', description: 'Percent off for paying by KHQR at checkout; null when off' }
+        reward:
+          type: object
+          nullable: true
+          description: 'The "next order" reward this cart would earn (newest active reward rule); null when there is none or the cart is empty'
+          properties:
+            percent_off: { type: string, example: '10.00' }
+            max_discount_usd: { type: string, nullable: true, example: '5.00' }
+            valid_days: { type: integer, example: 30 }
+            min_books: { type: integer, nullable: true, example: 2 }
+            min_amount_usd: { type: string, nullable: true }
+            add_books: { type: integer, nullable: true, description: 'Books still needed (0 = earns already); null for an amount-only rule' }
+            earns: { type: boolean }
         id: { type: integer }
         items:
           type: array
@@ -783,6 +801,17 @@ components:
       type: object
       properties:
         credit_used_usd: { $ref: '#/components/schemas/Money' }
+        khqr_discount_usd: { $ref: '#/components/schemas/Money' }
+        reward_coupon:
+          type: object
+          nullable: true
+          description: 'The coupon this order earned for the next order: made when it is paid by KHQR or delivered'
+          properties:
+            code: { type: string, example: THANKS-K7M2Q9 }
+            percent_off: { type: string, example: '10.00' }
+            max_discount_usd: { type: string, nullable: true, example: '5.00' }
+            expires_at: { type: string, format: date-time, nullable: true }
+            is_usable: { type: boolean }
         payment_due_usd: { $ref: '#/components/schemas/Money' }
         free_gift: { $ref: '#/components/schemas/FreeGift' }
         id: { type: integer }
@@ -2393,6 +2422,34 @@ paths:
         '403': { description: The shared demo account }
         '404': { description: 'Not one of your devices, or already signed out' }
         '422': { description: 'This device (use POST /auth/logout)' }
+  /me/coupons:
+    get:
+      tags: [Customer]
+      summary: Reward coupons of the signed-in customer ("10% off your next order")
+      description: 'Usable ones first, then newest. Each coupon is one use, only for this customer, capped by max_discount_usd, and is made when the earning order is paid by KHQR or delivered. Cancelling or returning that order switches an unused coupon off. An order paid with a reward coupon earns no new one.'
+      responses:
+        '200':
+          description: Reward coupons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        code: { type: string, example: THANKS-K7M2Q9 }
+                        percent_off: { type: string, example: '10.00' }
+                        max_discount_usd: { type: string, nullable: true }
+                        expires_at: { type: string, format: date-time, nullable: true }
+                        used: { type: boolean }
+                        expired: { type: boolean }
+                        is_usable: { type: boolean }
+                        earned_by_order: { type: object, properties: { id: { type: integer }, order_number: { type: string } } }
+                        created_at: { type: string, format: date-time }
   /me/store-credits:
     get:
       tags: [Customer]
@@ -2709,7 +2766,7 @@ paths:
         '204': { $ref: '#/components/responses/NoContent' }
 
   /checkout/preview:
-    post: { tags: [Checkout & orders], summary: 'Totals and delivery estimate for the cart', description: 'Saved address_id or default address takes precedence; without one, optional delivery_area selects the existing Phnom Penh/provinces rates and calendar. Does not reserve inventory.', requestBody: { content: { application/json: { schema: { type: object, properties: { use_credit: { type: boolean }, coupon_code: { type: string }, address_id: { type: integer }, delivery_area: { type: string, enum: [phnom_penh, provinces] }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'Invalid area, address or coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
+    post: { tags: [Checkout & orders], summary: 'Totals and delivery estimate for the cart', description: 'Saved address_id or default address takes precedence; without one, optional delivery_area selects the existing Phnom Penh/provinces rates and calendar. Does not reserve inventory.', requestBody: { content: { application/json: { schema: { type: object, properties: { use_credit: { type: boolean }, payment_method: { type: string, enum: [cod, khqr] }, coupon_code: { type: string }, address_id: { type: integer }, delivery_area: { type: string, enum: [phnom_penh, provinces] }, delivery_note: { type: string, maxLength: 300 } } } } } }, responses: { '422': { description: 'Invalid area, address or coupon' }, '200': { description: Totals, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/CheckoutPreview' } } } } } } } }
   /checkout:
     post:
       tags:
@@ -3179,6 +3236,15 @@ paths:
     get: { tags: [Staff operations], summary: 'One promotion with its results', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Promotion } } }
     patch: { tags: [Staff operations], summary: 'Update any field, e.g. is_active to show or hide (catalog:manage or admin). Audited (no row when nothing changed)', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
     delete: { tags: [Staff operations], summary: 'Delete (catalog:manage or admin). Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /staff/reward-rules:
+    get: { tags: [Staff operations], summary: 'Next-order reward rules, newest first (the newest active one is used). Staff with catalog:view and admins. Each: id, name, is_active, min_books, min_amount_usd, percent_off, max_discount_usd, valid_days, issued_count, used_count', responses: { '200': { description: Rules } } }
+    post: { tags: [Staff operations], summary: '(admin) Create: name, is_active?, min_books? 1-100 and/or min_amount? (at least one), percent_off 1-90, max_discount? cap in USD, valid_days 1-365. Audited', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/reward-rules/{id}:
+    patch: { tags: [Staff operations], summary: '(admin) Update any field. Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Staff operations], summary: '(admin) Delete; coupons already given keep working. Audited', parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { $ref: '#/components/responses/NoContent' }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /staff/settings/payments:
+    get: { tags: [Staff operations], summary: 'Payment settings: khqr_discount_percent (null = off), cod_max_order_usd (null = no limit), khqr_enabled. Staff with catalog:view and admins', responses: { '200': { description: Settings } } }
+    patch: { tags: [Staff operations], summary: '(admin) Change khqr_discount_percent 0-20 (0 or null = off) and/or cod_max_order_usd (null = no limit). Audited as shop_settings.updated', responses: { '200': { description: Updated settings }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
   /staff/collections:
     get: { tags: [Staff operations], summary: 'Seasonal collections (q = title, per_page). Staff with catalog:view and admins. Each: all fields, status (live|scheduled|ended|hidden), books [{id, title, in_trash}] in order', responses: { '200': { description: Collections } } }
     post: { tags: [Staff operations], summary: '(admin) Create (title_en, slug? made from title_en, title_km?, description_en/km? max 300, starts_at?, ends_at? after starts_at, is_active? default false, position?, books? ordered book ids max 60, each existing and not in the trash). "live" is reserved. Audited', responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }

@@ -662,3 +662,28 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
   out) and `sort=newest|most_sold|least_sold`. OpenAPI updated. Test: `StaffBooksSoldTest`.
 - Slow sellers were already in the products report (`worst_sellers`, Reports page), so nothing new was needed there.
 - Promotion results live on the promotions list (step 2): views, clicks, the linked offer's orders and revenue.
+
+## KHQR advantage + next-order reward coupons (2026-11-12, owner said "go")
+Owner's choices (my recommendations): KHQR 3% off, cash on delivery only up to $80; "buy 2+ books, get 10% off your
+next order, at most $5, for 30 days".
+- New tables: `shop_settings` (key/value, overrides config/shop.php: `khqr_discount_percent`, `cod_max_order`; empty =
+  off) and `reward_rules` (min_books and/or min_amount, percent_off, max_discount, valid_days, is_active). The second
+  migration also adds `coupons.earned_by_order_id` (unique: one reward per order), `reward_rule_id`, `max_discount`
+  (cap for percentage coupons), `reminded_at`, `orders.khqr_discount_cents`, and inserts the owner's first rule (active).
+- KHQR discount (`CheckoutService::totals`, the one totals function): percent of the books after offer/coupon/referral,
+  only when KHQR is on (`payments.khqr.enabled`). Free delivery is decided before it. It is part of `discount_amount`,
+  spread over the lines like the referral discount, and stored as `khqr_discount_cents`. Preview takes `payment_method`
+  and returns `khqr_discount`, `khqr_saving`, `khqr_discount_percent`, `cod_max`, `cod_allowed`; the cart returns
+  `khqr_discount_percent`. Checkout refuses cash on delivery over the limit (422 `payment_method`, EN/KM message).
+- Rewards (`App\Services\Rewards\RewardCoupons`): the newest active rule. A coupon `THANKS-XXXXXX` (one use, customer-
+  locked, capped, ends after valid_days) is made when the order becomes paid by KHQR or delivered
+  (`OrderStatusService`), never at checkout; email `RewardCouponNotification` (EN/KM). Not for orders paid with a reward
+  coupon. Cancel/return switches an unused reward off. `rewards:remind` (hourly, MaintenanceTasks) emails once when an
+  unused reward ends within 3 days. Rewards never stack with offers (best discount wins, as for every coupon).
+- API: cart `reward` (percent, cap, add_books, earns); order `khqr_discount_usd`, `reward_coupon`; `GET /me/coupons`;
+  `/me/store-credits` no longer lists reward coupons; staff `GET /staff/reward-rules`, `GET /staff/settings/payments`
+  (catalog:view), admin `POST/PATCH/DELETE /staff/reward-rules`, `PATCH /staff/settings/payments` (audited).
+  OpenAPI updated. phpunit.xml switches the KHQR discount and COD limit off so older totals tests are unchanged.
+- Tests: `tests/Feature/Rewards/KhqrDiscountAndRewardsTest.php` (8).
+- Local note: this sandbox only has PHP 8.3 (8.4 downloads are blocked), so `composer install --ignore-platform-req=php`
+  was used to run the suite; CI runs 8.4/8.5.

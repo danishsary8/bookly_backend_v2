@@ -14,7 +14,7 @@ class StoreCreditController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         return StoreCreditResource::collection(
-            Coupon::where('customer_id', $request->user()->id)->latest('id')->get()
+            Coupon::where('customer_id', $request->user()->id)->whereNull('earned_by_order_id')->latest('id')->get()
         );
     }
 }
