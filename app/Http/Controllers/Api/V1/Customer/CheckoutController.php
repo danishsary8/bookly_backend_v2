@@ -97,6 +97,7 @@ class CheckoutController extends Controller
         $data = $request->validate([
             'address_id' => ['required', 'integer'],
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
+            'delivery_phone' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9][0-9 ()-]{5,28}[0-9]$/'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'delivery_note' => ['nullable', 'string', 'max:300'],
             // Free gift note (owner 2026-11-05): printed on the packing sheet, which then hides the prices.
@@ -129,6 +130,7 @@ class CheckoutController extends Controller
             $giftMessage === '' ? null : $giftMessage,
             (bool) ($data['use_credit'] ?? false),
             isset($data['expected_payment_due_usd']) ? Money::toCents($data['expected_payment_due_usd']) : null,
+            isset($data['delivery_phone']) ? trim($data['delivery_phone']) : null,
         );
 
         $order->load(['items.variant.book' => fn ($q) => $q->withTrashed(), 'payments', 'coupon', 'statusHistory']);

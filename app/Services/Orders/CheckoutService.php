@@ -78,11 +78,11 @@ class CheckoutService
      *
      * @return array{order: Order, created: bool} created=false when the idempotency key was already used
      */
-    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $isGift = false, ?string $giftMessage = null, bool $useCredit = false, ?int $expectedPaymentDueCents = null): array
+    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $isGift = false, ?string $giftMessage = null, bool $useCredit = false, ?int $expectedPaymentDueCents = null, ?string $deliveryPhone = null): array
     {
         $crossedLowStock = [];
 
-        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $isGift, $giftMessage, $useCredit, $expectedPaymentDueCents, &$crossedLowStock) {
+        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $isGift, $giftMessage, $useCredit, $expectedPaymentDueCents, $deliveryPhone, &$crossedLowStock) {
             // 1. Lock the cart: concurrent checkouts by the same customer run one after another.
             $cart = $this->carts->cartFor($customer);
             Cart::whereKey($cart->id)->lockForUpdate()->first();
@@ -174,7 +174,7 @@ class CheckoutService
                 'idempotency_key' => $idempotencyKey,
                 'shipping_address_id' => $address->id,
                 'shipping_recipient_name' => $address->recipient_name,
-                'shipping_phone' => $address->phone,
+                'shipping_phone' => $deliveryPhone ?: $address->phone,
                 'shipping_address_line1' => $address->address_line1,
                 'shipping_address_line2' => $address->address_line2,
                 'shipping_city' => $address->city,

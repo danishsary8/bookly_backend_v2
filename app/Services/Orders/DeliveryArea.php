@@ -25,10 +25,10 @@ class DeliveryArea
             'name_en' => 'Phnom Penh',
             'name_km' => 'ភ្នំពេញ',
             'area' => self::PHNOM_PENH,
-            'days_min' => 1,
-            'days_max' => 2,
-            'delivery_time_en' => '1 working day',
-            'delivery_time_km' => '១ ថ្ងៃធ្វើការ',
+            'days_min' => 0,
+            'days_max' => 1,
+            'delivery_time_en' => 'Same day or next day',
+            'delivery_time_km' => 'ថ្ងៃដដែល ឬថ្ងៃបន្ទាប់',
             'keywords' => ['phnompenh', 'ភ្នំពេញ'],
         ],
         [
@@ -421,11 +421,24 @@ class DeliveryArea
         $daysMin = $prov ? $prov['days_min'] : ($area === self::PHNOM_PENH ? 1 : 2);
         $daysMax = $prov ? $prov['days_max'] : ($area === self::PHNOM_PENH ? 2 : 3);
 
-        $earliest = self::addWorkingDays($start, $daysMin);
-        $latest = self::addWorkingDays($start, $daysMax);
+        // Phnom Penh delivers within one calendar day, including weekends.
+        if ($area === self::PHNOM_PENH) {
+            $daysMin = 0;
+            $daysMax = 1;
+            $earliest = $base->copy();
+            $latest = $base->copy()->addDay();
+        } else {
+            $earliest = self::addWorkingDays($start, $daysMin);
+            $latest = self::addWorkingDays($start, $daysMax);
+        }
 
         $timeEn = $prov ? $prov['delivery_time_en'] : ($area === self::PHNOM_PENH ? '1 working day' : '2 to 3 working days');
         $timeKm = $prov ? $prov['delivery_time_km'] : ($area === self::PHNOM_PENH ? '១ ថ្ងៃធ្វើការ' : '២ ទៅ ៣ ថ្ងៃធ្វើការ');
+
+        if ($area === self::PHNOM_PENH) {
+            $timeEn = 'Same day or next day';
+            $timeKm = 'ថ្ងៃដដែល ឬថ្ងៃបន្ទាប់';
+        }
 
         $formatted = $daysMin === $daysMax
             ? sprintf('%s (%s)', $timeEn, $earliest->format('D, j M'))

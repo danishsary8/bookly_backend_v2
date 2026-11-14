@@ -221,16 +221,22 @@ class DeliveryProvinceAndFreeShippingTest extends TestCase
             ->assertJsonPath('data.total.usd', '46.50');
     }
 
-    public function test_working_days_calculation_skips_sundays(): void
+    public function test_phnom_penh_delivers_by_next_calendar_day_even_on_weekends(): void
     {
-        // Saturday 17 Oct 2026, 10:00 AM
-        $saturday = Carbon::parse('2026-10-17 10:00:00', 'Asia/Phnom_Penh');
+        foreach (['2026-11-13 19:30:00', '2026-11-14 10:00:00', '2026-11-15 20:00:00'] as $date) {
+            $placedAt = Carbon::parse($date, 'Asia/Phnom_Penh');
+            $estimate = DeliveryArea::estimate($placedAt, 'Phnom Penh', null);
+            $this->assertSame($placedAt->format('Y-m-d'), $estimate['earliest_date']);
+            $this->assertSame($placedAt->copy()->addDay()->format('Y-m-d'), $estimate['latest_date']);
+            $this->assertSame(0, $estimate['days_min']);
+            $this->assertSame(1, $estimate['days_max']);
+        }
+    }
 
-        $estimate = DeliveryArea::estimate($saturday, 'Phnom Penh', null);
-
-        // 1 working day from Saturday: Sunday skipped -> Monday 19 Oct
+    public function test_provincial_estimates_still_skip_sunday(): void
+    {
+        $estimate = DeliveryArea::estimate(Carbon::parse('2026-10-17 10:00:00', 'Asia/Phnom_Penh'), 'Kandal', null);
         $this->assertSame('2026-10-19', $estimate['earliest_date']);
-        // 2 working days from Saturday: Tuesday 20 Oct
         $this->assertSame('2026-10-20', $estimate['latest_date']);
     }
 }

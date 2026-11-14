@@ -46,6 +46,20 @@ class CheckoutTest extends TestCase
         ]);
     }
 
+    public function test_delivery_phone_is_copied_to_order_without_changing_saved_address(): void
+    {
+        $original = $this->address->phone;
+        $this->addToCart(BookVariant::factory()->create(['stock_quantity' => 10]));
+        $this->checkout(['delivery_phone' => '+855 87 123 456'])->assertCreated()
+            ->assertJsonPath('data.shipping_address.phone', '+855 87 123 456');
+        $this->assertSame($original, $this->address->fresh()->phone);
+    }
+
+    public function test_delivery_phone_rejects_invalid_text(): void
+    {
+        $this->checkout(['delivery_phone' => 'call me'])->assertUnprocessable()->assertJsonValidationErrors('delivery_phone');
+    }
+
     public function test_places_a_cod_order_with_shipping_coupon_stock_and_history(): void
     {
         $paperback = BookVariant::factory()->create(['price_usd' => '15.00', 'stock_quantity' => 20]);

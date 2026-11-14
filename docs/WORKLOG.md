@@ -687,3 +687,9 @@ next order, at most $5, for 30 days".
 - Tests: `tests/Feature/Rewards/KhqrDiscountAndRewardsTest.php` (8).
 - Local note: this sandbox only has PHP 8.3 (8.4 downloads are blocked), so `composer install --ignore-platform-req=php`
   was used to run the suite; CI runs 8.4/8.5.
+
+## Checkout delivery contact and timing (2026-11-14)
+- Added validated optional delivery_phone to checkout, copied into the existing order shipping_phone snapshot. Saved addresses remain unchanged; no migration required.
+- Phnom Penh estimates now span the order date through the next calendar day in Asia/Phnom_Penh, including weekends/evenings. Provincial estimates remain unchanged.
+- Verified: 24 order/delivery tests (214 assertions), cart delivery estimate test (14 assertions), scoped Pint. Frontend: 30 checkout tests, lint/build, browser validation with no real order placed.
+- Deploy backend changes before the live API can save phone overrides and return revised delivery dates.
