@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Staff\Catalog;
 
+use App\Enums\BookFormat;
 use App\Enums\OrderStatus;
 use App\Enums\StaffRole;
 use App\Http\Controllers\Controller;
@@ -40,9 +41,16 @@ class BookController extends Controller
             'q' => ['nullable', 'string', 'max:200'],
             'status' => ['nullable', 'string', Rule::in(['draft', 'scheduled', 'live'])],
             'trashed' => ['nullable', 'boolean'],
-            'sort' => ['nullable', 'string', Rule::in(['newest', 'most_sold', 'least_sold'])],
+            'sort' => ['nullable', 'string', Rule::in(['newest', 'most_sold', 'least_sold', 'title'])],
+            // Finding a book (owner 2026-11-14): narrow by shelf, format, stock, author or publisher.
+            'category_id' => ['nullable', 'integer'],
+            'format' => ['nullable', 'string', Rule::in(array_column(BookFormat::cases(), 'value'))],
+            'stock' => ['nullable', 'string', Rule::in(['in', 'low', 'out'])],
+            'author_id' => ['nullable', 'integer'],
+            'publisher_id' => ['nullable', 'integer'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+        $printed = fn ($v) => $v->whereNotIn('format', [BookFormat::Ebook->value, BookFormat::Audiobook->value]);
         $sort = $data['sort'] ?? 'newest';
 
         return StaffBookResource::collection(
@@ -52,7 +60,23 @@ class BookController extends Controller
                 ->select('books.*')->selectSub(self::copiesSold(), 'sold_recent')
                 ->when($request->boolean('trashed'), fn ($q) => $q->onlyTrashed())
                 ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-                ->when($data['q'] ?? null, fn ($q, $term) => $q->where('title', 'ilike', '%'.addcslashes($term, '%_').'%'))
+                // The search box: title, an author's name, or an ISBN of any edition.
+                ->when($data['q'] ?? null, function ($q, $term) {
+                    $like = '%'.addcslashes($term, '%_').'%';
+                    $q->where(fn ($w) => $w->where('title', 'ilike', $like)
+                        ->orWhereHas('authors', fn ($a) => $a->where('name', 'ilike', $like))
+                        ->orWhereHas('variants', fn ($v) => $v->where('isbn', 'ilike', str_replace('-', '', $like))));
+                })
+                // A parent shelf also finds the books on its sub-shelves.
+                ->when($data['category_id'] ?? null, fn ($q, $id) => $q->whereHas('categories', fn ($c) => $c->where('categories.id', $id)->orWhere('categories.parent_id', $id)))
+                ->when($data['format'] ?? null, fn ($q, $format) => $q->whereHas('variants', fn ($v) => $v->where('format', $format)))
+                ->when($data['author_id'] ?? null, fn ($q, $id) => $q->whereHas('authors', fn ($a) => $a->where('authors.id', $id)))
+                ->when($data['publisher_id'] ?? null, fn ($q, $id) => $q->where('publisher_id', $id))
+                // Stock is about printed copies: out = every printed edition at 0; low = one at or under its threshold.
+                ->when(($data['stock'] ?? null) === 'in', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)))
+                ->when(($data['stock'] ?? null) === 'low', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')))
+                ->when(($data['stock'] ?? null) === 'out', fn ($q) => $q->whereHas('variants', $printed)->whereDoesntHave('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)))
+                ->when($sort === 'title', fn ($q) => $q->reorder()->orderBy('title'))
                 ->when($sort === 'most_sold', fn ($q) => $q->orderByDesc('sold_recent'))
                 ->when($sort === 'least_sold', fn ($q) => $q->orderBy('sold_recent'))
                 ->latest()

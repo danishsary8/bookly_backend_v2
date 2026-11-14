@@ -120,7 +120,7 @@ Only books with at least one active variant are public. Book card fields: `id, t
 ## Staff catalog (staff token + 2FA; DELETE and restore are admin-only)
 | Method | Path | Body |
 | --- | --- | --- |
-| GET | /staff/books | `q`, `status=draft\|scheduled\|live`, `trashed=1`, `per_page` — all books incl. not yet visible; `is_visible` flag |
+| GET | /staff/books | `q` (title, author name or ISBN), `status=draft\|scheduled\|live`, `category_id` (includes sub-shelves), `format`, `stock=in\|low\|out` (printed editions), `author_id`, `publisher_id`, `sort=newest\|title\|most_sold\|least_sold`, `trashed=1`, `per_page` — all books incl. not yet visible; `is_visible` flag |
 | GET | /staff/books/{id} | also works for deleted books; includes `status` and `publish_at` |
 | POST | /staff/books | title, description?, status? (admin only; staff always draft), publish_at? (admin only, required if scheduled), publisher_id?, series_id?, series_order?, language? (default English), page_count?, publish_date?, author_ids[]?, category_ids[]? |
 | PATCH | /staff/books/{id} | any of the above; `status` and `publish_at` can only be changed by admin; editing live book as staff keeps it live |
