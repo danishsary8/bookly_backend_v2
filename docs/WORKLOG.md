@@ -688,8 +688,18 @@ next order, at most $5, for 30 days".
 - Local note: this sandbox only has PHP 8.3 (8.4 downloads are blocked), so `composer install --ignore-platform-req=php`
   was used to run the suite; CI runs 8.4/8.5.
 
+## Local Google sign-in configuration (2026-11-13)
+- Diagnosed the local "Could not verify your Google account" response: frontend Google client ID was configured, but backend GOOGLE_CLIENT_ID was missing. SocialTokenVerifier correctly refuses all tokens when the expected app ID is empty.
+- Set the ignored local backend .env Google client ID to the matching public frontend ID and cleared Laravel's config cache. No authentication logic or certificate checks were weakened; no client secrets were added or exposed.
+- Verified that runtime Google configuration matches the frontend, the Socialite GoogleProvider initializes, PHP reaches Google's tokeninfo endpoint with successful TLS validation, and invalid tokens remain rejected. Started the local API only after confirming port 8000 had no listener, then verified a public endpoint returns 200.
+- Full account sign-in still requires the owner's fresh Google popup; no real Google credentials or access tokens were requested or used during diagnostics.
+
 ## Checkout delivery contact and timing (2026-11-14)
 - Added validated optional delivery_phone to checkout, copied into the existing order shipping_phone snapshot. Saved addresses remain unchanged; no migration required.
 - Phnom Penh estimates now span the order date through the next calendar day in Asia/Phnom_Penh, including weekends/evenings. Provincial estimates remain unchanged.
 - Verified: 24 order/delivery tests (214 assertions), cart delivery estimate test (14 assertions), scoped Pint. Frontend: 30 checkout tests, lint/build, browser validation with no real order placed.
 - Deploy backend changes before the live API can save phone overrides and return revised delivery dates.
+
+## Education catalog source publication (2026-11-14)
+- Included the pending education category configuration command and 24-book catalog CSV in the owner-requested main branch update. The command is opt-in; it was not executed against any database.
+- Applied Pint formatting, passed PHP syntax validation and verified all 24 CSV rows have the expected 26 columns.
