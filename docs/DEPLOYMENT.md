@@ -159,6 +159,11 @@ Education categories (once, owner 2026-11-11): same terminal setup, then first
 Education becomes Mathematics, Physics, Chemistry, Biology, World history, Geography, English books and Language
 learning; Grade 7–12, Exam preparation, English learning and Education & reference are removed after their books move.
 
+The separate, optional category setup/batch-import utility is named `catalog:education-setup`.
+Use `php artisan catalog:education-setup --help` for its options and `--dry-run` to preview it.
+It retains the older category setup and must not replace the eight-subject migration above. Neither command runs
+automatically on deployment.
+
 Demo reviews for books without a rating (optional, any time after DemoSeeder; fills the home Top 10): same terminal
 setup, then `php artisan db:seed --class=DemoReviewsSeeder --force`. It buys the books through the demo reviewers'
 accounts (real delivered orders, stock taken) and reviews them; it does nothing once 12 books have a rating.

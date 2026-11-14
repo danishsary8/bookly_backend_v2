@@ -703,3 +703,9 @@ next order, at most $5, for 30 days".
 ## Education catalog source publication (2026-11-14)
 - Included the pending education category configuration command and 24-book catalog CSV in the owner-requested main branch update. The command is opt-in; it was not executed against any database.
 - Applied Pint formatting, passed PHP syntax validation and verified all 24 CSV rows have the expected 26 columns.
+
+## Fix education command registration collision (2026-11-14)
+- Investigated failed GitHub Actions run 43615862180: PHP 8.5 ran 1000 passing tests and one failing education reshape test; the PHP 8.4 matrix job was cancelled by fail-fast.
+- The newly published ConfigureEducationCategories reused the existing ReshapeEducationCategories command name, so command discovery could select the wrong implementation depending on registration order.
+- Renamed the optional setup/import utility to catalog:education-setup, preserving catalog:education-categories for the existing eight-subject migration. No category data or database schemas were changed.
+- Added regression coverage for both registered implementations and unique names across all application command classes. Four targeted tests passed (77 assertions).

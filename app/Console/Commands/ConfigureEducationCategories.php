@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\File;
 
 class ConfigureEducationCategories extends Command
 {
-    protected $signature = 'catalog:education-categories
+    protected $signature = 'catalog:education-setup
                             {--dry-run : Preview changes without making database modifications}
                             {--prune-non-education : Soft-delete or hide non-educational categories like romance}
                             {--import-batch : Import the 24-book educational batch from batch_education_and_academic_learning.csv}';
