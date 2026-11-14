@@ -479,3 +479,7 @@ Admin-only `GET /staff/gift-cards` (filters last_four/buyer_id/status), `GET /st
 When checkout uses credit, also send the preview's `expected_payment_due_usd` as a decimal string. A changed due amount returns 422 on `use_credit`; no order, debit or inventory change is committed. Refresh the wallet balance before retrying. Split-tender payment analysis allocates each order's amount between wallet and its external method, so mixed orders can appear in two method counts while amount shares still add to 100%.
 
 Fully credit-funded orders follow the existing paid-order cancellation policy: no extra customer cancellation entitlement is created, including for ebooks. Existing waiting-stock exceptions and authorized staff cancellations still apply; the wallet allocation is restored when cancellation is permitted.
+
+### Checkout delivery contact and Phnom Penh estimate (2026-11-14)
+- `POST /checkout` accepts optional `delivery_phone` (string, max 30, phone characters). It overrides the order shipping phone only; saved addresses are unchanged. Omitted values retain the saved address phone for older clients.
+- Phnom Penh estimates span the order date through the next calendar day in Asia/Phnom_Penh, including evenings and weekends (days_min=0, days_max=1). Provincial working-day calculations remain unchanged.
