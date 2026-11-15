@@ -709,3 +709,10 @@ next order, at most $5, for 30 days".
 - The newly published ConfigureEducationCategories reused the existing ReshapeEducationCategories command name, so command discovery could select the wrong implementation depending on registration order.
 - Renamed the optional setup/import utility to catalog:education-setup, preserving catalog:education-categories for the existing eight-subject migration. No category data or database schemas were changed.
 - Added regression coverage for both registered implementations and unique names across all application command classes. Four targeted tests passed (77 assertions).
+
+## Staff book list filters (2026-11-14, branch `feature/staff-book-filters`)
+Owner asked for an easier way to find books in the staff area. `GET /staff/books` gains query options only (no new
+route or table): `q` now also matches an author's name and any edition's ISBN (dashes ignored); `category_id`
+(a parent shelf includes its sub-shelves), `format`, `stock=in|low|out` (printed editions only; ebooks never count
+as out of stock), `author_id`, `publisher_id`, `sort=title`. Test: tests/Feature/Admin/StaffBookFiltersTest.php.
+Checks: `php artisan test` 1006 passed, `vendor/bin/pint --test` passed (local PHP 8.3, PostgreSQL 16).
