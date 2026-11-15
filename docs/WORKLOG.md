@@ -716,3 +716,11 @@ route or table): `q` now also matches an author's name and any edition's ISBN (d
 (a parent shelf includes its sub-shelves), `format`, `stock=in|low|out` (printed editions only; ebooks never count
 as out of stock), `author_id`, `publisher_id`, `sort=title`. Test: tests/Feature/Admin/StaffBookFiltersTest.php.
 Checks: `php artisan test` 1006 passed, `vendor/bin/pint --test` passed (local PHP 8.3, PostgreSQL 16).
+
+## Unused cover clean-up (2026-11-15, branch `feature/prune-unused-covers`)
+Owner asked whether a replaced cover leaves R2: it did not (uploads get a new random name; saving only changes the
+link). New command `php artisan media:prune-covers` (`--dry-run`, `--days=7`, `--force`): deletes files in the media
+disk's `covers/` folder that no book variant (trashed included), author photo, gift, promotion or newsletter text
+uses, older than 7 days (forms in progress are safe). Stops when nothing is in use (wrong database) or when more than
+half the files would go, unless `--force`. Runs weekly (Sunday 03:30) via App\Support\MaintenanceTasks.
+No table or route changes. Test: tests/Feature/Catalog/PruneUnusedCoversTest.php.

@@ -44,6 +44,8 @@ class MaintenanceTasks
             ['name' => 'khqr-expire', 'command' => 'payments:expire-khqr', 'parameters' => [], 'cron' => '* * * * *'],
             // Pre-orders whose release date has arrived: notifies customers and allocates waiting orders.
             ['name' => 'check-preorder-releases', 'command' => 'preorders:check-releases', 'parameters' => [], 'cron' => '0 * * * *'],
+            // Cover pictures that were replaced or uploaded but never saved, older than a week (owner 2026-11-15).
+            ['name' => 'prune-covers', 'command' => 'media:prune-covers', 'parameters' => [], 'cron' => '30 3 * * 0'],
             ['name' => 'demo-reset', 'command' => 'demo:reset', 'parameters' => [], 'cron' => '0 * * * *'],
         ];
     }
