@@ -13,7 +13,8 @@ use Illuminate\Support\Facades\Storage;
  * A file is kept when any of these still points at it — deleted (trashed) rows included, so a restored book keeps its
  * cover: book variant covers, author photos, gift and promotion pictures, and newsletter texts. Files newer than
  * --days are always kept (someone may be filling in a form right now). Safety stops: nothing is deleted when no
- * picture is in use at all (a wrong database), or when more than half the files would go, unless --force is given.
+ * picture is in use at all (a wrong database), or when more than half the files would go, unless --force is given;
+ * both stops only warn (exit 0), so the weekly job is not retried over and over.
  * Run with --dry-run first to see the list.
  */
 class PruneUnusedCovers extends Command
@@ -50,9 +51,10 @@ class PruneUnusedCovers extends Command
         $used = $this->usedPaths();
         $texts = $this->texts();
         if ($used === [] && $texts === '') {
-            $this->error('No picture is in use in the database: stopping so nothing is deleted by mistake.');
+            // A safety stop, not an error: the weekly run must not be retried every few minutes.
+            $this->warn('No picture is in use in the database: nothing deleted, in case this is the wrong database.');
 
-            return self::FAILURE;
+            return self::SUCCESS;
         }
 
         $files = $disk->allFiles(self::FOLDER);
@@ -79,9 +81,9 @@ class PruneUnusedCovers extends Command
             return self::SUCCESS;
         }
         if (count($unused) * 2 > count($files) && ! $this->option('force')) {
-            $this->error('More than half of the files would be deleted: stopping. Check with --dry-run, then use --force.');
+            $this->warn('More than half of the files would be deleted: nothing deleted. Check with --dry-run, then use --force.');
 
-            return self::FAILURE;
+            return self::SUCCESS;
         }
 
         foreach (array_chunk($unused, 500) as $chunk) {

@@ -722,5 +722,6 @@ Owner asked whether a replaced cover leaves R2: it did not (uploads get a new ra
 link). New command `php artisan media:prune-covers` (`--dry-run`, `--days=7`, `--force`): deletes files in the media
 disk's `covers/` folder that no book variant (trashed included), author photo, gift, promotion or newsletter text
 uses, older than 7 days (forms in progress are safe). Stops when nothing is in use (wrong database) or when more than
-half the files would go, unless `--force`. Runs weekly (Sunday 03:30) via App\Support\MaintenanceTasks.
+half the files would go, unless `--force` (both stops warn and exit 0, so the job is not retried). Runs weekly (Sunday 03:30) via App\Support\MaintenanceTasks.
 No table or route changes. Test: tests/Feature/Catalog/PruneUnusedCoversTest.php.
+Checks: `php artisan test` 1009 passed, `vendor/bin/pint --test` passed.

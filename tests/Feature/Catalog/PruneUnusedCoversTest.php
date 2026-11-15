@@ -61,7 +61,7 @@ class PruneUnusedCoversTest extends TestCase
             $this->store("covers/old-{$name}.jpg", 30);
         }
 
-        $this->artisan('media:prune-covers')->assertFailed();
+        $this->artisan('media:prune-covers')->expectsOutputToContain('More than half')->assertSuccessful();
         Storage::disk('public')->assertExists('covers/old-a.jpg');
 
         $this->artisan('media:prune-covers --force')->assertSuccessful();
@@ -75,7 +75,7 @@ class PruneUnusedCoversTest extends TestCase
         Storage::fake('public');
         $this->store('covers/a.jpg', 30);
 
-        $this->artisan('media:prune-covers')->assertFailed();
+        $this->artisan('media:prune-covers')->expectsOutputToContain('No picture is in use')->assertSuccessful();
         Storage::disk('public')->assertExists('covers/a.jpg');
     }
 }
