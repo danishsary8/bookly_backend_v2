@@ -10,12 +10,14 @@ use App\Http\Resources\StaffStockResource;
 use App\Models\BookVariant;
 use App\Models\InventoryMovement;
 use App\Models\Order;
+use App\Models\Supplier;
 use App\Services\Admin\AuditLogger;
 use App\Services\Inventory\InventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class StockController extends Controller
 {
@@ -79,9 +81,15 @@ class StockController extends Controller
         $data = $request->validate([
             'quantity' => ['required', 'integer', 'min:1', 'max:10000'],
             'supplier' => ['nullable', 'string', 'max:150'],
+            'supplier_id' => ['nullable', 'integer', Rule::exists('suppliers', 'id')->where('is_active', true)],
             'unit_cost_usd' => ['nullable', 'numeric', 'min:0', 'max:99999.99', 'decimal:0,2'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
+
+        // A chosen supplier also writes its name on the restock, so history reads the same after a rename.
+        if (! empty($data['supplier_id'])) {
+            $data['supplier'] = Supplier::find($data['supplier_id'])->name;
+        }
 
         // The stock change and its audit entry commit together.
         $movement = DB::transaction(function () use ($variant, $data, $request) {
@@ -91,6 +99,7 @@ class StockController extends Controller
                 quantity: (int) $data['quantity'],
                 staff: $request->user(),
                 supplier: $data['supplier'] ?? null,
+                supplierId: $data['supplier_id'] ?? null,
                 unitCostUsd: $data['unit_cost_usd'] ?? null,
                 note: $data['note'] ?? null,
             );
@@ -104,6 +113,7 @@ class StockController extends Controller
                     'stock_quantity' => $variant->stock_quantity,
                     'restock_quantity' => $data['quantity'],
                     'supplier' => $data['supplier'] ?? null,
+                    'supplier_id' => $data['supplier_id'] ?? null,
                     'unit_cost_usd' => $data['unit_cost_usd'] ?? null,
                     'note' => $data['note'] ?? null,
                 ],

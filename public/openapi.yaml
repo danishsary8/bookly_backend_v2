@@ -3100,6 +3100,7 @@ paths:
               properties:
                 quantity: { type: integer, minimum: 1, maximum: 10000 }
                 supplier: { type: string, maxLength: 150 }
+                supplier_id: { type: integer, nullable: true, description: 'An active supplier; its name is also written to supplier' }
                 unit_cost_usd: { type: number, minimum: 0, maximum: 99999.99 }
                 note: { type: string, maxLength: 500 }
       responses:
@@ -3112,6 +3113,49 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       responses:
         '200': { description: Movement history }
+  /staff/suppliers:
+    get:
+      tags: [Stock]
+      summary: Suppliers with what was bought from them
+      description: 'catalog:view. Active first, then by name. Each row: id, name, contact_name, phone, email, note, is_active, restocks, units, spend_usd (copies x unit cost of restocks linked to it), last_restock_at.'
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 150 }, description: 'Name, contact or phone' }
+        - { name: active, in: query, required: false, schema: { type: string, enum: ['0', '1'] } }
+      responses:
+        '200': { description: Suppliers }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Stock]
+      summary: Add a supplier
+      description: 'catalog:manage. Name is unique, case-insensitive. Audited.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 150 }
+                contact_name: { type: string, nullable: true, maxLength: 150 }
+                phone: { type: string, nullable: true, maxLength: 40 }
+                email: { type: string, nullable: true, format: email }
+                note: { type: string, nullable: true, maxLength: 1000 }
+                is_active: { type: boolean }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /staff/suppliers/{id}:
+    patch:
+      tags: [Stock]
+      summary: Edit a supplier or switch it off (suppliers are never deleted)
+      description: 'catalog:manage. Same fields as create, all optional. Audited.'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Updated }
+        '404': { description: Not found }
+        '422': { $ref: '#/components/responses/Validation' }
   /staff/stock:
     get:
       tags: [Staff catalog]
