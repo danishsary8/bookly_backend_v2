@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\Rule;
 
 class StaffNewsletterController extends Controller
 {
@@ -48,8 +49,14 @@ class StaffNewsletterController extends Controller
      */
     public function indexCampaigns(Request $request): JsonResponse
     {
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:200'], 'status' => ['nullable', Rule::in(['draft', 'sending', 'sent'])]]);
         // sent_count: emails of this campaign that have really gone out (the outbox sends at most the daily limit).
         $campaigns = NewsletterCampaign::with('createdByStaff:id,name,email')
+            ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->when(trim($data['q'] ?? ''), function ($query, $term) {
+                $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+                $query->where(fn ($q) => $q->where('subject_en', 'ilike', $pattern)->orWhere('subject_km', 'ilike', $pattern));
+            })
             ->select('newsletter_campaigns.*')
             ->selectSub(fn ($q) => $q->from('marketing_outbox')->selectRaw('count(*)')->where('kind', 'newsletter')->where('status', 'sent')
                 ->whereRaw("(payload->>'campaign_id')::bigint = newsletter_campaigns.id"), 'sent_count')

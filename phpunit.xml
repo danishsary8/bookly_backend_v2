@@ -29,6 +29,9 @@
         <env name="DB_DATABASE" value="bookshop_v2_test"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
+        <!-- Never inherit a configured cloud media disk for tests. R2 tests explicitly fake their disk. -->
+        <env name="MEDIA_DISK" value="public" force="true"/>
+        <env name="CATALOG_INGEST_COVERS" value="false" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

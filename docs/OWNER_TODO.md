@@ -1,8 +1,164 @@
 # Owner to-do (your part)
 
+> Historical handoff imported during consolidation on 2026-11-16. Original checkbox and merge states are preserved, not reverified; consult docs/WORKLOG.md for newer completed work and current integration checks.
+
 Everything that only you can do (merges, accounts, keys, decisions), in one place. Written 2026-10-30 (overnight).
 Tick the boxes as you go. Nothing below breaks the live site if you have not done it yet: every new feature keeps
 working with today's settings.
+
+---
+
+## Phase 1: categories + filters (2026-11-05) — merge backend first
+- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/category-tree (adds 7 optional
+  columns and the starter category tree; your existing categories are kept: same-name ones go under their parent)
+- [ ] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/category-tree
+- [ ] Live check: Books page → pick **Fiction** → its sub-categories open; Admin → Categories → tree, edit one →
+  "Parent category"; Admin → a book → set School grade / English level → the filter appears in the shop.
+- Later notes from you (kept): 100+ demo books with good stock; "buy this book, get a free sticker/highlight pen"
+  offer (phase 5). Khmer: new `catalogFilters` group (Antigravity).
+
+## LATER — your setup list (on hold until you say "let's do it")
+- [ ] Ebooks: create a PRIVATE Cloudflare R2 bucket + API keys → Render: EBOOK_DISK=r2_private, R2_PRIVATE_BUCKET,
+  R2_PRIVATE_ENDPOINT, R2_PRIVATE_ACCESS_KEY_ID, R2_PRIVATE_SECRET_ACCESS_KEY → redeploy → upload a test PDF.
+- [ ] Google Maps key (steps in "Delivery map pin" below).
+- [ ] Render: check APP_DEBUG=false.
+- [ ] Bakong token: renew before 1 Feb 2027.
+- [ ] Vercel Analytics: Enable (if not done).
+- [ ] Live checks (Parts 2–3 below) after each merge.
+- [ ] Own domain (optional, ~$10–15/year).
+- [ ] Decide whether to run the sample books seeder anywhere besides local.
+
+## YOUR GUIDE (2026-11-05) — start here, top to bottom
+
+Everything below is your part. All code is done. Tick as you go.
+
+**Part 1. Merge the 4 new branches (about 10 min).** Backend first (it adds 4 small database columns; Render runs them).
+- [ ] Backend cart reminder: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/cart-reminder
+- [ ] Backend gift note: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/gift-note
+- [ ] Wait until Render shows **Live**.
+- [ ] Frontend cart reminder: https://github.com/danishsary8/bookly_frontend/pull/new/feature/cart-reminder
+- [ ] Frontend gift note: https://github.com/danishsary8/bookly_frontend/pull/new/feature/gift-note
+  (If GitHub says `src/api/schema.d.ts` has a conflict on the second one, tell me; I fix it in 1 minute.)
+- [ ] Wait until Vercel shows **Ready**.
+
+**Part 2. Live checks: new features (about 10 min)**
+- [ ] Gift: add a book → Checkout → tick **This is a gift** → write a message → Place order → the order page shows
+  "Gift". Admin → that order → yellow "Gift order" box → **Print packing slip** → a dashed gift card with your message.
+- [ ] Cart reminder switch: Account → Profile → **Cart reminder emails** is ON; turn off and on.
+- [ ] Cart reminder email: leave a book in your cart and don't touch it for 24 hours (+ up to 1 hour) → email
+  "Your books are still in your cart" → click **Stop cart reminder emails** → page says "Done" → Profile switch is OFF
+  → turn it back ON.
+
+**Part 3. Live checks: earlier features (about 20 min, any order)**
+- [ ] Leaked password: Account → Sign-in & security → change password to `Password123` → red "data leak" message.
+- [ ] Signed-in devices: sign in on your phone too → Sign-in & security → "Where you're signed in" shows 2 →
+  **Sign out of all other devices** → the phone is signed out. The phone sign-in also sent a "New sign-in" email.
+- [ ] Wishlist badge + price-drop email: Profile → turn on **Price-drop emails** → add a book to "Want to read" →
+  Admin → lower its price 5%+ → wishlist shows "Price dropped …%" and an email arrives within a few minutes.
+- [ ] Excel: Admin → Reports → **Excel, all reports** → the file opens.
+- [ ] Demo reviews: Admin → Reviews → hide reviews visitors wrote as "Demo Customer".
+- [ ] Collections: Admin → Collections → make one live → it shows on the home page.
+- [ ] Admin quick checks: Dashboard (30 days) cards; **Ctrl K** search; red numbers in the menu; new book with a
+  cover upload; an order open in two tabs refreshes by itself; Dashboard on your phone doesn't move sideways.
+- [ ] Customer quick checks: "Buy again" on a delivered order; phone-code hint on the login page; Khmer switch on
+  a few pages.
+- [ ] Print one invoice and one packing slip on a real printer.
+
+**Part 4. Settings (about 10 min)**
+- [ ] Vercel → project → **Analytics** → Enable (free), if not done yet.
+- [ ] Read both READMEs on GitHub once; tell me anything that sounds wrong.
+- [ ] Shop details on printed sheets: tell me the shop email/address you want (now: dnshsary@gmail.com).
+- [ ] Neon → Monitoring: check compute hours once a week.
+- [ ] Healthchecks.io missed-backup alert, if not done (`docs/DEPLOYMENT.md` → "Missed-backup check").
+
+**Part 5. Antigravity (Khmer)** — give it the prompt in chat (2026-11-05): new English placeholders marked
+`TODO(antigravity)`: frontend `cartReminder`, `gift`; backend lang/km/mail.php `cart_reminder_*`,
+lang/km/messages.php `cart_reminders_*`.
+
+**Part 6. Dates to remember**
+- [ ] Bakong token: renew before **1 Feb 2027** (the health card warns you).
+- [ ] Google Maps key: postponed (steps below, "Delivery map pin").
+
+**Later / optional (costs money or needs a domain):** own domain (~$10–15/year) → Facebook sign-in for everyone,
+email from your domain (less spam), staging server, speed test.
+
+---
+
+## Open list (2026-11-04) — all code is merged; only these are left
+
+**Live checks (about 2 minutes each, any order)**
+1. Excel: Admin → Reports → **Excel, all reports** → open the file.
+2. Price-drop email: Profile → turn on **Price-drop emails** → wishlist a book → lower its price 5%+ in the admin → email arrives.
+3. Demo reviews: Admin → Reviews → hide visitor-written "Demo Customer" reviews.
+4. KHQR (test mode): pay a cheap order with **Bakong KHQR** → **Simulate payment** → "Payment received".
+5. Collections: Admin → Collections → make one live → it shows on the home page.
+6. Older feature checks below (offers, dashboard, Ctrl K, auto refresh, cover upload, buy again, phone layout, phone code
+   hint, similar books): try them when you have time; tell me anything that looks wrong.
+
+**Delivery map pin (2026-11-04)** — code merged 2026-11-04; Google Cloud part **postponed by owner (do later)**.
+Until then the "Pick on map" button stays hidden; nothing is broken. Owner is in project Bookly (bookly-510814), billing not added yet.
+- [x] 1. Merge backend first (adds 2 columns to addresses + 2 to orders; Render runs the migration):
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/delivery-map-pin
+- [x] 2. Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/delivery-map-pin
+  (until step 3 is done the pin section is simply hidden; the "Open in Google Maps" links work without a key)
+- [ ] 3. LATER — Google Cloud (one time, ~10 minutes) at https://console.cloud.google.com:
+  1. New project "Bookly" → add a billing account (Google asks for a card; the monthly free use covers us).
+  2. APIs & Services → Library → **Maps JavaScript API** → Enable. Nothing else (no Places, no Geocoding).
+  3. APIs & Services → Credentials → Create credentials → **API key** → Edit it:
+     Application restrictions = **Websites**, add `https://bookly-frontend-five.vercel.app/*`;
+     API restrictions = **Maps JavaScript API** only → Save.
+  4. Safety cap: APIs & Services → Maps JavaScript API → **Quotas** → "Map loads per day" → set **300**.
+  5. Billing → Budgets & alerts → new budget **$1** with email alerts (you get an email long before any cost).
+  6. Vercel → project → Settings → Environment Variables → `VITE_GOOGLE_MAPS_KEY` = the key → **Redeploy**.
+     (This key is meant to be public in the browser; the website restriction in step 3 protects it.)
+- [ ] Live check: Account → Addresses → Edit → **Pick on map** → "Use this spot" → Save → place a cash order →
+  order page shows "Open in Google Maps", and your Telegram new-order alert has a "Map:" link.
+- Khmer for the map texts: English placeholder `mapPin` in km.ts, TODO(antigravity) → **Antigravity's job**.
+
+**Block leaked passwords (2026-11-04)** — both merged 2026-11-04
+- [x] 1. Frontend (browser test signs up with a fresh password): https://github.com/danishsary8/bookly_frontend/pull/new/fix/e2e-unique-password
+- [x] 2. Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/block-leaked-passwords
+- [ ] Live check: Sign up (or Account → change password) with `Password123` → red message "This password has appeared
+  in a known data leak…" → a long unusual password works.
+- Khmer of that message: English for now in lang/km/validation.php (TODO(antigravity)).
+
+**Visitor stats + 3 account features (2026-11-04)** — all merged 2026-11-04 (each works alone; checked they merge cleanly)
+- [x] Visitor stats (frontend): https://github.com/danishsary8/bookly_frontend/pull/new/feature/visitor-analytics
+  - [ ] After merge: Vercel → your project → **Analytics** tab → **Enable** (free). Numbers appear after the next deploy.
+    Query strings (emails, codes) are removed and /admin pages aren't counted.
+- [x] Sign out everywhere: backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/customer-sessions ·
+  frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/customer-sessions
+- [x] New-device email (backend, adds 1 table): https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/new-device-email
+- [x] Wishlist price-drop badge: backend (adds 1 column) https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/wishlist-price-badge ·
+  frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/wishlist-price-badge
+- [ ] Live checks after deploy: Account → **Sign-in & security** → "Where you're signed in" (sign in on your phone too,
+  then "Sign out of all other devices"); sign in on a second browser → "New sign-in" email; wishlist a book, lower its
+  cheapest format in the admin → wishlist shows "Price dropped …%".
+- Khmer for these: English placeholders marked `TODO(antigravity)` in km.ts (`sessions`, `wishlistDrop`) and
+  lang/km/mail.php (`security_new_device_*`) → **Antigravity's job**.
+
+**Dev tools (2026-11-04)**
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/chore/dev-tool-updates (clears the 2 high
+  developer-tool warnings; nothing on the site changes)
+- Dashboard checked in a real browser (all periods, light/dark, phone/desktop): all fine, no change needed.
+
+**Khmer translation: owner's choice 2026-11-04 — Antigravity does all Khmer translation work** (km.ts review, new
+Khmer strings, Khmer book titles). Claude adds English text only and marks any new Khmer line as "to translate".
+
+**Waiting on you (setup)**
+7. ~~Bakong real payments~~ done 2026-11-04 (token until 1 Feb 2027).
+8. **Khmer wording:** `priceDrop`, `signin.facebookTesting` / `facebookNotFinished` (km.ts) and `price_drop_*` (lang/km/mail.php).
+9. **README check:** read both READMEs on GitHub once.
+
+**Later / optional**
+10. Own domain (unlocks Facebook for everyone, better email delivery, nicer address).
+11. Facebook app Live (needs 10 + Meta business verification).
+12. Email from your domain (SPF/DKIM/DMARC), Healthchecks.io backup alert, staging server, k6 speed test, Neon usage check,
+    old Neon project clean-up, real printer test, shop address on printed sheets, native Khmer review of km.ts.
+
+**Ideas not started (ask before building)**
+13. Google Maps (delivery spot / shop map). 14. Facebook page / Messenger link. 15. Block leaked passwords: built 2026-11-04 (see above).
+    (Sign out everywhere, new-device email and the wishlist badge: built 2026-11-04, see above.)
 
 ---
 
@@ -10,7 +166,7 @@ working with today's settings.
 
 - Done: all 18 branches merged and deployed; backup points at `bookly-2` (green run); demo data is there; live checks
   (Download my data, 404 answer, typo search, Download button, admin orders auto-refresh) passed.
-- **Paused, continue here:** section 4c (phone code). What we learned: a number typed in **Profile** is only a courier
+- **Done 2026-11-02:** section 4c (phone code). What we learned: a number typed in **Profile** is only a courier
   contact number. Codes are sent only to a **verified** number linked to the bot. Fix: **Account → Sign-in & security →
   Phone row → Confirm** → share the number in the Bookly bot → then try the phone code again (wait for the
   "Too many attempts" timer first). The "Telegram order updates" card does not verify the number.
@@ -21,7 +177,7 @@ working with today's settings.
 ## 0. New since 2026-10-31 (notes for each task: `docs/HANDOFF.md` on this branch)
 
 **Task F: phone sign-in code hint** (frontend only, no backend change, no setting to change)
-- [ ] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint → **Create pull request** →
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/fix/phone-code-hint → **Create pull request** →
   wait for green CI → check the reviewer checklist in `docs/prompts/README.md` → **Merge**. Vercel deploys by itself.
 - [ ] Live check after Vercel shows **Ready**: https://bookly-frontend-five.vercel.app/login →
   **Sign in with phone number?** → the hint "Codes only go to a confirmed number…" is under the field → type `123` →
@@ -29,15 +185,15 @@ working with today's settings.
   Then switch the language to Khmer → the same hint in Khmer.
 - [ ] Signed in: **Account → Profile** → under **Phone**: "Couriers call this number…" → click **Sign-in & security**
   → that page opens.
-- [ ] Khmer wording: read the two new Khmer lines (login hint and Profile hint; text in `docs/HANDOFF.md`). Change them
+- [x] Khmer wording: read the two new Khmer lines (login hint and Profile hint; text in `docs/HANDOFF.md`). Change them (Owner: all ok, 2026-11-02.)
   if a native speaker would say it differently.
-- [ ] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
+- [x] Then finish section 4c below (confirm your phone in Sign-in & security, then try the code).
 
 **Task A: "You may also like" (similar books)** (backend + frontend; no migration, no setting to change; merge order: any,
 each branch works alone)
-- [ ] Merge the backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books →
+- [x] Merge the backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/better-similar-books →
   **Create pull request** → wait for green CI → check the reviewer checklist → **Merge**. Render deploys by itself.
-- [ ] Merge the frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books →
+- [x] Merge the frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/better-similar-books →
   **Create pull request** → green CI → **Merge**. Vercel deploys by itself.
 - [ ] Live check when both show **Ready/Live** (the first visit may take ~1 minute while Render wakes up):
   1. Open a book in a series, e.g. the 2nd Sherlock Holmes book on https://bookly-frontend-five.vercel.app/books →
@@ -48,39 +204,39 @@ each branch works alone)
      next book of that series comes first.
   4. Switch the language to Khmer → the row reads **សៀវភៅស្រដៀងគ្នា / អ្នកប្រហែលជាចូលចិត្ត**.
   5. On your phone (or the browser at phone width) → the rows scroll sideways and the page does not.
-- [ ] Khmer wording: is **សៀវភៅស្រដៀងគ្នា** ("similar books") a natural eyebrow for "More like this"? Change it if not.
+- [x] Khmer wording: is **សៀវភៅស្រដៀងគ្នា** ("similar books") a natural eyebrow for "More like this"? Change it if not. (Owner: all ok, 2026-11-02.)
 - Note (no action): if staff mark a book back in stock, add a format, or a scheduled book goes live, it can take up to
   1 hour to join these lists. A sold-out book never shows.
 
 **Task B+D: offers ("Buy 2, get 15% off") + offer reports** (in progress; spec
 `docs/superpowers/specs/2026-10-31-offers-design.md` on `feature/offers-engine`)
-- [ ] **Rollout order (important):** merge the frontend `feature/offers-storefront` **before** you create or resume
+- [x] **Rollout order (important):** merge the frontend `feature/offers-storefront` **before** you create or resume
   the first live offer in the admin. Why: today's checkout page does not know about offers, so a coupon that lost to
   an offer would vanish from the summary without an explanation. Until a live offer exists, nothing changes for
   customers (the demo offer from the seeder is created **paused**).
-- [ ] **Merge the backend `feature/offers-engine`** (done and reviewed 2026-11-01; its 4 new migrations run by themselves on
+- [x] **Merge the backend `feature/offers-engine`** (done and reviewed 2026-11-01; its 4 new migrations run by themselves on
   deploy; nothing changes for customers while no offer is live; the demo offer is paused):
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offers-engine → **Create pull request** → green CI →
   **Merge**. After Render shows **Deploy live**: open the shop → books, cart and checkout still work as before.
   Do **not** create or resume an offer yet.
-- [ ] **Merge the frontend `feature/offers-storefront`** (after the backend one; reviewed and browser-checked 2026-11-01):
+- [x] **Merge the frontend `feature/offers-storefront`** (after the backend one; reviewed and browser-checked 2026-11-01):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-storefront → **Create pull request** → green CI →
   **Merge**. Vercel deploys by itself. Nothing shows until an offer is live.
 - [x] Decided 2026-11-01: free delivery starts at **$50**. Fix for the announcement bar (it said $25), frontend only:
-- [ ] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (fixed 2026-11-01:
+- [x] **Merge** https://github.com/danishsary8/bookly_frontend/pull/new/fix/announcement-free-delivery (fixed 2026-11-01:
   it no longer touches the work log, so it merges cleanly).
 - **Notes rule (you chose "notes only", 2026-11-01):** feature branches no longer edit `WORKLOG.md`. Notes live on two
   long-lived branches: backend `docs/handoff-notes` and frontend `docs/worklog-notes`
   (https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes). Merge them whenever you like, as often as
   you like; after a merge I keep using the same branch names.
-- [ ] **Merge the frontend `feature/offers-admin`** (any order; it says "not available yet" until the backend is live):
+- [x] **Merge the frontend `feature/offers-admin`** (any order; it says "not available yet" until the backend is live):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/offers-admin
 - [ ] **Your first offer** (only after `offers-engine`, `offers-storefront` and `offers-admin` are all merged and deployed):
   Admin → **Offers** → **New offer** → e.g. name "Buy 2 Holmes", 2 books, 15%, search "Holmes" → pick the series → check
   the preview → **Create offer** (it starts paused) → switch it **On** in the list → confirm. Then open the shop: the Holmes
   books show "Buy 2, save 15%"; put 2 in the cart → "Offer: buy 2, save 15%". Pause it again with the switch if you only
   wanted to test.
-- [ ] **Merge the offers report** (both, any order):
+- [x] **Merge the offers report** (both, any order):
   backend https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/offer-reports ·
   frontend https://github.com/danishsary8/bookly_frontend/pull/new/feature/offer-reports
   Check: Admin → **Reports** → **Offers** tab → choose **30 days** → after your first offer orders you see "Books per order
@@ -89,11 +245,11 @@ each branch works alone)
 ---
 
 **Task E: BI dashboard (part 1) + a live bug fix** (merge in any order)
-- [ ] 🔴 **Merge first, it fixes your live dashboard:** backend `fix/dashboard-status-cache`
+- [x] 🔴 **Merge first, it fixes your live dashboard:** backend `fix/dashboard-status-cache`
   https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/dashboard-status-cache
   (today "Orders placed by status" shows strange text when you reload the dashboard within 5 minutes).
-- [ ] Backend `feature/dashboard-insights`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-insights
-- [ ] Frontend `feature/admin-dashboard-redesign`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-dashboard-redesign
+- [x] Backend `feature/dashboard-insights`: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/dashboard-insights
+- [x] Frontend `feature/admin-dashboard-redesign`: https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-dashboard-redesign
 - [ ] Check after deploy: Admin → **Dashboard** → 30 days → each top card has a small line and a "View …" link; the
   "Income report" chart has a solid line (this period) and a dashed one (the month before), and an Income / Orders
   switch; "Orders placed by status" is a ring with the total in the middle. Reload twice: still correct.
@@ -101,8 +257,8 @@ each branch works alone)
 ---
 
 **Task E: BI dashboard (part 2)** (frontend, any order)
-- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-quick-jump
-- [ ] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-insights-widgets
+- [x] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-quick-jump
+- [x] https://github.com/danishsary8/bookly_frontend/pull/new/feature/admin-insights-widgets
 - [ ] Check after deploy: the menu shows red numbers beside Orders / Returns / Stock; press **Ctrl K** (Mac: Cmd K) →
   type part of an order number or a book title → Enter opens it; scroll down the dashboard: Stock value, Dead stock,
   Repeat customers, Slow movers, Top authors, Orders by province, Offers and coupons.
@@ -110,33 +266,160 @@ each branch works alone)
 ---
 
 **🔴 E2E check failing on PRs (2026-11-01)** — caused by the dashboard donut (already on `main`), not by your new PRs.
-- [ ] **Merge first:** https://github.com/danishsary8/bookly_frontend/pull/new/fix/dashboard-donut-focus
-- [ ] Then on PR #107 (`feature/admin-insights-widgets`) click **Update branch** (it re-runs the checks with the fix) →
+- [x] **Merge first:** https://github.com/danishsary8/bookly_frontend/pull/new/fix/dashboard-donut-focus
+- [x] Then on PR #107 (`feature/admin-insights-widgets`) click **Update branch** (it re-runs the checks with the fix) →
   wait for all green → **Merge**.
 
 ---
 
 **Small fixes + PR #107 (2026-11-01)**
-- [ ] PR #107 (dashboard extras) was still open: I updated it with `main` (incl. the donut fix). Wait for all checks green,
+- [x] PR #107 (dashboard extras) was still open: I updated it with `main` (incl. the donut fix). Wait for all checks green,
   then **Merge**: https://github.com/danishsary8/bookly_frontend/pull/107
-- [ ] Small fixes (account strip fade, free-delivery texts EN/KM, donut colours):
+- [x] Small fixes (account strip fade, free-delivery texts EN/KM, donut colours):
   https://github.com/danishsary8/bookly_frontend/pull/new/fix/small-cleanups
-- [ ] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
+- [x] Notes branches whenever you like: https://github.com/danishsary8/bookly_frontend/pull/new/docs/worklog-notes ·
   https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/handoff-notes
 
-**Next task, saved for later: auto refresh (owner 2026-11-02, chose "Admin + customer orders")**
-When something changes (new order, payment, status), pages show it by themselves without the browser's refresh button.
-Plan: admin pages refresh the data on screen every 30 s and when you come back to the tab ("Updated 10 s ago ·
-Refresh" in the header; pauses when the tab is hidden; never resets a form you are typing in). Customers' orders and
-returns refresh every 60 s until finished. Book pages unchanged. Say "auto refresh" to start it.
+**Book cover on the New book page (2026-11-02)** (frontend only; you chose "On New book page")
+- [x] Merged (frontend PR #117).
+- [x] R2 done (2026-11-02, set up with another helper; checked: a cover uploaded on New book got an `https://pub-…r2.dev/covers/…` address). Earlier note: (section 3 below / backend `docs/DEPLOYMENT.md` F6b): without R2, Render wipes uploaded
+  covers at every deploy and restart. With R2 they are kept for good.
+- [ ] Live check: Admin → Books → **New book** → title + **Cover** (upload a picture) → **Create** → "Add format" opens
+  with the cover → SKU + price → save. The book page shows the **Cover** panel; the shop shows the cover. After the next
+  Render deploy the cover is still there (only true with R2).
+
+**Auto refresh (2026-11-02)** (frontend only; you chose "Admin + customer orders")
+- [x] Merged (2026-11-02).
+- [ ] Live check: open an order in the admin in one tab; in another tab (or your phone) change it, e.g. mark it Shipped.
+  Within 30 s the first tab shows Shipped without reloading. Every admin page says "Updates by itself · … ago" with a
+  "Refresh now" button. As a customer, an order page that is not finished updates within about a minute.
 - [x] KHQR live check passed (2026-11-02: order ORD-20261102-YGP55 shows PAID with the KHQR filter).
+
+**Ideas for later (owner, 2026-11-03), not started, ask before building:**
+- Google Maps: e.g. pick the delivery spot on a map at checkout / in the address book, and a shop map on Contact.
+- Facebook connection: sign-in setup guide written (see "Facebook sign-in setup" above). Still open: a Facebook
+  page / Messenger link, if you want one.
+- Stronger sign-in and sign-up security: review done 2026-11-03 (see "Sign-in security review" above).
+
+**Smaller main file (2026-11-03)** (frontend only; merged 2026-11-03)
+- The form-checking library (Zod) no longer loads on every page, only with forms: main file 105 → 101 KB.
+- Kept as you chose: both languages stay in the main file, so Khmer visitors are not slowed down.
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/smaller-main-file
+
+**Sign-in security review (2026-11-03)** (backend; merged 2026-11-04)
+- Already strong: Turnstile bot check, try limits (5/min, 20/hour per email), hashed codes that die after 5 wrong
+  guesses, Google/Facebook tokens checked against our app, all devices signed out + warning email after a password
+  reset, staff 2-step codes.
+- Fixed (your choice): sign-in and "forgot password" no longer answer faster for emails without an account
+  (was 0.03 s vs 0.2-0.5 s). Customer and staff.
+- [x] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/sign-in-timing
+- [x] (owner: email arrived, 2026-11-04) Live check after Render deploys: on the shop, **Forgot password** with your own email → the code email still
+  arrives (it is now sent just after the page answers).
+- Not chosen now (ask any time): sign out everywhere / device list, new-device sign-in email, block leaked passwords.
+- Small leftover (low risk): sign-up still says "an account with this email already exists" (normal for shops;
+  Turnstile and the try limits slow down anyone testing many emails).
+
+**Facebook sign-in setup (2026-11-03)** — app `Bookly` created (App ID 1468099781929133, not secret); steps 1–5 done: owner signed in with Facebook on the live shop (2026-11-03). Step 6 (Live) blocked: Meta business verification refuses the shared vercel.app domain (needs own domain + usually business papers). Chosen for now: testers only (App roles → Testers); a tester was added. Revisit if a custom domain is bought.
+- [x] Merge first: https://github.com/danishsary8/bookly_frontend/pull/new/fix/facebook-sdk-version (v21.0 → v25.0;
+  v21.0 stops working around 21 Jan 2027)
+1. Go to https://developers.facebook.com → log in with your Facebook account → **My Apps** → **Create App**.
+   - Use case: **"Authenticate and request data from users with Facebook Login"**. App name: `Bookly`.
+2. In the app: **Use cases → Facebook Login → Customize/Settings**:
+   - **Login with the JavaScript SDK** = **Yes**.
+   - **Allowed Domains for the JavaScript SDK** = your shop address, e.g. `https://<your-shop>.vercel.app`.
+   - Permissions: `email` and `public_profile` (both are free; click "Add" if they are not "Ready for testing").
+3. **App settings → Basic**:
+   - **App domains** = `<your-shop>.vercel.app`.
+   - **Privacy Policy URL** = `https://<your-shop>.vercel.app/privacy`, **Terms** = `.../terms`.
+   - **User data deletion**: choose "Data deletion instructions URL" = `https://<your-shop>.vercel.app/privacy`.
+   - Category: Shopping. App icon: optional (1024×1024).
+   - Copy **App ID** (not secret) and **App Secret** (secret: click Show; never share it).
+4. Put the keys in:
+   - **Render** (API) → Environment: `FACEBOOK_CLIENT_ID` = App ID, `FACEBOOK_CLIENT_SECRET` = App Secret → Save, deploy.
+   - **Vercel** (shop) → Settings → Environment Variables: `VITE_FACEBOOK_APP_ID` = App ID → **Redeploy**
+     (Vite reads it at build time).
+5. Test while the app is in **Development** mode (only you can sign in): shop → Sign in → **Continue with Facebook**.
+6. When it works: app top bar → switch **App Mode** to **Live** (needs the privacy URL from step 3), so every
+   customer can use it. Facebook may ask you to verify your developer account (phone).
+- Note: the shop's security rules (CSP) already allow Facebook's script and popup.
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/feature/facebook-testing-note (visitors see
+  "Facebook sign-in only works for invited accounts, use email or Telegram"; no setting needed now)
+- Later, once the Facebook app is published: Vercel → add `VITE_FACEBOOK_PUBLIC` = `true` → Redeploy (removes the note).
+- [ ] Khmer wording, please check: `signin.facebookTesting` and `signin.facebookNotFinished` in `km.ts`.
+
+**Excel report download (2026-11-03)** (backend + frontend; all merged 2026-11-03)
+- Your choice: OpenSpout, all sheets. Admin → Reports → **Excel, all reports**: one .xlsx with Summary, Sales by
+  day, Top books, Top customers (names and emails: keep the file private), Orders, Coupons and refunds, Offers.
+- [x] Merge backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/excel-sales-export
+  (adds the OpenSpout library and PHP's zip extension to the Docker image)
+- [x] Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/excel-sales-export
+  (any order; before the backend is live the button says "not available yet")
+- [ ] Live check: Admin → Reports → pick dates → **Excel, all reports** → open the file in Excel or Google Sheets.
+- CI note: the first run failed once on an old invoice test (books in a random order). Not from the Excel code; the
+  pull-request run is all green. Real fix on its own branch:
+- [x] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/invoice-item-order
+  (order lines always come back in the order they were bought; 774 tests pass)
+
+**Wishlist price-drop emails (2026-11-03)** (backend + frontend; both merged 2026-11-03)
+- Your choices: opt-in switch (off by default), email only, 5% or more, at most 1 email per book per week.
+- [x] Merge backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/price-drop-alerts
+  (adds one column, `customers.price_drop_alerts`; Render runs the migration on deploy)
+- [x] Merge frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/price-drop-alerts
+  (any order: the switch only shows once the backend is live)
+- [ ] Live check: sign in with your own customer account → Account → **Profile** → turn on **Price-drop emails** →
+  add a book to your wishlist ("Want to read") → in the admin, lower one of its formats by 5% or more → within a
+  minute or two you get the email. Put the price back afterwards.
+- [ ] Khmer wording, please check (in `km.ts` → `priceDrop`, and backend `lang/km/mail.php` → `price_drop_*`):
+  switch "អ៊ីមែលពេលតម្លៃចុះ"; email subject ":title ថោកជាងមុនហើយ".
+
+**Speed check (2026-11-03)** (frontend only; merged 2026-11-03)
+- Fonts now come from our own site (your choice), ~40 tiny code files were joined, and the book page no longer
+  jumps while it loads. Phone score (simulated slow phone): home 74 → 76, book page 64 → 71 (main content 1 s sooner).
+- [x] Merge: https://github.com/danishsary8/bookly_frontend/pull/new/perf/speed-check
+- [ ] After Vercel deploys: open the live shop in English and Khmer. Text should look the same as before (same
+  fonts). Open any book on your phone: the page should not jump while it loads.
+
+**Security review of the work since 15 Oct (2026-11-03)** (backend only; merged 2026-11-03)
+- Checked and fine: every staff route needs a staff token + 2FA, admin-only actions (mark paid, offers, collections,
+  staff) need admin; customers only reach their own orders, payments, credits, alerts and sessions; KHQR (simulate only in
+  test mode, Bakong answer must match amount and currency); cover uploads (type, real content, size, random names);
+  CSV exports escape formulas; search and reports use bound SQL; phone codes die after 5 wrong guesses; newsletter links
+  use long random tokens; no secrets in the code.
+- Fixed (the shared demo account): no more public reviews from it; no Telegram order updates linked to it (and the
+  hourly reset unlinks any chat); the hourly reset removes addresses visitors typed in and keeps only its sample address.
+- [x] Merge: https://github.com/danishsary8/bookly_backend_v2/pull/new/fix/demo-account-limits
+- [ ] After Render shows Live: Admin → **Reviews** → look for reviews by "Demo Customer" that visitors wrote (not the
+  seeded ones) and **Hide** any you don't want public. The fix stops new ones; it does not remove old ones.
+
+**Portfolio READMEs + Khmer title fix (2026-11-03)** (all 3 merged 2026-11-03)
+- [x] Frontend README (new screenshots, features, 2-minute tour):
+  https://github.com/danishsary8/bookly_frontend/pull/new/docs/readme-refresh
+- [x] Backend README (KHQR, offers, collections, Telegram; 761 tests; 39 tables):
+  https://github.com/danishsary8/bookly_backend_v2/pull/new/docs/readme-refresh
+- [x] Fix: with "reduce motion" on, the Khmer home title split the word ទូទាំង over two lines on phones:
+  https://github.com/danishsary8/bookly_frontend/pull/new/fix/khmer-hero-wrap
+- [ ] After merging: open both repos on GitHub and read the README once; tell me anything that sounds wrong.
+- Note: screenshots were taken on my local copy, where demo cover pictures can't load, so they show the shop's own
+  cover design. If you want real-photo screenshots, take them on the live site and replace the files in
+  `bookly_frontend/docs/screenshots/` (same names).
+
+**Site quality check (2026-11-02)** (frontend only; branch `fix/site-check-polish`)
+- What was checked: 65 pages (shop, account, admin) in English and Khmer, light and dark, at 320, 360, 390 and 1280 px,
+  with axe (WCAG 2.1 A/AA), sideways scroll, console errors, one h1 per page; 13 pop-up windows on a short phone screen
+  scrolled to their buttons.
+- Fixed: admin top bar and several admin pages scrolled sideways on small phones (320/360 px); the account overview was
+  12 px too wide at 390 px; 4 tables could not be scrolled with the keyboard.
+- Not a problem (my test setup only): outside pictures blocked, and "too many requests" when two test runs shared one
+  staff login (limit: 120 requests a minute per person).
+- [x] Merged (2026-11-03).
+- [ ] Live check: on your phone open the admin Dashboard: nothing moves sideways when you swipe left/right.
 
 **Online payments: Bakong KHQR (2026-11-02)** (design: `docs/superpowers/specs/2026-11-02-khqr-payments-design.md` on
 `feature/khqr-payments`). Merge in any order; each works alone. Backend first is nicest.
-- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
+- [x] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/khqr-payments (no migration, no setting
   needed: test mode is the default)
-- [ ] Frontend shop: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-checkout
-- [ ] Frontend admin: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-admin
+- [x] Frontend shop: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-checkout
+- [x] Frontend admin: https://github.com/danishsary8/bookly_frontend/pull/new/feature/khqr-admin
 - [ ] Live check (test mode) when all 3 are deployed:
   1. Sign in as a customer → add a book → **Checkout** → choose **Bakong KHQR** → **Place order and pay**.
   2. The payment page shows a red-and-white KHQR card, the amount and a 15:00 countdown. Tap **Riel**: the amount in ៛.
@@ -146,7 +429,10 @@ returns refresh every 60 s until finished. Book pages unchanged. Say "auto refre
      back. (Housekeeping runs from web traffic, so it may take until the next visit.)
   5. Admin → **Orders** → filter **KHQR** → open an order: the **Payment** box lists the QR codes. On a waiting order,
      **Mark as paid** asks for a note. Dashboard → **System health** → "KHQR payments: Test mode".
-- [ ] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker).
+- [x] Khmer wording on the payment page (`pay` group in `src/i18n/km.ts`, ask a native speaker). (Owner: all ok, 2026-11-02.)
+
+**✅ Real Bakong payments LIVE (2026-11-04):** Render has KHQR_ACCOUNT_ID, KHQR_MERCHANT_NAME, BAKONG_TOKEN, KHQR_MODE=bakong; health card OK; a real payment was received. Token valid until **1 Feb 2027**: renew before then (health card warns 7 days ahead) and replace BAKONG_TOKEN in Render.
+**Bakong account verified (owner, 2026-11-03).** Step 1 done: account ID `danish_sary@bkrt` (checked: the shop builds a valid QR with it). Next: step 2 (token).
 
 **Optional, later: real Bakong payments** (only if you want real money to be checked; test mode is enough for the
 portfolio). Never paste the token into chat, code or docs.
@@ -179,20 +465,20 @@ portfolio). Never paste the token into chat, code or docs.
 
 **Dialog scroll fix + Buy again with low stock (2026-11-02)**
 - [x] Dialog scroll fix merged (tall forms could not scroll).
-- [ ] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/buy-again-partial-stock
-- [ ] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/buy-again-partial-stock
+- [x] Backend: https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/buy-again-partial-stock
+- [x] Frontend: https://github.com/danishsary8/bookly_frontend/pull/new/feature/buy-again-partial-stock
   (any order; each works alone)
 - [ ] Live check after both deploy: sign in as a customer with a delivered order of 2+ copies of one book → in the admin
   lower that book's stock to 1 → **Account → Orders → the order → Buy again** → the cart has 1 copy and a note says
   "<title>: 1 of 2 added". Put the stock back afterwards.
-- [ ] Khmer wording: "ស្តុកមិនគ្រប់សម្រាប់សៀវភៅ N មុខ" and "បានបន្ថែម 2 ក្នុងចំណោម 3" (`orders` group in `km.ts`).
+- [x] Khmer wording: "ស្តុកមិនគ្រប់សម្រាប់សៀវភៅ N មុខ" and "បានបន្ថែម 2 ក្នុងចំណោម 3" (`orders` group in `km.ts`). (Owner: all ok, 2026-11-02.)
 
 **Seasonal collections (2026-11-01)** (merge in any order; backend first is nicest; each works alone)
-- [ ] Backend (adds 2 tables; Render runs the migration by itself on deploy):
+- [x] Backend (adds 2 tables; Render runs the migration by itself on deploy):
   https://github.com/danishsary8/bookly_backend_v2/pull/new/feature/seasonal-collections
-- [ ] Frontend shop (home rows + collection page):
+- [x] Frontend shop (home rows + collection page):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-shop
-- [ ] Frontend admin (`/admin/collections`):
+- [x] Frontend admin (`/admin/collections`):
   https://github.com/danishsary8/bookly_frontend/pull/new/feature/seasonal-collections-admin
 - [ ] Live check when all 3 are deployed:
   1. https://bookly-frontend-five.vercel.app/admin/collections → **New collection** → English title "Rainy season reads",
@@ -200,7 +486,7 @@ portfolio). Never paste the token into chat, code or docs.
   2. Switch it **On** in the list → open the home page → a "Seasonal pick" row is above New arrivals, books in your order.
   3. Click **See all** → its own page with the description and the end date. Switch the language to Khmer → Khmer title.
   4. Switch it **Off** → reload the home page: the row is gone (a tab left open may show it up to 5 minutes) and the page link says "not found".
-- [ ] Khmer wording: the eyebrow **Seasonal pick** and "See all" in Khmer (`collections` group in `src/i18n/km.ts`).
+- [x] Khmer wording: the eyebrow **Seasonal pick** and "See all" in Khmer (`collections` group in `src/i18n/km.ts`). (Owner: all ok, 2026-11-02.)
 
 ---
 
@@ -276,7 +562,7 @@ After merging: Render and Vercel deploy by themselves. Wait for **Deploy live** 
 
 ---
 
-## 3. Cover images on Cloudflare R2 (after merging `feature/r2-media-storage`)
+## 3. Cover images on Cloudflare R2 — DONE 2026-11-02 (bucket `bookly-media`, covers get r2.dev addresses) (after merging `feature/r2-media-storage`)
 
 Until you do this, covers are still saved on Render's disk (wiped at every deploy), exactly as today.
 
@@ -329,7 +615,7 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
 
 ## 4c. Try the phone code on the live site (after both `feature/telegram-phone-code` branches are deployed)
 
-- [ ] Sign in → **Sign in with phone number?** → your own number → **Send code in Telegram** → the Bookly bot sends
+- [x] Done 2026-11-02 (phone confirmed in Sign-in & security, code sign-in works). Sign in → **Sign in with phone number?** → your own number → **Send code in Telegram** → the Bookly bot sends
   a code → type it → you are signed in, and the bot says "Signed in … Not you?".
 - [ ] Nothing arrives? Your number was linked before the bot stored chats: tap **Continue with Telegram** once,
   then codes work for it.
@@ -356,7 +642,7 @@ Never paste the R2 keys in chat or commit them; they only go into Render.
   Facebook, Turnstile and CORS to the new domain (I update `APP_URL` and links).
 - [ ] **Email from your domain:** verify the domain in Brevo/Resend (SPF, DKIM, DMARC records) so codes don't land in spam.
 - [ ] **Neon usage:** check compute hours once a week (Neon → Monitoring); upgrade before real customers.
-- [ ] **Facebook sign-in:** put the Facebook app in Live mode, then set `VITE_FACEBOOK_APP_ID` on Vercel and Render.
+- [ ] **Facebook sign-in for everyone:** needs your own domain + Meta business verification (see "Facebook sign-in setup"); then publish the app and add `VITE_FACEBOOK_PUBLIC=true` on Vercel. Keys are already set; testers work today.
 - [ ] **Healthchecks.io** for the missed-backup alert, if not done (`docs/DEPLOYMENT.md` → "Missed-backup check").
 - [ ] **Staging server** (optional): a second Render service + a Neon branch, to try changes before customers do.
 

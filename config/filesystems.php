@@ -33,6 +33,7 @@ return [
     | `r2` in production. Set MEDIA_DISK=r2 on Render together with the R2_* values.
     */
     'media_disk' => env('MEDIA_DISK', 'public'),
+    'ingest_catalog_covers' => env('CATALOG_INGEST_COVERS', false),
 
     // Where ebook PDFs and their rendered pages are kept (private). See the ebooks design.
     'ebook_disk' => env('EBOOK_DISK', 'local'),

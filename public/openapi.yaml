@@ -3491,7 +3491,23 @@ paths:
     get: { tags: [Admin], summary: '(admin) USD->KHR rate history', responses: { '200': { description: Rates } } }
     post: { tags: [Admin], summary: '(admin) Set a rate (rate, effective_at?)', responses: { '201': { description: Created } } }
   /staff/audit-logs:
-    get: { tags: [Admin], summary: '(admin) Staff changes (staff_user_id, action, entity_type, entity_id, from, to)', responses: { '200': { description: Log entries } } }
+    get:
+      tags: [Admin]
+      summary: '(admin) Search staff changes, inventory movements and order history'
+      description: 'Defaults to the original staff audit ledger. source=all combines existing ledgers without copying events. Entry identity is (source,id). Inventory sale means stock allocated, not cash received. Dates use SHOP_TIMEZONE. Inventory book titles/SKUs are current catalogue context; movement quantities and order status history are recorded events. No stock balance or missing historical event is invented.'
+      parameters:
+        - { name: source, in: query, schema: { type: string, enum: [audit, inventory, orders, all], default: audit } }
+        - { name: q, in: query, description: 'Search action, staff name/email, record ID and recorded values', schema: { type: string, maxLength: 200 } }
+        - { name: actor, in: query, schema: { type: string, enum: [system, staff] } }
+        - { name: staff_user_id, in: query, schema: { type: integer } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: entity_type, in: query, schema: { type: string } }
+        - { name: entity_id, in: query, schema: { type: integer } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses: { '200': { description: 'Paginated events with source, staff, action, entity, before/after, timestamp. Metadata includes actions, actors, entity_types, sources and timezone.' }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
   /staff/dashboard/summary:
     get:
       tags: [Admin]
@@ -3815,6 +3831,11 @@ paths:
       tags: [Admin]
       summary: (admin) List newsletter campaigns
       description: 'Paginated, newest first. Each campaign has `status` (draft|sending|sent), `recipients_total` and `sent_count` (emails that have really gone out; the outbox sends at most MARKETING_DAILY_LIMIT a day). A campaign becomes `sent` when its last email has gone out.'
+      parameters:
+        - { name: q, in: query, description: 'Literal English or Khmer subject search', schema: { type: string, maxLength: 200 } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, sending, sent] } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: per_page, in: query, schema: { type: integer, maximum: 100 } }
       responses:
         '200': { description: Campaigns list }
     post:
