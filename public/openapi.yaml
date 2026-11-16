@@ -3809,6 +3809,51 @@ paths:
                       by_category: { type: array, items: { type: object, description: 'category_id, name, copies, value_retail_usd, value_cost_usd' } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Validation' }
+  /staff/settings/shop:
+    get:
+      tags: [Admin]
+      summary: Store settings - delivery fees, free delivery threshold, monthly sales goal
+      description: 'catalog:view. shipping_fee_phnom_penh_usd, shipping_fee_provinces_usd (strings), free_shipping_threshold_usd (null = off), monthly_sales_goal_usd (null = no goal), province_rates (read-only, from config). A missing saved value falls back to config/shop.php.'
+      responses:
+        '200': { description: Settings }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    patch:
+      tags: [Admin]
+      summary: (admin) Change store settings
+      description: 'Each field optional. Fees 0-100 (0 = free delivery for that area). free_shipping_threshold_usd and monthly_sales_goal_usd: null or 0 switches it off. Checkout uses the new fees for the next cart. Audited as shop_settings.updated.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shipping_fee_phnom_penh_usd: { type: string, example: '1.50' }
+                shipping_fee_provinces_usd: { type: string, example: '3.00' }
+                free_shipping_threshold_usd: { type: string, nullable: true, example: '50.00' }
+                monthly_sales_goal_usd: { type: string, nullable: true, example: '2000.00' }
+      responses:
+        '200': { description: Settings after the change }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /staff/dashboard/goal:
+    get:
+      tags: [Admin]
+      summary: (admin) This month's net revenue against the monthly sales goal
+      description: 'Shop time zone, cash basis (delivered orders less refunds, like the dashboard). month (YYYY-MM), days_in_month, days_passed (today included), net_revenue_usd/khr, goal_usd (null = no goal), percent, expected_by_today_usd (goal x days passed / days in month), on_track, needed_per_day_usd for the days left.'
+      responses:
+        '200': { description: Goal progress }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /staff/books/{id}/sales:
+    get:
+      tags: [Catalog]
+      summary: How one book sells - copies in 30 and 90 days, rank, per format
+      description: 'catalog:view. Orders placed, not cancelled, not deleted. sold_30_days, sold_90_days, sales_90_days_usd (after line discounts), sold_all_time, rank_90_days (by copies among books that sold in 90 days; null when it did not sell), books_ranked, last_sold_at, by_format [{variant_id, format, units_sold}] for 90 days.'
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Book sales }
+        '404': { description: Not found }
   /newsletter/subscribe:
     post:
       tags: [Newsletter]

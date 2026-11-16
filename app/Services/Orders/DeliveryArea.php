@@ -3,6 +3,7 @@
 namespace App\Services\Orders;
 
 use App\Models\CustomerAddress;
+use App\Services\Settings\ShopSettings;
 use Carbon\Carbon;
 
 /**
@@ -364,7 +365,10 @@ class DeliveryArea
             }
         }
 
-        return (string) config("shop.shipping_fees.{$area}", $area === self::PHNOM_PENH ? '1.50' : '3.00');
+        // Admins set the two area fees in Settings (shop_settings); config/shop.php is the default.
+        $saved = app(ShopSettings::class)->all()[$area === self::PHNOM_PENH ? 'shipping_fee_phnom_penh' : 'shipping_fee_provinces'] ?? null;
+
+        return $saved ?? ($area === self::PHNOM_PENH ? '1.50' : '3.00');
     }
 
     /**
@@ -372,7 +376,7 @@ class DeliveryArea
      */
     public static function freeShippingThreshold(): ?string
     {
-        $val = config('shop.free_shipping_threshold');
+        $val = app(ShopSettings::class)->all()['free_shipping_threshold'];
         if ($val === null || $val === '' || (float) $val <= 0) {
             return null;
         }

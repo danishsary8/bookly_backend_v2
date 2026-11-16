@@ -164,8 +164,36 @@ class ReportsService
                 'worst_sellers' => $this->worstSellers($from, $to, $limit),
                 'low_stock' => $this->lowStock($limit),
                 'revenue_by_category' => $this->revenueByCategory($from, $to),
+                'top_authors' => $this->topAuthors($from, $to, $limit),
             ];
         });
+    }
+
+    /** Authors by copies in orders placed in the range, not cancelled (Phase 4: same rule as best sellers). */
+    private function topAuthors(CarbonImmutable $from, CarbonImmutable $to, int $limit): array
+    {
+        return DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('book_variants', 'book_variants.id', '=', 'order_items.book_variant_id')
+            ->join('book_authors', 'book_authors.book_id', '=', 'book_variants.book_id')
+            ->join('authors', 'authors.id', '=', 'book_authors.author_id')
+            ->whereNull('orders.deleted_at')
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->whereBetween('orders.placed_at', [$from, $to->subSecond()])
+            ->groupBy('authors.id', 'authors.name')
+            ->selectRaw('authors.id, authors.name, SUM(order_items.quantity) AS units, SUM(order_items.subtotal) AS revenue, COUNT(DISTINCT book_variants.book_id) AS books')
+            ->orderByDesc('units')->orderByDesc('revenue')->orderBy('authors.id')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'author_id' => (int) $r->id,
+                'name' => $r->name,
+                'books' => (int) $r->books,
+                'units_sold' => (int) $r->units,
+                'revenue_usd' => Money::format(Money::toCents($r->revenue)),
+                'revenue_khr' => $this->khr(Money::toCents($r->revenue)),
+            ])
+            ->all();
     }
 
     /**
@@ -192,6 +220,11 @@ class ReportsService
                 ],
                 'total_new_customers' => $now['total_new_customers'],
                 'returning_customer_rate' => $now['returning_customer_rate'],
+                'customers_ordered' => $now['customers_ordered'],
+                'first_time_customers' => $now['first_time_customers'],
+                'returning_customers' => $now['returning_customers'],
+                'average_spend_usd' => Money::format($now['average_spend']),
+                'average_spend_khr' => $this->khr($now['average_spend']),
                 'new_customers_series' => $this->customerSeries($start, $end),
                 'top_customers' => $this->topCustomers($from, $to, 10),
                 'comparison' => [
@@ -202,7 +235,11 @@ class ReportsService
                     ],
                     'total_new_customers' => $before['total_new_customers'],
                     'returning_customer_rate' => $before['returning_customer_rate'],
+                    'customers_ordered' => $before['customers_ordered'],
+                    'average_spend_usd' => Money::format($before['average_spend']),
                     'change_percent' => [
+                        'customers_ordered' => $this->change($now['customers_ordered'], $before['customers_ordered']),
+                        'average_spend' => $this->change($now['average_spend'], $before['average_spend']),
                         'total_new_customers' => $this->change($now['total_new_customers'], $before['total_new_customers']),
                         'returning_customer_rate' => $this->change((int) round($now['returning_customer_rate'] * 100), (int) round($before['returning_customer_rate'] * 100)),
                     ],
@@ -813,9 +850,22 @@ class ReportsService
             ? round(($returningCustomers / $totalCustomersWithOrders) * 100, 2)
             : 0.0;
 
+        // First time = their first ever non-deleted order was placed in this range.
+        $ids = $ordersPerCustomer->pluck('customer_id')->all();
+        $firstTime = $ids === [] ? 0 : DB::table('orders')->whereNull('deleted_at')->whereIn('customer_id', $ids)
+            ->groupBy('customer_id')->havingRaw('MIN(placed_at) >= ?', [$from])->select('customer_id')->get()->count();
+        $spend = Money::toCents(DB::table('orders')->whereNull('deleted_at')->where('status', '!=', OrderStatus::Cancelled->value)
+            ->whereBetween('placed_at', [$from, $to->subSecond()])->sum('total_amount'));
+        $spenders = DB::table('orders')->whereNull('deleted_at')->where('status', '!=', OrderStatus::Cancelled->value)
+            ->whereBetween('placed_at', [$from, $to->subSecond()])->distinct()->count('customer_id');
+
         return [
             'total_new_customers' => $newCustomers,
             'returning_customer_rate' => $returningRate,
+            'customers_ordered' => $totalCustomersWithOrders,
+            'first_time_customers' => $firstTime,
+            'returning_customers' => $totalCustomersWithOrders - $firstTime,
+            'average_spend' => $spenders > 0 ? intdiv($spend, $spenders) : 0,
         ];
     }
 

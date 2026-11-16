@@ -499,3 +499,14 @@ Filters: `q` (literal substring, max 200), `staff_user_id`, `actor=staff|system`
 | POST | /staff/suppliers | `name` (required, unique ignoring case), `contact_name`, `phone`, `email`, `note`, `is_active` | `catalog:manage`. Audited. 201. |
 | PATCH | /staff/suppliers/{id} | same, all optional | `catalog:manage`. Audited. Suppliers are never deleted; `is_active=false` switches one off. |
 | POST | /staff/variants/{id}/restock | new optional `supplier_id` (an active supplier) | The supplier's name is also written to `supplier`, so history and the profit report read the same. |
+
+
+## Store settings, goal and book sales (Phase 4, 2026-11-16)
+| Method | Path | Body / query | Notes |
+|---|---|---|---|
+| GET | /staff/settings/shop | – | `catalog:view`. `shipping_fee_phnom_penh_usd`, `shipping_fee_provinces_usd`, `free_shipping_threshold_usd` (null = off), `monthly_sales_goal_usd` (null = none), `province_rates` (read-only, config). |
+| PATCH | /staff/settings/shop | any of the four `*_usd` fields | **admin**. Fees 0–100; threshold/goal null or 0 = off. Checkout (`DeliveryArea::fee`, `freeShippingThreshold`) and the assistant use the saved values; config/shop.php is the fallback. Audited `shop_settings.updated`. |
+| GET | /staff/dashboard/goal | – | **admin**. This calendar month (shop time zone), cash basis: `net_revenue_usd`, `goal_usd`, `percent`, `expected_by_today_usd`, `on_track`, `needed_per_day_usd`, `days_passed`, `days_in_month`. |
+| GET | /staff/books/{id}/sales | – | `catalog:view`. `sold_30_days`, `sold_90_days`, `sales_90_days_usd`, `sold_all_time`, `rank_90_days` (null if no sale), `books_ranked`, `last_sold_at`, `by_format`. |
+
+`GET /staff/reports/products` adds `top_authors` (copies in orders placed). `GET /staff/reports/customers` adds `customers_ordered`, `first_time_customers` (first ever order in the range), `returning_customers` (had ordered before), `average_spend_usd/khr`, and comparison `customers_ordered`, `average_spend_usd`, change `customers_ordered`, `average_spend`.

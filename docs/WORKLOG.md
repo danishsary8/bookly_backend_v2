@@ -763,3 +763,10 @@ Owner: continue with Phase 3 (plan: suppliers table + supplier picker on restock
 - Routes `GET/POST /staff/suppliers`, `PATCH /staff/suppliers/{id}` (`SupplierController`); restock accepts `supplier_id`. Decision (owner may veto): no delete — suppliers are switched off so history keeps pointing at them.
 - Docs: docs/API.md, public/openapi.yaml. Test: tests/Feature/Catalog/SupplierTest.php (3, incl. the name copy).
 - Checks: full suite 1,031 passed, Pint passed. Live DB: run `php artisan migrate --force` after deploy if the deploy does not.
+
+## Store settings, monthly goal, top authors, customer numbers, book sales (2026-11-16, branch `feature/shop-settings-goals`, on top of `feature/suppliers`)
+Owner: continue with Phase 4. No migration: new keys in the existing `shop_settings` table.
+- `ShopSettings` keys `shipping_fee_phnom_penh`, `shipping_fee_provinces`, `free_shipping_threshold`, `monthly_sales_goal` (fallback config/shop.php; new `shop.monthly_sales_goal` / `MONTHLY_SALES_GOAL`). `DeliveryArea::fee()` / `freeShippingThreshold()` and the assistant's delivery answer now read them, so admins change delivery fees without a deploy. Province overrides stay in config.
+- Routes: `GET /staff/settings/shop` (catalog:view), `PATCH /staff/settings/shop` (admin, audited), `GET /staff/dashboard/goal` (admin), `GET /staff/books/{id}/sales` (catalog:view). Products report + `top_authors`; customers report + first-time/returning/average spend.
+- Docs: docs/API.md, public/openapi.yaml. Test: tests/Feature/Admin/ShopSettingsAndGoalTest.php (3).
+- Checks: full suite 1,034 passed, Pint passed.

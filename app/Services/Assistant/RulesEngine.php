@@ -38,9 +38,9 @@ class RulesEngine implements AssistantEngine
             return $this->books($this->text->redact($question));
         }
         if ($this->matches($normalized, ['deliver', 'delivery', 'shipping', 'ដឹកជញ្ជូន'])) {
-            $answer = __('assistant.delivery', ['phnom' => config('shop.shipping_fees.phnom_penh'), 'provinces' => config('shop.shipping_fees.provinces')]);
-            if ((float) config('shop.free_shipping_threshold') > 0) {
-                $answer .= __('assistant.free_delivery', ['threshold' => config('shop.free_shipping_threshold')]);
+            $answer = __('assistant.delivery', ['phnom' => DeliveryArea::fee(DeliveryArea::PHNOM_PENH), 'provinces' => DeliveryArea::fee(DeliveryArea::PROVINCES)]);
+            if (DeliveryArea::freeShippingThreshold() !== null) {
+                $answer .= __('assistant.free_delivery', ['threshold' => DeliveryArea::freeShippingThreshold()]);
             }
             $provinces = collect(DeliveryArea::PROVINCES_LIST)->where('area', DeliveryArea::PROVINCES);
             $answer .= __('assistant.delivery_time', ['phnom_days' => DeliveryArea::PROVINCES_LIST[0]['days_min'], 'province_min' => $provinces->min('days_min'), 'province_max' => $provinces->max('days_max')]);
