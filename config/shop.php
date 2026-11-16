@@ -29,6 +29,10 @@ return [
     // ship free (0.00 USD). Set to null or '0.00' to disable.
     'free_shipping_threshold' => env('FREE_SHIPPING_THRESHOLD', '50.00'),
 
+    // Monthly net revenue goal in USD shown on the admin dashboard (owner 2026-11-16, Phase 4). Admins set it in
+    // Settings; null = no goal.
+    'monthly_sales_goal' => env('MONTHLY_SALES_GOAL'),
+
     // Paying by KHQR (owner 2026-11-12): a percent off the books after other discounts, and the most a cash on delivery
     // order may cost (above it, KHQR only). Empty = off. Staff change both in admin (shop_settings overrides these).
     'khqr_discount_percent' => env('KHQR_DISCOUNT_PERCENT', '3.00'),

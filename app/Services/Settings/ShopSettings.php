@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
  */
 class ShopSettings
 {
-    public const KEYS = ['khqr_discount_percent', 'cod_max_order'];
+    public const KEYS = ['khqr_discount_percent', 'cod_max_order', 'shipping_fee_phnom_penh', 'shipping_fee_provinces', 'free_shipping_threshold', 'monthly_sales_goal'];
 
     private const CACHE = 'shop-settings';
 
@@ -22,11 +22,22 @@ class ShopSettings
         $rows = Cache::remember(self::CACHE, 60, fn () => DB::table('shop_settings')->pluck('value', 'key')->all());
         $values = [];
         foreach (self::KEYS as $key) {
-            $value = array_key_exists($key, $rows) ? $rows[$key] : config("shop.{$key}");
+            $value = array_key_exists($key, $rows) ? $rows[$key] : $this->default($key);
             $values[$key] = $value === null || $value === '' ? null : (string) $value;
         }
 
         return $values;
+    }
+
+    /** Value used while staff have not saved one (config/shop.php). */
+    private function default(string $key): mixed
+    {
+        return match ($key) {
+            'shipping_fee_phnom_penh' => config('shop.shipping_fees.phnom_penh'),
+            'shipping_fee_provinces' => config('shop.shipping_fees.provinces'),
+            'monthly_sales_goal' => config('shop.monthly_sales_goal'),
+            default => config("shop.{$key}"),
+        };
     }
 
     /** @param  array<string, string|null>  $values */

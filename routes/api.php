@@ -50,6 +50,7 @@ use App\Http\Controllers\Api\V1\Staff\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ExchangeRateController;
 use App\Http\Controllers\Api\V1\Staff\Admin\OrderExportController;
 use App\Http\Controllers\Api\V1\Staff\Admin\ReportsController;
+use App\Http\Controllers\Api\V1\Staff\Admin\ShopSettingsController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffHealthController;
 use App\Http\Controllers\Api\V1\Staff\Admin\StaffMemberController;
 use App\Http\Controllers\Api\V1\Staff\AssistantKnowledgeController;
@@ -58,6 +59,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\AuthorController as StaffAuthorCon
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookBulkController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookCsvController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BookSalesController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\EbookFileController;
@@ -389,6 +391,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
 
     Route::get('/books', [StaffBookController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/books/{book}', [StaffBookController::class, 'show'])->whereNumber('book')->middleware('ability:catalog:view,admin');
+    Route::get('/books/{book}/sales', BookSalesController::class)->whereNumber('book')->middleware('ability:catalog:view,admin');
     Route::post('/books', [StaffBookController::class, 'store'])->middleware('ability:catalog:manage,admin');
     Route::patch('/books/{book}', [StaffBookController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::post('/books/{book}/variants', [StaffBookVariantController::class, 'store'])->middleware('ability:catalog:manage,admin');
@@ -428,6 +431,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     // changed by admins only (they give money away, like coupons and offers).
     Route::get('/reward-rules', [StaffRewardRuleController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/settings/payments', [StaffPaymentSettingsController::class, 'show'])->middleware('ability:catalog:view,admin');
+    Route::get('/settings/shop', [ShopSettingsController::class, 'show'])->middleware('ability:catalog:view,admin');
     Route::get('/reading-lists', [ReadingListController::class, 'staffIndex'])->middleware('ability:catalog:view,admin');
     Route::patch('/reading-lists/{list}', [ReadingListController::class, 'staffPick'])->whereNumber('list')->middleware(['ability:catalog:view,admin', 'throttle:20,1']);
     Route::get('/gifts', [GiftController::class, 'index'])->middleware('ability:catalog:view,admin');
@@ -508,6 +512,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         Route::patch('/reward-rules/{rule}', [StaffRewardRuleController::class, 'update'])->whereNumber('rule');
         Route::delete('/reward-rules/{rule}', [StaffRewardRuleController::class, 'destroy'])->whereNumber('rule');
         Route::patch('/settings/payments', [StaffPaymentSettingsController::class, 'update']);
+        Route::patch('/settings/shop', [ShopSettingsController::class, 'update']);
+        Route::get('/dashboard/goal', [ShopSettingsController::class, 'goal'])->middleware('throttle:admin-analytics');
 
         Route::get('/newsletter/summary', [StaffNewsletterController::class, 'summary']);
         Route::get('/newsletter/campaigns', [StaffNewsletterController::class, 'indexCampaigns']);
