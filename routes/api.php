@@ -471,6 +471,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
             Route::get('/coupons', [ReportsController::class, 'coupons']);
             Route::get('/offers', [ReportsController::class, 'offers']);
             Route::get('/profit', [ReportsController::class, 'profit']);
+            Route::get('/inventory', [ReportsController::class, 'inventory']);
             Route::get('/export', [ReportsController::class, 'export'])->middleware('throttle:10,1');
         });
 

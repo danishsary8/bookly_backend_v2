@@ -749,3 +749,10 @@ Owner "go Phase 1" (plan: costs and profit first, no new table).
 - Documented in docs/API.md and public/openapi.yaml. Test: tests/Feature/Admin/ProfitReportTest.php (6: access, empty range, weighted cost + line discounts + suppliers + series, unknown cost + ebook, refunds, comparison + CSV).
 - Checks: `php artisan test` 1,026 passed (18,790 assertions, local PostgreSQL 16, PHP 8.3); `vendor/bin/pint --test` passed.
 - Frontend companion branch: `reports-profit` (Reports → Profit tab, dashboard Profit panel). Deploy backend first; the frontend shows "not available yet" on an API without the route.
+
+## Inventory health report (2026-11-16, branch `feature/inventory-report`, on top of `feature/profit-report`)
+Owner: "continue working on the next phase" (Phase 2 of the plan).
+- New admin route `GET /api/v1/staff/reports/inventory?days=7|14|30|60|90[&format=csv]` (`InventoryReportService`): stock value at cost and selling price, potential profit, low/out-of-stock, runs out soon with a suggested buy (30 days of stock), not selling for 90 days, value by category. No migration.
+- `GET /staff/dashboard/purchases` rows gain `sold_last_30_days` and `days_left` (same sales speed).
+- Docs: docs/API.md, public/openapi.yaml. Test: tests/Feature/Admin/InventoryReportTest.php (2).
+- Checks: full suite passed, Pint passed.

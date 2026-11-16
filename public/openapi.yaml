@@ -3562,6 +3562,8 @@ paths:
                         low_stock_threshold: { type: integer }
                         waiting_quantity: { type: integer }
                         quantity_to_buy: { type: integer }
+                        sold_last_30_days: { type: integer, description: 'Copies in non-cancelled orders placed in the last 30 days' }
+                        days_left: { type: integer, nullable: true, description: 'Days until it runs out at the last-30-days sales speed; null when it did not sell' }
             text/csv: { schema: { type: string } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Validation' }
@@ -3732,6 +3734,35 @@ paths:
                       by_category: { type: array, items: { type: object, description: 'category_id, name, units_sold, sales_usd, cost_of_goods_usd, gross_profit_usd, margin_percent' } }
                       top_books: { type: array, items: { type: object, description: 'book_id, variant_id, title, format, unit_cost_usd, units_sold, sales_usd, cost_of_goods_usd, gross_profit_usd, margin_percent (top 10 by profit)' } }
                       cost_unknown: { type: array, items: { type: object, description: 'book_id, variant_id, title, format, units_sold, sales_usd (sold formats with no restock cost yet, top 20)' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /staff/reports/inventory:
+    get:
+      tags: [Admin]
+      summary: (admin) Inventory health - stock value, what runs out soon, what is not selling
+      description: 'Today (not a date range), printed active formats only, 5-minute cache. Value at cost = copies x weighted average restock cost (formats without a cost are in copies_without_cost); value at selling price = copies x price; potential_profit = selling value - cost value for formats with a cost. Sales speed = copies in non-cancelled orders placed in the last `days` days. runs_out (top 20, days_left <= 30, suggested_buy covers 30 days). not_selling (top 20 by value): in stock, no order for 90 days. format=csv: totals + both lists.'
+      parameters:
+        - { name: days, in: query, required: false, schema: { type: integer, enum: [7, 14, 30, 60, 90], default: 30 } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses:
+        '200':
+          description: Inventory report data or CSV stream
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      as_of: { type: string, format: date-time }
+                      sales_days: { type: integer }
+                      dead_days: { type: integer }
+                      cover_days: { type: integer }
+                      totals: { type: object, description: 'formats_in_stock, copies, copies_without_cost, value_cost_usd/khr, value_retail_usd/khr, potential_profit_usd/khr, low_stock, out_of_stock, runs_out_soon (<= 14 days), dead_formats, dead_copies, dead_value_usd/khr' }
+                      runs_out: { type: array, items: { type: object, description: 'book_variant_id, book_id, title, format, sku, stock_quantity, sold, per_day, days_left, suggested_buy' } }
+                      not_selling: { type: array, items: { type: object, description: 'book_variant_id, book_id, title, format, sku, stock_quantity, value_usd, last_sold_at (null = never)' } }
+                      by_category: { type: array, items: { type: object, description: 'category_id, name, copies, value_retail_usd, value_cost_usd' } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Validation' }
   /newsletter/subscribe:

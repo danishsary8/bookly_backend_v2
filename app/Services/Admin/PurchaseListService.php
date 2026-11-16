@@ -11,6 +11,9 @@ class PurchaseListService
     /** Stock is already net of checkout reservations; waiting demand must not be added a second time. */
     public function items(): array
     {
+        // How fast each format sold in the last 30 days, so staff see when it runs out (Phase 2, inventory health).
+        $speed = app(InventoryReportService::class)->daysLeft();
+
         $waiting = DB::table('order_items as items')
             ->join('orders', 'orders.id', '=', 'items.order_id')
             ->whereNull('orders.deleted_at')
@@ -40,6 +43,8 @@ class PurchaseListService
                 'low_stock_threshold' => (int) $row->low_stock_threshold,
                 'waiting_quantity' => (int) ($row->waiting_quantity ?? 0),
                 'quantity_to_buy' => max(0, (int) $row->low_stock_threshold + 1 - (int) $row->stock_quantity),
+                'sold_last_30_days' => $speed[$row->variant_id]['sold'] ?? 0,
+                'days_left' => $speed[$row->variant_id]['days_left'] ?? null,
             ])->all();
     }
 }

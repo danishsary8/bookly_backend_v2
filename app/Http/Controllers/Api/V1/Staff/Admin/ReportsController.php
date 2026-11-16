@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Staff\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Admin\InventoryReportService;
 use App\Services\Admin\ProfitReportService;
 use App\Services\Admin\ReportsService;
 use App\Services\Admin\ReportsWorkbook;
@@ -298,6 +299,28 @@ class ReportsController extends Controller
         if (($data['format'] ?? 'json') === 'csv') {
             return $this->streamCsv("report-profit-{$data['from']}-to-{$data['to']}.csv", function ($out) use ($profit, $report) {
                 foreach ($profit->csvRows($report) as $row) {
+                    fputcsv($out, array_map([OrderExportController::class, 'cell'], $row));
+                }
+            });
+        }
+
+        return response()->json(['data' => $report]);
+    }
+
+    /**
+     * Inventory health today: stock value at cost and selling price, what runs out soon and what is not selling.
+     */
+    public function inventory(Request $request, InventoryReportService $inventory): Response
+    {
+        $data = $request->validate([
+            'days' => ['nullable', 'integer', Rule::in([7, 14, 30, 60, 90])],
+            'format' => ['nullable', Rule::in(['json', 'csv'])],
+        ]);
+        $report = $inventory->report((int) ($data['days'] ?? 30));
+
+        if (($data['format'] ?? 'json') === 'csv') {
+            return $this->streamCsv('report-inventory-'.now()->toDateString().'.csv', function ($out) use ($inventory, $report) {
+                foreach ($inventory->csvRows($report) as $row) {
                     fputcsv($out, array_map([OrderExportController::class, 'cell'], $row));
                 }
             });
