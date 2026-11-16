@@ -2,6 +2,8 @@
 
 When you are ready to deploy and test, follow these steps in this exact order:
 
+> Historical ebook checklist imported on 2026-11-16. Reconcile these old steps with docs/WORKLOG.md and current deployment settings before use. Consolidation does not run migrations, uploads or deployment commands.
+
 ---
 
 ### Step 1: Cloudflare R2 (Private Bucket)

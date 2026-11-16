@@ -303,7 +303,7 @@ class BookCsvImport
                     $book->save();
                     $this->syncRelations($book, $given, $plan);
                     $variantFields = $this->variantFields($given, $plan);
-                    if (! empty($variantFields['cover_image_url'])) {
+                    if (config('filesystems.ingest_catalog_covers', false) && ! empty($variantFields['cover_image_url'])) {
                         $variantFields['cover_image_url'] = $this->covers->ingest(
                             $variantFields['cover_image_url'],
                             $variantFields['isbn'] ?? $variant->isbn,
@@ -334,7 +334,7 @@ class BookCsvImport
                     $this->audit->custom($admin, 'imported_new', $book, null, ['title' => $book->title]);
                 }
                 $variantFields = $this->variantFields($given, $plan);
-                if (! empty($variantFields['cover_image_url'])) {
+                if (config('filesystems.ingest_catalog_covers', false) && ! empty($variantFields['cover_image_url'])) {
                     $variantFields['cover_image_url'] = $this->covers->ingest(
                         $variantFields['cover_image_url'],
                         $variantFields['isbn'] ?? null,

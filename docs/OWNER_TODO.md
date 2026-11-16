@@ -1,5 +1,7 @@
 # Owner to-do (your part)
 
+> Historical handoff imported during consolidation on 2026-11-16. Original checkbox and merge states are preserved, not reverified; consult docs/WORKLOG.md for newer completed work and current integration checks.
+
 Everything that only you can do (merges, accounts, keys, decisions), in one place. Written 2026-10-30 (overnight).
 Tick the boxes as you go. Nothing below breaks the live site if you have not done it yet: every new feature keeps
 working with today's settings.

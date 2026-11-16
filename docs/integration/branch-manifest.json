@@ -1,0 +1,90 @@
+[
+  {
+    "branch": "origin/dependabot/github_actions/github-actions-daa0830317",
+    "sha": "01a9542c61eec56e775cba6d8dcdf169f1c035be",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/docs/admin-dashboard-plan",
+    "sha": "1fc2e66e1febcaef6fc47fe2828fd27bdaab886d",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/docs/automatic-actions-audit",
+    "sha": "34a51cfc598d7326320ad4c3e7a32f27244c181d",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "docs/automatic-actions-audit",
+    "sha": "08efd0d32ce866d9588606b5714b79e7f8b408ae",
+    "resolution": "Already included by another merged branch"
+  },
+  {
+    "branch": "origin/docs/handoff-notes",
+    "sha": "fd9f7ebc9677ec59870b8c0b7713c19aa61a8595",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/docs/overnight-batch",
+    "sha": "79007d58c4d1716c45e4240424ac7a38c3318de2",
+    "resolution": "superseded",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/docs/rate-limit-audit",
+    "sha": "45d061cf27b6db7b9b2469e1d3deb68ccd53ee21",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "docs/rate-limit-audit",
+    "sha": "bbcbef6aa57387d8fc277e1f57568723998afdde",
+    "resolution": "Already included by another merged branch"
+  },
+  {
+    "branch": "origin/feature/ebook-reader",
+    "sha": "3c144db386e838d54192b64a53e9933d5f339c39",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/feature/ebook-reader-api",
+    "sha": "88a819af045f2bd1848791ff8ef16e4b0bdc87f8",
+    "resolution": "superseded",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/feature/postman-collection",
+    "sha": "75bb515c3d5a69e0035e8dbfd9f1a17987a05895",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/feature/real-catalog-data",
+    "sha": "b33d8e6ffef3cc559e8f503f6cf8bf94673f0d9c",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "feature/book-spine-assets",
+    "sha": "45034654a6e50394c9d4628aba5b30c212a82710",
+    "resolution": "normal",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/feature/search-authors-series",
+    "sha": "381d867d4c2ba4c457c03bf1781281c0f5ea3821",
+    "resolution": "superseded",
+    "conflicts": []
+  },
+  {
+    "branch": "origin/feature/staging-setup-kit",
+    "sha": "cc309d888d94a4c64a7f0f4c80cb736f90aea410",
+    "resolution": "normal",
+    "conflicts": []
+  }
+]

@@ -4,9 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\Book;
 use App\Models\BookVariant;
+use App\Models\StaffUser;
+use App\Services\Admin\AuditLogger;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 
 class DeleteCatalogBatch extends Command
 {
@@ -15,19 +16,19 @@ class DeleteCatalogBatch extends Command
      *
      * @var string
      */
-    protected $signature = 'catalog:delete-batch {csv : Path to the CSV batch file} {--dry-run : Only show what would be deleted} {--force : Skip confirmation prompt}';
+    protected $signature = 'catalog:delete-batch {csv : Path to the CSV batch file} {--dry-run : Only show what would be trashed} {--staff= : Active administrator ID recorded in the audit log} {--force : Skip confirmation prompt}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Deletes books and variants specified in a catalog CSV batch';
+    protected $description = 'Moves fully matched catalog books to Trash, retaining editions and historical records';
 
     public function handle(): int
     {
         $csvPath = $this->argument('csv');
-        if (! File::exists($csvPath)) {
+        if (! is_file($csvPath) || ! is_readable($csvPath)) {
             $this->error("File not found: {$csvPath}");
 
             return Command::FAILURE;
@@ -37,7 +38,14 @@ class DeleteCatalogBatch extends Command
         $force = (bool) $this->option('force');
 
         $fp = fopen($csvPath, 'r');
-        $headers = fgetcsv($fp);
+        $headers = fgetcsv($fp, null, ',', '"', '');
+        if (! is_array($headers)) {
+            fclose($fp);
+            $this->error('CSV header is missing.');
+
+            return Command::FAILURE;
+        }
+        $headers[0] = ltrim($headers[0], "\xEF\xBB\xBF");
         $skuIdx = array_search('sku', $headers, true);
 
         if ($skuIdx === false) {
@@ -48,7 +56,7 @@ class DeleteCatalogBatch extends Command
         }
 
         $skus = [];
-        while (($row = fgetcsv($fp)) !== false) {
+        while (($row = fgetcsv($fp, null, ',', '"', '')) !== false) {
             $sku = trim($row[$skuIdx] ?? '');
             if ($sku !== '') {
                 $skus[] = $sku;
@@ -62,10 +70,15 @@ class DeleteCatalogBatch extends Command
             return Command::SUCCESS;
         }
 
-        $variants = BookVariant::whereIn('sku', $skus)->get();
+        $variants = BookVariant::whereHas('book')->whereIn('sku', $skus)->get();
         $variantCount = $variants->count();
         $bookIds = $variants->pluck('book_id')->unique()->values()->all();
         $bookCount = count($bookIds);
+        if (BookVariant::whereIn('book_id', $bookIds)->whereNotIn('sku', $skus)->exists()) {
+            $this->error('Batch only matches some editions of a book. Include all its SKUs; no books changed.');
+
+            return Command::FAILURE;
+        }
 
         $this->info("Found {$variantCount} variant(s) belonging to {$bookCount} book(s) matching SKUs in {$csvPath}.");
 
@@ -81,35 +94,29 @@ class DeleteCatalogBatch extends Command
             return Command::SUCCESS;
         }
 
-        if (! $force && ! $this->confirm("Are you sure you want to permanently delete these {$bookCount} books and {$variantCount} variants?", true)) {
+        $admin = StaffUser::find($this->option('staff'));
+        if (! $admin || ! $admin->is_active || ! $admin->isAdmin()) {
+            $this->error('Provide --staff with an active administrator ID for audit attribution.');
+
+            return Command::FAILURE;
+        }
+        if (! $force && ! $this->confirm("Move these {$bookCount} books to Trash, retaining editions and history?", false)) {
             $this->line('Operation cancelled.');
 
             return Command::SUCCESS;
         }
 
-        DB::transaction(function () use ($bookIds, $skus) {
-            // Delete cart items if any
-            DB::table('cart_items')->whereIn('book_variant_id', function ($q) use ($skus) {
-                $q->select('id')->from('book_variants')->whereIn('sku', $skus);
-            })->delete();
-
-            // Delete book relations
-            DB::table('book_categories')->whereIn('book_id', $bookIds)->delete();
-            DB::table('book_authors')->whereIn('book_id', $bookIds)->delete();
-            DB::table('reviews')->whereIn('book_id', $bookIds)->delete();
-
-            // Delete variants
-            BookVariant::whereIn('sku', $skus)->forceDelete();
-
-            // Delete books that have no more remaining variants
-            foreach ($bookIds as $bookId) {
-                if (! BookVariant::where('book_id', $bookId)->exists()) {
-                    Book::where('id', $bookId)->forceDelete();
-                }
+        DB::transaction(function () use ($bookIds, $admin) {
+            foreach (Book::whereIn('id', $bookIds)->get() as $book) {
+                $before = ['title' => $book->title, 'deleted_at' => null];
+                $book->delete();
+                app(AuditLogger::class)->custom($admin, 'deleted', $book, $before, [
+                    'title' => $book->title, 'deleted_at' => $book->deleted_at, 'source' => 'catalog:delete-batch',
+                ]);
             }
         });
 
-        $this->info("Successfully deleted {$bookCount} book(s) and {$variantCount} variant(s) from the database.");
+        $this->info("Moved {$bookCount} book(s) to Trash. Editions and historical records are retained.");
 
         return Command::SUCCESS;
     }

@@ -14,7 +14,7 @@ class SyncCoversToMediaDisk extends Command
      *
      * @var string
      */
-    protected $signature = 'catalog:sync-covers {--force : Re-download and upload even if already on media disk}';
+    protected $signature = 'catalog:sync-covers {--dry-run : Preview covers without downloading or changing records} {--force : Re-download external source images even if cached}';
 
     /**
      * The console command description.
@@ -32,7 +32,8 @@ class SyncCoversToMediaDisk extends Command
         $diskBaseUrl = '';
         try {
             $diskBaseUrl = $disk->url('');
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
 
         $variants = BookVariant::whereNotNull('cover_image_url')
             ->where('cover_image_url', '!=', '')
@@ -40,10 +41,19 @@ class SyncCoversToMediaDisk extends Command
 
         if ($variants->isEmpty()) {
             $this->info('No book variants with covers found in the database.');
+
             return Command::SUCCESS;
         }
 
         $this->info("Found {$variants->count()} book variant(s) with covers.");
+        if ($this->option('dry-run')) {
+            foreach ($variants as $variant) {
+                $this->line($variant->sku.': '.$variant->cover_image_url);
+            }
+            $this->info('Dry run: no downloads, uploads or record changes.');
+
+            return Command::SUCCESS;
+        }
         $bar = $this->output->createProgressBar($variants->count());
         $bar->start();
 
@@ -58,6 +68,7 @@ class SyncCoversToMediaDisk extends Command
             if (! $this->option('force') && ! empty($diskBaseUrl) && str_starts_with($currentUrl, $diskBaseUrl)) {
                 $skipped++;
                 $bar->advance();
+
                 continue;
             }
 
@@ -65,10 +76,11 @@ class SyncCoversToMediaDisk extends Command
             if (! str_starts_with($currentUrl, 'http://') && ! str_starts_with($currentUrl, 'https://')) {
                 $skipped++;
                 $bar->advance();
+
                 continue;
             }
 
-            $newUrl = $coverStorage->ingest($currentUrl, $variant->isbn, $variant->sku);
+            $newUrl = $coverStorage->ingest($currentUrl, $variant->isbn, $variant->sku, (bool) $this->option('force'));
 
             if ($newUrl !== $currentUrl) {
                 $variant->update(['cover_image_url' => $newUrl]);
@@ -83,7 +95,7 @@ class SyncCoversToMediaDisk extends Command
         $bar->finish();
         $this->newLine(2);
 
-        $this->info("Cover synchronization complete:");
+        $this->info('Cover synchronization complete:');
         $this->line("- Newly synced to [{$mediaDisk}]: {$synced}");
         $this->line("- Already on disk / skipped: {$skipped}");
         $this->line("- Retained original URL / unchanged: {$failed}");
