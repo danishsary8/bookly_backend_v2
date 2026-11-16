@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Staff\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Admin\ProfitReportService;
 use App\Services\Admin\ReportsService;
 use App\Services\Admin\ReportsWorkbook;
 use Illuminate\Http\Request;
@@ -277,6 +278,32 @@ class ReportsController extends Controller
         return response()->download($path, "bookly-report-{$data['from']}-to-{$data['to']}.xlsx", [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ])->deleteFileAfterSend();
+    }
+
+    /**
+     * Profit: restock spending, cost of books sold, gross profit and margin.
+     */
+    public function profit(Request $request, ProfitReportService $profit): Response
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'group' => ['nullable', Rule::in(['day', 'week', 'month'])],
+            'format' => ['nullable', Rule::in(['json', 'csv'])],
+        ]);
+
+        [$start, $end] = $this->reports->range($data['from'], $data['to']);
+        $report = $profit->report($start, $end, $data['group'] ?? 'day');
+
+        if (($data['format'] ?? 'json') === 'csv') {
+            return $this->streamCsv("report-profit-{$data['from']}-to-{$data['to']}.csv", function ($out) use ($profit, $report) {
+                foreach ($profit->csvRows($report) as $row) {
+                    fputcsv($out, array_map([OrderExportController::class, 'cell'], $row));
+                }
+            });
+        }
+
+        return response()->json(['data' => $report]);
     }
 
     private function streamCsv(string $filename, callable $writer): StreamedResponse
