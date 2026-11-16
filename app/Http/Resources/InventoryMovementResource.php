@@ -42,6 +42,7 @@ class InventoryMovementResource extends JsonResource
             ] : null,
             'note' => $this->note,
             'supplier' => $this->supplier,
+            'supplier_id' => $this->supplier_id,
             'stock_after' => isset($this->stock_after) ? (int) $this->stock_after : null,
             'created_at' => $this->created_at,
         ];

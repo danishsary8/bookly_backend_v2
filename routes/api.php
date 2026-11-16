@@ -65,6 +65,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\MediaUploadController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\PublisherController as StaffPublisherController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\SeriesController as StaffSeriesController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\StockController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\SupplierController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\TrashController;
 use App\Http\Controllers\Api\V1\Staff\CustomerController as StaffCustomerController;
 use App\Http\Controllers\Api\V1\Staff\CustomerNoteController;
@@ -395,6 +396,9 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/variants/{variant}/restock', [StockController::class, 'restock'])->whereNumber('variant')->middleware('ability:catalog:manage,admin');
     Route::get('/variants/{variant}/stock-history', [StockController::class, 'history'])->whereNumber('variant')->middleware('ability:catalog:view,admin');
     Route::get('/stock', [StockController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::get('/suppliers', [SupplierController::class, 'index'])->middleware('ability:catalog:view,admin');
+    Route::post('/suppliers', [SupplierController::class, 'store'])->middleware('ability:catalog:manage,admin');
+    Route::patch('/suppliers/{supplier}', [SupplierController::class, 'update'])->whereNumber('supplier')->middleware('ability:catalog:manage,admin');
     Route::post('/books/bulk', [BookBulkController::class, 'bulkBooks'])->middleware('ability:catalog:manage,admin');
     Route::post('/variants/bulk', [BookBulkController::class, 'bulkVariants'])->middleware('ability:catalog:manage,admin');
     Route::post('/authors', [StaffAuthorController::class, 'store'])->middleware('ability:catalog:manage,admin');

@@ -19,6 +19,7 @@ class InventoryMovement extends Model
         'created_by_staff_id',
         'note',
         'supplier',
+        'supplier_id',
         'unit_cost_usd',
     ];
 

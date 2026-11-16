@@ -490,3 +490,12 @@ Fully credit-funded orders follow the existing paid-order cancellation policy: n
 `GET /staff/audit-logs` keeps the original `source=audit` default. `source=all` combines the existing staff audit, inventory movement and order status history ledgers; `source=inventory` / `source=orders` isolate them. No historical events are copied or backfilled. Row identity is `(source,id)`.
 Filters: `q` (literal substring, max 200), `staff_user_id`, `actor=staff|system`, exact `action`, `entity_type`, `entity_id`, `from`, `to`, `page`, `per_page` (1–100). Dates include complete shop-calendar days, converted to UTC. Metadata supplies global action/entity/actor choices for the selected source, plus source capabilities and shop timezone. Current SKU/title context is joined for format records and returned separately as `context`; before/after snapshots remain unchanged. Search also matches that catalogue context. Inventory `sale` means stock allocated, not payment received; order history covers orders without physical stock movements. Unrecorded past activity is not invented.
 `GET /staff/newsletter/campaigns` additionally accepts `q` (English/Khmer subject substring, max 200) and `status=draft|sending|sent`, before pagination. Both endpoints retain their existing admin authorization.
+
+
+## Suppliers (Phase 3, 2026-11-16)
+| Method | Path | Body / query | Notes |
+|---|---|---|---|
+| GET | /staff/suppliers | `q` (name, contact, phone), `active` (0\|1) | `catalog:view`. Active first, by name. Each: `id, name, contact_name, phone, email, note, is_active, restocks, units, spend_usd, last_restock_at`. |
+| POST | /staff/suppliers | `name` (required, unique ignoring case), `contact_name`, `phone`, `email`, `note`, `is_active` | `catalog:manage`. Audited. 201. |
+| PATCH | /staff/suppliers/{id} | same, all optional | `catalog:manage`. Audited. Suppliers are never deleted; `is_active=false` switches one off. |
+| POST | /staff/variants/{id}/restock | new optional `supplier_id` (an active supplier) | The supplier's name is also written to `supplier`, so history and the profit report read the same. |

@@ -756,3 +756,10 @@ Owner: "continue working on the next phase" (Phase 2 of the plan).
 - `GET /staff/dashboard/purchases` rows gain `sold_last_30_days` and `days_left` (same sales speed).
 - Docs: docs/API.md, public/openapi.yaml. Test: tests/Feature/Admin/InventoryReportTest.php (2).
 - Checks: full suite passed, Pint passed.
+
+## Suppliers (2026-11-16, branch `feature/suppliers`, on top of `feature/inventory-report`)
+Owner: continue with Phase 3 (plan: suppliers table + supplier picker on restock).
+- Migration `2026_11_16_000001_create_suppliers_table`: new `suppliers` table (name unique, contact_name, phone, email, note, is_active) and nullable `inventory_movements.supplier_id` (FK, null on delete, indexed). It copies the supplier names already typed on restocks once (trimmed, case-insensitive duplicates merged) and links them. The free-text `supplier` column stays.
+- Routes `GET/POST /staff/suppliers`, `PATCH /staff/suppliers/{id}` (`SupplierController`); restock accepts `supplier_id`. Decision (owner may veto): no delete — suppliers are switched off so history keeps pointing at them.
+- Docs: docs/API.md, public/openapi.yaml. Test: tests/Feature/Catalog/SupplierTest.php (3, incl. the name copy).
+- Checks: full suite 1,031 passed, Pint passed. Live DB: run `php artisan migrate --force` after deploy if the deploy does not.

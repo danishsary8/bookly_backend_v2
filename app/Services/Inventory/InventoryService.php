@@ -62,8 +62,9 @@ class InventoryService
         ?string $supplier = null,
         int|float|string|null $unitCostUsd = null,
         ?string $note = null,
+        ?int $supplierId = null,
     ): InventoryMovement {
-        return DB::transaction(function () use ($variant, $quantity, $staff, $supplier, $unitCostUsd, $note) {
+        return DB::transaction(function () use ($variant, $quantity, $staff, $supplier, $unitCostUsd, $note, $supplierId) {
             $locked = BookVariant::whereKey($variant->getKey())->lockForUpdate()->firstOrFail();
             $before = $locked->stock_quantity;
             $newQuantity = $before + $quantity;
@@ -77,6 +78,7 @@ class InventoryService
                 'reference_id' => null,
                 'created_by_staff_id' => $staff?->id,
                 'supplier' => $supplier,
+                'supplier_id' => $supplierId,
                 'unit_cost_usd' => $unitCostUsd,
                 'note' => $note,
             ]);
