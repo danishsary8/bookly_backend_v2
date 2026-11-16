@@ -3684,6 +3684,56 @@ paths:
                       without_offer: { $ref: '#/components/schemas/OfferReportRow' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Validation' }
+  /staff/reports/profit:
+    get:
+      tags: [Admin]
+      summary: (admin) Profit - restock spending, cost of books sold, gross profit and margin
+      description: 'Shop time zone, 5-minute cache. Spending = restocks made in the range (copies x unit_cost_usd; restocks without a cost are counted in restock_units_without_cost). Sales = book lines of orders delivered in the range after line discounts (no delivery fees). Cost of a sold copy = weighted average unit cost of that format''s restocks up to the end of the range; ebooks/audiobooks cost 0. Gross profit and margin use only lines with a known cost; the rest is in sales_cost_unknown_usd and cost_unknown[]. profit_after_refunds = gross profit - refunds paid in the range + cost of the returned copies. Comparison = the same number of days just before. format=csv: one row per series bucket plus totals, UTF-8 BOM.'
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: group, in: query, required: false, schema: { type: string, enum: [day, week, month], default: day } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json, csv], default: json } }
+      responses:
+        '200':
+          description: Profit report data or CSV stream
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      period: { type: object, properties: { from: { type: string, format: date }, to: { type: string, format: date }, group: { type: string }, timezone: { type: string } } }
+                      totals:
+                        type: object
+                        properties:
+                          restock_spend_usd: { type: string, example: '180.00' }
+                          restock_units: { type: integer }
+                          restock_units_without_cost: { type: integer }
+                          sales_usd: { type: string }
+                          cost_of_goods_usd: { type: string }
+                          gross_profit_usd: { type: string }
+                          margin_percent: { type: number, nullable: true, example: 50.9 }
+                          units_sold_costed: { type: integer }
+                          sales_cost_unknown_usd: { type: string }
+                          units_sold_cost_unknown: { type: integer }
+                          refunds_usd: { type: string }
+                          returned_cost_usd: { type: string }
+                          profit_after_refunds_usd: { type: string }
+                      comparison: { type: object, description: 'period, totals (same shape) and change_percent {restock_spend, sales, cost_of_goods, gross_profit, profit_after_refunds}' }
+                      series:
+                        type: array
+                        items: { type: object, properties: { date: { type: string, format: date }, restock_spend_usd: { type: string }, sales_usd: { type: string }, cost_of_goods_usd: { type: string }, gross_profit_usd: { type: string }, margin_percent: { type: number, nullable: true } } }
+                      by_supplier:
+                        type: array
+                        items: { type: object, properties: { supplier: { type: string, nullable: true }, restocks: { type: integer }, units: { type: integer }, units_without_cost: { type: integer }, spend_usd: { type: string }, average_unit_cost_usd: { type: string, nullable: true } } }
+                      by_category: { type: array, items: { type: object, description: 'category_id, name, units_sold, sales_usd, cost_of_goods_usd, gross_profit_usd, margin_percent' } }
+                      top_books: { type: array, items: { type: object, description: 'book_id, variant_id, title, format, unit_cost_usd, units_sold, sales_usd, cost_of_goods_usd, gross_profit_usd, margin_percent (top 10 by profit)' } }
+                      cost_unknown: { type: array, items: { type: object, description: 'book_id, variant_id, title, format, units_sold, sales_usd (sold formats with no restock cost yet, top 20)' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
   /newsletter/subscribe:
     post:
       tags: [Newsletter]
