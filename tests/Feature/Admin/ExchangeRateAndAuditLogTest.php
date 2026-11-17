@@ -59,7 +59,7 @@ class ExchangeRateAndAuditLogTest extends TestCase
             ->assertJsonPath('data.0.after.name', 'Author Renamed')
             ->assertJsonPath('data.0.staff.name', 'Owner');
         $this->asToken($admin)->getJson('/api/v1/staff/audit-logs?action=author.created')->assertJsonCount(1, 'data');
-        $this->asToken($admin)->getJson('/api/v1/staff/audit-logs?from='.now()->addDay()->toDateString())->assertJsonCount(0, 'data');
+        $this->asToken($admin)->getJson('/api/v1/staff/audit-logs?from='.now('Asia/Phnom_Penh')->addDay()->toDateString())->assertJsonCount(0, 'data');
 
         $this->asToken($staffToken)->getJson('/api/v1/staff/audit-logs')->assertForbidden();
     }

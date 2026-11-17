@@ -50,12 +50,12 @@ class ApiContractTest extends TestCase
     public function test_public_catalog_responses_match_the_spec(): void
     {
         $books = $this->getJson('/api/v1/books?per_page=1')->assertOk()->json();
-        $this->assertShape('BookCard', $books['data'][0]);
+        $this->assertShape('BookCard', $books['data'][0], ['recommendation_reason', 'match']);
         $this->assertShape('PageLinks', $books['links']);
         $this->assertSame([], array_values(array_diff($this->fields('PageMeta'), array_keys($books['meta']))), 'PageMeta fields missing');
 
         $book = $this->getJson('/api/v1/books/'.$books['data'][0]['id'])->json('data');
-        $this->assertShape('BookDetail', $book);
+        $this->assertShape('BookDetail', $book, ['recommendation_reason', 'match']);
         $this->assertShape('Variant', $book['variants'][0]);
 
         $this->assertShape('Author', $this->getJson('/api/v1/authors/'.$this->getJson('/api/v1/authors')->json('data.0.id'))->json('data'));
