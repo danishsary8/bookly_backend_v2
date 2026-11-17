@@ -20,7 +20,6 @@ use App\Http\Controllers\Api\V1\Customer\ConnectionController;
 use App\Http\Controllers\Api\V1\Customer\CouponCheckController;
 use App\Http\Controllers\Api\V1\Customer\DataExportController;
 use App\Http\Controllers\Api\V1\Customer\EmailController;
-use App\Http\Controllers\Api\V1\Customer\GiftCardController;
 use App\Http\Controllers\Api\V1\Customer\NewsletterCustomerController;
 use App\Http\Controllers\Api\V1\Customer\OrderController;
 use App\Http\Controllers\Api\V1\Customer\OrderPaymentController;
@@ -95,24 +94,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'version' => 'v1']));
 Route::get('/health', HealthController::class);
-Route::get('/shop/features', fn () => response()->json(['data' => ['gift_cards' => (bool) config('shop.gift_cards_enabled'), 'referrals' => (bool) config('shop.referrals_enabled')]]));
+Route::get('/shop/features', fn () => response()->json(['data' => ['referrals' => (bool) config('shop.referrals_enabled')]]));
 Route::get('/me/referrals', [ReferralController::class, 'show'])->middleware(['shop.feature:referrals', 'auth:sanctum', 'abilities:customer', 'verified.customer', 'not.demo', 'throttle:30,1']);
 Route::prefix('staff/referrals')->middleware(['shop.feature:referrals', 'auth:sanctum', 'abilities:staff,admin', 'staff.2fa'])->group(function () {
     Route::get('/', [App\Http\Controllers\Api\V1\Staff\Promotions\ReferralController::class, 'index']);
     Route::post('/{id}/void', [App\Http\Controllers\Api\V1\Staff\Promotions\ReferralController::class, 'void'])->whereNumber('id')->middleware('throttle:khqr-action');
-});
-Route::prefix('staff/gift-cards')->middleware(['shop.feature:gift_cards', 'auth:sanctum', 'abilities:staff,admin', 'staff.2fa'])->group(function () {
-    Route::get('/', [App\Http\Controllers\Api\V1\Staff\Promotions\GiftCardController::class, 'index']);
-    Route::get('/{id}', [App\Http\Controllers\Api\V1\Staff\Promotions\GiftCardController::class, 'show'])->whereNumber('id');
-    Route::post('/{id}/cancel', [App\Http\Controllers\Api\V1\Staff\Promotions\GiftCardController::class, 'cancel'])->whereNumber('id')->middleware('throttle:khqr-action');
-    Route::post('/{id}/resend', [App\Http\Controllers\Api\V1\Staff\Promotions\GiftCardController::class, 'resend'])->whereNumber('id')->middleware('throttle:khqr-action');
-});
-Route::prefix('me/gift-cards')->middleware(['shop.feature:gift_cards', 'auth:sanctum', 'abilities:customer', 'verified.customer', 'not.demo'])->group(function () {
-    Route::get('/', [GiftCardController::class, 'index']);
-    Route::post('/', [GiftCardController::class, 'store'])->middleware('throttle:khqr-action');
-    Route::post('/redeem', [GiftCardController::class, 'redeem'])->middleware('throttle:gift-redeem');
-    Route::get('/{id}/payment', [GiftCardController::class, 'payment'])->whereNumber('id')->middleware('throttle:gift-poll');
-    Route::post('/{id}/reveal', [GiftCardController::class, 'reveal'])->whereNumber('id')->middleware('throttle:khqr-action');
 });
 // One-click sign-in for the docs page: a 2-hour token for the shared demo customer only (10 per hour per IP).
 Route::post('/demo/token', DemoTokenController::class)->middleware('throttle:demo-token');

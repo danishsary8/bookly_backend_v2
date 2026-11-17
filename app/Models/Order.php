@@ -21,7 +21,7 @@ class Order extends Model
         'shipping_recipient_name', 'shipping_phone', 'shipping_address_line1', 'shipping_address_line2',
         'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country', 'shipping_latitude', 'shipping_longitude',
         'coupon_id', 'status', 'subtotal', 'discount_amount', 'shipping_fee', 'tax_amount', 'total_amount',
-        'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note', 'is_gift', 'gift_message',
+        'currency', 'payment_method', 'placed_at', 'delivery_note', 'staff_note',
         'offer_id', 'offer_name', 'offer_min_quantity', 'offer_percent_off',
         'is_waiting_stock', 'expected_ship_date',
         'free_gift', 'credit_used_cents', 'referral_discount_cents', 'khqr_discount_cents',
@@ -30,7 +30,6 @@ class Order extends Model
     protected function casts(): array
     {
         return [
-            'is_gift' => 'boolean',
             'credit_used_cents' => 'integer',
             'referral_discount_cents' => 'integer',
             'khqr_discount_cents' => 'integer',
