@@ -782,3 +782,15 @@ Owner asked: support replies not reaching customers, real-looking data for the P
 - `/staff/suppliers`: accepts `type`, `publisher_id` (publisher type only, one supplier per publisher; switching to distributor clears it), filter `?type=`; rows return `type` and `publisher {id,name}`. Stock rows return the book's `publisher_id` so the restock picker suggests that publisher's supplier. Profit report `by_supplier` rows gain `type`.
 - ShopActivitySeeder: Tonle Sap Publishing is a publisher; the two biggest catalogue publishers get a "(direct)" publisher supplier, and their books are mostly restocked from it.
 - Test: tests/Feature/Catalog/SupplierTypeTest.php. Checks: full suite 1,041 passed; Pint passed.
+
+### 2026-11-17 — Remove gift cards and the checkout gift note (branch `remove-gift-cards`)
+- Owner decision: gift cards (buy, email, redeem, pay with KHQR, admin list) and the checkout gift note (is_gift,
+  gift_message, Telegram line, packing sheet flag) are removed. Free gifts with offers (`gifts`, `free_gift`) stay.
+  The store credit wallet stays for referrals (`creditEnabled` now follows `REFERRALS_ENABLED` only).
+- Removed: GiftCard model, both GiftCardControllers, GiftCardMail + view, Credit/Gift* services, `gifts:maintain`
+  command and its maintenance task, gift rate limiters, `/me/gift-cards*` and `/staff/gift-cards*` routes,
+  `gift_cards` in `/shop/features`, `GIFT_CARDS_ENABLED`, their tests; API.md and openapi.yaml updated.
+- New migration `2026_11_18_000001_remove_gift_cards_and_gift_note` drops gift_cards, gift_card_payments,
+  gift_redemption_attempts and orders.is_gift/gift_message (old migrations untouched; down() restores the schema).
+- Checks: pint passed; 1010 tests passed. Migration up → rollback → up on a scratch database: tables restored then
+  dropped, `gifts` kept. Deploy note: run `php artisan migrate` on Render; remove GIFT_CARDS_ENABLED from its env.

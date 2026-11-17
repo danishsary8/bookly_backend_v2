@@ -1,7 +1,6 @@
 <?php
 
 return [
-    'gift_cards_enabled' => (bool) env('GIFT_CARDS_ENABLED', false),
     'referrals_enabled' => (bool) env('REFERRALS_ENABLED', false),
     'referral_friend_discount' => env('REFERRAL_FRIEND_DISCOUNT', '2.00'),
     'referral_sharer_credit' => env('REFERRAL_SHARER_CREDIT', '2.00'),

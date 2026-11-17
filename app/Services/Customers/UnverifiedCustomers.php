@@ -45,8 +45,7 @@ class UnverifiedCustomers
             ->whereDoesntHave('returns')
             ->whereDoesntHave('reviews')
             ->whereDoesntHave('addresses')
-            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('credit_wallets')->whereColumn('credit_wallets.customer_id', 'customers.id'))
-            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('gift_cards')->where(fn ($q) => $q->whereColumn('gift_cards.buyer_customer_id', 'customers.id')->orWhereColumn('gift_cards.redeemed_by_customer_id', 'customers.id')));
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('credit_wallets')->whereColumn('credit_wallets.customer_id', 'customers.id'));
     }
 
     /** Deletes expired sign-ups with their sessions and codes. Returns how many were removed. */
@@ -67,8 +66,7 @@ class UnverifiedCustomers
         return ! $customer->isVerified()
             && ! $customer->orders()->exists() && ! $customer->returns()->exists()
             && ! $customer->reviews()->exists() && ! $customer->addresses()->exists()
-            && ! DB::table('credit_wallets')->where('customer_id', $customer->id)->exists()
-            && ! DB::table('gift_cards')->where('buyer_customer_id', $customer->id)->orWhere('redeemed_by_customer_id', $customer->id)->exists();
+            && ! DB::table('credit_wallets')->where('customer_id', $customer->id)->exists();
     }
 
     /** Deletes one unfinished sign-up right away (an admin freeing up its email). */

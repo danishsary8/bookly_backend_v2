@@ -78,11 +78,11 @@ class CheckoutService
      *
      * @return array{order: Order, created: bool} created=false when the idempotency key was already used
      */
-    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $isGift = false, ?string $giftMessage = null, bool $useCredit = false, ?int $expectedPaymentDueCents = null, ?string $deliveryPhone = null): array
+    public function place(Customer $customer, int $addressId, ?string $couponCode, string $idempotencyKey, ?string $deliveryNote = null, ?int $expectedOfferId = null, PaymentMethod $paymentMethod = PaymentMethod::Cod, bool $useCredit = false, ?int $expectedPaymentDueCents = null, ?string $deliveryPhone = null): array
     {
         $crossedLowStock = [];
 
-        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $isGift, $giftMessage, $useCredit, $expectedPaymentDueCents, $deliveryPhone, &$crossedLowStock) {
+        $result = DB::transaction(function () use ($customer, $addressId, $couponCode, $idempotencyKey, $deliveryNote, $expectedOfferId, $paymentMethod, $useCredit, $expectedPaymentDueCents, $deliveryPhone, &$crossedLowStock) {
             // 1. Lock the cart: concurrent checkouts by the same customer run one after another.
             $cart = $this->carts->cartFor($customer);
             Cart::whereKey($cart->id)->lockForUpdate()->first();
@@ -202,8 +202,6 @@ class CheckoutService
                 'payment_method' => $paymentMethod,
                 'placed_at' => now(),
                 'delivery_note' => $deliveryNote,
-                'is_gift' => $isGift,
-                'gift_message' => $isGift ? $giftMessage : null,
                 'is_waiting_stock' => $isWaitingStock,
                 'expected_ship_date' => $expectedShipDate,
             ]);
@@ -275,7 +273,7 @@ class CheckoutService
 
     private function creditEnabled(): bool
     {
-        return (bool) config('shop.gift_cards_enabled') || (bool) config('shop.referrals_enabled');
+        return (bool) config('shop.referrals_enabled');
     }
 
     /**

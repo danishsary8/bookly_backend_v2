@@ -100,9 +100,6 @@ class CheckoutController extends Controller
             'delivery_phone' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9][0-9 ()-]{5,28}[0-9]$/'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'delivery_note' => ['nullable', 'string', 'max:300'],
-            // Free gift note (owner 2026-11-05): printed on the packing sheet, which then hides the prices.
-            'is_gift' => ['sometimes', 'boolean'],
-            'gift_message' => ['nullable', 'string', 'max:200'],
             // The offer the customer saw in the preview; 422 if it no longer applies (spec 4.9, O1 = A).
             'offer_id' => ['nullable', 'integer'],
             'use_credit' => ['sometimes', 'boolean'],
@@ -119,15 +116,10 @@ class CheckoutController extends Controller
             $deliveryNote = null;
         }
 
-        $isGift = (bool) ($data['is_gift'] ?? false);
-        $giftMessage = $isGift && isset($data['gift_message']) ? trim((string) $data['gift_message']) : null;
-
         ['order' => $order, 'created' => $created] = $this->checkout->place(
             $request->user(), $data['address_id'], $data['coupon_code'] ?? null, $key, $deliveryNote,
             isset($data['offer_id']) ? (int) $data['offer_id'] : null,
             $method,
-            $isGift,
-            $giftMessage === '' ? null : $giftMessage,
             (bool) ($data['use_credit'] ?? false),
             isset($data['expected_payment_due_usd']) ? Money::toCents($data['expected_payment_due_usd']) : null,
             isset($data['delivery_phone']) ? trim($data['delivery_phone']) : null,

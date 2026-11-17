@@ -20,16 +20,6 @@ use Throwable;
  */
 class OpsAlerts
 {
-    public function giftCardPaid(int $cardId): void
-    {
-        $this->send("Gift card #{$cardId} paid / បានទូទាត់កាតអំណោយ #{$cardId}", staff: true);
-    }
-
-    public function giftCardLatePayment(int $cardId): void
-    {
-        $this->send("Gift card #{$cardId} payment arrived after expiry; review and refund. / ការទូទាត់កាតអំណោយ #{$cardId} មកក្រោយផុតកំណត់ សូមពិនិត្យ និងសងប្រាក់។", staff: true);
-    }
-
     public function lowOrderRating(Order $order, int $stars): void
     {
         $this->send(__('messages.low_order_rating', ['number' => $order->order_number, 'stars' => $stars]), staff: true);
@@ -47,10 +37,6 @@ class OpsAlerts
         $shop = rtrim((string) config('shop.url'), '/');
         $note = $order->delivery_note !== null && $order->delivery_note !== ''
             ? 'Note: '.Str::limit($order->delivery_note, 300)
-            : null;
-
-        $gift = $order->is_gift
-            ? '🎁 Gift: print the packing sheet without prices'.(filled($order->gift_message) ? ' — message: '.Str::limit($order->gift_message, 200) : '')
             : null;
 
         $phone = $order->shipping_phone ?: $order->customer?->phone;
@@ -73,7 +59,6 @@ class OpsAlerts
             $deliveryLocation,
             $pin,
             $note,
-            $gift,
             $order->free_gift ? 'Include: '.$order->free_gift['name_en'].' ×'.$order->free_gift['quantity'] : null,
             'Payment: cash on delivery',
             $shop !== '' ? "Open: {$shop}/admin/orders/{$order->id}" : null,

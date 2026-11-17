@@ -44,8 +44,6 @@ class OrderDocumentResource extends JsonResource
             'placed_at' => $this->placed_at,
             'delivered_at' => $this->statusHistory->firstWhere('status', OrderStatus::Delivered)?->created_at,
             'delivery_note' => $this->delivery_note,
-            'is_gift' => (bool) $this->is_gift,
-            'gift_message' => $this->gift_message,
             'payment_method' => $this->payment_method->value,
             'payment_status' => $this->credit_used_cents > 0 && $this->externalPaymentAmount() === '0.00' ? (in_array($this->status, [OrderStatus::Cancelled, OrderStatus::Returned], true) ? 'refunded' : 'succeeded') : $this->payments->sortByDesc('id')->first()?->status->value,
             'customer' => [

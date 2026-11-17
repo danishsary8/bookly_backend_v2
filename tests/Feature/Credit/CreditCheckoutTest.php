@@ -32,7 +32,7 @@ class CreditCheckoutTest extends TestCase
     {
         parent::setUp();
         Notification::fake();
-        config(['shop.gift_cards_enabled' => true]);
+        config(['shop.referrals_enabled' => true]);
         $this->customer = Customer::factory()->create();
         $this->address = CustomerAddress::factory()->for($this->customer)->create();
         $this->withToken($this->customer->createToken('t', ['customer'])->plainTextToken);
@@ -102,7 +102,7 @@ class CreditCheckoutTest extends TestCase
     public function test_disabled_flags_do_not_spend_a_balance(): void
     {
         app(CreditWallet::class)->move($this->customer, 2000, 'gift-test');
-        config(['shop.gift_cards_enabled' => false, 'shop.referrals_enabled' => false]);
+        config(['shop.referrals_enabled' => false]);
         $this->cart();
         $this->checkout()->assertCreated()->assertJsonPath('data.credit_used_usd', '0.00');
         $this->assertSame(2000, app(CreditWallet::class)->balance($this->customer));
