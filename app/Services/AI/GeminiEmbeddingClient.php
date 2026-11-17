@@ -27,9 +27,9 @@ class GeminiEmbeddingClient implements EmbeddingClient
      *
      * @return list<float>
      */
-    public function embed(string $text): array
+    public function embed(string $text, int $timeout = 10): array
     {
-        $batch = $this->embedBatch([$text]);
+        $batch = $this->embedBatch([$text], $timeout);
 
         return $batch[0] ?? [];
     }
@@ -40,7 +40,7 @@ class GeminiEmbeddingClient implements EmbeddingClient
      * @param  list<string>  $texts
      * @return list<list<float>>
      */
-    public function embedBatch(array $texts): array
+    public function embedBatch(array $texts, int $timeout = 10): array
     {
         if (empty($texts)) {
             return [];
@@ -54,7 +54,7 @@ class GeminiEmbeddingClient implements EmbeddingClient
         $chunks = array_chunk($texts, self::CHUNK_SIZE);
 
         foreach ($chunks as $chunk) {
-            $batchResults = $this->requestChunk($chunk);
+            $batchResults = $this->requestChunk($chunk, $timeout);
             foreach ($batchResults as $embedding) {
                 $allEmbeddings[] = $embedding;
             }
@@ -69,7 +69,7 @@ class GeminiEmbeddingClient implements EmbeddingClient
      * @param  list<string>  $texts
      * @return list<list<float>>
      */
-    private function requestChunk(array $texts): array
+    private function requestChunk(array $texts, int $timeout = 10): array
     {
         $modelName = 'models/'.$this->model;
 
@@ -86,7 +86,7 @@ class GeminiEmbeddingClient implements EmbeddingClient
         $url = self::BASE_URL.'/'.$modelName.':batchEmbedContents?key='.$this->apiKey;
 
         /** @var Response $response */
-        $response = Http::timeout(10)
+        $response = Http::timeout($timeout)
             ->retry(
                 times: 3,
                 sleepMilliseconds: 1000,

@@ -9,9 +9,9 @@ class FakeEmbeddingClient implements EmbeddingClient
      *
      * @return list<float>
      */
-    public function embed(string $text): array
+    public function embed(string $text, int $timeout = 10): array
     {
-        return $this->embedBatch([$text])[0];
+        return $this->embedBatch([$text], $timeout)[0];
     }
 
     /**
@@ -20,7 +20,7 @@ class FakeEmbeddingClient implements EmbeddingClient
      * @param  list<string>  $texts
      * @return list<list<float>>
      */
-    public function embedBatch(array $texts): array
+    public function embedBatch(array $texts, int $timeout = 10): array
     {
         return array_map(fn ($text) => $this->generateVector($text), $texts);
     }

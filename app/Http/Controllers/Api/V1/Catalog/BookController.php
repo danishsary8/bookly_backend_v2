@@ -10,6 +10,7 @@ use App\Http\Resources\BookResource;
 use App\Models\Book;
 use App\Models\BookVariant;
 use App\Models\Category;
+use App\Services\AI\SemanticSearchService;
 use App\Services\Catalog\RecommendationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -140,6 +141,29 @@ class BookController extends Controller
                 fn (Builder $q) => $q->orderByTypoSimilarity($words),
             );
             $typo = $books->total() > 0;
+        }
+
+        // When AI search is enabled, the query has 3+ words, and on page 1:
+        // embed query, find up to 8 nearest books, and append after normal keyword results.
+        if ($term !== '' && config('shop.ai_search_enabled') && (int) $request->input('page', 1) === 1) {
+            $semanticService = app(SemanticSearchService::class);
+            $existingIds = $books->getCollection()->pluck('id')->all();
+            $meaningBooks = $semanticService->searchByMeaning($term, $existingIds, 8, $request->ip());
+
+            if (! empty($meaningBooks)) {
+                foreach ($meaningBooks as $mb) {
+                    $mb->match = 'meaning';
+                }
+                $combined = $books->getCollection()->concat($meaningBooks);
+                $newTotal = $books->total() + count($meaningBooks);
+                $books = new LengthAwarePaginator(
+                    $combined,
+                    $newTotal,
+                    $books->perPage(),
+                    $books->currentPage(),
+                    ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => $request->query()]
+                );
+            }
         }
 
         $collection = BookResource::collection($books);

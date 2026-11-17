@@ -14,7 +14,7 @@ interface EmbeddingClient
      *
      * @return list<float> 768-dimensional float vector.
      */
-    public function embed(string $text): array;
+    public function embed(string $text, int $timeout = 10): array;
 
     /**
      * Generate embedding vectors for multiple texts in a batch.
@@ -22,5 +22,5 @@ interface EmbeddingClient
      * @param  list<string>  $texts
      * @return list<list<float>>
      */
-    public function embedBatch(array $texts): array;
+    public function embedBatch(array $texts, int $timeout = 10): array;
 }
