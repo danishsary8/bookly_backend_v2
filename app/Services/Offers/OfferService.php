@@ -147,13 +147,13 @@ class OfferService
             ->leftJoin('categories as c', 'c.id', '=', 't.category_id')
             ->leftJoin('series as s', 's.id', '=', 't.series_id')
             ->where('o.is_active', true)
-            ->where('o.type', Offer::TYPE_BUY_N_PERCENT)
+            ->whereIn('o.type', [Offer::TYPE_BUY_N_PERCENT, Offer::TYPE_BUY_N_AMOUNT])
             ->where(fn ($q) => $q->whereNull('o.ends_at')->orWhere('o.ends_at', '>', now()))
             ->where(fn ($q) => $q->whereNull('o.max_orders')->orWhereColumn('o.used_count', '<', 'o.max_orders'))
             ->orderBy('o.id')
             ->orderBy('t.id')
             ->get([
-                'o.id', 'o.name', 'o.applies_to', 'o.min_quantity', 'o.percent_off', 'o.starts_at', 'o.ends_at',
+                'o.id', 'o.name', 'o.type', 'o.applies_to', 'o.min_quantity', 'o.percent_off', 'o.amount_off', 'o.starts_at', 'o.ends_at',
                 'o.max_orders', 'o.used_count', 'o.whole_series', 'o.free_delivery',
                 't.book_id', 't.category_id', 't.series_id',
                 'b.deleted_at as book_deleted_at',
@@ -199,14 +199,16 @@ class OfferService
 
         $startsAt = $first->starts_at !== null ? now()->parse($first->starts_at) : null;
         $endsAt = $first->ends_at !== null ? now()->parse($first->ends_at) : null;
+        $amountOffCents = $first->amount_off !== null ? Money::toCents($first->amount_off) : 0;
+        $amountOffFormatted = $first->amount_off !== null ? Money::format($amountOffCents) : null;
 
         return new LiveOffer(
             id: (int) $first->id,
             name: $first->name,
             appliesToAll: $all,
             minQuantity: $setSize > 0 ? $setSize : (int) $first->min_quantity,
-            percentOff: Money::format(Money::toCents($first->percent_off)),
-            percentBasisPoints: Money::toCents($first->percent_off),
+            percentOff: Money::format(Money::toCents($first->percent_off ?? '0.00')),
+            percentBasisPoints: Money::toCents($first->percent_off ?? '0.00'),
             startsAt: $startsAt?->getTimestamp(),
             endsAt: $endsAt?->getTimestamp(),
             endsAtIso: $endsAt?->toIso8601ZuluString(),
@@ -220,6 +222,9 @@ class OfferService
             wholeSeries: $set,
             freeDelivery: (bool) $first->free_delivery,
             seriesBooks: $set ? array_intersect_key($seriesBooks, array_flip($series)) + array_fill_keys($series, []) : [],
+            type: (string) ($first->type ?? 'buy_n_percent'),
+            amountOff: $amountOffFormatted,
+            amountOffCents: $amountOffCents,
         );
     }
 }

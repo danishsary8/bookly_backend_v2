@@ -33,6 +33,9 @@ final class LiveOffer
         public readonly bool $wholeSeries = false,  // a set offer: every volume of a target series, in one order
         public readonly bool $freeDelivery = false,
         public readonly array $seriesBooks = [],
+        public readonly string $type = 'buy_n_percent',
+        public readonly ?string $amountOff = null,
+        public readonly int $amountOffCents = 0,
     ) {}
 
     /** Spec 4.1: started, not ended, not used up, and (all books or at least one target left). */

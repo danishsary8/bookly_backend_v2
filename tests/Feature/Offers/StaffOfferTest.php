@@ -81,7 +81,7 @@ class StaffOfferTest extends TestCase
 
     public function test_validation_limits(): void
     {
-        $this->admin()->postJson('/api/v1/staff/offers', ['name' => '', 'applies_to' => 'some', 'min_quantity' => 1, 'percent_off' => '50.01'])
+        $this->admin()->postJson('/api/v1/staff/offers', ['name' => '', 'applies_to' => 'some', 'min_quantity' => 0, 'percent_off' => '50.01'])
             ->assertUnprocessable()->assertJsonValidationErrors(['name', 'applies_to', 'min_quantity', 'percent_off']);
 
         $this->admin()->postJson('/api/v1/staff/offers', $this->holmesBody(['min_quantity' => 21, 'percent_off' => '0']))
@@ -102,6 +102,22 @@ class StaffOfferTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('targets.0.type');
 
         $this->assertSame(0, Offer::count());
+    }
+
+    public function test_admin_creates_fixed_amount_offer_with_min_quantity_one(): void
+    {
+        $this->admin()->postJson('/api/v1/staff/offers', [
+            'name' => 'Clearance $3 off',
+            'type' => 'buy_n_amount',
+            'applies_to' => 'all',
+            'min_quantity' => 1,
+            'amount_off' => '3.00',
+        ])->assertCreated()
+            ->assertJsonPath('data.name', 'Clearance $3 off')
+            ->assertJsonPath('data.type', 'buy_n_amount')
+            ->assertJsonPath('data.min_quantity', 1)
+            ->assertJsonPath('data.amount_off', '3.00')
+            ->assertJsonPath('data.percent_off', '0.00');
     }
 
     public function test_staff_can_view_but_not_change_customers_cannot_see(): void

@@ -17,9 +17,10 @@ final class OfferPayload
 
         return [
             'id' => $result->offer->id,
-            'type' => 'buy_n_percent',
+            'type' => $result->offer->type,
             'min_quantity' => $result->offer->minQuantity,
             'percent_off' => $result->offer->percentOff,
+            'amount_off' => $result->offer->amountOff,
             'ends_at' => $result->offer->endsAtIso,
             'target_label' => $result->offer->targetLabel,
             'whole_series' => $result->offer->wholeSeries,
