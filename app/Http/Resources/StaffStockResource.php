@@ -19,6 +19,8 @@ class StaffStockResource extends JsonResource
             'id' => $this->id,
             'book_id' => $this->book_id,
             'book_title' => $this->book?->title,
+            // The restock picker suggests this publisher's supplier first (owner 2026-11-17).
+            'publisher_id' => $this->book?->publisher_id,
             'format' => $this->format instanceof \BackedEnum ? $this->format->value : (string) $this->format,
             'sku' => $this->sku,
             'isbn' => $this->isbn,

@@ -9,7 +9,7 @@ class StaffBookVariantResource extends BookVariantResource
 {
     public function toArray(Request $request): array
     {
-        return [
+        $data = [
             ...parent::toArray($request),
             'book_id' => $this->book_id,
             'sku' => $this->sku,
@@ -20,5 +20,12 @@ class StaffBookVariantResource extends BookVariantResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+
+        // Supplier cost is admin-only, like restock costs in the stock history.
+        if ($request->user()?->isAdmin()) {
+            $data['cost_price_usd'] = $this->cost_price_usd !== null ? (string) $this->cost_price_usd : null;
+        }
+
+        return $data;
     }
 }

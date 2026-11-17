@@ -28,6 +28,7 @@ class SupplierController extends Controller
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
             'active' => ['nullable', Rule::in(['0', '1'])],
+            'type' => ['nullable', Rule::in(Supplier::TYPES)],
         ]);
 
         $rows = $this->query()
@@ -36,6 +37,7 @@ class SupplierController extends Controller
                 ->orWhere('suppliers.contact_name', 'ilike', '%'.addcslashes($term, '%_\\').'%')
                 ->orWhere('suppliers.phone', 'ilike', '%'.addcslashes($term, '%_\\').'%')))
             ->when(isset($data['active']), fn ($q) => $q->where('suppliers.is_active', $data['active'] === '1'))
+            ->when($data['type'] ?? null, fn ($q, $type) => $q->where('suppliers.type', $type))
             ->orderByDesc('suppliers.is_active')->orderBy('suppliers.name')
             ->get();
 
@@ -54,7 +56,8 @@ class SupplierController extends Controller
 
         return DB::table('suppliers')
             ->leftJoinSub($stats, 's', 's.supplier_id', '=', 'suppliers.id')
-            ->select(['suppliers.*', 's.restocks', 's.units', 's.spend', 's.last_restock_at']);
+            ->leftJoin('publishers', 'publishers.id', '=', 'suppliers.publisher_id')
+            ->select(['suppliers.*', 'publishers.name AS publisher_name', 's.restocks', 's.units', 's.spend', 's.last_restock_at']);
     }
 
     private function one(int $id): array
@@ -89,7 +92,17 @@ class SupplierController extends Controller
             'email' => ['nullable', 'email', 'max:190'],
             'note' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['sometimes', 'boolean'],
+            // Publisher (buying direct) or distributor / wholesaler; a publisher may link to its catalogue publisher.
+            'type' => ['sometimes', Rule::in(Supplier::TYPES)],
+            'publisher_id' => ['nullable', 'integer', Rule::exists('publishers', 'id'), Rule::unique('suppliers', 'publisher_id')->ignore($supplier)],
         ]);
+        $type = $data['type'] ?? $supplier?->type ?? 'distributor';
+        if ($type !== 'publisher' && ! empty($data['publisher_id'] ?? null)) {
+            abort(response()->json(['message' => 'Only a publisher supplier can be linked to a publisher.', 'errors' => ['publisher_id' => ['Only a publisher supplier can be linked to a publisher.']]], 422));
+        }
+        if (array_key_exists('type', $data) && $data['type'] === 'distributor') {
+            $data['publisher_id'] = null;
+        }
         if (isset($data['name'])) {
             $data['name'] = trim($data['name']);
             $taken = Supplier::whereRaw('LOWER(name) = ?', [mb_strtolower($data['name'])])
@@ -107,6 +120,8 @@ class SupplierController extends Controller
         return [
             'id' => (int) $r->id,
             'name' => $r->name,
+            'type' => $r->type,
+            'publisher' => $r->publisher_id ? ['id' => (int) $r->publisher_id, 'name' => $r->publisher_name] : null,
             'contact_name' => $r->contact_name,
             'phone' => $r->phone,
             'email' => $r->email,

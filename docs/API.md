@@ -134,9 +134,9 @@ Only books with at least one active variant are public. Book card fields: `id, t
 | POST | /staff/books/{id}/restore | admin |
 | GET | /staff/trash | admin; `type=books\|authors\|categories\|publishers\|series`, `page`, `per_page` — soft-deleted items with `deleted_at` and `days_until_purge` countdown |
 | POST | /staff/trash/{type}/{id}/restore | admin; restores soft-deleted catalog entity and logs audit entry |
-| POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?. Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
+| POST | /staff/books/{id}/variants | format, sku, price_usd (max 2 decimals), isbn?, stock_quantity? (logged as restock), low_stock_threshold?, cover_image_url? (http/https only), is_active?, cost_price_usd? (admin only: supplier cost per copy, max 2 decimals, null clears; staff sending it get 422). Staff (not admin): price must be above $0 (422 "A price of $0, or a cut of more than half, needs an admin.") |
 | PATCH | /staff/variants/{id} | any variant field; a stock change is logged as an adjustment. Staff (not admin): a new price of $0 or below half the current one is 422 (same message); admins can |
-| POST | /staff/variants/{id}/restock | quantity (1-10000), supplier?, unit_cost_usd? (admin sees this, max 2 decimals), note? — physical formats only (ebook/audiobook 422). Inside a row lock: increases stock, logs movement and audit log |
+| POST | /staff/variants/{id}/restock | quantity (1-10000), supplier?, unit_cost_usd? (admin sees this, max 2 decimals), note? — physical formats only (ebook/audiobook 422). Inside a row lock: increases stock, sets the format's `cost_price_usd` to `unit_cost_usd` when one is given, logs movement and audit log |
 | GET | /staff/variants/{id}/stock-history | newest first, paginated (20); id, created_at, change_qty, reason, reference (order/return), staff {id,name}, note, supplier, stock_after (running balance), unit_cost_usd (admin only) |
 | GET | /staff/stock | physical variants overview with book title, format, sku, stock, threshold, status (`in_stock`\|`low`\|`out`); `status=low\|out`, `q` (title/SKU/ISBN), sorted by stock ascending by default, paginated |
 | DELETE | /staff/variants/{id} | admin; 409 if ever ordered (set `is_active=false` instead) |
@@ -429,6 +429,8 @@ All paths below are relative to `/api/v1`. Customer routes require a verified cu
 | Method | Path | Behaviour |
 | --- | --- | --- |
 | POST | `/support/guest` | Name (100), email (255), plain message (2000), `turnstile_token`; Turnstile when configured, 3 requests/hour/IP. Creates a conversation and emails confirmation; returns only `{data:{id}}`, never a public read token. |
+Customer support chat needs a signed-in customer token but **not** a verified email (owner 2026-11-17: unverified customers could only use the guest form, whose replies go by email only).
+
 | GET / POST | `/support/conversations` | Paginated owned conversations / start with `topic`, optional owned `order_id`, `message`. |
 | GET | `/support/conversations/{conversation}` | Latest 100 public messages in chronological order; `before_id` retrieves the preceding page. |
 | POST | `/support/conversations/{conversation}/messages` | Plain `message`, max 2000 characters; closed chats reject messages. Customer `is_internal` cannot create notes. |
@@ -495,8 +497,8 @@ Filters: `q` (literal substring, max 200), `staff_user_id`, `actor=staff|system`
 ## Suppliers (Phase 3, 2026-11-16)
 | Method | Path | Body / query | Notes |
 |---|---|---|---|
-| GET | /staff/suppliers | `q` (name, contact, phone), `active` (0\|1) | `catalog:view`. Active first, by name. Each: `id, name, contact_name, phone, email, note, is_active, restocks, units, spend_usd, last_restock_at`. |
-| POST | /staff/suppliers | `name` (required, unique ignoring case), `contact_name`, `phone`, `email`, `note`, `is_active` | `catalog:manage`. Audited. 201. |
+| GET | /staff/suppliers | `q` (name, contact, phone), `active` (0\|1), `type` (publisher\|distributor) | `catalog:view`. Active first, by name. Each: `id, name, type, publisher {id,name}\|null, contact_name, phone, email, note, is_active, restocks, units, spend_usd, last_restock_at`. |
+| POST | /staff/suppliers | `name` (required, unique ignoring case), `type` (publisher\|distributor, default distributor), `publisher_id` (publisher type only, one supplier per publisher), `contact_name`, `phone`, `email`, `note`, `is_active` | `catalog:manage`. Audited. 201. |
 | PATCH | /staff/suppliers/{id} | same, all optional | `catalog:manage`. Audited. Suppliers are never deleted; `is_active=false` switches one off. |
 | POST | /staff/variants/{id}/restock | new optional `supplier_id` (an active supplier) | The supplier's name is also written to `supplier`, so history and the profit report read the same. |
 

@@ -348,10 +348,11 @@ class ProfitReportService
         [$from, $to] = [$start->utc(), $end->utc()];
 
         return DB::table('inventory_movements')
+            ->leftJoin('suppliers', 'suppliers.id', '=', 'inventory_movements.supplier_id')
             ->where('reason', InventoryReason::Restock->value)
             ->where('change_qty', '>', 0)
-            ->whereBetween('created_at', [$from, $to->subSecond()])
-            ->selectRaw("NULLIF(TRIM(supplier), '') AS name, COUNT(*) AS restocks, SUM(change_qty) AS units, COALESCE(SUM(change_qty * unit_cost_usd), 0) AS spend, SUM(CASE WHEN unit_cost_usd IS NULL THEN change_qty ELSE 0 END) AS units_without_cost")
+            ->whereBetween('inventory_movements.created_at', [$from, $to->subSecond()])
+            ->selectRaw("NULLIF(TRIM(supplier), '') AS name, MAX(suppliers.type) AS type, COUNT(*) AS restocks, SUM(change_qty) AS units, COALESCE(SUM(change_qty * unit_cost_usd), 0) AS spend, SUM(CASE WHEN unit_cost_usd IS NULL THEN change_qty ELSE 0 END) AS units_without_cost")
             ->groupByRaw("NULLIF(TRIM(supplier), '')")
             ->orderByDesc('spend')->orderByDesc('units')
             ->get()
@@ -361,6 +362,8 @@ class ProfitReportService
 
                 return [
                     'supplier' => $r->name,
+                    // publisher | distributor; null for a typed name without a supplier record (owner 2026-11-17).
+                    'type' => $r->type,
                     'restocks' => (int) $r->restocks,
                     'units' => (int) $r->units,
                     'units_without_cost' => (int) $r->units_without_cost,

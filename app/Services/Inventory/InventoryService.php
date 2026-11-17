@@ -68,7 +68,11 @@ class InventoryService
             $locked = BookVariant::whereKey($variant->getKey())->lockForUpdate()->firstOrFail();
             $before = $locked->stock_quantity;
             $newQuantity = $before + $quantity;
-            $locked->update(['stock_quantity' => $newQuantity]);
+            // A restock with a unit cost becomes the format's latest supplier cost (owner 2026-11-17).
+            $locked->update([
+                'stock_quantity' => $newQuantity,
+                ...($unitCostUsd !== null ? ['cost_price_usd' => $unitCostUsd] : []),
+            ]);
 
             $movement = InventoryMovement::create([
                 'book_variant_id' => $locked->id,
