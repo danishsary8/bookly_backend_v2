@@ -794,3 +794,10 @@ Owner asked: support replies not reaching customers, real-looking data for the P
   gift_redemption_attempts and orders.is_gift/gift_message (old migrations untouched; down() restores the schema).
 - Checks: pint passed; 1010 tests passed. Migration up → rollback → up on a scratch database: tables restored then
   dropped, `gifts` kept. Deploy note: run `php artisan migrate` on Render; remove GIFT_CARDS_ENABLED from its env.
+
+### 2026-11-17 � Book embeddings foundation (branch `feature/book-embeddings`)
+- Migration `2026_11_18_100001_create_book_embeddings_table`: adds `book_embeddings` table (`id`, `book_id` unique FK cascade, `embedding`, `model`, `text_hash`, `embedded_at`, timestamps) with HNSW cosine index when pgvector is present, and clean rollback in `down()`.
+- Services: `EmbeddingClient` interface, `GeminiEmbeddingClient` (batch requests, 10s timeout, exponential backoff on 429/5xx, sanitised logging without keys or text), `FakeEmbeddingClient` (deterministic 768-dim unit vectors for test suite), and `EmbeddingService` (builds book text from title/subtitle/description/categories/authors, computes SHA-256 hash, skips unchanged books).
+- Jobs & Commands: queued job `EmbedBook` dispatched on book creation or author/category/text updates; artisan command `books:embed {--all} {--limit=} {--force} {--dry-run}` with summary table.
+- Config: `.env.example` and `config/shop.php` gain `ai_similar_enabled`, `ai_embed_model`, `gemini_api_key`, `ai_similarity_threshold`.
+- Tests: `tests/Feature/Catalog/BookEmbeddingTest.php` (11 tests, 44 assertions passed with fake client). Pint passed.

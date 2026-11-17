@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\EmbedBook;
 use App\Services\Catalog\RecommendationService;
 use App\Services\Offers\OfferService;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -35,8 +37,22 @@ class Book extends Model
     {
         $changed = fn () => DB::afterCommit(fn () => RecommendationService::catalogChanged());
 
-        static::created($changed);
-        static::updated($changed);
+        static::created(function (Book $book) {
+            DB::afterCommit(function () use ($book) {
+                RecommendationService::catalogChanged();
+                EmbedBook::dispatch($book->id);
+            });
+        });
+
+        static::updated(function (Book $book) {
+            DB::afterCommit(function () use ($book) {
+                RecommendationService::catalogChanged();
+                if ($book->wasChanged(['title', 'description'])) {
+                    EmbedBook::dispatch($book->id);
+                }
+            });
+        });
+
         static::deleted($changed);
         static::restored($changed);
     }
@@ -82,6 +98,11 @@ class Book extends Model
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class, 'book_categories');
+    }
+
+    public function embedding(): HasOne
+    {
+        return $this->hasOne(BookEmbedding::class);
     }
 
     public function variants(): HasMany

@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\StaffRole;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StaffBookResource;
+use App\Jobs\EmbedBook;
 use App\Models\Book;
 use App\Services\Admin\AuditLogger;
 use App\Services\Admin\StrictDeleteService;
@@ -191,7 +192,12 @@ class BookController extends Controller
                 $book->categories()->sync($data['category_ids']);
             }
             // Author/category changes alone do not fire the book's "updated" event.
-            DB::afterCommit(fn () => RecommendationService::catalogChanged());
+            DB::afterCommit(function () use ($book, $data) {
+                RecommendationService::catalogChanged();
+                if (array_key_exists('author_ids', $data) || array_key_exists('category_ids', $data)) {
+                    EmbedBook::dispatch($book->id);
+                }
+            });
 
             $after = $this->snapshot($book->fresh());
             $changed = array_keys(array_filter($after, fn ($value, $key) => $before[$key] != $value, ARRAY_FILTER_USE_BOTH));

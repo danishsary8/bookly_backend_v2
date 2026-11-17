@@ -26,7 +26,7 @@
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="pgsql"/>
-        <env name="DB_DATABASE" value="bookshop_v2_test"/>
+        <env name="DB_DATABASE" value="bookshop_ai_test"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <!-- Never inherit a configured cloud media disk for tests. R2 tests explicitly fake their disk. -->
