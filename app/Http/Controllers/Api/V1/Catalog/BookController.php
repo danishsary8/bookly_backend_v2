@@ -197,7 +197,21 @@ class BookController extends Controller
         $results = $recommender->getRecommendedIdsForBook($targetBook, $limit);
         $books = $this->catalogQuery()->whereIn('books.id', $results)->get();
 
-        return BookResource::collection(collect($results)->map(fn ($id) => $books->firstWhere('id', $id))->filter()->values());
+        $similarIds = config('shop.ai_similar_enabled')
+            ? $recommender->querySemanticSimilarBookIds($targetBook, [$targetBook->id], 6)
+            : [];
+        $similarLookup = array_flip($similarIds);
+
+        $ordered = collect($results)->map(function ($id) use ($books, $similarLookup) {
+            $b = $books->firstWhere('id', $id);
+            if ($b && isset($similarLookup[$id])) {
+                $b->recommendation_reason = 'similar';
+            }
+
+            return $b;
+        })->filter()->values();
+
+        return BookResource::collection($ordered);
     }
 
     public function recommendations(Request $request, RecommendationService $recommender): AnonymousResourceCollection

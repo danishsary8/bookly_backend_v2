@@ -801,3 +801,10 @@ Owner asked: support replies not reaching customers, real-looking data for the P
 - Jobs & Commands: queued job `EmbedBook` dispatched on book creation or author/category/text updates; artisan command `books:embed {--all} {--limit=} {--force} {--dry-run}` with summary table.
 - Config: `.env.example` and `config/shop.php` gain `ai_similar_enabled`, `ai_embed_model`, `gemini_api_key`, `ai_similarity_threshold`.
 - Tests: `tests/Feature/Catalog/BookEmbeddingTest.php` (11 tests, 44 assertions passed with fake client). Pint passed.
+
+### 2026-11-17 — Semantic similar books in recommendations (branch `feature/book-embeddings`)
+- RecommendationService: when `AI_SIMILAR_ENABLED=true`, inserts up to 6 nearest books by vector cosine distance (threshold <= 0.40) after series matches and before co-purchases. Includes native pgvector HNSW cosine distance query and in-memory cosine fallback for environments without pgvector.
+- Fallback & safety: when disabled, missing vector, or on any error, cleanly falls back to existing rules; never crashes or throws 500.
+- BookController & BookResource: marks semantic matches with `recommendation_reason: "similar"` on `/api/v1/books/{id}/related`.
+- Specs: updated `docs/API.md` and `public/openapi.yaml` to document `recommendation_reason` on `BookCard`.
+- Tests: `tests/Feature/Catalog/SimilarBooksRecommendationTest.php` (5 tests, 19 assertions) and existing recommendation suites pass. Pint passed.
