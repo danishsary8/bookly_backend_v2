@@ -770,3 +770,15 @@ Owner: continue with Phase 4. No migration: new keys in the existing `shop_setti
 - Routes: `GET /staff/settings/shop` (catalog:view), `PATCH /staff/settings/shop` (admin, audited), `GET /staff/dashboard/goal` (admin), `GET /staff/books/{id}/sales` (catalog:view). Products report + `top_authors`; customers report + first-time/returning/average spend.
 - Docs: docs/API.md, public/openapi.yaml. Test: tests/Feature/Admin/ShopSettingsAndGoalTest.php (3).
 - Checks: full suite 1,034 passed, Pint passed.
+
+## Admin fixes batch (2026-11-17)
+Owner asked: support replies not reaching customers, real-looking data for the Profit and Inventory reports, plus admin UI work (frontend). Not committed here; the owner pushes the batch.
+- Support bug: signed-in customers without a verified email got the guest form, whose replies go by email only (email is not set up yet), so they never saw staff answers. `support/conversations` routes moved out of `verified.customer` into the plain customer group (same throttles and `not.demo`). Reproduced end to end first: a verified customer already saw replies within 5 s, so the API/ETag path was fine. Test: tests/Feature/Support/SupportReplyVisibilityTest.php (2).
+- New `database/seeders/ShopActivitySeeder.php` (`php artisan db:seed --class=ShopActivitySeeder`): 5 suppliers; 1-3 dated restocks with unit costs (50-68% of price) per live printed format plus recent top-ups; ~2 orders a day for 180 days from 8 @bookly.test customers through the real checkout and status flow (most delivered, ~7% cancelled, last days open; COD and KHQR); 9 returns in every state. Runs once; clears the cache (reports cache 5 min). Refuses on production unless `SEED_SHOP_ACTIVITY=yes`. Test: tests/Feature/Admin/ShopActivitySeederTest.php.
+- Checks: full suite 1,040 passed (local PostgreSQL, PHP 8.3 with --ignore-platform-reqs); Pint passed.
+
+## Suppliers: publishers and distributors (2026-11-17, owner "go")
+- Migration `2026_11_17_000002_add_type_and_publisher_to_suppliers`: `suppliers.type` (publisher | distributor, default distributor for existing rows) and nullable unique `suppliers.publisher_id` (FK publishers, null on delete).
+- `/staff/suppliers`: accepts `type`, `publisher_id` (publisher type only, one supplier per publisher; switching to distributor clears it), filter `?type=`; rows return `type` and `publisher {id,name}`. Stock rows return the book's `publisher_id` so the restock picker suggests that publisher's supplier. Profit report `by_supplier` rows gain `type`.
+- ShopActivitySeeder: Tonle Sap Publishing is a publisher; the two biggest catalogue publishers get a "(direct)" publisher supplier, and their books are mostly restocked from it.
+- Test: tests/Feature/Catalog/SupplierTypeTest.php. Checks: full suite 1,041 passed; Pint passed.

@@ -227,6 +227,22 @@ Route::middleware(['auth:sanctum', 'abilities:customer'])->prefix('me')->group(f
 /*
 | Customer shopping features: verified customers only.
 */
+// Support chat: any signed-in customer, verified or not. Replies to an unverified account would otherwise only
+// go by email, which customers may never get (owner 2026-11-17: "customer did not see the respond message").
+Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
+    Route::prefix('support/conversations')->group(function () {
+        Route::get('/', [SupportController::class, 'index']);
+        Route::get('/{conversation}', [SupportController::class, 'show'])->whereNumber('conversation');
+        Route::middleware(['not.demo', 'throttle:support-messages'])->group(function () {
+            Route::post('/', [SupportController::class, 'store']);
+            Route::post('/{conversation}/messages', [SupportController::class, 'message'])->whereNumber('conversation');
+            Route::post('/{conversation}/status', [SupportController::class, 'status'])->whereNumber('conversation');
+            Route::post('/{conversation}/rating', [SupportController::class, 'rate'])->whereNumber('conversation');
+        });
+        Route::post('/{conversation}/read', [SupportController::class, 'read'])->whereNumber('conversation')->middleware('not.demo');
+    });
+});
+
 Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->group(function () {
     // Ebooks: library, reader pages (watermarked images, never the file), progress, devices.
     Route::get('/me/ebooks', [ReaderController::class, 'library']);
@@ -277,17 +293,6 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::delete('/reviews/{review}', [CustomerReviewController::class, 'destroy'])->whereNumber('review')->middleware('not.demo');
 
     Route::get('/wishlist', [WishlistController::class, 'index']);
-    Route::prefix('support/conversations')->group(function () {
-        Route::get('/', [SupportController::class, 'index']);
-        Route::get('/{conversation}', [SupportController::class, 'show'])->whereNumber('conversation');
-        Route::middleware(['not.demo', 'throttle:support-messages'])->group(function () {
-            Route::post('/', [SupportController::class, 'store']);
-            Route::post('/{conversation}/messages', [SupportController::class, 'message'])->whereNumber('conversation');
-            Route::post('/{conversation}/status', [SupportController::class, 'status'])->whereNumber('conversation');
-            Route::post('/{conversation}/rating', [SupportController::class, 'rate'])->whereNumber('conversation');
-        });
-        Route::post('/{conversation}/read', [SupportController::class, 'read'])->whereNumber('conversation')->middleware('not.demo');
-    });
     Route::get('/reading-lists', [ReadingListController::class, 'index']);
     Route::middleware(['throttle:20,1', 'not.demo'])->group(function () {
         Route::post('/lists/{slug}/cart', [ReadingListController::class, 'addAll']);

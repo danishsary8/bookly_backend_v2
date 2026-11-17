@@ -28,7 +28,7 @@ class BookVariantController extends Controller
     public function store(Request $request, Book $book): JsonResponse
     {
         $data = $request->validate([
-            ...$this->rules(),
+            ...$this->rules($request),
             'format' => ['required', Rule::enum(BookFormat::class), Rule::unique('book_variants')->where('book_id', $book->id)],
             'sku' => ['required', 'string', 'max:50', 'unique:book_variants,sku'],
             'isbn' => ['nullable', 'string', 'max:20', 'unique:book_variants,isbn'],
@@ -52,7 +52,7 @@ class BookVariantController extends Controller
     public function update(Request $request, BookVariant $variant): StaffBookVariantResource
     {
         $data = $request->validate([
-            ...$this->rules(),
+            ...$this->rules($request),
             'format' => ['sometimes', 'required', Rule::enum(BookFormat::class), Rule::unique('book_variants')->where('book_id', $variant->book_id)->ignore($variant)],
             'sku' => ['sometimes', 'required', 'string', 'max:50', Rule::unique('book_variants', 'sku')->ignore($variant)],
             'isbn' => ['nullable', 'string', 'max:20', Rule::unique('book_variants', 'isbn')->ignore($variant)],
@@ -129,9 +129,13 @@ class BookVariantController extends Controller
         return response()->json(null, 204);
     }
 
-    private function rules(): array
+    private function rules(Request $request): array
     {
         return [
+            // Supplier cost per copy: admins only (owner 2026-11-17).
+            'cost_price_usd' => $request->user()->isAdmin()
+                ? ['nullable', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2']
+                : ['prohibited'],
             'stock_quantity' => ['sometimes', 'integer', 'min:-1000000', 'max:1000000'],
             'low_stock_threshold' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
             'cover_image_url' => ['nullable', 'url:http,https', 'max:500'],

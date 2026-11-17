@@ -15,7 +15,7 @@ class BookVariant extends Model
     use HasFactory;
 
     protected $fillable = [
-        'book_id', 'format', 'isbn', 'sku', 'price_usd', 'stock_quantity', 'low_stock_threshold', 'cover_image_url', 'is_active',
+        'book_id', 'format', 'isbn', 'sku', 'price_usd', 'cost_price_usd', 'stock_quantity', 'low_stock_threshold', 'cover_image_url', 'is_active',
         'release_date', 'allow_backorder',
     ];
 
@@ -24,6 +24,7 @@ class BookVariant extends Model
         return [
             'format' => BookFormat::class,
             'price_usd' => 'decimal:2',
+            'cost_price_usd' => 'decimal:2',
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
             'is_active' => 'boolean',
