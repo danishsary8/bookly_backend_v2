@@ -48,6 +48,8 @@ class BookResource extends JsonResource
             'wishlist_saved_at' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->created_at?->toIso8601String()),
             // Lowest price when it was saved (null for older saves): the wishlist shows "Now …, was …" when it fell.
             'wishlist_saved_price_usd' => $this->whenPivotLoaded('wishlists', fn () => $this->pivot->saved_price_usd !== null ? number_format((float) $this->pivot->saved_price_usd, 2, '.', '') : null),
+            'recommendation_reason' => $this->when(isset($this->recommendation_reason), $this->recommendation_reason),
+            'match' => $this->when(isset($this->match), $this->match),
         ];
     }
 }

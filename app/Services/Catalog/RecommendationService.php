@@ -5,10 +5,13 @@ namespace App\Services\Catalog;
 use App\Enums\BookFormat;
 use App\Enums\OrderStatus;
 use App\Models\Book;
+use App\Models\BookEmbedding;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class RecommendationService
 {
@@ -62,6 +65,23 @@ class RecommendationService
         $collected = collect($targetBook->series_id
             ? $this->querySeriesBookIds($targetBook->series_id, $targetBook->series_order, [$targetBook->id], $limit)
             : []);
+
+        // 0.5. Similar books by meaning (up to 6 nearest books by vector cosine distance)
+        if (config('shop.ai_similar_enabled')) {
+            $similarIds = $this->querySemanticSimilarBookIds(
+                $targetBook,
+                array_merge([$targetBook->id], $collected->all()),
+                6
+            );
+            if (! empty($similarIds)) {
+                $validSimilar = $this->filterInStockAndVisibleIds($similarIds);
+                $collected = $collected->concat($validSimilar)->unique()->values();
+            }
+        }
+
+        if ($collected->count() >= $limit) {
+            return $collected->take($limit)->all();
+        }
 
         // 1. Co-purchases in completed orders (>= 2 shared orders)
         $coBookIds = $this->queryCoPurchasedBookIds($targetBook->id);
@@ -375,6 +395,97 @@ class RecommendationService
             ->limit($limit)
             ->pluck('books.id')
             ->all();
+    }
+
+    /**
+     * Query book IDs that are semantically similar by vector cosine distance.
+     *
+     * @param  list<int>  $excludeIds
+     * @return list<int>
+     */
+    public function querySemanticSimilarBookIds(Book $targetBook, array $excludeIds = [], int $limit = 6): array
+    {
+        if (! config('shop.ai_similar_enabled')) {
+            return [];
+        }
+
+        try {
+            $targetEmbedding = BookEmbedding::where('book_id', $targetBook->id)->first();
+            if (! $targetEmbedding || empty($targetEmbedding->embedding)) {
+                return [];
+            }
+
+            $threshold = (float) config('shop.ai_similarity_threshold', 0.40);
+            $targetVector = $targetEmbedding->embedding;
+
+            $hasVector = false;
+            try {
+                $hasVector = DB::table('pg_extension')->where('extname', 'vector')->exists();
+            } catch (Throwable) {
+                $hasVector = false;
+            }
+
+            if ($hasVector) {
+                $vectorStr = '['.implode(',', $targetVector).']';
+
+                $rawIds = DB::table('book_embeddings')
+                    ->whereNotIn('book_id', array_merge([$targetBook->id], $excludeIds))
+                    ->whereRaw('(embedding <=> ?) <= ?', [$vectorStr, $threshold])
+                    ->orderByRaw('embedding <=> ? ASC', [$vectorStr])
+                    ->limit($limit * 2)
+                    ->pluck('book_id')
+                    ->all();
+
+                return array_slice($this->filterInStockAndVisibleIds($rawIds), 0, $limit);
+            }
+
+            return $this->querySimilarInMemory($targetVector, array_merge([$targetBook->id], $excludeIds), $limit, $threshold);
+        } catch (Throwable $e) {
+            Log::warning('Semantic similar books query failed', [
+                'book_id' => $targetBook->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * In-memory cosine distance fallback for test/dev environments without pgvector.
+     *
+     * @param  list<float>  $targetVector
+     * @param  list<int>  $excludeIds
+     * @return list<int>
+     */
+    private function querySimilarInMemory(array $targetVector, array $excludeIds, int $limit, float $threshold): array
+    {
+        $candidates = BookEmbedding::query()
+            ->whereNotIn('book_id', $excludeIds)
+            ->get(['book_id', 'embedding']);
+
+        $scored = [];
+        foreach ($candidates as $candidate) {
+            $candidateVector = $candidate->embedding;
+            if (empty($candidateVector) || count($candidateVector) !== count($targetVector)) {
+                continue;
+            }
+
+            // Cosine distance for unit vectors: 1.0 - dot_product
+            $dot = 0.0;
+            for ($i = 0, $len = count($targetVector); $i < $len; $i++) {
+                $dot += $targetVector[$i] * $candidateVector[$i];
+            }
+            $distance = 1.0 - $dot;
+
+            if ($distance <= $threshold) {
+                $scored[] = ['id' => (int) $candidate->book_id, 'distance' => $distance];
+            }
+        }
+
+        usort($scored, fn ($a, $b) => $a['distance'] <=> $b['distance']);
+        $rawIds = array_column($scored, 'id');
+
+        return array_slice($this->filterInStockAndVisibleIds($rawIds), 0, $limit);
     }
 
     /**

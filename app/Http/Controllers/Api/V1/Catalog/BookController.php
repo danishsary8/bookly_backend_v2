@@ -10,6 +10,7 @@ use App\Http\Resources\BookResource;
 use App\Models\Book;
 use App\Models\BookVariant;
 use App\Models\Category;
+use App\Services\AI\SemanticSearchService;
 use App\Services\Catalog\RecommendationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -142,6 +143,29 @@ class BookController extends Controller
             $typo = $books->total() > 0;
         }
 
+        // When AI search is enabled, the query has 3+ words, and on page 1:
+        // embed query, find up to 8 nearest books, and append after normal keyword results.
+        if ($term !== '' && config('shop.ai_search_enabled') && (int) $request->input('page', 1) === 1) {
+            $semanticService = app(SemanticSearchService::class);
+            $existingIds = $books->getCollection()->pluck('id')->all();
+            $meaningBooks = $semanticService->searchByMeaning($term, $existingIds, 8, $request->ip());
+
+            if (! empty($meaningBooks)) {
+                foreach ($meaningBooks as $mb) {
+                    $mb->match = 'meaning';
+                }
+                $combined = $books->getCollection()->concat($meaningBooks);
+                $newTotal = $books->total() + count($meaningBooks);
+                $books = new LengthAwarePaginator(
+                    $combined,
+                    $newTotal,
+                    $books->perPage(),
+                    $books->currentPage(),
+                    ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => $request->query()]
+                );
+            }
+        }
+
         $collection = BookResource::collection($books);
         if ($request->boolean('facets')) {
             $collection->additional(['facets' => $this->facets($filter($this->catalogQuery()->when($term !== '', fn (Builder $q) => $q->search($term))))]);
@@ -197,7 +221,21 @@ class BookController extends Controller
         $results = $recommender->getRecommendedIdsForBook($targetBook, $limit);
         $books = $this->catalogQuery()->whereIn('books.id', $results)->get();
 
-        return BookResource::collection(collect($results)->map(fn ($id) => $books->firstWhere('id', $id))->filter()->values());
+        $similarIds = config('shop.ai_similar_enabled')
+            ? $recommender->querySemanticSimilarBookIds($targetBook, [$targetBook->id], 6)
+            : [];
+        $similarLookup = array_flip($similarIds);
+
+        $ordered = collect($results)->map(function ($id) use ($books, $similarLookup) {
+            $b = $books->firstWhere('id', $id);
+            if ($b && isset($similarLookup[$id])) {
+                $b->recommendation_reason = 'similar';
+            }
+
+            return $b;
+        })->filter()->values();
+
+        return BookResource::collection($ordered);
     }
 
     public function recommendations(Request $request, RecommendationService $recommender): AnonymousResourceCollection

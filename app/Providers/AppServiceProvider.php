@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\AI\EmbeddingClient;
+use App\Services\AI\FakeEmbeddingClient;
+use App\Services\AI\GeminiEmbeddingClient;
 use App\Services\Assistant\AssistantEngine;
 use App\Services\Assistant\RulesEngine;
 use App\Services\CurrencyService;
@@ -22,6 +25,16 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AssistantEngine::class, RulesEngine::class);
+
+        // Embeddings client: use fake client in test environment or when configured
+        $this->app->bind(EmbeddingClient::class, function ($app) {
+            if ($app->environment('testing')) {
+                return new FakeEmbeddingClient;
+            }
+
+            return new GeminiEmbeddingClient;
+        });
+
         // One instance per request so the exchange rate is read once, not per book.
         $this->app->scoped(CurrencyService::class);
         $this->app->scoped(KhrRateHistory::class);

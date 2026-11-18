@@ -627,8 +627,8 @@ Added genuine sales and recovery analysis, purchase planning, printable/Excel re
   Grades stay on each book (`school_grade`), so the shop's grade filter still works. Run on production: DEPLOYMENT.md F6.
 - `data/catalog/books.csv`: category names of the 112 affected rows changed to the new categories, so imports still work.
 - Tests: `ReshapeEducationCategoriesTest` (2); CategoryTreeTest (10 top-level) and the CSV import fixture updated.
-## 2026-11-11 — Local Top rated review fixtures
-- Added TopRatedDemoSeeder with 7–10 original mock reviews for each of ten existing catalog books (82 new reviews). Dedicated demo customers and synthetic delivered-order lines preserve review ownership; reruns reuse records, existing reviews stay intact, and model events are disabled. Seeder only accepts local/testing environments.
+## 2026-11-11 ï¿½ Local Top rated review fixtures
+- Added TopRatedDemoSeeder with 7ï¿½10 original mock reviews for each of ten existing catalog books (82 new reviews). Dedicated demo customers and synthetic delivered-order lines preserve review ownership; reruns reuse records, existing reviews stay intact, and model events are disabled. Seeder only accepts local/testing environments.
 - Local frontend uses an explicitly labeled, DEV-only fixture preview while connected to the live API. Top rated excludes scores below 3.5 rather than changing real ratings. Increased the cover-color wash and fixed ranked-row overflow.
 - Research and operational details: ../bookly_frontend/docs/TOP_RATED_DEMO.md. Goodreads averages/counts are documented as sourced snapshots, separately from synthetic customer reviews.
 - Validation: TopRatedDemoSeederTest passes (2 tests, 391 assertions); Pint passes; browser confirms ten rated rows and no overflow at desktop/tablet/mobile widths. Local database seeder completed; no production database was modified.
@@ -794,3 +794,26 @@ Owner asked: support replies not reaching customers, real-looking data for the P
   gift_redemption_attempts and orders.is_gift/gift_message (old migrations untouched; down() restores the schema).
 - Checks: pint passed; 1010 tests passed. Migration up â†’ rollback â†’ up on a scratch database: tables restored then
   dropped, `gifts` kept. Deploy note: run `php artisan migrate` on Render; remove GIFT_CARDS_ENABLED from its env.
+
+### 2026-11-17 ï¿½ Book embeddings foundation (branch `feature/book-embeddings`)
+- Migration `2026_11_18_100001_create_book_embeddings_table`: adds `book_embeddings` table (`id`, `book_id` unique FK cascade, `embedding`, `model`, `text_hash`, `embedded_at`, timestamps) with HNSW cosine index when pgvector is present, and clean rollback in `down()`.
+- Services: `EmbeddingClient` interface, `GeminiEmbeddingClient` (batch requests, 10s timeout, exponential backoff on 429/5xx, sanitised logging without keys or text), `FakeEmbeddingClient` (deterministic 768-dim unit vectors for test suite), and `EmbeddingService` (builds book text from title/subtitle/description/categories/authors, computes SHA-256 hash, skips unchanged books).
+- Jobs & Commands: queued job `EmbedBook` dispatched on book creation or author/category/text updates; artisan command `books:embed {--all} {--limit=} {--force} {--dry-run}` with summary table.
+- Config: `.env.example` and `config/shop.php` gain `ai_similar_enabled`, `ai_embed_model`, `gemini_api_key`, `ai_similarity_threshold`.
+- Tests: `tests/Feature/Catalog/BookEmbeddingTest.php` (11 tests, 44 assertions passed with fake client). Pint passed.
+
+### 2026-11-17 ï¿½ Semantic similar books in recommendations (branch `feature/book-embeddings`)
+- RecommendationService: when `AI_SIMILAR_ENABLED=true`, inserts up to 6 nearest books by vector cosine distance (threshold <= 0.40) after series matches and before co-purchases. Includes native pgvector HNSW cosine distance query and in-memory cosine fallback for environments without pgvector.
+- Fallback & safety: when disabled, missing vector, or on any error, cleanly falls back to existing rules; never crashes or throws 500.
+- BookController & BookResource: marks semantic matches with `recommendation_reason: "similar"` on `/api/v1/books/{id}/related`.
+- Specs: updated `docs/API.md` and `public/openapi.yaml` to document `recommendation_reason` on `BookCard`.
+- Tests: `tests/Feature/Catalog/SimilarBooksRecommendationTest.php` (5 tests, 19 assertions) and existing recommendation suites pass. Pint passed.
+
+### 2026-11-18 â€” Semantic search by meaning (branch `feature/book-embeddings`)
+- Created `SemanticSearchService`: when `AI_SEARCH_ENABLED=true` and the query has 3+ words, embeds the normalized query string, caches the embedding 24 hours, and finds up to 8 nearest in-stock and visible books using cosine distance (<= 0.40).
+- Fallback & safety: rate limited to 30 AI searches per minute per IP via RateLimiter; embedding client uses a 2s timeout; any timeout, rate limit excess, or error gracefully falls back to normal keyword results without throwing 500 errors.
+- Integration in `BookController::index()`: appends semantic matches after normal keyword results on page 1 without duplicates; updates paginator collection and count.
+- `BookResource`: marks semantic results with `match: "meaning"` when present.
+- Documentation: updated `docs/API.md` and `public/openapi.yaml` schema for `match` on `BookCard`.
+- Configuration: added `ai_search_enabled` to `config/shop.php` and `.env.example` (default false).
+- Tests: `tests/Feature/Catalog/SemanticSearchTest.php` (8 tests, 26 assertions passed with fake client). Pint passed.

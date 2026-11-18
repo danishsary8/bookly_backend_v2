@@ -52,4 +52,11 @@ return [
 
     // Maximum marketing emails sent per shop-time calendar day (Resend free allows 100/day total).
     'marketing_daily_limit' => (int) env('MARKETING_DAILY_LIMIT', 60),
+
+    // AI semantic similarity & search
+    'ai_similar_enabled' => (bool) env('AI_SIMILAR_ENABLED', false),
+    'ai_search_enabled' => (bool) env('AI_SEARCH_ENABLED', false),
+    'ai_embed_model' => env('AI_EMBED_MODEL', 'text-embedding-004'),
+    'gemini_api_key' => env('GEMINI_API_KEY'),
+    'ai_similarity_threshold' => (float) env('AI_SIMILARITY_THRESHOLD', 0.40),
 ];
