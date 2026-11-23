@@ -32,7 +32,7 @@ class RulesEngine implements AssistantEngine
                 }
             }
         }
-        if (($this->matches($normalized, ['search', 'find', 'manga', 'comics', 'grade', 'english file', 'under', 'below', 'ស្វែងរក', 'ថ្នាក់ទី', 'ក្រោម'])
+        if (($this->matches($normalized, ['search', 'find', 'manga', 'comics', 'grade', 'english file', 'under', 'below', 'best seller', 'best sellers', 'bestseller', 'bestsellers', 'popular', 'new arrival', 'new arrivals', 'recommend', 'ស្វែងរក', 'ថ្នាក់ទី', 'ក្រោម', 'លក់ដាច់', 'ពេញនិយម', 'ណែនាំ'])
                 || preg_match('/\b[abc][12]\b/u', $normalized))
             && ! $this->matches($normalized, ['read ebook', 'ebook help', 'download', 'device', 'អានសៀវភៅ', 'ឧបករណ៍'])) {
             return $this->books($this->text->redact($question));
@@ -48,6 +48,11 @@ class RulesEngine implements AssistantEngine
             return $this->result('delivery', $answer, '/shipping');
         }
         foreach ([
+            'offers' => [['offer', 'offers', 'discount', 'discounts', 'promotion', 'promotions', 'deal', 'deals', 'bundle', 'ប្រូម៉ូសិន', 'បញ្ចុះតម្លៃ'], '/offers'],
+            'coupons' => [['coupon', 'coupons', 'promo code', 'voucher', 'reward', 'គូប៉ុង', 'ប័ណ្ណបញ្ចុះតម្លៃ'], '/cart'],
+            'preorder' => [['preorder', 'pre order', 'backorder', 'back order', 'កុម្ម៉ង់ទុកមុន', 'បញ្ជាទិញមុន', 'រង់ចាំស្តុក'], '/books'],
+            'wishlist' => [['wishlist', 'reading list', 'reading lists', 'price drop', 'បញ្ជីប្រាថ្នា', 'បញ្ជីចង់បាន', 'បញ្ជីអាន'], '/account/wishlist'],
+            'credit' => [['store credit', 'wallet', 'referral', 'refer a friend', 'ឥណទានហាង', 'ណែនាំមិត្តភក្តិ'], '/account'],
             'payment' => [['payment', 'pay', 'khqr', 'bakong', 'cash on delivery', 'ទូទាត់', 'បង់ប្រាក់'], '/checkout'],
             'returns' => [['return', 'refund', 'ត្រឡប់', 'បង្វិលប្រាក់'], '/returns-policy'],
             'ebook' => [['ebook', 'read online', 'download', 'device', 'អេឡិចត្រូនិក', 'ឧបករណ៍'], '/account/ebooks'],

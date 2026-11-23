@@ -59,8 +59,15 @@ class BookQueryParser
             $filters['language'] = 'English';
             $text = preg_replace('/\benglish\b/u', ' ', $text);
         }
-        $text = preg_replace('/\b(?:find|search|show|me|for|books|book|please|a|an|the)\b/u', ' ', $text);
-        $text = str_replace(['សៀវភៅ', 'សូម', 'ស្វែងរក'], ' ', $text);
+        $text = preg_replace('/\b(?:find|search|show|me|for|books|book|please|a|an|the|recommend|some|good)\b/u', ' ', $text);
+        if (preg_match('/\b(?:best\s*sellers?|bestsellers?|popular)\b|លក់ដាច់|ពេញនិយម/u', $text, $match)) {
+            $filters['sort'] = 'best_selling';
+            $text = str_replace($match[0], ' ', $text);
+        } elseif (preg_match('/\b(?:new\s*arrivals?|newest|latest)\b|សៀវភៅថ្មី/u', $text, $match)) {
+            $filters['sort'] = 'newest';
+            $text = str_replace($match[0], ' ', $text);
+        }
+        $text = str_replace(['សៀវភៅ', 'សូម', 'ស្វែងរក', 'ណែនាំ'], ' ', $text);
         $text = trim(preg_replace('/\s+/u', ' ', $text));
         if ($text !== '') {
             $filters['q'] = mb_substr($text, 0, 200);
