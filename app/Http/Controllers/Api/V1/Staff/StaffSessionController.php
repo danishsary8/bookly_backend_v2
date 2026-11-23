@@ -51,11 +51,12 @@ class StaffSessionController extends Controller
         $user = $request->user();
         $currentTokenId = $user->currentAccessToken()?->id;
 
+        $revoked = 0;
         if ($currentTokenId) {
-            $user->tokens()->whereKeyNot($currentTokenId)->delete();
+            $revoked = $user->tokens()->whereKeyNot($currentTokenId)->delete();
         }
 
-        return response()->json(['message' => 'Other sessions revoked.']);
+        return response()->json(['message' => 'Other sessions revoked.', 'revoked_count' => $revoked]);
     }
 
     /** Sign out everywhere by revoking all tokens including current. */

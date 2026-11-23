@@ -59,11 +59,13 @@ class SemanticSearchService
 
             $threshold = (float) config('shop.ai_similarity_threshold', 0.40);
 
-            $hasVector = false;
-            try {
-                $hasVector = DB::table('pg_extension')->where('extname', 'vector')->exists();
-            } catch (Throwable) {
-                $hasVector = false;
+            static $hasVector = null;
+            if ($hasVector === null) {
+                try {
+                    $hasVector = DB::table('pg_extension')->where('extname', 'vector')->exists();
+                } catch (Throwable) {
+                    $hasVector = false;
+                }
             }
 
             if ($hasVector) {

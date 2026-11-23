@@ -194,7 +194,8 @@ class BookController extends Controller
             // Author/category changes alone do not fire the book's "updated" event.
             DB::afterCommit(function () use ($book, $data) {
                 RecommendationService::catalogChanged();
-                if (array_key_exists('author_ids', $data) || array_key_exists('category_ids', $data)) {
+                if ((array_key_exists('author_ids', $data) || array_key_exists('category_ids', $data))
+                    && (config('shop.ai_similar_enabled') || config('shop.ai_search_enabled'))) {
                     EmbedBook::dispatch($book->id);
                 }
             });

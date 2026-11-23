@@ -37,7 +37,7 @@ class ReportsService
         $start = CarbonImmutable::parse($from, $tz)->startOfDay();
         $end = CarbonImmutable::parse($to, $tz)->startOfDay()->addDay();
 
-        if ($start->gt($end)) {
+        if ($start->gte($end)) {
             throw ValidationException::withMessages(['to' => 'The end date must be after or equal to the start date.']);
         }
 
@@ -876,6 +876,7 @@ class ReportsService
         $localDay = fn (string $col) => "TO_CHAR(DATE(({$col} AT TIME ZONE 'UTC') AT TIME ZONE ?), 'YYYY-MM-DD')";
 
         $rows = DB::table('customers')
+            ->whereNull('deleted_at')
             ->where(fn ($q) => $q->whereNotNull('email_verified_at')->orWhereNotNull('phone_verified_at'))
             ->whereBetween('created_at', [$from, $to->subSecond()])
             ->selectRaw($localDay('created_at').' AS day, COUNT(*) AS count', [$tz])

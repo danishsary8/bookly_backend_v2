@@ -25,10 +25,11 @@ class StaffManagementService
         return DB::transaction(function () use ($admin, $data) {
             $member = StaffUser::create([
                 'name' => $data['name'],
-                'email' => strtolower($data['email']),
+                'email' => strtolower(trim($data['email'])),
                 // Nobody knows this password; the new member sets their own with the emailed code.
                 'password_hash' => Str::random(64),
                 'role' => $data['role'],
+                'permissions' => $data['role'] === StaffRole::Admin->value ? null : ($data['permissions'] ?? null),
             ]);
             $this->audit->created($admin, $member);
             $this->sendInvitation($member);

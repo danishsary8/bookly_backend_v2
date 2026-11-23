@@ -61,11 +61,14 @@ class EbookDevices
 
     public function remove(Customer $customer, int $deviceId): void
     {
-        $device = EbookDevice::active()->where('customer_id', $customer->id)->findOrFail($deviceId);
-        if ($next = $this->nextRemovalAt($customer)) {
-            throw new HttpException(429, __('messages.ebook_device_remove_wait', ['date' => $next->timezone(config('shop.timezone', 'Asia/Phnom_Penh'))->format('j M Y')]));
-        }
-        $device->forceFill(['removed_at' => now()])->save();
+        DB::transaction(function () use ($customer, $deviceId) {
+            Customer::whereKey($customer->id)->lockForUpdate()->first();
+            $device = EbookDevice::active()->where('customer_id', $customer->id)->findOrFail($deviceId);
+            if ($next = $this->nextRemovalAt($customer)) {
+                throw new HttpException(429, __('messages.ebook_device_remove_wait', ['date' => $next->timezone(config('shop.timezone', 'Asia/Phnom_Penh'))->format('j M Y')]));
+            }
+            $device->forceFill(['removed_at' => now()])->save();
+        });
     }
 
     /** Staff: frees every device and the 30-day wait. Returns how many rows were cleared. */

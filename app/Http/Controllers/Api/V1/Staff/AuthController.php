@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Staff;
 
+use App\Enums\StaffRole;
 use App\Enums\VerificationPurpose;
 use App\Http\Controllers\Api\V1\Concerns\IssuesTokens;
 use App\Http\Controllers\Controller;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -42,6 +44,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'portal' => ['nullable', 'string', Rule::in(['admin', 'staff'])],
         ]);
 
         $staff = StaffUser::where('email', strtolower($data['email']))->first();
@@ -58,6 +61,22 @@ class AuthController extends Controller
             $this->recordLoginHistory($staff, $request, 'deactivated');
 
             return response()->json(['message' => 'This account has been deactivated. Please contact support.'], 403);
+        }
+
+        $portal = $data['portal'] ?? null;
+        if ($portal === 'admin' && $staff->role !== StaffRole::Admin) {
+            return response()->json([
+                'code' => 'wrong_portal',
+                'expected_portal' => 'staff',
+                'message' => 'This is a staff account. Please sign in at the Staff portal instead.',
+            ], 403);
+        }
+        if ($portal === 'staff' && $staff->role !== StaffRole::Staff) {
+            return response()->json([
+                'code' => 'wrong_portal',
+                'expected_portal' => 'admin',
+                'message' => 'This is an administrator account. Please sign in at the Admin portal instead.',
+            ], 403);
         }
 
         if ($staff->two_factor_enabled) {

@@ -40,14 +40,16 @@ class Book extends Model
         static::created(function (Book $book) {
             DB::afterCommit(function () use ($book) {
                 RecommendationService::catalogChanged();
-                EmbedBook::dispatch($book->id);
+                if (config('shop.ai_similar_enabled') || config('shop.ai_search_enabled')) {
+                    EmbedBook::dispatch($book->id);
+                }
             });
         });
 
         static::updated(function (Book $book) {
             DB::afterCommit(function () use ($book) {
                 RecommendationService::catalogChanged();
-                if ($book->wasChanged(['title', 'description'])) {
+                if ($book->wasChanged(['title', 'description']) && (config('shop.ai_similar_enabled') || config('shop.ai_search_enabled'))) {
                     EmbedBook::dispatch($book->id);
                 }
             });

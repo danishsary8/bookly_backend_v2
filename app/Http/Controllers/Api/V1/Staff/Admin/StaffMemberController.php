@@ -40,12 +40,16 @@ class StaffMemberController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if ($request->has('email')) {
+            $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:190', Rule::unique('staff_users', 'email')],
             'role' => ['required', Rule::enum(StaffRole::class)],
             'permissions' => ['sometimes', 'nullable', 'array'],
-            'permissions.*' => ['string'],
+            'permissions.*' => ['string', Rule::in(StaffUser::DEFAULT_PERMISSIONS)],
         ]);
 
         return (new StaffMemberResource($this->staff->create($request->user(), $data)->refresh()))
@@ -58,7 +62,7 @@ class StaffMemberController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'role' => ['sometimes', 'required', Rule::enum(StaffRole::class)],
             'permissions' => ['sometimes', 'nullable', 'array'],
-            'permissions.*' => ['string'],
+            'permissions.*' => ['string', Rule::in(StaffUser::DEFAULT_PERMISSIONS)],
         ]);
 
         return new StaffMemberResource($this->staff->update($request->user(), $member, $data));

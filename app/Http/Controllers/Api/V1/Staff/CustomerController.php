@@ -160,9 +160,9 @@ class CustomerController extends Controller
         $admin = $request->user();
 
         // Checks that cost nothing come first, so a typo or an open order does not use up the one-time code.
-        $expectedConfirm = $customer->email ?? $customer->phone ?? '';
+        $expectedConfirm = $customer->email ?? $customer->phone ?? $customer->phone_e164 ?? $customer->name ?? 'CLOSE';
         if ($data['confirm'] !== $expectedConfirm) {
-            $field = $customer->email !== null ? 'email' : 'phone number';
+            $field = $customer->email !== null ? 'email' : ($customer->phone !== null || $customer->phone_e164 !== null ? 'phone number' : 'name');
 
             return response()->json([
                 'message' => "Type the customer's {$field} to confirm.",

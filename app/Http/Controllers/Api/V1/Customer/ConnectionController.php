@@ -93,7 +93,11 @@ class ConnectionController extends Controller
     private function notice(Customer $customer, string $subject, string $what, string $key, string $name): void
     {
         if ($customer->email !== null && $customer->hasVerifiedEmail()) {
-            $customer->notify(new AccountSecurityNotice($subject, $what, $key, ['name' => $name]));
+            try {
+                $customer->notify(new AccountSecurityNotice($subject, $what, $key, ['name' => $name]));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 }

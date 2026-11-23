@@ -86,7 +86,7 @@ class ProfileController extends Controller
     {
         $customer = $request->user();
         $hasPassword = $customer->password_hash !== null;
-        $needsSocial = ! $hasPassword && $customer->hasVerifiedEmail();
+        $needsSocial = ! $hasPassword && ($customer->google_id !== null || $customer->facebook_id !== null);
 
         $rules = [
             'confirm' => ['required', Rule::in(['DELETE'])],

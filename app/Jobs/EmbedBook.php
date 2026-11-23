@@ -24,7 +24,7 @@ class EmbedBook implements ShouldQueue
      */
     public function handle(EmbeddingService $service): void
     {
-        if (! config('shop.ai_similar_enabled')) {
+        if (! config('shop.ai_similar_enabled') && ! config('shop.ai_search_enabled')) {
             return;
         }
 

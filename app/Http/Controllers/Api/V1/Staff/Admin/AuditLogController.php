@@ -7,6 +7,7 @@ use App\Services\Admin\AuditTimeline;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
 /** Read-only view of every change made by staff. */
@@ -77,10 +78,12 @@ class AuditLogController extends Controller
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
-                // Distinct values for filter dropdowns.
-                'entity_types' => (clone $base)->distinct()->orderBy('entity_type')->pluck('entity_type'),
-                'actions' => (clone $base)->distinct()->orderBy('action')->pluck('action'),
-                'actors' => (clone $base)->join('staff_users as staff', 'staff.id', '=', 'events.staff_user_id')->select('staff.id', 'staff.name')->distinct()->orderBy('staff.name')->get(),
+                // Distinct values for filter dropdowns (cached for 2 minutes per source to avoid 3 full union scans on every load).
+                ...Cache::remember("audit-meta:{$source}", 120, fn () => [
+                    'entity_types' => (clone $base)->distinct()->orderBy('entity_type')->pluck('entity_type'),
+                    'actions' => (clone $base)->distinct()->orderBy('action')->pluck('action'),
+                    'actors' => (clone $base)->join('staff_users as staff', 'staff.id', '=', 'events.staff_user_id')->select('staff.id', 'staff.name')->distinct()->orderBy('staff.name')->get(),
+                ]),
                 'timezone' => $timezone,
                 'sources' => ['audit', 'inventory', 'orders'],
             ],

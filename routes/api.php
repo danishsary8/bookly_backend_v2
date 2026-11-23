@@ -367,14 +367,14 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
 
     Route::get('/customers', [StaffCustomerController::class, 'index'])->middleware('ability:customers:view,admin');
     Route::get('/customers/{customer}', [StaffCustomerController::class, 'show'])->withTrashed()->middleware('ability:customers:view,admin');
-    Route::get('/customers/{customer}/notes', [CustomerNoteController::class, 'index'])->whereNumber('customer')->middleware('ability:customers:view,admin');
-    Route::post('/customers/{customer}/notes', [CustomerNoteController::class, 'store'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
+    Route::get('/customers/{customer}/notes', [CustomerNoteController::class, 'index'])->whereNumber('customer')->withTrashed()->middleware('ability:customers:view,admin');
+    Route::post('/customers/{customer}/notes', [CustomerNoteController::class, 'store'])->whereNumber('customer')->withTrashed()->middleware('ability:customers:manage,admin');
     Route::delete('/customer-notes/{note}', [CustomerNoteController::class, 'destroy'])->whereNumber('note')->middleware('ability:customers:manage,admin');
-    Route::put('/customers/{customer}/tags', [CustomerTagController::class, 'update'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
+    Route::put('/customers/{customer}/tags', [CustomerTagController::class, 'update'])->whereNumber('customer')->withTrashed()->middleware('ability:customers:manage,admin');
     Route::get('/customer-tags', [CustomerTagController::class, 'suggestions'])->middleware('ability:customers:view,admin');
     Route::post('/customers/{customer}/resend-verification', [StaffCustomerController::class, 'resendVerification'])->whereNumber('customer')->middleware('ability:customers:manage,admin');
 
-    Route::get('/reviews', [StaffReviewController::class, 'index']);
+    Route::get('/reviews', [StaffReviewController::class, 'index'])->middleware('ability:reviews:manage,admin');
     Route::get('/ratings', [App\Http\Controllers\Api\V1\Staff\OrderRatingController::class, 'index'])->middleware('ability:reviews:manage,admin');
     Route::post('/ratings/{rating}/hide', [App\Http\Controllers\Api\V1\Staff\OrderRatingController::class, 'hide'])->whereNumber('rating')->middleware('ability:reviews:manage,admin');
     Route::post('/reviews/{review}/hide', [StaffReviewController::class, 'hide'])->whereNumber('review')->middleware('ability:reviews:manage,admin');
@@ -424,10 +424,10 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/settings/payments', [StaffPaymentSettingsController::class, 'show'])->middleware('ability:catalog:view,admin');
     Route::get('/settings/shop', [ShopSettingsController::class, 'show'])->middleware('ability:catalog:view,admin');
     Route::get('/reading-lists', [ReadingListController::class, 'staffIndex'])->middleware('ability:catalog:view,admin');
-    Route::patch('/reading-lists/{list}', [ReadingListController::class, 'staffPick'])->whereNumber('list')->middleware(['ability:catalog:view,admin', 'throttle:20,1']);
+    Route::patch('/reading-lists/{list}', [ReadingListController::class, 'staffPick'])->whereNumber('list')->middleware(['ability:catalog:manage,admin', 'throttle:20,1']);
     Route::get('/gifts', [GiftController::class, 'index'])->middleware('ability:catalog:view,admin');
     Route::get('/offers/{offer}', [StaffOfferController::class, 'show'])->whereNumber('offer')->middleware('ability:catalog:view,admin');
-    Route::get('/books/{book}/ebook', [EbookFileController::class, 'show'])->middleware('ability:catalog:manage,admin');
+    Route::get('/books/{book}/ebook', [EbookFileController::class, 'show'])->middleware('ability:catalog:view,admin');
     Route::post('/books/{book}/ebook', [EbookFileController::class, 'store'])->middleware(['throttle:uploads', 'ability:catalog:manage,admin']);
     Route::patch('/books/{book}/ebook', [EbookFileController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::delete('/books/{book}/ebook', [EbookFileController::class, 'destroy'])->middleware('ability:catalog:manage,admin');

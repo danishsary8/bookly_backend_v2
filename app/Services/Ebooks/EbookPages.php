@@ -118,12 +118,16 @@ class EbookPages
         }
 
         $work = storage_path('app/ebook-work/'.Str::random(16));
+        $cacheDir = storage_path('app/ebook-work/cache');
         @mkdir($work, 0700, true);
+        @mkdir($cacheDir, 0700, true);
+        $cachedPdf = $cacheDir.'/'.sha1((string) $file->masterPath()).'.pdf';
         try {
-            $pdf = $work.'/book.pdf';
-            file_put_contents($pdf, self::disk()->get($file->masterPath()));
+            if (! is_file($cachedPdf) || filesize($cachedPdf) === 0) {
+                file_put_contents($cachedPdf, self::disk()->get($file->masterPath()));
+            }
             $process = new Process(['pdftoppm', '-jpeg', '-jpegopt', 'quality=82', '-scale-to-y', (string) self::HEIGHT, '-scale-to-x', '-1',
-                '-f', (string) $first, '-l', (string) $last, $pdf, $work.'/p']);
+                '-f', (string) $first, '-l', (string) $last, $cachedPdf, $work.'/p']);
             $process->setTimeout(120)->run();
             if (! $process->isSuccessful()) {
                 throw new RuntimeException('The PDF could not be turned into pages: '.Str::limit(trim($process->getErrorOutput()), 300));
@@ -136,9 +140,15 @@ class EbookPages
             $file->pages_rendered = $last;
             $file->status = $last >= $file->page_count ? EbookFile::STATUS_READY : EbookFile::STATUS_PROCESSING;
             $file->save();
+            if ($file->status === EbookFile::STATUS_READY && is_file($cachedPdf)) {
+                @unlink($cachedPdf);
+            }
 
             return $last - $first + 1;
         } catch (Throwable $e) {
+            if (is_file($cachedPdf)) {
+                @unlink($cachedPdf);
+            }
             report($e);
             $file->update(['status' => EbookFile::STATUS_FAILED, 'error' => Str::limit($e->getMessage(), 480)]);
 

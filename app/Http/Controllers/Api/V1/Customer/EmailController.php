@@ -105,12 +105,16 @@ class EmailController extends Controller
         }
 
         if ($old !== null) {
-            Notification::route('mail', $old)->notify((new AccountSecurityNotice(
-                'Your Bookly email was changed',
-                'The email on your Bookly account was changed to '.self::masked($email).'. Sign-in and order emails now go there.',
-                'email_changed',
-                ['email' => self::masked($email)],
-            ))->locale($customer->locale ?? 'en'));
+            try {
+                Notification::route('mail', $old)->notify((new AccountSecurityNotice(
+                    'Your Bookly email was changed',
+                    'The email on your Bookly account was changed to '.self::masked($email).'. Sign-in and order emails now go there.',
+                    'email_changed',
+                    ['email' => self::masked($email)],
+                ))->locale($customer->locale ?? 'en'));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return response()->json([

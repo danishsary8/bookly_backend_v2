@@ -139,6 +139,8 @@ class SitemapController extends Controller
         $content .= "Allow: /\n";
         $content .= "Disallow: /admin\n";
         $content .= "Disallow: /admin/\n";
+        $content .= "Disallow: /staff\n";
+        $content .= "Disallow: /staff/\n";
         $content .= "Disallow: /account\n";
         $content .= "Disallow: /account/\n";
         $content .= "Disallow: /checkout\n";

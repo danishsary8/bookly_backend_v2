@@ -81,7 +81,7 @@ class PreorderAllocationService
 
                 if (! $variantCovered) {
                     // Since orders are FIFO, if this order cannot be covered, subsequent orders for this variant wait
-                    continue;
+                    break;
                 }
 
                 // Check if ALL lines of this order are now ready

@@ -158,8 +158,8 @@ class CheckoutService
             if ($useCredit && $expectedPaymentDueCents !== null && $expectedPaymentDueCents !== $totals['total_cents'] - $credit) {
                 throw ValidationException::withMessages(['use_credit' => __('credit.balance_changed')]);
             }
-            // A fully funded order needs no QR or cash collection; its journal is the payment evidence.
-            $fullyFunded = $credit > 0 && $credit === $totals['total_cents'];
+            // A fully funded (or $0.00 after discounts) order needs no QR or cash collection.
+            $fullyFunded = ($totals['total_cents'] - $credit) <= 0;
             // Cash on delivery only up to the shop's limit (owner 2026-11-12); above it the customer pays by KHQR.
             $codMax = app(ShopSettings::class)->codMaxCents();
             if ($paymentMethod === PaymentMethod::Cod && ! $fullyFunded && $codMax !== null && $codMax < $totals['total_cents'] - $credit) {

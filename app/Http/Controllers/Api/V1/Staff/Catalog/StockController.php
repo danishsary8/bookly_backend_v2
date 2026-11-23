@@ -82,7 +82,7 @@ class StockController extends Controller
             'quantity' => ['required', 'integer', 'min:1', 'max:10000'],
             'supplier' => ['nullable', 'string', 'max:150'],
             'supplier_id' => ['nullable', 'integer', Rule::exists('suppliers', 'id')->where('is_active', true)],
-            'unit_cost_usd' => ['nullable', 'numeric', 'min:0', 'max:99999.99', 'decimal:0,2'],
+            'unit_cost_usd' => $request->user()->isAdmin() ? ['nullable', 'numeric', 'min:0', 'max:99999.99', 'decimal:0,2'] : ['prohibited'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 

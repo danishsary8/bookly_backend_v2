@@ -64,7 +64,11 @@ class StaffUser extends Authenticatable
             return self::ADMIN_PERMISSIONS;
         }
 
-        return $this->permissions ?? self::DEFAULT_PERMISSIONS;
+        if ($this->permissions === null) {
+            return self::DEFAULT_PERMISSIONS;
+        }
+
+        return array_values(array_intersect($this->permissions, self::DEFAULT_PERMISSIONS));
     }
 
     public function hasPermission(string $permission): bool
