@@ -58,7 +58,7 @@ class OfferSchemaTest extends TestCase
     {
         $this->assertRefused(fn () => $this->offer(['type' => 'bundle']), 'unknown type');
         $this->assertRefused(fn () => $this->offer(['applies_to' => 'some']), 'unknown applies_to');
-        $this->assertRefused(fn () => $this->offer(['min_quantity' => 1]), 'N below 2');
+        $this->assertRefused(fn () => $this->offer(['min_quantity' => 0]), 'N below 1');
         $this->assertRefused(fn () => $this->offer(['min_quantity' => 21]), 'N above 20');
         $this->assertRefused(fn () => $this->offer(['percent_off' => '0.00']), '0 %');
         $this->assertRefused(fn () => $this->offer(['percent_off' => '50.01']), 'more than 50 %');
@@ -69,7 +69,7 @@ class OfferSchemaTest extends TestCase
 
         // The edges are allowed.
         $this->offer(['min_quantity' => 20, 'percent_off' => '50.00']);
-        $this->offer(['min_quantity' => 2, 'percent_off' => '0.01']);
+        $this->offer(['min_quantity' => 1, 'percent_off' => '0.01']);
         $this->assertSame(2, DB::table('offers')->count());
     }
 

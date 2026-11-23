@@ -355,6 +355,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::get('/orders/documents', OrderDocumentController::class)->middleware(['throttle:30,1', 'ability:orders:view,admin']);
     Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->whereNumber('order')->middleware('ability:orders:view,admin');
     Route::post('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->whereNumber('order')->middleware('ability:orders:manage,admin');
+    Route::post('/orders/{order}/mark-paid', [StaffOrderController::class, 'markPaid'])->whereNumber('order')->middleware(['throttle:30,1', 'ability:orders:manage,admin']);
     Route::patch('/orders/{order}/staff-note', [StaffOrderController::class, 'updateStaffNote'])->whereNumber('order')->middleware(['throttle:30,1', 'ability:orders:manage,admin']);
     // One status for up to 50 orders (not cancel); each order changes on its own and failures are listed.
     Route::post('/orders/bulk-status', OrderBulkStatusController::class)->middleware(['throttle:20,1', 'ability:orders:manage,admin']);
@@ -491,7 +492,6 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
         // Owner 2026-10-31 (offers design): an offer gives money away too, so only admins make, change or delete them.
         // Owner 2026-11-01: seasonal collections are changed by admins only (like offers).
         Route::post('/collections', [StaffCollectionController::class, 'store']);
-        Route::post('/orders/{order}/mark-paid', [StaffOrderController::class, 'markPaid'])->whereNumber('order')->middleware('throttle:30,1');
         Route::patch('/collections/{collection}', [StaffCollectionController::class, 'update'])->whereNumber('collection');
         Route::delete('/collections/{collection}', [StaffCollectionController::class, 'destroy'])->whereNumber('collection');
         Route::post('/offers', [StaffOfferController::class, 'store']);

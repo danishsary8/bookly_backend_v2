@@ -246,7 +246,13 @@ class ReportsController extends Controller
                     $row['average_order_usd'], $row['books_per_order'],
                 ]));
                 foreach ($report['offers'] as $offer) {
-                    $rule = $offer['min_quantity'] ? "Buy {$offer['min_quantity']}, save ".rtrim(rtrim((string) $offer['percent_off'], '0'), '.').'%' : '';
+                    $rule = '';
+                    if ($offer['min_quantity']) {
+                        $pct = (float) ($offer['percent_off'] ?? 0);
+                        $rule = $pct > 0
+                            ? "Buy {$offer['min_quantity']}, save ".rtrim(rtrim((string) $offer['percent_off'], '0'), '.').'%'
+                            : "Buy {$offer['min_quantity']} offer";
+                    }
                     $line((string) $offer['name'], $rule, $offer);
                 }
                 $line('Orders without an offer', '', $report['without_offer']);

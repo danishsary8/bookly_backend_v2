@@ -51,4 +51,9 @@ class EbookFile extends Model
     {
         return $this->path.'/pages/'.$page.'.jpg';
     }
+
+    public function previewPagePath(int $page): string
+    {
+        return $this->path.'/preview/'.$page.'.jpg';
+    }
 }

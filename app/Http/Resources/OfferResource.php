@@ -26,6 +26,7 @@ class OfferResource extends JsonResource
             'applies_to' => $offer->applies_to,
             'min_quantity' => $offer->min_quantity,
             'percent_off' => $offer->percent_off,
+            'amount_off' => $offer->amount_off,
             'starts_at' => $offer->starts_at,
             'ends_at' => $offer->ends_at,
             'max_orders' => $offer->max_orders,

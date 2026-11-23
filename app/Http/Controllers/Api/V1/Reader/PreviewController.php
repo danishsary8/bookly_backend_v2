@@ -29,7 +29,21 @@ class PreviewController extends Controller
         $file = $this->readyFile($book);
         abort_if($page < 1 || $page > $file->previewLimit(), 404);
 
-        return ReaderController::image($pages->watermarked($file, $page, 'Bookly · free preview'));
+        $disk = EbookPages::disk();
+        $previewPath = $file->previewPagePath($page);
+        if ($disk->exists($previewPath)) {
+            $jpeg = (string) $disk->get($previewPath);
+        } else {
+            $jpeg = $pages->watermarked($file, $page, 'Bookly · free preview');
+            $disk->put($previewPath, $jpeg);
+        }
+
+        return response($jpeg, 200, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'public, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Disposition' => 'inline',
+        ]);
     }
 
     private function readyFile(int $book): EbookFile

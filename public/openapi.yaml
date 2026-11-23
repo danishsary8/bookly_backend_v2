@@ -548,9 +548,10 @@ components:
       description: The best live offer for the cart (tie -> lower id); null when none applies.
       properties:
         id: { type: integer }
-        type: { type: string, enum: [buy_n_percent] }
+        type: { type: string, enum: [buy_n_percent, buy_n_amount] }
         min_quantity: { type: integer, example: 2 }
         percent_off: { type: string, example: '15.00' }
+        amount_off: { type: string, nullable: true, example: '3.00' }
         ends_at: { type: string, format: date-time, nullable: true }
         target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
         whole_series: { type: boolean, description: 'A set offer: applies only when every volume of the target series is in the cart; min_quantity is then the number of volumes.' }
@@ -662,6 +663,7 @@ components:
         id: { type: integer }
         min_quantity: { type: integer, example: 2 }
         percent_off: { type: string, example: '15.00' }
+        amount_off: { type: string, nullable: true, example: '3.00' }
         ends_at: { type: string, format: date-time, nullable: true }
         target_label: { type: string, nullable: true, description: 'Series or category name when the offer has exactly one such target; else null.' }
         whole_series: { type: boolean, description: 'A set offer: applies only when every volume of the target series is in the cart; min_quantity is then the number of volumes.' }
@@ -795,6 +797,7 @@ components:
             offer_id: { type: integer }
             add_quantity: { type: integer, example: 1 }
             percent_off: { type: string, example: '15.00' }
+            amount_off: { type: string, nullable: true, example: '3.00' }
             target_label: { type: string, nullable: true }
             whole_series: { type: boolean, description: 'Set offer: add_quantity is the number of volumes still missing from the series.' }
             free_delivery: { type: boolean }

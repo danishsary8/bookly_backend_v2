@@ -27,6 +27,28 @@ final class OfferCalculator
             return new OfferResult($offer, $units, 0, []);
         }
 
+        if ($offer->type === 'buy_n_amount') {
+            $coveredTotal = array_sum(array_map(fn (OfferLine $line) => $line->lineTotalCents, $covered));
+            $totalDiscount = min($offer->amountOffCents, $coveredTotal);
+            $lineDiscounts = [];
+            $remaining = $totalDiscount;
+            $count = count($covered);
+            $i = 0;
+            foreach ($covered as $line) {
+                $i++;
+                if ($i === $count) {
+                    $lineDiscounts[$line->key] = min($remaining, $line->lineTotalCents);
+                } else {
+                    $share = $coveredTotal > 0 ? (int) round(($line->lineTotalCents / $coveredTotal) * $totalDiscount) : 0;
+                    $share = min($share, $remaining, $line->lineTotalCents);
+                    $lineDiscounts[$line->key] = $share;
+                    $remaining -= $share;
+                }
+            }
+
+            return new OfferResult($offer, $units, array_sum($lineDiscounts), $lineDiscounts);
+        }
+
         $lineDiscounts = [];
         foreach ($covered as $line) {
             $lineDiscounts[$line->key] = intdiv($line->lineTotalCents * $offer->percentBasisPoints, 10000);

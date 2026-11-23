@@ -64,6 +64,9 @@ class OfferController extends Controller
             $data['percent_off'] = '0.00';
             $data['min_quantity'] ??= 1;
         }
+        if (($data['type'] ?? '') === 'buy_n_amount') {
+            $data['percent_off'] = '0.00';
+        }
         if ($data['whole_series'] ?? false) {
             $data['min_quantity'] ??= 2; // not used by a set offer: the set is every volume of the series
         }
@@ -88,6 +91,9 @@ class OfferController extends Controller
     {
         $data = $request->validate($this->rules($request, $offer));
         if (($data['type'] ?? $offer->type) === 'gift') {
+            $data['percent_off'] = '0.00';
+        }
+        if (($data['type'] ?? $offer->type) === 'buy_n_amount') {
             $data['percent_off'] = '0.00';
         }
         $appliesTo = $data['applies_to'] ?? $offer->applies_to;
@@ -152,20 +158,23 @@ class OfferController extends Controller
     {
         $required = $offer ? 'sometimes' : 'required';
         $appliesTo = $request->input('applies_to', $offer?->applies_to);
-        $gift = $request->input('type', $offer?->type) === 'gift';
+        $type = $request->input('type', $offer?->type ?? Offer::TYPE_BUY_N_PERCENT);
+        $gift = $type === 'gift';
+        $amount = $type === Offer::TYPE_BUY_N_AMOUNT;
         $set = $request->boolean('whole_series', (bool) $offer?->whole_series);
 
         return [
             'name' => [$required, 'string', 'min:1', 'max:100'],
-            'type' => ['sometimes', Rule::in(['buy_n_percent', 'gift'])],
+            'type' => ['sometimes', Rule::in(['buy_n_percent', 'buy_n_amount', 'gift'])],
             'gift_id' => [Rule::requiredIf($gift && (! $offer?->gift_id || $request->exists('gift_id'))), 'nullable', 'integer', 'exists:gifts,id'],
             'gift_quantity' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'min_subtotal' => ['sometimes', 'nullable', 'numeric', 'min:0.01', 'max:99999999.99', 'decimal:0,2'],
             'applies_to' => [$required, Rule::in([Offer::APPLIES_TO_ALL, Offer::APPLIES_TO_SELECTED])],
-            'whole_series' => ['sometimes', 'boolean', Rule::prohibitedIf($gift && $request->boolean('whole_series'))],
+            'whole_series' => ['sometimes', 'boolean', Rule::prohibitedIf(($gift || $amount) && $request->boolean('whole_series'))],
             'free_delivery' => ['sometimes', 'boolean'],
-            'min_quantity' => [$gift || $set ? 'sometimes' : $required, 'integer', $gift ? 'min:1' : 'min:2', 'max:20'],
-            'percent_off' => [$gift ? 'sometimes' : $required, 'numeric', $gift ? 'in:0' : 'min:0.01', 'max:50', 'decimal:0,2'],
+            'min_quantity' => [$gift || $set ? 'sometimes' : $required, 'integer', 'min:1', 'max:20'],
+            'amount_off' => [$amount ? $required : 'nullable', 'numeric', 'min:0.01', 'max:5000', 'decimal:0,2'],
+            'percent_off' => [$gift || $amount ? 'sometimes' : $required, 'numeric', $gift || $amount ? 'in:0,0.00' : 'min:0.01', 'max:50', 'decimal:0,2'],
             'starts_at' => ['sometimes', 'nullable', 'date'],
             'ends_at' => ['sometimes', 'nullable', 'date'],
             'max_orders' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1000000'],

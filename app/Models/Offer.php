@@ -18,12 +18,16 @@ class Offer extends Model
 
     public const TYPE_BUY_N_PERCENT = 'buy_n_percent';
 
+    public const TYPE_BUY_N_AMOUNT = 'buy_n_amount';
+
+    public const TYPE_GIFT = 'gift';
+
     public const APPLIES_TO_ALL = 'all';
 
     public const APPLIES_TO_SELECTED = 'selected';
 
     protected $fillable = [
-        'name', 'type', 'applies_to', 'min_quantity', 'percent_off', 'starts_at', 'ends_at', 'max_orders', 'is_active',
+        'name', 'type', 'applies_to', 'min_quantity', 'percent_off', 'amount_off', 'starts_at', 'ends_at', 'max_orders', 'is_active',
         'gift_id', 'gift_quantity', 'min_subtotal', 'whole_series', 'free_delivery',
     ];
 
@@ -38,6 +42,7 @@ class Offer extends Model
         return [
             'min_quantity' => 'integer',
             'percent_off' => 'decimal:2',
+            'amount_off' => 'decimal:2',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'max_orders' => 'integer',
