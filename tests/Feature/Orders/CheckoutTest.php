@@ -165,15 +165,17 @@ class CheckoutTest extends TestCase
         $this->assertSame(0, Order::count());
     }
 
-    public function test_crossing_the_low_stock_threshold_alerts_all_staff(): void
+    public function test_crossing_the_low_stock_threshold_alerts_all_active_staff(): void
     {
         $staff = StaffUser::factory()->count(2)->create();
+        $deactivated = StaffUser::factory()->create(['is_active' => false]);
         $variant = BookVariant::factory()->create(['stock_quantity' => 6, 'low_stock_threshold' => 5]);
         $this->addToCart($variant, 2);
 
         $this->checkout()->assertCreated();
 
         Notification::assertSentTo($staff, LowStockNotification::class, fn ($n) => $n->variant['stock_quantity'] === 4);
+        Notification::assertNotSentTo($deactivated, LowStockNotification::class);
     }
 
     public function test_preview_shows_totals_without_saving(): void

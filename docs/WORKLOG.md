@@ -817,3 +817,5 @@ Owner asked: support replies not reaching customers, real-looking data for the P
 - Documentation: updated `docs/API.md` and `public/openapi.yaml` schema for `match` on `BookCard`.
 - Configuration: added `ai_search_enabled` to `config/shop.php` and `.env.example` (default false).
 - Tests: `tests/Feature/Catalog/SemanticSearchTest.php` (8 tests, 26 assertions passed with fake client). Pint passed.
+
+- [x] Staff alerts skip deactivated members (2026-11-25, branch `claude/lucid-keller-vo3i1p`): low stock, gift low stock, pre-order ready to ship and paid-after-cancel alerts went to `StaffUser::all()`, so deactivated staff still received them. New `StaffUser::active()` scope; the four senders now use `StaffUser::active()->get()`. Test: `CheckoutTest::test_crossing_the_low_stock_threshold_alerts_all_active_staff` (fails before the fix: the deactivated member got the alert). Pint passed. No migrations.

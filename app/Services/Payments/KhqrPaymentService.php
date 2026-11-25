@@ -199,7 +199,7 @@ class KhqrPaymentService
             return true;
         });
         if ($flagged) {
-            Notification::send(StaffUser::all(), new PaidAfterCancelNotification([
+            Notification::send(StaffUser::active()->get(), new PaidAfterCancelNotification([
                 'order_id' => $order->id, 'order_number' => $order->order_number, 'amount' => (string) $payment->amount, 'currency' => $payment->currency,
             ]));
         }

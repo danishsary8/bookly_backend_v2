@@ -52,7 +52,7 @@ class PurchaseGifts
                 $offer->increment('used_count');
                 if ($gift->stock <= 5) {
                     DB::afterCommit(fn () => Notification::send(
-                        StaffUser::all(), new LowGiftStockNotification($gift),
+                        StaffUser::active()->get(), new LowGiftStockNotification($gift),
                     ));
                 }
             }
