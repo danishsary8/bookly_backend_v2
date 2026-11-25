@@ -220,7 +220,7 @@ class PreorderAllocationService
         $this->opsAlerts->orderReadyToShip($order);
 
         // Staff notification
-        $staff = StaffUser::all();
+        $staff = StaffUser::active()->get();
         if ($staff->isNotEmpty()) {
             Notification::send($staff, new OrderReadyToShipNotification($order));
         }

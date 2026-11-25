@@ -229,15 +229,16 @@ class SemanticSearchTest extends TestCase
     {
         Config::set('shop.ai_search_enabled', true);
 
+        // Create the book first: with AI search on, a new book is embedded too, and only query embeddings count here.
+        $book = $this->makeBuyableBook('Philosophy of Peaceful Mind', 'live', 5);
+        $this->attachEmbedding($book, $this->unitVector(0.98, 0.20));
+
         $mockClient = $this->createMock(EmbeddingClient::class);
         $mockClient->expects($this->once())
             ->method('embed')
             ->willReturn($this->unitVector(1.0, 0.0));
 
         $this->app->instance(EmbeddingClient::class, $mockClient);
-
-        $book = $this->makeBuyableBook('Philosophy of Peaceful Mind', 'live', 5);
-        $this->attachEmbedding($book, $this->unitVector(0.98, 0.20));
 
         // First call should invoke embed client once
         $this->getJson('/api/v1/books?q=deep+meditation+guide')->assertOk();

@@ -112,7 +112,7 @@ class KhqrPaymentService
         return $this->markPaid($order, $payment, ['simulated' => true, 'amount' => $payment->amount, 'currency' => $payment->currency], 'KHQR (test, no real money)');
     }
 
-    /** An admin saw the money arrive (e.g. in the bank app) and confirms it. */
+    /** Staff with order management (or an admin) saw the money arrive, e.g. in the bank app, and confirm it. */
     public function markPaidByStaff(Order $order, StaffUser $staff, string $note): Order
     {
         $order = $this->refresh($order);
@@ -199,7 +199,7 @@ class KhqrPaymentService
             return true;
         });
         if ($flagged) {
-            Notification::send(StaffUser::all(), new PaidAfterCancelNotification([
+            Notification::send(StaffUser::active()->get(), new PaidAfterCancelNotification([
                 'order_id' => $order->id, 'order_number' => $order->order_number, 'amount' => (string) $payment->amount, 'currency' => $payment->currency,
             ]));
         }

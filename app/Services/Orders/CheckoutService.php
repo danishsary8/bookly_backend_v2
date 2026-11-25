@@ -260,7 +260,7 @@ class CheckoutService
             }
 
             if ($crossedLowStock !== []) {
-                $staff = StaffUser::all();
+                $staff = StaffUser::active()->get();
                 foreach ($crossedLowStock as $variant) {
                     Notification::send($staff, LowStockNotification::for($variant->load('book')));
                     app(OpsAlerts::class)->lowStock($variant);
