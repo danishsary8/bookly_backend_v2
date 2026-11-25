@@ -34,7 +34,7 @@ class StaffStockTest extends TestCase
 
     public function test_restock_happy_path_records_movement_updates_stock_and_logs_audit(): void
     {
-        $token = $this->staffToken();
+        $token = $this->staffToken(admin: true); // only admins may record a unit cost
         $book = Book::factory()->create();
         $variant = BookVariant::factory()->create([
             'book_id' => $book->id,
@@ -72,7 +72,7 @@ class StaffStockTest extends TestCase
 
     public function test_restock_validations_and_bounds(): void
     {
-        $token = $this->staffToken();
+        $token = $this->staffToken(admin: true); // an admin, so the unit cost bounds are really checked
         $book = Book::factory()->create();
         $variant = BookVariant::factory()->create(['book_id' => $book->id, 'format' => BookFormat::Paperback]);
 
@@ -112,6 +112,19 @@ class StaffStockTest extends TestCase
             'quantity' => 5,
             'note' => str_repeat('a', 501),
         ])->assertUnprocessable()->assertJsonValidationErrors('note');
+    }
+
+    public function test_staff_restock_without_a_unit_cost_only_admins_record_one(): void
+    {
+        $token = $this->staffToken();
+        $variant = BookVariant::factory()->create(['book_id' => Book::factory()->create()->id, 'format' => BookFormat::Paperback, 'stock_quantity' => 5]);
+
+        $this->asToken($token)->postJson("/api/v1/staff/variants/{$variant->id}/restock", ['quantity' => 3, 'unit_cost_usd' => '4.50'])
+            ->assertUnprocessable()->assertJsonValidationErrors('unit_cost_usd');
+        $this->assertSame(5, $variant->fresh()->stock_quantity);
+
+        $this->asToken($token)->postJson("/api/v1/staff/variants/{$variant->id}/restock", ['quantity' => 3, 'unit_cost_usd' => null])
+            ->assertOk()->assertJsonPath('variant.stock_quantity', 8);
     }
 
     public function test_digital_format_cannot_be_restocked(): void

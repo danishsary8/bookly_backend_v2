@@ -245,14 +245,17 @@ class KhqrPaymentTest extends TestCase
         Notification::assertSentTo(StaffUser::all(), PaidAfterCancelNotification::class);
     }
 
-    public function test_admin_marks_paid_with_a_note_staff_cannot(): void
+    public function test_staff_with_order_management_mark_paid_with_a_note_others_cannot(): void
     {
         $id = $this->placeKhqrOrder();
-        $this->asToken($this->staffToken())->postJson("/api/v1/staff/orders/{$id}/mark-paid", ['note' => 'Seen in ABA app'])->assertForbidden();
+        $viewer = StaffUser::factory()->withTwoFactor()->create(['permissions' => ['orders:view']]);
+        $viewerToken = $viewer->createToken('test', $viewer->tokenAbilities())->plainTextToken;
+        $this->asToken($viewerToken)->postJson("/api/v1/staff/orders/{$id}/mark-paid", ['note' => 'Seen in ABA app'])->assertForbidden();
+        $staff = $this->staffToken();
         $admin = $this->staffToken(admin: true);
-        $this->asToken($admin)->postJson("/api/v1/staff/orders/{$id}/mark-paid", [])->assertUnprocessable()->assertJsonValidationErrors('note');
+        $this->asToken($staff)->postJson("/api/v1/staff/orders/{$id}/mark-paid", [])->assertUnprocessable()->assertJsonValidationErrors('note');
 
-        $this->asToken($admin)->postJson("/api/v1/staff/orders/{$id}/mark-paid", ['note' => 'Seen in ABA app'])->assertOk()
+        $this->asToken($staff)->postJson("/api/v1/staff/orders/{$id}/mark-paid", ['note' => 'Seen in ABA app'])->assertOk()
             ->assertJsonPath('data.status', 'paid')
             ->assertJsonPath('data.payments.0.how', 'staff')
             ->assertJsonPath('data.payments.0.provider', 'bakong');
