@@ -79,6 +79,7 @@ class CartResource extends JsonResource
                 'add_quantity' => $nudge['add_quantity'],
                 'percent_off' => $nudge['offer']->percentOff,
                 'type' => $nudge['offer']->type,
+                'min_quantity' => $nudge['offer']->minQuantity,
                 'amount_off' => $nudge['offer']->amountOff,
                 'bundle_price' => $nudge['offer']->bundlePrice,
                 'target_label' => $nudge['offer']->targetLabel,

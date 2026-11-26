@@ -104,7 +104,7 @@ class CartPricingTest extends TestCase
             ->assertJsonPath('data.pricing.discount_usd', '0.00')
             ->assertJsonPath('data.items.0.in_offer', false)
             ->assertJsonPath('data.pricing.nudge', [
-                'offer_id' => $offer->id, 'add_quantity' => 1, 'percent_off' => '15.00', 'type' => 'buy_n_percent', 'amount_off' => null, 'bundle_price' => null, 'target_label' => 'Sherlock Holmes',
+                'offer_id' => $offer->id, 'add_quantity' => 1, 'percent_off' => '15.00', 'type' => 'buy_n_percent', 'min_quantity' => 2, 'amount_off' => null, 'bundle_price' => null, 'target_label' => 'Sherlock Holmes',
                 'whole_series' => false, 'free_delivery' => false,
             ]);
     }
