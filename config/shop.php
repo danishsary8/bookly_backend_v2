@@ -46,6 +46,8 @@ return [
     // Hosts without a scheduler (Render free) set this to true: the housekeeping jobs then run, when due, after any API
     // request (the uptime monitor's 5-minute ping is enough). Leave it off where `schedule:work` runs.
     'maintenance_on_request' => (bool) env('RUN_MAINTENANCE_ON_REQUEST', false),
+    // Render an uploaded ebook's first pages right after the upload's response (EbookFileController::store).
+    'ebook_render_on_upload' => (bool) env('EBOOK_RENDER_ON_UPLOAD', true),
 
     // Customer notice text for backorders ("ships in about 2–3 weeks").
     'backorder_estimated_wait' => env('BACKORDER_ESTIMATED_WAIT', '2–3 weeks'),

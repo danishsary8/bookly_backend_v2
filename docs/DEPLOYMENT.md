@@ -59,6 +59,7 @@ project, demo data only).
 | `RUN_MIGRATIONS` | `true` |
 | `QUEUE_CONNECTION` | `sync` |
 | `RUN_MAINTENANCE_ON_REQUEST` | `true` (runs the housekeeping jobs from web traffic; see "Housekeeping without a scheduler") |
+| `EBOOK_RENDER_ON_UPLOAD` | `true` (default; renders an uploaded ebook's first pages right after the upload) |
 | `CACHE_STORE` | `file` (rate limits and housekeeping state stay on the instance, so normal API requests do not wake Neon; cleared on each restart, which is harmless) |
 | `SESSION_DRIVER` | `array` |
 | `TRUSTED_PROXIES` | `REMOTE_ADDR` |
