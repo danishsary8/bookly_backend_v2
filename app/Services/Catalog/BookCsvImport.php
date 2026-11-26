@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * CSV import of books, one row per format (same columns as the export). A row updates the format with the same SKU
  * (any case), else the same ISBN (digits/X only); otherwise it creates a new book + format. On an update a BLANK cell
- * keeps the current value, so a CSV with only `sku,price_usd` changes prices and nothing else. Nothing is ever deleted.
+ * keeps the current value, so a CSV with only `sku,price_usd` (or `sku,cost_price_usd`) changes prices and nothing else. Nothing is ever deleted.
  * New rows with the same title and authors in one file become one book with several formats.
  */
 class BookCsvImport
@@ -33,7 +33,7 @@ class BookCsvImport
         'book_id', 'title', 'authors', 'categories', 'series', 'series_order',
         'publisher', 'language', 'page_count', 'publish_date', 'description',
         'status', 'publish_at', 'age_min', 'age_max', 'school_grade', 'level',
-        'format', 'sku', 'isbn', 'price_usd', 'stock_quantity',
+        'format', 'sku', 'isbn', 'price_usd', 'cost_price_usd', 'stock_quantity',
         'low_stock_threshold', 'is_active', 'cover_image_url',
     ];
 
@@ -161,6 +161,7 @@ class BookCsvImport
                 'sku' => ['string', 'max:50'],
                 'isbn' => ['string', 'max:20'],
                 'price_usd' => ['numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
+                'cost_price_usd' => ['numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
                 'stock_quantity' => ['integer', 'min:0', 'max:1000000'],
                 'low_stock_threshold' => ['integer', 'min:0', 'max:1000000'],
                 'is_active' => ['in:'.implode(',', [...self::TRUE_VALUES, ...self::FALSE_VALUES])],
@@ -394,7 +395,7 @@ class BookCsvImport
     private function variantFields(array $given, array $plan): array
     {
         $fields = [];
-        foreach (['sku', 'price_usd', 'cover_image_url'] as $column) {
+        foreach (['sku', 'price_usd', 'cost_price_usd', 'cover_image_url'] as $column) {
             if (isset($given[$column])) {
                 $fields[$column] = $given[$column];
             }

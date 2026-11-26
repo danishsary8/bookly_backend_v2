@@ -60,6 +60,7 @@ use App\Http\Controllers\Api\V1\Staff\Catalog\BookController as StaffBookControl
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookCsvController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookSalesController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\BookVariantController as StaffBookVariantController;
+use App\Http\Controllers\Api\V1\Staff\Catalog\BulkPriceController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\CategoryController as StaffCategoryController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\EbookFileController;
 use App\Http\Controllers\Api\V1\Staff\Catalog\MediaUploadController;
@@ -396,6 +397,8 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::patch('/suppliers/{supplier}', [SupplierController::class, 'update'])->whereNumber('supplier')->middleware('ability:catalog:manage,admin');
     Route::post('/books/bulk', [BookBulkController::class, 'bulkBooks'])->middleware('ability:catalog:manage,admin');
     Route::post('/variants/bulk', [BookBulkController::class, 'bulkVariants'])->middleware('ability:catalog:manage,admin');
+    Route::post('/variants/prices/preview', [BulkPriceController::class, 'preview'])->middleware('ability:catalog:manage,admin');
+    Route::post('/variants/prices', [BulkPriceController::class, 'apply'])->middleware(['throttle:20,1', 'ability:catalog:manage,admin']);
     Route::post('/authors', [StaffAuthorController::class, 'store'])->middleware('ability:catalog:manage,admin');
     Route::patch('/authors/{author}', [StaffAuthorController::class, 'update'])->middleware('ability:catalog:manage,admin');
     Route::post('/categories', [StaffCategoryController::class, 'store'])->middleware('ability:catalog:manage,admin');

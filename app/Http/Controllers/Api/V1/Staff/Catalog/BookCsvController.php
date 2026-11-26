@@ -196,6 +196,7 @@ class BookCsvController extends Controller
             $variant?->sku ?? '',
             $variant?->isbn ?? '',
             $variant?->price_usd ?? '',
+            $variant?->cost_price_usd ?? '',
             $variant?->stock_quantity ?? '',
             $variant?->low_stock_threshold ?? '',
             $variant !== null ? ($variant->is_active ? '1' : '0') : '',
