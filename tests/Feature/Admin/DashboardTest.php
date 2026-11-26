@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Customer;
 use App\Models\ExchangeRate;
 use App\Models\OrderReturn;
+use App\Support\DashboardCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -236,28 +237,40 @@ class DashboardTest extends TestCase
         $this->assertSame(3, $rows[1]['copies_sold']);
     }
 
-    public function test_dashboard_summary_and_sales_are_cached_for_subsequent_requests(): void
+    public function test_dashboard_summary_is_cached_until_an_order_changes(): void
     {
         Cache::flush();
 
-        // First call populates cache
+        // First call populates the cache (keys carry a version, see DashboardCache).
         $first = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data');
+        $this->assertTrue(Cache::has(DashboardCache::key('dashboard:summary:2026-10-10:2026-10-11:1')));
 
-        // Verify cache key exists
-        $cacheKey = 'dashboard:summary:2026-10-10:2026-10-11:1';
-        $this->assertTrue(Cache::has($cacheKey));
+        // Nothing changed: the second call is the cached answer.
+        $again = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data');
+        $this->assertSame($first, $again);
 
-        // Create new delivered order after cache was populated
+        // A new order shows at once (owner 2026-11-26), without waiting for the cache to expire.
         $customer = Customer::factory()->create();
         $this->deliveredOrder($customer, [[$this->physical('50.00'), 1]], deliveredAt: Carbon::parse('2026-10-10 03:00:00', 'UTC'));
-
-        // Second call within 5-min TTL returns identical cached data
-        $second = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data');
-        $this->assertSame($first['revenue']['gross_usd'], $second['revenue']['gross_usd']);
-
-        // Flushing cache forces re-computation with new order
-        Cache::flush();
         $third = $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertOk()->json('data');
         $this->assertSame('90.00', $third['revenue']['gross_usd']);
+    }
+
+    /** Owner 2026-11-26: the cached KPIs must show a new order on the very next refresh, not minutes later. */
+    public function test_a_new_order_shows_on_the_next_refresh_despite_the_cache(): void
+    {
+        $ebook = BookVariant::factory()->format(BookFormat::Ebook)->create();
+        $first = $this->deliveredOrder(Customer::factory()->create(), [[$ebook, 2]]);
+        $first->update(['placed_at' => now()]);
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertJsonPath('data.ebooks_sold', 2);
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/insights?period=today')->assertJsonPath('data.trend.0.ebooks_sold', 2);
+
+        $second = $this->deliveredOrder(Customer::factory()->create(), [[$ebook, 3]]);
+        $second->update(['placed_at' => now()]);
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertJsonPath('data.ebooks_sold', 5);
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/insights?period=today')->assertJsonPath('data.trend.0.ebooks_sold', 5);
+
+        $second->update(['status' => OrderStatus::Cancelled]); // a status change counts too
+        $this->asToken($this->admin)->getJson('/api/v1/staff/dashboard/summary?period=today')->assertJsonPath('data.ebooks_sold', 2);
     }
 }

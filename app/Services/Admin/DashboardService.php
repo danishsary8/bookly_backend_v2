@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderReturn;
 use App\Services\CurrencyService;
+use App\Support\DashboardCache;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -58,7 +59,7 @@ class DashboardService
     {
         $cacheKey = "dashboard:summary:{$start->toDateString()}:{$end->toDateString()}:".($compare ? '1' : '0');
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($start, $end, $compare) {
+        return Cache::remember(DashboardCache::key($cacheKey), now()->addMinutes(5), function () use ($start, $end, $compare) {
             [$from, $to] = $this->utc($start, $end);
             $now = $this->totals($start, $end);
             $placed = Order::whereBetween('placed_at', [$from, $to->subSecond()]);
@@ -194,7 +195,7 @@ class DashboardService
     {
         $cacheKey = "dashboard:sales:{$start->toDateString()}:{$end->toDateString()}";
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($start, $end) {
+        return Cache::remember(DashboardCache::key($cacheKey), now()->addMinutes(5), function () use ($start, $end) {
             [$from, $to] = $this->utc($start, $end);
             $tz = $start->timezoneName;
             $localDay = fn (string $column) => "DATE(({$column} AT TIME ZONE 'UTC') AT TIME ZONE ?)";

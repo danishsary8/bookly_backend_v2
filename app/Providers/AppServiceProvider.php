@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\OrderReturn;
+use App\Models\OrderStatusHistory;
+use App\Models\Payment;
 use App\Services\AI\EmbeddingClient;
 use App\Services\AI\FakeEmbeddingClient;
 use App\Services\AI\GeminiEmbeddingClient;
@@ -10,6 +15,7 @@ use App\Services\Assistant\RulesEngine;
 use App\Services\CurrencyService;
 use App\Services\KhrRateHistory;
 use App\Services\Telegram\TelegramBot;
+use App\Support\DashboardCache;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Validation\UncompromisedVerifier;
@@ -44,6 +50,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Dashboard KPIs: any change on the order side makes the next refresh read fresh numbers (owner 2026-11-26).
+        foreach ([Order::class, OrderItem::class, OrderStatusHistory::class, Payment::class, OrderReturn::class] as $model) {
+            $model::saved(fn () => DashboardCache::bump());
+            $model::deleted(fn () => DashboardCache::bump());
+        }
+
         // Real visitor IP + HTTPS detection behind the host's load balancer (config/app.php, TRUSTED_PROXIES).
         $proxies = trim((string) config('app.trusted_proxies'));
         TrustProxies::at($proxies === '*' ? '*' : array_values(array_filter(array_map('trim', explode(',', $proxies)))));

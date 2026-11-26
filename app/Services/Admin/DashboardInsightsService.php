@@ -8,6 +8,7 @@ use App\Enums\ReturnStatus;
 use App\Models\BookVariant;
 use App\Services\CurrencyService;
 use App\Services\Orders\DeliveryArea;
+use App\Support\DashboardCache;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -31,7 +32,7 @@ class DashboardInsightsService
     {
         $cacheKey = "dashboard:insights:{$start->toDateString()}:{$end->toDateString()}";
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($start, $end) {
+        return Cache::remember(DashboardCache::key($cacheKey), now()->addMinutes(5), function () use ($start, $end) {
             $days = (int) $start->diffInDays($end);
             $prevStart = $start->subDays($days);
 
@@ -98,7 +99,7 @@ class DashboardInsightsService
     /** Menu badges for every staff member (owner 5A): small, cached for a minute. */
     public function counts(): array
     {
-        return Cache::remember('dashboard:counts', 60, fn () => [
+        return Cache::remember(DashboardCache::key('dashboard:counts'), 60, fn () => [
             'pending_orders' => DB::table('orders')->whereNull('deleted_at')->where('status', OrderStatus::Pending->value)->count(),
             'open_returns' => DB::table('returns')->whereIn('status', [ReturnStatus::Requested->value, ReturnStatus::Approved->value])->count(),
             'low_stock' => BookVariant::query()
