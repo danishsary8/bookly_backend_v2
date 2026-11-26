@@ -156,7 +156,10 @@ class KhqrPaymentService
                 'payload' => json_encode($transaction), 'created_at' => now(),
             ]);
             if (! KhqrTransactionMatcher::matches((string) $payment->amount, $payment->currency, $transaction)) {
-                report(new \RuntimeException("KHQR payment {$payment->id}: Bakong amount or currency does not match the QR."));
+                // Bakong is asked again every few seconds while the page is open: report a mismatch once a day, not each time.
+                if (Cache::add("khqr-mismatch-reported:{$payment->id}", true, now()->addDay())) {
+                    report(new \RuntimeException("KHQR payment {$payment->id}: Bakong amount or currency does not match the QR."));
+                }
 
                 return $order; // not counted; the log keeps Bakong's answer for staff
             }

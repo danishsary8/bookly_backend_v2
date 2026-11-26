@@ -17,6 +17,7 @@ use App\Services\Payments\KhqrPaymentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -211,6 +212,21 @@ class KhqrPaymentTest extends TestCase
         $this->asCustomer()->getJson("/api/v1/orders/{$id}/payment")->assertJsonPath('data.status', 'awaiting_payment');
         $this->assertSame('pending', Order::findOrFail($id)->status->value);
         $this->assertSame(1, DB::table('payment_webhook_logs')->whereNull('processed_at')->count()); // kept for staff
+    }
+
+    public function test_a_wrong_amount_is_reported_once_not_on_every_check(): void
+    {
+        $id = $this->placeKhqrOrder();
+        $this->bakongMode();
+        Http::fake(['*' => Http::response(['responseCode' => 0, 'data' => ['hash' => 'x', 'amount' => 0.01, 'currency' => 'USD']])]);
+        Exceptions::fake();
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->asCustomer()->getJson("/api/v1/orders/{$id}/payment")->assertOk();
+            $this->travel(4)->seconds(); // past the 3-second gap, so Bakong is asked again each time
+        }
+
+        Exceptions::assertReportedCount(1);
     }
 
     public function test_bakong_blocked_keeps_the_page_working_and_shows_on_the_health_card(): void
