@@ -33,6 +33,7 @@
         <env name="MEDIA_DISK" value="public" force="true"/>
         <env name="CATALOG_INGEST_COVERS" value="false" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="EBOOK_RENDER_ON_UPLOAD" value="false"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

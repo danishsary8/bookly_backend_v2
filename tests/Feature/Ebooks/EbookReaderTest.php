@@ -119,6 +119,34 @@ class EbookReaderTest extends TestCase
         $this->assertContains(['name' => 'ebook-pages', 'command' => 'ebooks:render', 'parameters' => [], 'cron' => '* * * * *'], MaintenanceTasks::all());
     }
 
+    public function test_the_first_pages_render_right_after_the_upload_when_enabled(): void
+    {
+        config(['shop.ebook_render_on_upload' => true]);
+        $file = $this->upload(20);
+
+        $this->assertSame(15, $file->fresh()->pages_rendered);
+        $this->assertSame(EbookFile::STATUS_PROCESSING, $file->fresh()->status);
+        Storage::disk('local')->assertExists($file->pagePath(15));
+    }
+
+    public function test_without_poppler_outside_tests_the_ebook_fails_with_a_clear_reason(): void
+    {
+        $file = $this->upload(20);
+        $noPoppler = new class extends EbookPages
+        {
+            public function hasPoppler(): bool
+            {
+                return false;
+            }
+        };
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->assertSame(0, $noPoppler->renderNext($file->fresh()));
+        $this->assertSame(EbookFile::STATUS_FAILED, $file->fresh()->status);
+        $this->assertStringContainsString('poppler', (string) $file->fresh()->error);
+        Storage::disk('local')->assertMissing($file->pagePath(1));
+    }
+
     public function test_only_real_pdfs_are_accepted(): void
     {
         $staff = $this->asToken($this->staffToken());

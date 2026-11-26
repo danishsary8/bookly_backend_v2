@@ -67,6 +67,17 @@ class EbookFileController extends Controller
             $disk->deleteDirectory($old->path);
         }
         $this->audit->custom($request->user(), 'ebook_uploaded', $book, null, ['pages' => $pageCount, 'size_bytes' => $file->size_bytes]);
+        // Start on the first pages straight after the response, so the admin sees progress without waiting for the
+        // minute-by-minute ebooks:render task (which on the free host only runs when web traffic comes in).
+        if (config('shop.ebook_render_on_upload')) {
+            $id = $file->id;
+            dispatch(function () use ($id) {
+                $fresh = EbookFile::find($id);
+                if ($fresh) {
+                    app(EbookPages::class)->renderNext($fresh);
+                }
+            })->afterResponse();
+        }
 
         return response()->json(['data' => self::present($file)], 201);
     }

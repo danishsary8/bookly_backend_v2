@@ -98,6 +98,13 @@ class EbookPages
         }
 
         if (! $this->hasPoppler()) {
+            // Without poppler there is no way to draw real pages. Outside the test suite (CI has no poppler) say so
+            // plainly instead of saving blank "Page N" images that customers would buy.
+            if (! app()->environment('testing')) {
+                $file->update(['status' => EbookFile::STATUS_FAILED, 'error' => 'The server cannot turn PDFs into pages: poppler-utils (pdftoppm) is not installed.']);
+
+                return 0;
+            }
             for ($p = $first; $p <= $last; $p++) {
                 $img = imagecreatetruecolor(1000, self::HEIGHT);
                 $bg = imagecolorallocate($img, 255, 255, 255);
