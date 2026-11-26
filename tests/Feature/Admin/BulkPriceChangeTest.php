@@ -141,4 +141,13 @@ class BulkPriceChangeTest extends TestCase
         $this->assertSame([$none->book_id], $ids('no_cost'));
         $this->assertNotContains($fine->book_id, $ids('low'));
     }
+
+    public function test_books_list_filters_by_language(): void
+    {
+        $khmer = $this->variant('4.90', null);
+        $khmer->book->update(['language' => 'Khmer']);
+        $this->variant('6.90', null);
+        $ids = collect($this->as($this->admin)->getJson('/api/v1/staff/books?language=khmer&per_page=100')->assertOk()->json('data'))->pluck('id')->all();
+        $this->assertSame([$khmer->book_id], $ids);
+    }
 }

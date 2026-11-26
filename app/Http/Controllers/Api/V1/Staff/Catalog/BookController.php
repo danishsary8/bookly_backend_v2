@@ -49,6 +49,7 @@ class BookController extends Controller
             'stock' => ['nullable', 'string', Rule::in(['in', 'low', 'out'])],
             // Pricing health (owner 2026-11-26): printed editions selling at a loss, under 20% margin, or with no cost yet.
             'margin' => ['nullable', 'string', Rule::in(['loss', 'low', 'no_cost'])],
+            'language' => ['nullable', 'string', 'max:50'],
             'author_id' => ['nullable', 'integer'],
             'publisher_id' => ['nullable', 'integer'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -79,6 +80,7 @@ class BookController extends Controller
                 ->when(($data['stock'] ?? null) === 'in', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)))
                 ->when(($data['stock'] ?? null) === 'low', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')))
                 ->when(($data['stock'] ?? null) === 'out', fn ($q) => $q->whereHas('variants', $printed)->whereDoesntHave('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)))
+                ->when($data['language'] ?? null, fn ($q, $lang) => $q->where('language', 'ilike', addcslashes($lang, '%_')))
                 ->when(($data['margin'] ?? null) === 'loss', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->whereNotNull('cost_price_usd')->whereColumn('price_usd', '<', 'cost_price_usd')))
                 ->when(($data['margin'] ?? null) === 'low', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->whereNotNull('cost_price_usd')->where('price_usd', '>', 0)
                     ->whereRaw('(price_usd - cost_price_usd) < price_usd * 0.2')))
