@@ -127,4 +127,18 @@ class BulkPriceChangeTest extends TestCase
         $staff = StaffUser::factory()->withTwoFactor()->create();
         $this->as($staff)->postJson('/api/v1/staff/variants/prices/restore', ['items' => $items])->assertForbidden();
     }
+
+    public function test_books_list_filters_by_margin(): void
+    {
+        $loss = $this->variant('4.00', '5.00');
+        $low = $this->variant('5.00', '4.50');   // 10% margin
+        $fine = $this->variant('8.00', '3.00');
+        $none = $this->variant('6.00', null);
+        $ids = fn (string $m) => collect($this->as($this->admin)->getJson("/api/v1/staff/books?margin={$m}&per_page=100")->assertOk()->json('data'))->pluck('id')->sort()->values()->all();
+
+        $this->assertSame([$loss->book_id], $ids('loss'));
+        $this->assertSame(collect([$loss->book_id, $low->book_id])->sort()->values()->all(), $ids('low'));
+        $this->assertSame([$none->book_id], $ids('no_cost'));
+        $this->assertNotContains($fine->book_id, $ids('low'));
+    }
 }

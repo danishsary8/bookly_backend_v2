@@ -47,6 +47,8 @@ class BookController extends Controller
             'category_id' => ['nullable', 'integer'],
             'format' => ['nullable', 'string', Rule::in(array_column(BookFormat::cases(), 'value'))],
             'stock' => ['nullable', 'string', Rule::in(['in', 'low', 'out'])],
+            // Pricing health (owner 2026-11-26): printed editions selling at a loss, under 20% margin, or with no cost yet.
+            'margin' => ['nullable', 'string', Rule::in(['loss', 'low', 'no_cost'])],
             'author_id' => ['nullable', 'integer'],
             'publisher_id' => ['nullable', 'integer'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -77,6 +79,10 @@ class BookController extends Controller
                 ->when(($data['stock'] ?? null) === 'in', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)))
                 ->when(($data['stock'] ?? null) === 'low', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')))
                 ->when(($data['stock'] ?? null) === 'out', fn ($q) => $q->whereHas('variants', $printed)->whereDoesntHave('variants', fn ($v) => $printed($v)->where('stock_quantity', '>', 0)))
+                ->when(($data['margin'] ?? null) === 'loss', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->whereNotNull('cost_price_usd')->whereColumn('price_usd', '<', 'cost_price_usd')))
+                ->when(($data['margin'] ?? null) === 'low', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->whereNotNull('cost_price_usd')->where('price_usd', '>', 0)
+                    ->whereRaw('(price_usd - cost_price_usd) < price_usd * 0.2')))
+                ->when(($data['margin'] ?? null) === 'no_cost', fn ($q) => $q->whereHas('variants', fn ($v) => $printed($v)->whereNull('cost_price_usd')))
                 ->when($sort === 'title', fn ($q) => $q->reorder()->orderBy('title'))
                 ->when($sort === 'most_sold', fn ($q) => $q->orderByDesc('sold_recent'))
                 ->when($sort === 'least_sold', fn ($q) => $q->orderBy('sold_recent'))
