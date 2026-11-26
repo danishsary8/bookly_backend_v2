@@ -34,7 +34,7 @@ class BulkPriceController extends Controller
         abort_unless($request->user()->role === StaffRole::Admin, 403, 'Only an admin can change book prices.');
 
         $data = $request->validate([
-            'variant_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'variant_ids' => ['required', 'array', 'min:1', 'max:3000'],
             'variant_ids.*' => ['integer', 'distinct'],
             'sell_mode' => ['required', Rule::in(BulkPriceChange::SELL_MODES)],
             'sell_value' => ['nullable', 'numeric', 'min:-100000', 'max:100000'],
