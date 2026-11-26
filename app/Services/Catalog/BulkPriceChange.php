@@ -47,7 +47,10 @@ class BulkPriceChange
         $note = null;
 
         $newCost = $oldCost;
-        if ($rule['cost_mode'] !== 'keep') {
+        // Ebooks and audiobooks have no supplier cost per copy: a cost rule leaves them alone (owner 2026-11-26).
+        if ($rule['cost_mode'] !== 'keep' && $v->format->isDigital()) {
+            $note = 'digital';
+        } elseif ($rule['cost_mode'] !== 'keep') {
             $value = (float) $rule['cost_value'];
             $newCost = match ($rule['cost_mode']) {
                 'set' => (int) round($value * 100),
@@ -126,6 +129,37 @@ class BulkPriceChange
             }
 
             return $rows;
+        });
+    }
+
+    /**
+     * Undo: put back exactly the prices a change replaced (the rows its result returned). Each format is audit-logged
+     * as `prices_restored`. Formats of deleted books are skipped.
+     *
+     * @param  list<array{variant_id: int, price_usd: string, cost_price_usd: ?string}>  $items
+     */
+    public function restore(array $items, StaffUser $user): int
+    {
+        return DB::transaction(function () use ($items, $user) {
+            $variants = BookVariant::whereIn('id', array_column($items, 'variant_id'))->whereHas('book')->lockForUpdate()->get()->keyBy('id');
+            $restored = 0;
+            foreach ($items as $item) {
+                $variant = $variants[$item['variant_id']] ?? null;
+                if ($variant === null) {
+                    continue;
+                }
+                $before = $variant->only(['price_usd', 'cost_price_usd']);
+                $variant->price_usd = $item['price_usd'];
+                $variant->cost_price_usd = $item['cost_price_usd'];
+                if (! $variant->isDirty()) {
+                    continue;
+                }
+                $variant->save();
+                $this->audit->custom($user, 'prices_restored', $variant, $before, $variant->only(['price_usd', 'cost_price_usd']));
+                $restored++;
+            }
+
+            return $restored;
         });
     }
 

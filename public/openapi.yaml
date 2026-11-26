@@ -2912,6 +2912,8 @@ paths:
     post: { tags: [Staff catalog], summary: 'Bulk update variants (ids, stock_quantity, low_stock_threshold, is_active, price_usd)', responses: { '200': { description: Updated } } }
   /staff/variants/prices/preview:
     post: { tags: [Staff catalog], summary: '(admin) Preview a bulk price change (variant_ids, sell_mode keep|set|percent|amount|markup, sell_value, cost_mode keep|set|percent|amount, cost_value, rounding none|90|50|whole, floor_at_cost); nothing is saved', responses: { '200': { description: 'Per format: old/new price, old/new cost, margin_percent, changed, note (below_cost|no_cost)' }, '403': { description: Not an admin }, '422': { description: Invalid rule } } }
+  /staff/variants/prices/restore:
+    post: { tags: [Staff catalog], summary: '(admin) Undo a bulk price change: items [{variant_id, price_usd, cost_price_usd}] (the old values); audit-logged as prices_restored', responses: { '200': { description: restored_count }, '403': { description: Not an admin }, '422': { description: Invalid items } } }
   /staff/variants/prices:
     post: { tags: [Staff catalog], summary: '(admin) Apply a bulk price change (same body as the preview); each changed format is audit-logged', responses: { '200': { description: 'Applied; updated_count and the same rows as the preview' }, '403': { description: Not an admin }, '422': { description: Invalid rule } } }
   /offers/{id}:

@@ -29,6 +29,25 @@ class BulkPriceController extends Controller
         return response()->json(['data' => ['items' => $rows->values(), 'updated_count' => $rows->where('changed', true)->count()]]);
     }
 
+    /** Undo a change: POST /staff/variants/prices/restore with the old prices of the formats it changed. */
+    public function restore(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->role === StaffRole::Admin, 403, 'Only an admin can change book prices.');
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:3000'],
+            'items.*.variant_id' => ['required', 'integer', 'distinct'],
+            'items.*.price_usd' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
+            'items.*.cost_price_usd' => ['present', 'nullable', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
+        ]);
+        $items = array_map(fn (array $i) => [
+            'variant_id' => (int) $i['variant_id'],
+            'price_usd' => (string) $i['price_usd'],
+            'cost_price_usd' => $i['cost_price_usd'] === null ? null : (string) $i['cost_price_usd'],
+        ], $data['items']);
+
+        return response()->json(['data' => ['restored_count' => $this->prices->restore($items, $request->user())]]);
+    }
+
     private function rule(Request $request): array
     {
         abort_unless($request->user()->role === StaffRole::Admin, 403, 'Only an admin can change book prices.');

@@ -400,6 +400,7 @@ Route::prefix('staff')->middleware(['auth:sanctum', 'abilities:staff', 'staff.2f
     Route::post('/books/bulk', [BookBulkController::class, 'bulkBooks'])->middleware('ability:catalog:manage,admin');
     Route::post('/variants/bulk', [BookBulkController::class, 'bulkVariants'])->middleware('ability:catalog:manage,admin');
     Route::post('/variants/prices/preview', [BulkPriceController::class, 'preview'])->middleware('ability:catalog:manage,admin');
+    Route::post('/variants/prices/restore', [BulkPriceController::class, 'restore'])->middleware(['throttle:20,1', 'ability:catalog:manage,admin']);
     Route::post('/variants/prices', [BulkPriceController::class, 'apply'])->middleware(['throttle:20,1', 'ability:catalog:manage,admin']);
     Route::post('/authors', [StaffAuthorController::class, 'store'])->middleware('ability:catalog:manage,admin');
     Route::patch('/authors/{author}', [StaffAuthorController::class, 'update'])->middleware('ability:catalog:manage,admin');
