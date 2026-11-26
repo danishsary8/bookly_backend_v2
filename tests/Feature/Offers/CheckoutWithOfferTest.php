@@ -340,4 +340,24 @@ class CheckoutWithOfferTest extends TestCase
         $this->assertSame('offer_name', end($rows[0]));
         $this->assertSame('Buy 2 Holmes', end($rows[1]));
     }
+
+    /** Bundle (owner 2026-11-26): any 5 for $20 at checkout; line discounts add up, the rest of the cart pays full price. */
+    public function test_bundle_offer_checkout_saves_matching_line_discounts(): void
+    {
+        $offer = Offer::factory()->create(['name' => 'Any 5 for $20', 'type' => 'bundle_price', 'applies_to' => 'all', 'min_quantity' => 5, 'percent_off' => '0.00', 'bundle_price' => '20.00']);
+        app(OfferService::class)->forget();
+        $books = [$this->variant('6.90'), $this->variant('5.90'), $this->variant('4.90'), $this->variant('4.90'), $this->variant('4.90'), $this->variant('2.00')];
+        $this->fillCart($books); // the $2.00 book is the 6th copy: full price
+
+        $response = $this->checkout(['offer_id' => $offer->id])->assertCreated()
+            ->assertJsonPath('data.subtotal_usd', '29.50')
+            ->assertJsonPath('data.discount_usd', '7.50') // 27.50 -> 20.00
+            ->assertJsonPath('data.total_usd', '23.50'); // 22.00 + $1.50 delivery
+        $this->assertSame('0.00', array_column($response->json('data.items'), 'discount_usd')[5]);
+
+        $order = Order::firstOrFail();
+        $this->assertLinesAddUp($order);
+        $this->assertSame([$offer->id, 'Any 5 for $20'], [$order->offer_id, $order->offer_name]);
+        $this->assertSame(1, $offer->fresh()->used_count);
+    }
 }

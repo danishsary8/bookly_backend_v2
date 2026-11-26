@@ -27,6 +27,10 @@ final class OfferCalculator
             return new OfferResult($offer, $units, 0, []);
         }
 
+        if ($offer->type === 'bundle_price') {
+            return $this->evaluateBundle($offer, $covered, $units);
+        }
+
         if ($offer->type === 'buy_n_amount') {
             $coveredTotal = array_sum(array_map(fn (OfferLine $line) => $line->lineTotalCents, $covered));
             $totalDiscount = min($offer->amountOffCents, $coveredTotal);
@@ -52,6 +56,48 @@ final class OfferCalculator
         $lineDiscounts = [];
         foreach ($covered as $line) {
             $lineDiscounts[$line->key] = intdiv($line->lineTotalCents * $offer->percentBasisPoints, 10000);
+        }
+
+        return new OfferResult($offer, $units, array_sum($lineDiscounts), $lineDiscounts);
+    }
+
+    /**
+     * A bundle offer (owner 2026-11-26): "any N covered books for P". The covered copies are put in groups of N,
+     * most expensive first (the customer always gets the biggest saving); each full group costs P, unless its books
+     * already cost less (then no discount for it: a bundle never raises a price). Copies left over pay full price.
+     * Each group's discount is shared over its copies in proportion to their price; the last copy takes the cents left.
+     *
+     * @param  array<int, OfferLine>  $covered
+     */
+    private function evaluateBundle(LiveOffer $offer, array $covered, int $units): OfferResult
+    {
+        $size = max(1, $offer->minQuantity);
+        $copies = [];
+        foreach ($covered as $line) {
+            $quantity = max(1, $line->quantity);
+            $each = intdiv($line->lineTotalCents, $quantity);
+            $extra = $line->lineTotalCents - $each * $quantity; // cents a split leaves over go to the first copy
+            for ($i = 0; $i < $line->quantity; $i++) {
+                $copies[] = ['key' => $line->key, 'cents' => $each + ($i === 0 ? $extra : 0)];
+            }
+        }
+        usort($copies, fn (array $a, array $b) => [$b['cents'], $a['key']] <=> [$a['cents'], $b['key']]);
+
+        $lineDiscounts = [];
+        $groups = intdiv(count($copies), $size);
+        for ($g = 0; $g < $groups; $g++) {
+            $group = array_slice($copies, $g * $size, $size);
+            $sum = array_sum(array_column($group, 'cents'));
+            $discount = $sum - $offer->bundlePriceCents;
+            if ($discount <= 0) {
+                continue;
+            }
+            $left = $discount;
+            foreach ($group as $i => $copy) {
+                $share = min($copy['cents'], $i === $size - 1 ? $left : intdiv($copy['cents'] * $discount, $sum));
+                $left -= $share;
+                $lineDiscounts[$copy['key']] = ($lineDiscounts[$copy['key']] ?? 0) + $share;
+            }
         }
 
         return new OfferResult($offer, $units, array_sum($lineDiscounts), $lineDiscounts);

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Catalog\BookController;
 use App\Http\Controllers\Api\V1\Catalog\CatalogRowsController;
 use App\Http\Controllers\Api\V1\Catalog\CategoryController;
 use App\Http\Controllers\Api\V1\Catalog\CollectionController;
+use App\Http\Controllers\Api\V1\Catalog\OfferController as CatalogOfferController;
 use App\Http\Controllers\Api\V1\Catalog\PromotionController;
 use App\Http\Controllers\Api\V1\Catalog\PublisherController;
 use App\Http\Controllers\Api\V1\Catalog\ReviewController as BookReviewController;
@@ -113,6 +114,7 @@ Route::post('/assistant', [AssistantController::class, 'ask'])->middleware('thro
 | Public catalog (no login needed)
 */
 Route::get('/books', [BookController::class, 'index'])->middleware('throttle:catalog');
+Route::get('/offers/{offer}', [CatalogOfferController::class, 'show'])->whereNumber('offer')->middleware('throttle:catalog');
 Route::get('/store-rating', [OrderRatingController::class, 'storeRating']);
 Route::get('/lists/staff-picks', [ReadingListController::class, 'staffPicks'])->middleware('throttle:catalog');
 Route::get('/lists/{slug}', [ReadingListController::class, 'publicShow'])->middleware('throttle:catalog');

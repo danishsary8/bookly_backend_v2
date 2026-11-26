@@ -36,6 +36,8 @@ final class LiveOffer
         public readonly string $type = 'buy_n_percent',
         public readonly ?string $amountOff = null,
         public readonly int $amountOffCents = 0,
+        public readonly ?string $bundlePrice = null,  // bundle offers: "20.00" for any N books
+        public readonly int $bundlePriceCents = 0,
     ) {}
 
     /** Spec 4.1: started, not ended, not used up, and (all books or at least one target left). */

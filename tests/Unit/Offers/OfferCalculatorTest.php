@@ -272,4 +272,59 @@ class OfferCalculatorTest extends TestCase
         // The random carts must really test discounts, not mostly "no offer" (600 offer checks in total).
         $this->assertGreaterThan(100, $discounted, "only {$discounted} of 600 offer checks gave a discount");
     }
+
+    private function bundle(int $n, int $priceCents, array $books = []): LiveOffer
+    {
+        return new LiveOffer(
+            id: 50, name: 'Any 5 for $20', appliesToAll: $books === [], minQuantity: $n, percentOff: '0.00', percentBasisPoints: 0,
+            startsAt: null, endsAt: null, endsAtIso: null, maxOrders: null, usedCount: 0, bookIds: $books,
+            type: 'bundle_price', bundlePrice: sprintf('%d.%02d', intdiv($priceCents, 100), $priceCents % 100), bundlePriceCents: $priceCents,
+        );
+    }
+
+    public function test_bundle_five_books_cost_the_bundle_price(): void
+    {
+        $lines = [$this->line(1, 690), $this->line(2, 590), $this->line(3, 490), $this->line(4, 490, 2)]; // 5 copies, $27.50
+        $result = $this->calc->evaluate($this->bundle(5, 2000), $lines);
+
+        $this->assertSame(750, $result->discountCents); // $27.50 -> $20.00
+        $this->assertSame(750, array_sum($result->lineDiscounts));
+        foreach ($lines as $line) {
+            $this->assertLessThanOrEqual($line->lineTotalCents, $result->lineDiscounts[$line->key] ?? 0);
+        }
+    }
+
+    public function test_bundle_needs_a_full_group_and_leftovers_pay_full_price(): void
+    {
+        $four = [$this->line(1, 600, 4)];
+        $this->assertFalse($this->calc->evaluate($this->bundle(5, 2000), $four)->applies());
+
+        // 7 copies: the 5 dearest make the bundle; the 2 cheapest ($3 each) pay full price.
+        $seven = [$this->line(1, 600, 5), $this->line(2, 300, 2)];
+        $result = $this->calc->evaluate($this->bundle(5, 2000), $seven);
+        $this->assertSame(1000, $result->discountCents);
+        $this->assertSame([1 => 1000], $result->lineDiscounts);
+    }
+
+    public function test_bundle_repeats_for_every_full_group(): void
+    {
+        $result = $this->calc->evaluate($this->bundle(5, 2000), [$this->line(1, 500, 10)]);
+        $this->assertSame(1000, $result->discountCents); // 2 groups x ($25 - $20)
+    }
+
+    public function test_bundle_never_raises_a_price_and_skips_blocked_and_uncovered_books(): void
+    {
+        $cheap = [$this->line(1, 300, 5)]; // $15 < $20
+        $this->assertFalse($this->calc->evaluate($this->bundle(5, 2000), $cheap)->applies());
+
+        $mixed = [$this->line(1, 600, 4), $this->line(2, 600, 1, blocked: true), $this->line(3, 900)];
+        $offer = $this->bundle(5, 2000, books: [101, 102]); // line 3 (book 103) is not in the offer
+        $this->assertFalse($this->calc->evaluate($offer, $mixed)->applies());
+    }
+
+    public function test_bundle_nudges_toward_the_group_size(): void
+    {
+        $nudge = $this->calc->nudge([$this->bundle(5, 2000)], [$this->line(1, 600, 3)]);
+        $this->assertSame(2, $nudge['add_quantity']);
+    }
 }

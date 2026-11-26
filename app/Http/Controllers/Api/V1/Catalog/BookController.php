@@ -12,6 +12,7 @@ use App\Models\BookVariant;
 use App\Models\Category;
 use App\Services\AI\SemanticSearchService;
 use App\Services\Catalog\RecommendationService;
+use App\Services\Offers\OfferService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,6 +70,7 @@ class BookController extends Controller
             'author_id' => ['nullable', 'integer'],
             'series_id' => ['nullable', 'integer'],
             'publisher_id' => ['nullable', 'integer'],
+            'offer_id' => ['nullable', 'integer'],
             'format' => ['nullable', Rule::enum(BookFormat::class)],
             'language' => ['nullable', 'string', 'max:50'],
             'min_price' => ['nullable', 'numeric', 'min:0'],
@@ -85,7 +87,17 @@ class BookController extends Controller
             ...(isset($filters['category_id']) ? [$filters['category_id']] : []), ...($filters['category_ids'] ?? []),
         ]), fn ($id) => $id > 0))));
 
+        // Books an automatic offer covers (its page: "any 5 for $20"); an offer that is not live shows no books.
+        $offer = isset($filters['offer_id'])
+            ? collect(app(OfferService::class)->live())->first(fn ($o) => $o->id === (int) $filters['offer_id'] && ! $o->wholeSeries)
+            : null;
+
         $filter = fn (Builder $q): Builder => $q
+            ->when(isset($filters['offer_id']) && $offer === null, fn (Builder $q) => $q->whereRaw('1 = 0'))
+            ->when($offer !== null && ! $offer->appliesToAll, fn (Builder $q) => $q->where(fn (Builder $w) => $w
+                ->whereIn('books.id', $offer->bookIds ?: [0])
+                ->orWhereIn('series_id', $offer->seriesIds ?: [0])
+                ->orWhereHas('categories', fn ($c) => $c->whereIn('categories.id', $offer->categoryIds ?: [0]))))
             // A category covers its sub-categories ("Fiction" shows Fantasy books too); several categories = any of them.
             ->when($categoryIds !== [], fn (Builder $q) => $q->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds)))
             ->when($filters['formats'] ?? null, fn (Builder $q, $formats) => $q->whereHas('activeVariants', fn ($v) => $v->whereIn('format', $formats)))

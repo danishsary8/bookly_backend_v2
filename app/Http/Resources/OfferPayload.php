@@ -21,6 +21,8 @@ final class OfferPayload
             'min_quantity' => $result->offer->minQuantity,
             'percent_off' => $result->offer->percentOff,
             'amount_off' => $result->offer->amountOff,
+            'bundle_price' => $result->offer->bundlePrice,
+            'bundles' => $result->offer->type === 'bundle_price' ? intdiv($result->coveredUnits, max(1, $result->offer->minQuantity)) : null,
             'ends_at' => $result->offer->endsAtIso,
             'target_label' => $result->offer->targetLabel,
             'whole_series' => $result->offer->wholeSeries,

@@ -81,7 +81,7 @@ class CartPricingTest extends TestCase
             ->assertJsonPath('data.pricing.discount_usd', '3.00')
             ->assertJsonPath('data.pricing.total_before_shipping_usd', '47.00')
             ->assertJsonPath('data.pricing.offer', [
-                'id' => $offer->id, 'type' => 'buy_n_percent', 'min_quantity' => 2, 'percent_off' => '15.00', 'amount_off' => null,
+                'id' => $offer->id, 'type' => 'buy_n_percent', 'min_quantity' => 2, 'percent_off' => '15.00', 'amount_off' => null, 'bundle_price' => null, 'bundles' => null,
                 'ends_at' => '2030-01-01T00:00:00Z', 'target_label' => 'Sherlock Holmes', 'whole_series' => false, 'free_delivery' => false,
                 'discount_usd' => '3.00', 'discount_khr' => null,
             ])
@@ -104,7 +104,7 @@ class CartPricingTest extends TestCase
             ->assertJsonPath('data.pricing.discount_usd', '0.00')
             ->assertJsonPath('data.items.0.in_offer', false)
             ->assertJsonPath('data.pricing.nudge', [
-                'offer_id' => $offer->id, 'add_quantity' => 1, 'percent_off' => '15.00', 'target_label' => 'Sherlock Holmes',
+                'offer_id' => $offer->id, 'add_quantity' => 1, 'percent_off' => '15.00', 'type' => 'buy_n_percent', 'amount_off' => null, 'bundle_price' => null, 'target_label' => 'Sherlock Holmes',
                 'whole_series' => false, 'free_delivery' => false,
             ]);
     }
@@ -230,5 +230,50 @@ class CartPricingTest extends TestCase
         $withTwelve = $count();
 
         $this->assertSame($withOne, $withTwelve, "1 offer: {$withOne} queries, 12 offers: {$withTwelve}");
+    }
+
+    /** Bundle (owner 2026-11-26): any 5 chosen books for $20; the order total and the saved order match the cart. */
+    public function test_bundle_offer_prices_the_cart_and_shows_on_the_books(): void
+    {
+        $offer = Offer::factory()->selected()->create(['name' => 'Any 5 for $20', 'type' => 'bundle_price', 'min_quantity' => 5, 'percent_off' => '0.00', 'bundle_price' => '20.00']);
+        $offer->targets()->create(['category_id' => $this->cooking->id]);
+        app(OfferService::class)->forget();
+
+        $dear = $this->variant('6.90', category: $this->cooking);
+        $this->add($dear, 3);
+        $this->add($this->variant('5.90', category: $this->cooking), 3); // 6 copies: 3 x 6.90 + 2 x 5.90 in the bundle
+        $this->add($this->variant('30.00')); // not in the offer
+
+        $this->getJson('/api/v1/cart')->assertOk()
+            ->assertJsonPath('data.pricing.subtotal_usd', '68.40')
+            ->assertJsonPath('data.pricing.discount_usd', '12.50') // 20.70 + 11.80 = 32.50 -> 20.00
+            ->assertJsonPath('data.pricing.offer.type', 'bundle_price')
+            ->assertJsonPath('data.pricing.offer.bundle_price', '20.00')
+            ->assertJsonPath('data.pricing.offer.bundles', 1)
+            ->assertJsonPath('data.items.2.in_offer', false);
+
+        $this->getJson('/api/v1/books/'.$dear->book_id)->assertOk()
+            ->assertJsonPath('data.offer.type', 'bundle_price')
+            ->assertJsonPath('data.offer.bundle_price', '20.00')
+            ->assertJsonPath('data.offer.min_quantity', 5);
+    }
+
+    /** The offer's page: GET /offers/{id} and the books it covers via GET /books?offer_id=; an ended offer is gone. */
+    public function test_offer_page_lists_only_its_books(): void
+    {
+        $offer = Offer::factory()->selected()->create(['name' => 'Any 5 for $20', 'type' => 'bundle_price', 'min_quantity' => 5, 'percent_off' => '0.00', 'bundle_price' => '20.00']);
+        $offer->targets()->create(['category_id' => $this->cooking->id]);
+        app(OfferService::class)->forget();
+        $in = $this->variant('6.90', category: $this->cooking);
+        $this->variant('9.90');
+
+        $this->getJson("/api/v1/offers/{$offer->id}")->assertOk()
+            ->assertJsonPath('data.type', 'bundle_price')->assertJsonPath('data.bundle_price', '20.00')->assertJsonPath('data.min_quantity', 5);
+        $this->assertSame([$in->book_id], array_column($this->getJson("/api/v1/books?offer_id={$offer->id}")->assertOk()->json('data'), 'id'));
+
+        $offer->update(['is_active' => false]);
+        app(OfferService::class)->forget();
+        $this->getJson("/api/v1/offers/{$offer->id}")->assertNotFound();
+        $this->assertSame([], $this->getJson("/api/v1/books?offer_id={$offer->id}")->assertOk()->json('data'));
     }
 }

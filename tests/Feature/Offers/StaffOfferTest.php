@@ -225,4 +225,21 @@ class StaffOfferTest extends TestCase
         $this->admin()->getJson('/api/v1/staff/offers?q=PAUS')->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $paused->id);
         $this->admin()->getJson('/api/v1/staff/offers?status=bogus')->assertUnprocessable();
     }
+
+    public function test_admin_creates_a_bundle_offer_and_its_rules_are_checked(): void
+    {
+        $body = ['name' => 'Any 5 for $20', 'type' => 'bundle_price', 'applies_to' => 'selected', 'min_quantity' => 5, 'bundle_price' => '20',
+            'targets' => [['type' => 'series', 'id' => $this->holmes->id]]];
+
+        $this->admin()->postJson('/api/v1/staff/offers', $body)->assertCreated()
+            ->assertJsonPath('data.type', 'bundle_price')
+            ->assertJsonPath('data.bundle_price', '20.00')
+            ->assertJsonPath('data.percent_off', '0.00')
+            ->assertJsonPath('data.min_quantity', 5);
+
+        $this->admin()->postJson('/api/v1/staff/offers', [...$body, 'bundle_price' => null])->assertUnprocessable()->assertJsonValidationErrors('bundle_price');
+        $this->admin()->postJson('/api/v1/staff/offers', [...$body, 'min_quantity' => 1])->assertUnprocessable()->assertJsonValidationErrors('min_quantity');
+        $this->admin()->postJson('/api/v1/staff/offers', [...$body, 'whole_series' => true])->assertUnprocessable()->assertJsonValidationErrors('whole_series');
+        $this->admin()->postJson('/api/v1/staff/offers', $this->holmesBody(['bundle_price' => '20']))->assertUnprocessable()->assertJsonValidationErrors('bundle_price');
+    }
 }

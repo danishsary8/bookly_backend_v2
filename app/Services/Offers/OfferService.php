@@ -84,7 +84,9 @@ class OfferService
             'id' => $best->id,
             'min_quantity' => $best->minQuantity,
             'percent_off' => $best->percentOff,
+            'type' => $best->type,
             'amount_off' => $best->amountOff,
+            'bundle_price' => $best->bundlePrice,
             'ends_at' => $best->endsAtIso,
             'target_label' => $best->targetLabel,
             'whole_series' => $best->wholeSeries,
@@ -148,13 +150,13 @@ class OfferService
             ->leftJoin('categories as c', 'c.id', '=', 't.category_id')
             ->leftJoin('series as s', 's.id', '=', 't.series_id')
             ->where('o.is_active', true)
-            ->whereIn('o.type', [Offer::TYPE_BUY_N_PERCENT, Offer::TYPE_BUY_N_AMOUNT])
+            ->whereIn('o.type', [Offer::TYPE_BUY_N_PERCENT, Offer::TYPE_BUY_N_AMOUNT, Offer::TYPE_BUNDLE])
             ->where(fn ($q) => $q->whereNull('o.ends_at')->orWhere('o.ends_at', '>', now()))
             ->where(fn ($q) => $q->whereNull('o.max_orders')->orWhereColumn('o.used_count', '<', 'o.max_orders'))
             ->orderBy('o.id')
             ->orderBy('t.id')
             ->get([
-                'o.id', 'o.name', 'o.type', 'o.applies_to', 'o.min_quantity', 'o.percent_off', 'o.amount_off', 'o.starts_at', 'o.ends_at',
+                'o.id', 'o.name', 'o.type', 'o.applies_to', 'o.min_quantity', 'o.percent_off', 'o.amount_off', 'o.bundle_price', 'o.starts_at', 'o.ends_at',
                 'o.max_orders', 'o.used_count', 'o.whole_series', 'o.free_delivery',
                 't.book_id', 't.category_id', 't.series_id',
                 'b.deleted_at as book_deleted_at',
@@ -226,6 +228,8 @@ class OfferService
             type: (string) ($first->type ?? 'buy_n_percent'),
             amountOff: $amountOffFormatted,
             amountOffCents: $amountOffCents,
+            bundlePrice: $first->bundle_price !== null ? Money::format(Money::toCents($first->bundle_price)) : null,
+            bundlePriceCents: $first->bundle_price !== null ? Money::toCents($first->bundle_price) : 0,
         );
     }
 }

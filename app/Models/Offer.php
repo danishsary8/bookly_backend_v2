@@ -22,12 +22,15 @@ class Offer extends Model
 
     public const TYPE_GIFT = 'gift';
 
+    /** Any `min_quantity` covered books for `bundle_price` in total (e.g. any 5 for $20); groups repeat. */
+    public const TYPE_BUNDLE = 'bundle_price';
+
     public const APPLIES_TO_ALL = 'all';
 
     public const APPLIES_TO_SELECTED = 'selected';
 
     protected $fillable = [
-        'name', 'type', 'applies_to', 'min_quantity', 'percent_off', 'amount_off', 'starts_at', 'ends_at', 'max_orders', 'is_active',
+        'name', 'type', 'applies_to', 'min_quantity', 'percent_off', 'amount_off', 'bundle_price', 'starts_at', 'ends_at', 'max_orders', 'is_active',
         'gift_id', 'gift_quantity', 'min_subtotal', 'whole_series', 'free_delivery',
     ];
 
@@ -43,6 +46,7 @@ class Offer extends Model
             'min_quantity' => 'integer',
             'percent_off' => 'decimal:2',
             'amount_off' => 'decimal:2',
+            'bundle_price' => 'decimal:2',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'max_orders' => 'integer',
