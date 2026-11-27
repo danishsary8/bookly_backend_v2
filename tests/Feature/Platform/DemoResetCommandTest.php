@@ -26,9 +26,17 @@ class DemoResetCommandTest extends TestCase
         Notification::fake();
     }
 
-    /** Places an order through the real cart and checkout, then moves it back in time. */
+    /**
+     * Places an order through the real cart and checkout, then moves it back in time. The demo account may no longer
+     * check out itself (owner 2026-11-27), so its orders (left from before) are placed by a shopper and handed over.
+     */
     private function placeOrder(Customer $customer, BookVariant $variant, int $qty, int $minutesAgo): Order
     {
+        $owner = $customer;
+        if ($customer->email === 'demo@bookly.test') {
+            $customer = Customer::factory()->create();
+        }
+        $this->app['auth']->forgetGuards(); // a new shopper each time: don't reuse the last request's signed-in user
         $this->withToken($customer->createToken('t', ['customer'])->plainTextToken);
         $this->postJson('/api/v1/cart/items', ['book_variant_id' => $variant->id, 'quantity' => $qty])->assertCreated();
         $address = CustomerAddress::factory()->for($customer)->create();
@@ -37,7 +45,7 @@ class DemoResetCommandTest extends TestCase
         ])->assertCreated()->json('data.id');
 
         $order = Order::findOrFail($id);
-        $order->forceFill(['placed_at' => now()->subMinutes($minutesAgo)])->save();
+        $order->forceFill(['placed_at' => now()->subMinutes($minutesAgo), 'customer_id' => $owner->id])->save();
 
         return $order;
     }

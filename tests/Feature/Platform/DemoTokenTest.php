@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Models\BookVariant;
 use App\Models\Customer;
+use App\Models\CustomerAddress;
+use App\Models\Order;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -42,5 +45,26 @@ class DemoTokenTest extends TestCase
             $this->postJson('/api/v1/demo/token')->assertOk();
         }
         $this->postJson('/api/v1/demo/token')->assertStatus(429);
+    }
+
+    /** Owner 2026-11-27: visitors trying the docs must not create or change real orders with the shared demo account. */
+    public function test_the_demo_account_cannot_place_cancel_pay_or_return_orders(): void
+    {
+        $demo = Customer::factory()->create(['email' => DemoSeeder::EMAIL]);
+        $variant = BookVariant::factory()->create(['price_usd' => '9.90', 'stock_quantity' => 5]);
+        $address = CustomerAddress::factory()->create(['customer_id' => $demo->id]);
+        $this->withToken($this->postJson('/api/v1/demo/token')->assertOk()->json('token'));
+
+        $this->postJson('/api/v1/cart/items', ['book_variant_id' => $variant->id])->assertCreated(); // browsing and the cart stay open
+        $this->postJson('/api/v1/checkout/preview', ['address_id' => $address->id, 'payment_method' => 'cod'])->assertOk();
+        $this->withHeader('Idempotency-Key', 'demo-try-1')
+            ->postJson('/api/v1/checkout', ['address_id' => $address->id, 'payment_method' => 'cod'])->assertForbidden();
+        $this->assertSame(0, Order::count());
+        $this->assertSame(5, $variant->fresh()->stock_quantity);
+
+        foreach (['/api/v1/orders/1/cancel', '/api/v1/orders/1/payment/qr', '/api/v1/orders/1/payment/simulate', '/api/v1/orders/1/returns'] as $url) {
+            $this->postJson($url)->assertForbidden();
+        }
+        $this->deleteJson('/api/v1/returns/1')->assertForbidden();
     }
 }

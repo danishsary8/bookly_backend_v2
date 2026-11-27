@@ -256,21 +256,22 @@ Route::middleware(['auth:sanctum', 'abilities:customer', 'verified.customer'])->
     Route::post('/cart/coupon/check', CouponCheckController::class)->middleware('throttle:coupon-check');
 
     Route::post('/checkout/preview', [CheckoutController::class, 'preview'])->middleware('throttle:30,1');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:checkout');
+    // The shared demo account (docs one-click sign-in) never places, cancels, pays or returns real orders (owner 2026-11-27).
+    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware(['not.demo', 'throttle:checkout']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
-    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order')->middleware('not.demo');
     Route::post('/orders/{order}/reorder', [OrderController::class, 'reorder'])->whereNumber('order')->middleware('throttle:10,1');
     // KHQR payment page (KHQR payments design 3.3): the page asks every 3 seconds.
     Route::get('/orders/{order}/payment', [OrderPaymentController::class, 'show'])->whereNumber('order')->middleware('throttle:khqr-poll');
-    Route::post('/orders/{order}/payment/qr', [OrderPaymentController::class, 'qr'])->whereNumber('order')->middleware('throttle:khqr-action');
-    Route::post('/orders/{order}/payment/simulate', [OrderPaymentController::class, 'simulate'])->whereNumber('order')->middleware('throttle:khqr-action');
+    Route::post('/orders/{order}/payment/qr', [OrderPaymentController::class, 'qr'])->whereNumber('order')->middleware(['not.demo', 'throttle:khqr-action']);
+    Route::post('/orders/{order}/payment/simulate', [OrderPaymentController::class, 'simulate'])->whereNumber('order')->middleware(['not.demo', 'throttle:khqr-action']);
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->whereNumber('order')->middleware('throttle:30,1');
     Route::get('/orders/{order}/returnable-items', [ReturnController::class, 'returnable'])->whereNumber('order');
-    Route::post('/orders/{order}/returns', [ReturnController::class, 'store'])->whereNumber('order');
+    Route::post('/orders/{order}/returns', [ReturnController::class, 'store'])->whereNumber('order')->middleware('not.demo');
     Route::get('/returns', [ReturnController::class, 'index']);
     Route::get('/returns/{return}', [ReturnController::class, 'show'])->whereNumber('return');
-    Route::delete('/returns/{return}', [ReturnController::class, 'destroy'])->whereNumber('return');
+    Route::delete('/returns/{return}', [ReturnController::class, 'destroy'])->whereNumber('return')->middleware('not.demo');
 
     Route::get('/reviews', [CustomerReviewController::class, 'index']);
     Route::get('/orders/{order}/rating', [OrderRatingController::class, 'show'])->whereNumber('order');
