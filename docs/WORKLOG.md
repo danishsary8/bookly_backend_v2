@@ -842,3 +842,9 @@ Owner asked: support replies not reaching customers, real-looking data for the P
 - New `tools/bakong-relay/` (Node, no packages): forwards only `POST /v1/check_transaction_by_md5`; run it on a Cambodian-IP VPS and set `BAKONG_RELAY_URL` on Render (already supported by `BakongClient`).
 - Verified: PHP lint; relay smoke test (404 on other paths, 502 when Bakong unreachable). Full `php artisan test` not run here (sandbox PHP 8.3 can't install the lock file).
 - Owner: check the Health card reason; mark order 350 paid by hand; set up the relay or use `KHQR_MODE=test` meanwhile.
+
+## 2026-11-28 — Bakong 100 requests/day limit
+- Bakong's Open API allows 100 requests a day per token; the pay page asked every 3 s, so one open page used the day's quota in ~5 minutes and later payments never confirmed.
+- `KhqrPaymentService`: ask Bakong about an order at most every 20 s, and at most 95 times a day (Phnom Penh date); logs a warning when the daily cap is hit. Staff can still mark orders paid by hand.
+- `BakongClient` logs Bakong's answer when a payment is not found (PR #171) to confirm the cause.
+- Verified: PHP lint. Full test suite not run here (sandbox PHP too old for the lock file); test gap updated 4 s → 21 s.
