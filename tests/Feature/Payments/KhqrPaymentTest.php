@@ -183,7 +183,7 @@ class KhqrPaymentTest extends TestCase
             ->push(['responseCode' => 0, 'data' => ['hash' => 'abc123', 'amount' => (float) $payment->amount, 'currency' => 'USD', 'fromAccountId' => 'someone@aclb']])]);
 
         $this->asCustomer()->getJson("/api/v1/orders/{$id}/payment")->assertJsonPath('data.status', 'awaiting_payment');
-        Cache::forget("khqr-check:{$id}"); // the 3-second limit
+        Cache::forget("khqr-check:{$id}"); // the 20-second limit
         $this->asCustomer()->getJson("/api/v1/orders/{$id}/payment")->assertJsonPath('data.status', 'paid');
 
         Http::assertSent(fn ($request) => $request['md5'] === $payment->provider_transaction_id && $request->hasHeader('Authorization', 'Bearer '.self::TOKEN));
@@ -223,7 +223,7 @@ class KhqrPaymentTest extends TestCase
 
         for ($i = 0; $i < 3; $i++) {
             $this->asCustomer()->getJson("/api/v1/orders/{$id}/payment")->assertOk();
-            $this->travel(4)->seconds(); // past the 3-second gap, so Bakong is asked again each time
+            $this->travel(21)->seconds(); // past the 20-second gap, so Bakong is asked again each time
         }
 
         Exceptions::assertReportedCount(1);

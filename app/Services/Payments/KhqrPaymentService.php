@@ -75,6 +75,26 @@ class KhqrPaymentService
      * Brings a KHQR order up to date: in Bakong mode asks Bakong (at most every 3 seconds per order), and cancels the
      * order once its time is over (after one last check, so a payment in the final seconds is not lost).
      */
+    /** Bakong's Open API allows 100 requests a day per token: ask about one order at most every 20 seconds. */
+    private const CHECK_EVERY_SECONDS = 20;
+
+    /** Stop a little under Bakong's daily limit; staff can still mark orders paid by hand. */
+    private const DAILY_CHECKS = 95;
+
+    private static function takeDailyCheck(): bool
+    {
+        $key = 'bakong-checks:'.now('Asia/Phnom_Penh')->toDateString();
+        Cache::add($key, 0, now()->addDays(2));
+        if (Cache::increment($key) <= self::DAILY_CHECKS) {
+            return true;
+        }
+        if (Cache::add('bakong-daily-limit-logged:'.$key, true, now()->addDay())) {
+            Log::warning('Bakong daily check limit reached; KHQR payments will not confirm automatically until tomorrow', ['limit' => self::DAILY_CHECKS]);
+        }
+
+        return false;
+    }
+
     public function refresh(Order $order): Order
     {
         if ($order->payment_method !== PaymentMethod::Khqr || $order->status !== OrderStatus::Pending) {
@@ -82,7 +102,7 @@ class KhqrPaymentService
         }
 
         $over = now()->greaterThanOrEqualTo($this->deadline($order));
-        if (self::mode() === 'bakong' && ($over || Cache::add("khqr-check:{$order->id}", true, now()->addSeconds(3)))) {
+        if (self::mode() === 'bakong' && ($over || Cache::add("khqr-check:{$order->id}", true, now()->addSeconds(self::CHECK_EVERY_SECONDS))) && self::takeDailyCheck()) {
             $this->checkWithBakong($order);
             $order = $order->fresh();
         }
