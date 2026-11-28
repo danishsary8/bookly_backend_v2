@@ -102,7 +102,7 @@ class KhqrPaymentService
         }
 
         $over = now()->greaterThanOrEqualTo($this->deadline($order));
-        if (self::mode() === 'bakong' && ($over || Cache::add("khqr-check:{$order->id}", true, now()->addSeconds(self::CHECK_EVERY_SECONDS))) && self::takeDailyCheck()) {
+        if (self::mode() === 'bakong' && ($over || Cache::add("khqr-check:{$order->id}", true, now()->addSeconds(self::CHECK_EVERY_SECONDS)))) {
             $this->checkWithBakong($order);
             $order = $order->fresh();
         }
@@ -149,6 +149,9 @@ class KhqrPaymentService
     private function checkWithBakong(Order $order): void
     {
         foreach ($this->pendingQrs($order) as $payment) {
+            if (! self::takeDailyCheck()) {
+                return; // each Bakong request counts towards its 100-a-day limit
+            }
             try {
                 $transaction = $this->bakong->checkByMd5($payment->provider_transaction_id);
                 Cache::put(self::HEALTH_KEY, ['status' => 'ok', 'at' => now()->toIso8601String()], now()->addDay());
