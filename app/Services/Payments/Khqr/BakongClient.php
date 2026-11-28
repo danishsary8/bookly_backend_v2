@@ -3,7 +3,9 @@
 namespace App\Services\Payments\Khqr;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Asks the Bakong Open API whether a KHQR was paid (POST /v1/check_transaction_by_md5, KHQR payments design 3.2).
@@ -47,6 +49,16 @@ class BakongClient
         $body = $response->json();
         if ((int) ($body['responseCode'] ?? 1) === 0 && is_array($body['data'] ?? null)) {
             return $body['data'];
+        }
+
+        // Pages poll every few seconds: log Bakong's answer for each QR at most once per 5 minutes.
+        if (Cache::add("bakong-not-paid-logged:{$md5}", true, now()->addMinutes(5))) {
+            Log::info('Bakong says not paid', [
+                'md5' => $md5,
+                'responseCode' => $body['responseCode'] ?? null,
+                'errorCode' => $body['errorCode'] ?? null,
+                'responseMessage' => $body['responseMessage'] ?? null,
+            ]);
         }
 
         return null; // "Transaction could not be found": not paid yet
