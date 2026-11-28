@@ -22,6 +22,7 @@ use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -133,6 +134,10 @@ class KhqrPaymentService
                 Cache::put(self::HEALTH_KEY, ['status' => 'ok', 'at' => now()->toIso8601String()], now()->addDay());
             } catch (BakongUnavailable $e) {
                 Cache::put(self::HEALTH_KEY, ['status' => $e->reason, 'at' => now()->toIso8601String()], now()->addDay());
+                // Pages poll every few seconds: log each failure reason at most once per 10 minutes.
+                if (Cache::add("khqr-bakong-failure-logged:{$e->reason}", true, now()->addMinutes(10))) {
+                    Log::warning('Bakong check failed', ['reason' => $e->reason, 'message' => $e->getMessage(), 'order_id' => $order->id]);
+                }
 
                 return;
             }
